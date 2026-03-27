@@ -1,0 +1,64 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "slop-slop-slop",
+    },
+    "packages/consumer": {
+      "name": "@slop/consumer",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/types": "workspace:*",
+      },
+    },
+    "packages/demo-agent": {
+      "name": "demo-agent",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/consumer": "workspace:*",
+        "@slop/types": "workspace:*",
+      },
+    },
+    "packages/demo-app": {
+      "name": "demo-app",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/provider": "workspace:*",
+        "@slop/types": "workspace:*",
+      },
+    },
+    "packages/demo-consumer": {
+      "name": "demo-consumer",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/consumer": "workspace:*",
+        "@slop/types": "workspace:*",
+      },
+    },
+    "packages/provider": {
+      "name": "@slop/provider",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/types": "workspace:*",
+      },
+    },
+    "packages/types": {
+      "name": "@slop/types",
+      "version": "0.1.0",
+    },
+  },
+  "packages": {
+    "@slop/consumer": ["@slop/consumer@workspace:packages/consumer"],
+
+    "@slop/provider": ["@slop/provider@workspace:packages/provider"],
+
+    "@slop/types": ["@slop/types@workspace:packages/types"],
+
+    "demo-agent": ["demo-agent@workspace:packages/demo-agent"],
+
+    "demo-app": ["demo-app@workspace:packages/demo-app"],
+
+    "demo-consumer": ["demo-consumer@workspace:packages/demo-consumer"],
+  }
+}

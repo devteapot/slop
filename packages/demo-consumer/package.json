@@ -1,0 +1,10 @@
+{
+  "name": "demo-consumer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@slop/consumer": "workspace:*",
+    "@slop/types": "workspace:*"
+  }
+}

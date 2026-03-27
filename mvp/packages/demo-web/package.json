@@ -1,0 +1,10 @@
+{
+  "name": "demo-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@slop/provider": "workspace:*",
+    "@slop/types": "workspace:*"
+  }
+}

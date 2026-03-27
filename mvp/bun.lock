@@ -36,6 +36,14 @@
         "@slop/types": "workspace:*",
       },
     },
+    "packages/demo-web": {
+      "name": "demo-web",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/provider": "workspace:*",
+        "@slop/types": "workspace:*",
+      },
+    },
     "packages/provider": {
       "name": "@slop/provider",
       "version": "0.1.0",
@@ -60,5 +68,7 @@
     "demo-app": ["demo-app@workspace:packages/demo-app"],
 
     "demo-consumer": ["demo-consumer@workspace:packages/demo-consumer"],
+
+    "demo-web": ["demo-web@workspace:packages/demo-web"],
   }
 }

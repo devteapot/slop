@@ -36,6 +36,22 @@
         "@slop/types": "workspace:*",
       },
     },
+    "packages/demo-extension": {
+      "name": "demo-extension",
+      "version": "0.1.0",
+    },
+    "packages/demo-spa": {
+      "name": "demo-spa",
+      "version": "0.1.0",
+      "dependencies": {
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+      },
+    },
     "packages/demo-web": {
       "name": "demo-web",
       "version": "0.1.0",
@@ -63,12 +79,28 @@
 
     "@slop/types": ["@slop/types@workspace:packages/types"],
 
+    "@types/react": ["@types/react@19.2.14", "", { "dependencies": { "csstype": "^3.2.2" } }, "sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w=="],
+
+    "@types/react-dom": ["@types/react-dom@19.2.3", "", { "peerDependencies": { "@types/react": "^19.2.0" } }, "sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ=="],
+
+    "csstype": ["csstype@3.2.3", "", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
+
     "demo-agent": ["demo-agent@workspace:packages/demo-agent"],
 
     "demo-app": ["demo-app@workspace:packages/demo-app"],
 
     "demo-consumer": ["demo-consumer@workspace:packages/demo-consumer"],
 
+    "demo-extension": ["demo-extension@workspace:packages/demo-extension"],
+
+    "demo-spa": ["demo-spa@workspace:packages/demo-spa"],
+
     "demo-web": ["demo-web@workspace:packages/demo-web"],
+
+    "react": ["react@19.2.4", "", {}, "sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ=="],
+
+    "react-dom": ["react-dom@19.2.4", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.4" } }, "sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ=="],
+
+    "scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
   }
 }

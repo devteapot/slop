@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="slop" content="postmessage">
+<title>Notes App (SLOP SPA Demo)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; }
+
+  .app { display: flex; height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { width: 240px; background: #161b22; border-right: 1px solid #30363d; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .sidebar h1 { font-size: 18px; padding: 0 8px 16px; }
+  .sidebar nav { display: flex; flex-direction: column; gap: 2px; }
+  .folder-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: none; border: none; color: #8b949e; padding: 8px 10px;
+    border-radius: 6px; cursor: pointer; font-size: 13px; text-align: left; width: 100%;
+  }
+  .folder-btn:hover { background: #1c2028; color: #e1e4e8; }
+  .folder-btn.active { background: #1f6feb22; color: #58a6ff; }
+  .folder-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .folder-btn .count { margin-left: auto; font-size: 11px; background: #30363d; padding: 1px 6px; border-radius: 8px; }
+
+  /* Content */
+  .content { flex: 1; padding: 24px; overflow-y: auto; }
+  .content header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .content h2 { font-size: 20px; }
+  .btn-primary { background: #238636; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-primary:hover { background: #2ea043; }
+
+  /* Notes grid */
+  .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .note-card {
+    background: #1c2028; border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+    transition: border-color 0.15s; position: relative;
+  }
+  .note-card:hover { border-color: #484f58; }
+  .note-card.editing { border-color: #58a6ff; }
+  .card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .folder-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .pin-icon { color: #f59e0b; font-size: 14px; }
+  .note-card h3 { font-size: 15px; margin-bottom: 6px; font-weight: 600; }
+  .note-card p { font-size: 13px; color: #8b949e; line-height: 1.5; }
+  .card-actions {
+    display: flex; gap: 4px; margin-top: 12px; opacity: 0; transition: opacity 0.15s;
+  }
+  .note-card:hover .card-actions, .note-card.editing .card-actions { opacity: 1; }
+  .btn-icon {
+    background: #30363d; border: none; color: #8b949e; width: 28px; height: 28px;
+    border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .btn-icon:hover { background: #484f58; color: #e1e4e8; }
+  .btn-icon.danger:hover { background: #da3633; color: #fff; }
+  .btn-small { background: #30363d; border: none; color: #8b949e; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .btn-small:hover { background: #484f58; color: #e1e4e8; }
+  .btn-small.btn-primary { background: #238636; color: #fff; }
+
+  /* Edit mode */
+  .edit-title { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; padding: 8px; border-radius: 4px; font-size: 15px; font-weight: 600; margin-bottom: 8px; font-family: inherit; }
+  .edit-content { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; padding: 8px; border-radius: 4px; font-size: 13px; height: 80px; resize: vertical; font-family: inherit; }
+  .edit-title:focus, .edit-content:focus { outline: none; border-color: #58a6ff; }
+
+  /* New note form */
+  .new-note-form {
+    background: #1c2028; border: 1px solid #58a6ff; border-radius: 8px; padding: 16px;
+    margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .new-note-form input, .new-note-form textarea {
+    width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8;
+    padding: 10px; border-radius: 6px; font-size: 14px; font-family: inherit;
+  }
+  .new-note-form textarea { height: 80px; resize: vertical; }
+  .new-note-form input:focus, .new-note-form textarea:focus { outline: none; border-color: #58a6ff; }
+  .form-actions { display: flex; gap: 8px; }
+  .form-actions button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; color: #8b949e; background: #30363d; }
+  .form-actions button:hover { color: #e1e4e8; }
+  .form-actions .btn-primary { background: #238636; color: #fff; }
+
+  .empty { color: #484f58; font-size: 14px; grid-column: 1 / -1; text-align: center; padding: 40px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="/app.js"></script>
+</body>
+</html>

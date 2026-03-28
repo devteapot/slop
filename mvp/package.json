@@ -7,6 +7,7 @@
     "demo": "bun run packages/demo-app/src/index.ts",
     "demo:consumer": "bun run packages/demo-consumer/src/index.ts",
     "demo:agent": "bun run packages/demo-agent/src/index.ts",
-    "demo:web": "bun run packages/demo-web/src/index.ts"
+    "demo:web": "bun run packages/demo-web/src/index.ts",
+    "demo:spa": "bun run packages/demo-spa/serve.ts"
   }
 }

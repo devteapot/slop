@@ -83,6 +83,15 @@
         "@types/react-dom": "^19.0.0",
       },
     },
+    "packages/demo-unix-socket": {
+      "name": "demo-unix-socket",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop/provider": "workspace:*",
+        "@slop/types": "workspace:*",
+        "electron": "^36.0.0",
+      },
+    },
     "packages/demo-web": {
       "name": "demo-web",
       "version": "0.1.0",
@@ -367,6 +376,8 @@
     "demo-extension": ["demo-extension@workspace:packages/demo-extension"],
 
     "demo-spa": ["demo-spa@workspace:packages/demo-spa"],
+
+    "demo-unix-socket": ["demo-unix-socket@workspace:packages/demo-unix-socket"],
 
     "demo-web": ["demo-web@workspace:packages/demo-web"],
 

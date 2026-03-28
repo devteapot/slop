@@ -3,11 +3,13 @@ import { invoke } from "@tauri-apps/api/core";
 import type { SlopNode } from "../slop/types";
 import { SlopConsumer } from "../slop/consumer";
 import { WebSocketClientTransport } from "../slop/transport-ws";
+import { UnixClientTransport } from "../slop/transport-unix";
 
 export interface ProviderEntry {
   id: string;
   name: string;
-  url: string;
+  transportType: "ws" | "unix";
+  url: string;        // WebSocket URL or Unix socket path
   status: "disconnected" | "connecting" | "connected";
   consumer: SlopConsumer | null;
   subscriptionId: string | null;
@@ -18,7 +20,7 @@ export interface ProviderEntry {
 
 const MANUAL_PROVIDERS_KEY = "slopManualProviders";
 
-function loadManualProviders(): { id: string; name: string; url: string }[] {
+function loadManualProviders(): { id: string; name: string; url: string; transportType: "ws" | "unix" }[] {
   try {
     const raw = localStorage.getItem(MANUAL_PROVIDERS_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -27,7 +29,7 @@ function loadManualProviders(): { id: string; name: string; url: string }[] {
   }
 }
 
-function saveManualProviders(providers: { id: string; name: string; url: string }[]) {
+function saveManualProviders(providers: { id: string; name: string; url: string; transportType: "ws" | "unix" }[]) {
   localStorage.setItem(MANUAL_PROVIDERS_KEY, JSON.stringify(providers));
 }
 
@@ -62,22 +64,37 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
         const providers = new Map(state.providers);
         for (const desc of descriptors) {
           const id = `discovered-${desc.id ?? desc.name ?? Math.random().toString(36).slice(2)}`;
-          if (!providers.has(id)) {
-            const transport = desc.transports?.[0];
-            const url = transport?.url ?? transport?.endpoint ?? "";
-            if (url && (url.startsWith("ws://") || url.startsWith("wss://"))) {
-              providers.set(id, {
-                id,
-                name: desc.name ?? id,
-                url,
-                status: "disconnected",
-                consumer: null,
-                subscriptionId: null,
-                currentTree: null,
-                providerName: null,
-                source: "discovered",
-              });
-            }
+          if (providers.has(id)) continue;
+
+          const transport = desc.transport; // singular — matches ProviderDescriptor format
+          if (!transport) continue;
+
+          if (transport.type === "ws" && transport.url) {
+            providers.set(id, {
+              id,
+              name: desc.name ?? id,
+              transportType: "ws",
+              url: transport.url,
+              status: "disconnected",
+              consumer: null,
+              subscriptionId: null,
+              currentTree: null,
+              providerName: null,
+              source: "discovered",
+            });
+          } else if (transport.type === "unix" && transport.path) {
+            providers.set(id, {
+              id,
+              name: desc.name ?? id,
+              transportType: "unix",
+              url: transport.path,
+              status: "disconnected",
+              consumer: null,
+              subscriptionId: null,
+              currentTree: null,
+              providerName: null,
+              source: "discovered",
+            });
           }
         }
         return { providers };
@@ -95,6 +112,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
           providers.set(m.id, {
             id: m.id,
             name: m.name,
+            transportType: m.transportType ?? "ws",
             url: m.url,
             status: "disconnected",
             consumer: null,
@@ -111,9 +129,11 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
 
   addManualProvider: (url, name) => {
     const id = `manual-${Date.now()}`;
+    const transportType = url.startsWith("ws://") || url.startsWith("wss://") ? "ws" as const : "unix" as const;
     const entry: ProviderEntry = {
       id,
       name: name ?? url,
+      transportType,
       url,
       status: "disconnected",
       consumer: null,
@@ -125,9 +145,8 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
     set(state => {
       const providers = new Map(state.providers);
       providers.set(id, entry);
-      // Persist manual providers
       const manual = loadManualProviders();
-      manual.push({ id, name: entry.name, url });
+      manual.push({ id, name: entry.name, url, transportType });
       saveManualProviders(manual);
       return { providers };
     });
@@ -142,7 +161,6 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       const providers = new Map(state.providers);
       providers.delete(id);
       const activeProviderId = state.activeProviderId === id ? null : state.activeProviderId;
-      // Update persisted manual providers
       const manual = loadManualProviders().filter(m => m.id !== id);
       saveManualProviders(manual);
       return { providers, activeProviderId };
@@ -154,7 +172,6 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
     const entry = providers.get(id);
     if (!entry) return;
 
-    // Disconnect existing connection
     if (entry.consumer) {
       entry.consumer.disconnect();
     }
@@ -167,7 +184,10 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
     });
 
     try {
-      const transport = new WebSocketClientTransport(entry.url);
+      const transport = entry.transportType === "unix"
+        ? new UnixClientTransport(entry.url)
+        : new WebSocketClientTransport(entry.url);
+
       const consumer = new SlopConsumer(transport);
       const hello = await consumer.connect();
       const { id: subId, snapshot } = await consumer.subscribe("/", -1);

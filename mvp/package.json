@@ -10,6 +10,7 @@
     "demo:web": "bun run packages/demo-web/src/index.ts",
     "demo:spa": "bun run packages/demo-spa/serve.ts",
     "demo:desktop": "cd packages/demo-desktop && bunx tauri dev",
-    "demo:electron": "cd packages/demo-electron && bun run dev"
+    "demo:electron": "cd packages/demo-electron && bun run dev",
+    "demo:unix-socket": "cd packages/demo-unix-socket && bun run dev"
   }
 }

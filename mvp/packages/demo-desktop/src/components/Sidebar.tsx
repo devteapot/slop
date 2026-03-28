@@ -55,7 +55,7 @@ export function Sidebar() {
       <div className="provider-list">
         {entries.length === 0 && (
           <div style={{ padding: "16px", color: "#6e7681", fontSize: "12px", textAlign: "center" }}>
-            No providers yet. Add a WebSocket URL below.
+            No providers yet. Add a WebSocket URL or socket path below.
           </div>
         )}
         {entries.map(entry => (
@@ -67,6 +67,9 @@ export function Sidebar() {
             <span className={`status-dot ${entry.status}`} />
             <span className="name" title={entry.url}>
               {entry.providerName ?? entry.name}
+            </span>
+            <span style={{ fontSize: "10px", color: "#6e7681", flexShrink: 0 }}>
+              {entry.transportType === "unix" ? "sock" : "ws"}
             </span>
             {entry.status === "connected" && (
               <button
@@ -93,7 +96,7 @@ export function Sidebar() {
         <form onSubmit={handleAdd}>
           <input
             type="text"
-            placeholder="ws://localhost:3737/slop"
+            placeholder="ws://... or /tmp/slop/..."
             value={url}
             onChange={e => setUrl(e.target.value)}
           />

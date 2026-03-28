@@ -48,6 +48,7 @@ The full specification is in [`spec/`](./spec/):
 7. [Adapters](./spec/07-adapters.md)
 8. [Web Integration](./spec/08-web-integration.md)
 9. [Scaling](./spec/09-scaling.md)
+10. [Desktop Integration](./spec/10-desktop-integration.md)
 
 ## MVP
 

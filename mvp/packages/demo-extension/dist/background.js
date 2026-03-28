@@ -368,25 +368,52 @@
       };
     }
   }
+  // src/shared/messages.ts
+  var DEFAULT_PROFILE = {
+    id: "default",
+    name: "Ollama Local",
+    llmProvider: "ollama",
+    endpoint: "http://localhost:11434",
+    apiKey: "",
+    model: "qwen2.5:14b"
+  };
+  var DEFAULT_STORAGE = {
+    profiles: [DEFAULT_PROFILE],
+    activeProfileId: "default"
+  };
+  function getActiveProfile(storage) {
+    return storage.profiles.find((p) => p.id === storage.activeProfileId) ?? storage.profiles[0] ?? DEFAULT_PROFILE;
+  }
+
   // src/background/llm.ts
-  async function getSettings() {
-    const result = await chrome.storage.sync.get("settings");
-    return result.settings ?? {
-      llmProvider: "ollama",
-      endpoint: "http://localhost:11434",
-      apiKey: "",
-      model: "qwen2.5:14b"
-    };
+  async function getStorage() {
+    const result = await chrome.storage.sync.get("slopStorage");
+    return result.slopStorage ?? DEFAULT_STORAGE;
+  }
+  async function saveStorage(storage) {
+    await chrome.storage.sync.set({ slopStorage: storage });
   }
   async function chatCompletion(messages, tools) {
-    const settings = await getSettings();
-    const url = `${settings.endpoint}/v1/chat/completions`;
+    const storage = await getStorage();
+    const profile = getActiveProfile(storage);
+    if (profile.llmProvider === "gemini") {
+      return geminiChatCompletion(profile, messages, tools);
+    }
+    return openaiChatCompletion(profile, messages, tools);
+  }
+  async function openaiChatCompletion(profile, messages, tools) {
+    const endpoint = profile.llmProvider === "openrouter" ? "https://openrouter.ai/api" : profile.endpoint;
+    const url = `${endpoint}/v1/chat/completions`;
     const headers = { "Content-Type": "application/json" };
-    if (settings.apiKey) {
-      headers["Authorization"] = `Bearer ${settings.apiKey}`;
+    if (profile.apiKey) {
+      headers["Authorization"] = `Bearer ${profile.apiKey}`;
+    }
+    if (profile.llmProvider === "openrouter") {
+      headers["HTTP-Referer"] = "https://github.com/anthropics/slop";
+      headers["X-Title"] = "SLOP Extension";
     }
     const body = {
-      model: settings.model,
+      model: profile.model,
       messages,
       stream: false
     };
@@ -399,6 +426,166 @@
     }
     const data = await res.json();
     return data.choices[0].message;
+  }
+  async function geminiChatCompletion(profile, messages, tools) {
+    const baseUrl = profile.endpoint || "https://generativelanguage.googleapis.com";
+    const url = `${baseUrl}/v1beta/models/${profile.model}:generateContent?key=${profile.apiKey}`;
+    const contents = [];
+    let systemInstruction = undefined;
+    for (const msg of messages) {
+      if (msg.role === "system") {
+        systemInstruction = { parts: [{ text: msg.content }] };
+        continue;
+      }
+      if (msg.role === "user") {
+        contents.push({ role: "user", parts: [{ text: msg.content }] });
+      } else if (msg.role === "assistant") {
+        const parts2 = [];
+        if (msg.content)
+          parts2.push({ text: msg.content });
+        if (msg.tool_calls) {
+          for (const tc of msg.tool_calls) {
+            parts2.push({
+              functionCall: {
+                name: tc.function.name,
+                args: JSON.parse(tc.function.arguments || "{}")
+              }
+            });
+          }
+        }
+        contents.push({ role: "model", parts: parts2 });
+      } else if (msg.role === "tool") {
+        contents.push({
+          role: "function",
+          parts: [{
+            functionResponse: {
+              name: msg.tool_call_id ?? "unknown",
+              response: { content: msg.content }
+            }
+          }]
+        });
+      }
+    }
+    const geminiTools = [];
+    if (tools.length > 0) {
+      geminiTools.push({
+        functionDeclarations: tools.map((t) => ({
+          name: t.function.name,
+          description: t.function.description,
+          parameters: convertSchemaForGemini(t.function.parameters)
+        }))
+      });
+    }
+    const body = { contents };
+    if (systemInstruction)
+      body.systemInstruction = systemInstruction;
+    if (geminiTools.length > 0)
+      body.tools = geminiTools;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Gemini error ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const candidate = data.candidates?.[0];
+    if (!candidate?.content?.parts) {
+      throw new Error("No response from Gemini");
+    }
+    const parts = candidate.content.parts;
+    const textParts = parts.filter((p) => p.text).map((p) => p.text);
+    const functionCalls = parts.filter((p) => p.functionCall);
+    const result = {
+      role: "assistant",
+      content: textParts.join("") || ""
+    };
+    if (functionCalls.length > 0) {
+      result.tool_calls = functionCalls.map((fc, i) => ({
+        id: fc.functionCall.name,
+        type: "function",
+        function: {
+          name: fc.functionCall.name,
+          arguments: JSON.stringify(fc.functionCall.args ?? {})
+        }
+      }));
+    }
+    return result;
+  }
+  function convertSchemaForGemini(schema) {
+    const result = { type: schema.type ?? "object" };
+    if (schema.properties) {
+      const props = {};
+      for (const [key, val] of Object.entries(schema.properties)) {
+        props[key] = { type: val.type ?? "string", description: val.description };
+        if (val.enum)
+          props[key] = { ...props[key], enum: val.enum };
+      }
+      result.properties = props;
+    }
+    if (schema.required)
+      result.required = schema.required;
+    return result;
+  }
+  async function fetchModels() {
+    const storage = await getStorage();
+    const profile = getActiveProfile(storage);
+    try {
+      switch (profile.llmProvider) {
+        case "ollama": {
+          const res = await fetch(`${profile.endpoint}/api/tags`);
+          if (!res.ok)
+            throw new Error(`${res.status}`);
+          const data = await res.json();
+          return (data.models ?? []).map((m) => m.name);
+        }
+        case "openai": {
+          const headers = {};
+          if (profile.apiKey)
+            headers["Authorization"] = `Bearer ${profile.apiKey}`;
+          const res = await fetch(`${profile.endpoint}/v1/models`, { headers });
+          if (!res.ok)
+            throw new Error(`${res.status}`);
+          const data = await res.json();
+          return (data.data ?? []).map((m) => m.id).sort();
+        }
+        case "openrouter": {
+          const headers = {
+            "HTTP-Referer": "https://github.com/anthropics/slop"
+          };
+          if (profile.apiKey)
+            headers["Authorization"] = `Bearer ${profile.apiKey}`;
+          const res = await fetch("https://openrouter.ai/api/v1/models", { headers });
+          if (!res.ok)
+            throw new Error(`${res.status}`);
+          const data = await res.json();
+          return (data.data ?? []).map((m) => m.id).sort();
+        }
+        case "gemini": {
+          const baseUrl = profile.endpoint || "https://generativelanguage.googleapis.com";
+          const res = await fetch(`${baseUrl}/v1beta/models?key=${profile.apiKey}`);
+          if (!res.ok)
+            throw new Error(`${res.status}`);
+          const data = await res.json();
+          return (data.models ?? []).filter((m) => m.supportedGenerationMethods?.includes("generateContent")).map((m) => m.name.replace("models/", "")).sort();
+        }
+        default:
+          return [];
+      }
+    } catch (err) {
+      console.error("Failed to fetch models:", err.message);
+      return profile.model ? [profile.model] : [];
+    }
+  }
+  async function setActiveModel(model) {
+    const storage = await getStorage();
+    const profile = storage.profiles.find((p) => p.id === storage.activeProfileId);
+    if (profile) {
+      profile.model = model;
+      await saveStorage(storage);
+    }
   }
 
   // src/background/slop-manager.ts
@@ -427,18 +614,14 @@ You are running inside a browser extension chat panel. Keep responses concise.`;
       const consumer = new SlopConsumer(clientTransport);
       const hello = await consumer.connect();
       const { id: subId, snapshot } = await consumer.subscribe("/", -1);
-      const existingConversation = tabs.get(tabId)?.conversation;
       const state = {
         consumer,
         subscriptionId: subId,
         currentTree: snapshot,
         port,
-        conversation: existingConversation ?? [{ role: "system", content: SYSTEM_PROMPT }],
+        conversation: [{ role: "system", content: SYSTEM_PROMPT }],
         providerName: hello.provider.name,
-        processing: false,
-        transport,
-        endpoint,
-        reconnecting: false
+        processing: false
       };
       tabs.set(tabId, state);
       sendToPort(port, {
@@ -452,27 +635,12 @@ You are running inside a browser extension chat panel. Keep responses concise.`;
         pushStateUpdate(state);
       });
       consumer.on("disconnect", () => {
-        if (!state.reconnecting) {
-          state.reconnecting = true;
-          sendToPort(port, { type: "connection-status", status: "connecting" });
-          setTimeout(() => {
-            reconnectTab(tabId);
-          }, 1000);
-        }
+        sendToPort(port, { type: "connection-status", status: "disconnected" });
+        tabs.delete(tabId);
       });
     } catch (err) {
       sendToPort(port, { type: "connection-status", status: "disconnected" });
       sendToPort(port, { type: "chat-error", message: `Connection failed: ${err.message}` });
-    }
-  }
-  async function reconnectTab(tabId) {
-    const state = tabs.get(tabId);
-    if (!state)
-      return;
-    try {
-      await connectTab(tabId, state.port, state.transport, state.endpoint);
-    } catch {
-      setTimeout(() => reconnectTab(tabId), 3000);
     }
   }
   function disconnectTab(tabId) {
@@ -586,6 +754,43 @@ ${formatTree(state.currentTree)}`;
               toolCount: affordancesToTools2(state.currentTree).length
             });
           }
+          break;
+        }
+        case "get-profiles": {
+          const storage = await getStorage();
+          port.postMessage({
+            type: "profiles",
+            profiles: storage.profiles,
+            activeProfileId: storage.activeProfileId
+          });
+          break;
+        }
+        case "set-active-profile": {
+          const storage = await getStorage();
+          if (storage.profiles.some((p) => p.id === msg.profileId)) {
+            storage.activeProfileId = msg.profileId;
+            await saveStorage(storage);
+            port.postMessage({
+              type: "profiles",
+              profiles: storage.profiles,
+              activeProfileId: storage.activeProfileId
+            });
+            const models = await fetchModels();
+            const profile = getActiveProfile(storage);
+            port.postMessage({ type: "models", models, activeModel: profile.model });
+          }
+          break;
+        }
+        case "fetch-models": {
+          const models = await fetchModels();
+          const storage = await getStorage();
+          const profile = getActiveProfile(storage);
+          port.postMessage({ type: "models", models, activeModel: profile.model });
+          break;
+        }
+        case "set-model": {
+          await setActiveModel(msg.model);
+          port.postMessage({ type: "models", models: [], activeModel: msg.model });
           break;
         }
         case "slop-from-provider":

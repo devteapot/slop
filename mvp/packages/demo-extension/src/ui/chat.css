@@ -91,6 +91,28 @@
 }
 .slop-header button:hover { color: #e1e4e8; background: #30363d; }
 
+.slop-model-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.profile-select, .model-select {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.profile-select { flex: 0 0 auto; max-width: 140px; }
+.model-select { flex: 1; min-width: 0; }
+.profile-select:focus, .model-select:focus { outline: none; border-color: #58a6ff; color: #e1e4e8; }
+
 .slop-tree-drawer {
   max-height: 150px;
   overflow-y: auto;

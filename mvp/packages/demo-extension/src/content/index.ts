@@ -34,6 +34,18 @@ function setup(discovery: SlopDiscovery) {
     onRequestState: () => {
       port?.postMessage({ type: "get-state" } satisfies ContentMessage);
     },
+    onSwitchProfile: (profileId) => {
+      port?.postMessage({ type: "set-active-profile", profileId } satisfies ContentMessage);
+    },
+    onRequestProfiles: () => {
+      port?.postMessage({ type: "get-profiles" } satisfies ContentMessage);
+    },
+    onFetchModels: () => {
+      port?.postMessage({ type: "fetch-models" } satisfies ContentMessage);
+    },
+    onSelectModel: (model) => {
+      port?.postMessage({ type: "set-model", model } satisfies ContentMessage);
+    },
   });
 
   // Listen for background messages
@@ -56,6 +68,12 @@ function setup(discovery: SlopDiscovery) {
       case "chat-error":
         chatUI.addMessage("assistant", `Error: ${msg.message}`);
         chatUI.setInputEnabled(true);
+        break;
+      case "profiles":
+        chatUI.setProfiles(msg.profiles, msg.activeProfileId);
+        break;
+      case "models":
+        chatUI.setModels(msg.models, msg.activeModel);
         break;
     }
   });

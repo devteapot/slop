@@ -1,8 +1,13 @@
 import chatCssText from "./chat.css" with { type: "text" };
+import type { LlmProfile } from "../shared/messages";
 
 interface ChatCallbacks {
   onSendMessage: (text: string) => void;
   onRequestState: () => void;
+  onSwitchProfile: (profileId: string) => void;
+  onRequestProfiles: () => void;
+  onFetchModels: () => void;
+  onSelectModel: (model: string) => void;
 }
 
 interface ChatUI {
@@ -10,6 +15,8 @@ interface ChatUI {
   setTree: (formattedTree: string, toolCount: number) => void;
   addMessage: (role: "user" | "assistant" | "tool-progress", content: string) => void;
   setInputEnabled: (enabled: boolean) => void;
+  setProfiles: (profiles: LlmProfile[], activeProfileId: string) => void;
+  setModels: (models: string[], activeModel: string) => void;
 }
 
 export function createChatUI(callbacks: ChatCallbacks): ChatUI {
@@ -57,6 +64,17 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
   `;
   panel.appendChild(header);
 
+  // Model bar
+  const modelBar = document.createElement("div");
+  modelBar.className = "slop-model-bar";
+  modelBar.innerHTML = `
+    <select id="slop-profile-select" class="profile-select" title="Connection"></select>
+    <select id="slop-model-select" class="model-select" title="Model">
+      <option value="">Loading models...</option>
+    </select>
+  `;
+  panel.appendChild(modelBar);
+
   // Tree drawer
   const treeDrawer = document.createElement("div");
   treeDrawer.className = "slop-tree-drawer hidden";
@@ -87,6 +105,20 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
   // Event wiring
   const closeBtn = shadow.getElementById("slop-close")!;
   closeBtn.onclick = () => { panelOpen = false; panel.classList.add("hidden"); };
+
+  const profileSelect = shadow.getElementById("slop-profile-select") as HTMLSelectElement;
+  profileSelect.onchange = () => {
+    callbacks.onSwitchProfile(profileSelect.value);
+  };
+
+  const modelSelect = shadow.getElementById("slop-model-select") as HTMLSelectElement;
+  modelSelect.onchange = () => {
+    callbacks.onSelectModel(modelSelect.value);
+  };
+
+  // Request profiles + models on init
+  callbacks.onRequestProfiles();
+  callbacks.onFetchModels();
 
   const treeToggle = shadow.getElementById("slop-tree-toggle")!;
   treeToggle.onclick = () => {
@@ -146,6 +178,41 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
       input.disabled = !enabled;
       sendBtn.disabled = !enabled;
       if (enabled) input.focus();
+    },
+
+    setProfiles(profiles, activeProfileId) {
+      profileSelect.innerHTML = "";
+      for (const p of profiles) {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        opt.selected = p.id === activeProfileId;
+        profileSelect.appendChild(opt);
+      }
+    },
+
+    setModels(models, activeModel) {
+      // If models list is empty but activeModel exists, keep current options
+      if (models.length === 0 && activeModel) {
+        modelSelect.value = activeModel;
+        return;
+      }
+      modelSelect.innerHTML = "";
+      for (const m of models) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        opt.selected = m === activeModel;
+        modelSelect.appendChild(opt);
+      }
+      // If active model isn't in the list, add it at the top
+      if (activeModel && !models.includes(activeModel)) {
+        const opt = document.createElement("option");
+        opt.value = activeModel;
+        opt.textContent = activeModel;
+        opt.selected = true;
+        modelSelect.prepend(opt);
+      }
     },
   };
 }

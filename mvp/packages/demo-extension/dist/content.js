@@ -136,6 +136,28 @@
 }
 .slop-header button:hover { color: #e1e4e8; background: #30363d; }
 
+.slop-model-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.profile-select, .model-select {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.profile-select { flex: 0 0 auto; max-width: 140px; }
+.model-select { flex: 1; min-width: 0; }
+.profile-select:focus, .model-select:focus { outline: none; border-color: #58a6ff; color: #e1e4e8; }
+
 .slop-tree-drawer {
   max-height: 150px;
   overflow-y: auto;
@@ -263,6 +285,15 @@
     <button id="slop-close" title="Close">&times;</button>
   `;
     panel.appendChild(header);
+    const modelBar = document.createElement("div");
+    modelBar.className = "slop-model-bar";
+    modelBar.innerHTML = `
+    <select id="slop-profile-select" class="profile-select" title="Connection"></select>
+    <select id="slop-model-select" class="model-select" title="Model">
+      <option value="">Loading models...</option>
+    </select>
+  `;
+    panel.appendChild(modelBar);
     const treeDrawer = document.createElement("div");
     treeDrawer.className = "slop-tree-drawer hidden";
     treeDrawer.textContent = "No state available";
@@ -288,6 +319,16 @@
       panelOpen = false;
       panel.classList.add("hidden");
     };
+    const profileSelect = shadow.getElementById("slop-profile-select");
+    profileSelect.onchange = () => {
+      callbacks.onSwitchProfile(profileSelect.value);
+    };
+    const modelSelect = shadow.getElementById("slop-model-select");
+    modelSelect.onchange = () => {
+      callbacks.onSelectModel(modelSelect.value);
+    };
+    callbacks.onRequestProfiles();
+    callbacks.onFetchModels();
     const treeToggle = shadow.getElementById("slop-tree-toggle");
     treeToggle.onclick = () => {
       treeVisible = !treeVisible;
@@ -344,6 +385,37 @@
         sendBtn.disabled = !enabled;
         if (enabled)
           input.focus();
+      },
+      setProfiles(profiles, activeProfileId) {
+        profileSelect.innerHTML = "";
+        for (const p of profiles) {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = p.name;
+          opt.selected = p.id === activeProfileId;
+          profileSelect.appendChild(opt);
+        }
+      },
+      setModels(models, activeModel) {
+        if (models.length === 0 && activeModel) {
+          modelSelect.value = activeModel;
+          return;
+        }
+        modelSelect.innerHTML = "";
+        for (const m of models) {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          opt.selected = m === activeModel;
+          modelSelect.appendChild(opt);
+        }
+        if (activeModel && !models.includes(activeModel)) {
+          const opt = document.createElement("option");
+          opt.value = activeModel;
+          opt.textContent = activeModel;
+          opt.selected = true;
+          modelSelect.prepend(opt);
+        }
       }
     };
   }
@@ -370,6 +442,18 @@
       },
       onRequestState: () => {
         port?.postMessage({ type: "get-state" });
+      },
+      onSwitchProfile: (profileId) => {
+        port?.postMessage({ type: "set-active-profile", profileId });
+      },
+      onRequestProfiles: () => {
+        port?.postMessage({ type: "get-profiles" });
+      },
+      onFetchModels: () => {
+        port?.postMessage({ type: "fetch-models" });
+      },
+      onSelectModel: (model) => {
+        port?.postMessage({ type: "set-model", model });
       }
     });
     port.onMessage.addListener((msg) => {
@@ -391,6 +475,12 @@
         case "chat-error":
           chatUI.addMessage("assistant", `Error: ${msg.message}`);
           chatUI.setInputEnabled(true);
+          break;
+        case "profiles":
+          chatUI.setProfiles(msg.profiles, msg.activeProfileId);
+          break;
+        case "models":
+          chatUI.setModels(msg.models, msg.activeModel);
           break;
       }
     });

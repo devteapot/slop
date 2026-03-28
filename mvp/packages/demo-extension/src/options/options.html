@@ -7,10 +7,11 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: #0f1117; color: #e1e4e8;
-    max-width: 500px; margin: 40px auto; padding: 0 20px;
+    max-width: 560px; margin: 40px auto; padding: 0 20px;
   }
   h1 { font-size: 20px; margin-bottom: 24px; }
-  label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 4px; margin-top: 16px; }
+  h2 { font-size: 15px; margin: 24px 0 12px; color: #8b949e; }
+  label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 4px; margin-top: 12px; }
   input, select {
     width: 100%; background: #161b22; border: 1px solid #30363d;
     color: #e1e4e8; padding: 10px; border-radius: 6px; font-size: 14px;
@@ -19,37 +20,84 @@
   input:focus, select:focus { outline: none; border-color: #58a6ff; }
   .api-key-row { display: none; }
   .api-key-row.visible { display: block; }
-  button {
-    margin-top: 24px; background: #238636; color: #fff; border: none;
-    padding: 10px 24px; border-radius: 6px; cursor: pointer;
-    font-size: 14px; font-weight: 500;
+
+  .profile-list {
+    display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
   }
-  button:hover { background: #2ea043; }
+  .profile-item {
+    display: flex; align-items: center; gap: 8px;
+    background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+    padding: 10px 12px; cursor: pointer;
+  }
+  .profile-item:hover { border-color: #58a6ff; }
+  .profile-item.active { border-color: #3fb950; }
+  .profile-item .info { flex: 1; }
+  .profile-item .name { font-weight: 600; font-size: 14px; }
+  .profile-item .detail { font-size: 12px; color: #8b949e; margin-top: 2px; }
+  .profile-item .actions { display: flex; gap: 4px; }
+  .profile-item button {
+    background: #30363d; border: none; color: #8b949e;
+    padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .profile-item button:hover { background: #484f58; color: #e1e4e8; }
+  .profile-item button.danger:hover { background: #da3633; color: #fff; }
+
+  .btn {
+    background: #238636; color: #fff; border: none;
+    padding: 10px 20px; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: 500; margin-top: 8px;
+  }
+  .btn:hover { background: #2ea043; }
+  .btn-secondary {
+    background: #30363d; color: #e1e4e8;
+  }
+  .btn-secondary:hover { background: #484f58; }
+  .btn-row { display: flex; gap: 8px; margin-top: 16px; }
+
+  .form-section {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 16px; margin-top: 16px;
+  }
+  .form-section.hidden { display: none; }
   .status { margin-top: 12px; font-size: 13px; color: #3fb950; }
-  .status.error { color: #f85149; }
 </style>
 </head>
 <body>
 <h1>SLOP Extension Settings</h1>
 
-<label>LLM Provider</label>
-<select id="provider">
-  <option value="ollama">Ollama (local)</option>
-  <option value="openai">OpenAI-compatible API</option>
-</select>
+<h2>LLM Profiles</h2>
+<div class="profile-list" id="profileList"></div>
+<button class="btn btn-secondary" id="addProfile">+ Add Profile</button>
 
-<label>API Endpoint</label>
-<input type="text" id="endpoint" placeholder="http://localhost:11434">
+<div class="form-section hidden" id="editForm">
+  <h2 id="formTitle">New Profile</h2>
+  <input type="hidden" id="editId">
 
-<div class="api-key-row" id="apiKeyRow">
-  <label>API Key</label>
-  <input type="password" id="apiKey" placeholder="sk-...">
+  <label>Profile Name</label>
+  <input type="text" id="profileName" placeholder="My Local Model">
+
+  <label>LLM Provider</label>
+  <select id="provider">
+    <option value="ollama">Ollama (local)</option>
+    <option value="openai">OpenAI-compatible API</option>
+    <option value="openrouter">OpenRouter</option>
+    <option value="gemini">Google Gemini</option>
+  </select>
+
+  <label>API Endpoint</label>
+  <input type="text" id="endpoint" placeholder="http://localhost:11434">
+
+  <div class="api-key-row" id="apiKeyRow">
+    <label>API Key</label>
+    <input type="password" id="apiKey" placeholder="sk-...">
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="saveProfile">Save</button>
+    <button class="btn btn-secondary" id="cancelEdit">Cancel</button>
+  </div>
 </div>
 
-<label>Model</label>
-<input type="text" id="model" placeholder="qwen2.5:14b">
-
-<button id="save">Save</button>
 <div class="status" id="status"></div>
 
 <script src="dist/options.js"></script>

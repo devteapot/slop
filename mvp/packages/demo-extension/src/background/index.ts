@@ -1,5 +1,7 @@
 import type { ContentMessage } from "../shared/messages";
 import { connectTab, disconnectTab, handleUserMessage, getTabState } from "./slop-manager";
+import { getStorage, saveStorage, fetchModels, setActiveModel } from "./llm";
+import { getActiveProfile } from "../shared/messages";
 
 // Track ports per tab
 const ports = new Map<number, chrome.runtime.Port>();
@@ -46,6 +48,48 @@ chrome.runtime.onConnect.addListener((port) => {
             toolCount: affordancesToTools(state.currentTree).length,
           });
         }
+        break;
+      }
+
+      case "get-profiles": {
+        const storage = await getStorage();
+        port.postMessage({
+          type: "profiles",
+          profiles: storage.profiles,
+          activeProfileId: storage.activeProfileId,
+        });
+        break;
+      }
+
+      case "set-active-profile": {
+        const storage = await getStorage();
+        if (storage.profiles.some(p => p.id === msg.profileId)) {
+          storage.activeProfileId = msg.profileId;
+          await saveStorage(storage);
+          port.postMessage({
+            type: "profiles",
+            profiles: storage.profiles,
+            activeProfileId: storage.activeProfileId,
+          });
+          // Auto-fetch models for the new profile
+          const models = await fetchModels();
+          const profile = getActiveProfile(storage);
+          port.postMessage({ type: "models", models, activeModel: profile.model });
+        }
+        break;
+      }
+
+      case "fetch-models": {
+        const models = await fetchModels();
+        const storage = await getStorage();
+        const profile = getActiveProfile(storage);
+        port.postMessage({ type: "models", models, activeModel: profile.model });
+        break;
+      }
+
+      case "set-model": {
+        await setActiveModel(msg.model);
+        port.postMessage({ type: "models", models: [], activeModel: msg.model });
         break;
       }
 

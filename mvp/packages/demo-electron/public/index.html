@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Tracker</title>
+<meta name="slop" content="ws://localhost:3838/slop">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e1e4e8;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 16px 24px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 18px; font-weight: 600; }
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .badge.idle { background: #6e7681; color: #fff; }
+  .badge.running { background: #238636; color: #fff; }
+  .badge.break { background: #9e6a03; color: #fff; }
+
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Timer */
+  .timer-section {
+    padding: 32px 24px;
+    text-align: center;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+  }
+  .timer-display {
+    font-size: 64px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .timer-display.running { color: #3fb950; }
+  .timer-display.break { color: #d29922; }
+  .timer-display.idle { color: #6e7681; }
+  .timer-label {
+    font-size: 14px;
+    color: #8b949e;
+    margin-bottom: 16px;
+  }
+  .timer-btn {
+    padding: 8px 24px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    background: #da3633;
+    color: #fff;
+  }
+  .timer-btn:hover { background: #f85149; }
+  .timer-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Tasks */
+  .task-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+  }
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .task {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #1c2028;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    transition: border-color 0.15s;
+  }
+  .task:hover { border-color: #58a6ff; }
+  .task.active { border-color: #3fb950; background: #0f1d15; }
+
+  .task input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #238636;
+  }
+
+  .task .title {
+    flex: 1;
+    font-size: 14px;
+  }
+  .task.done .title {
+    text-decoration: line-through;
+    color: #6e7681;
+  }
+
+  .task .pomodoros {
+    font-size: 11px;
+    color: #8b949e;
+  }
+  .task .pomodoros::before { content: "🍅 "; }
+
+  .task-actions {
+    display: none;
+    gap: 4px;
+  }
+  .task:hover .task-actions { display: flex; }
+
+  .task-btn {
+    background: #30363d;
+    border: none;
+    color: #8b949e;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .task-btn:hover { background: #484f58; color: #e1e4e8; }
+  .task-btn.danger:hover { background: #da3633; color: #fff; }
+  .task-btn.start:hover { background: #238636; color: #fff; }
+
+  /* Add task */
+  .add-task {
+    padding: 12px 24px;
+    border-top: 1px solid #30363d;
+    background: #161b22;
+    display: flex;
+    gap: 8px;
+  }
+  .add-task input {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #e1e4e8;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+  .add-task input:focus { border-color: #58a6ff; }
+  .add-task button {
+    background: #238636;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .add-task button:hover { background: #2ea043; }
+
+  /* Activity sidebar */
+  .sidebar {
+    width: 260px;
+    background: #161b22;
+    border-left: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar h2 {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 14px 16px;
+    border-bottom: 1px solid #30363d;
+  }
+  .activity-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .activity-item {
+    padding: 8px;
+    border-bottom: 1px solid #21262d;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .source {
+    font-weight: 600;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+  }
+  .source-browser { background: #1f6feb33; color: #58a6ff; }
+  .source-agent { background: #23863633; color: #3fb950; }
+  .time { color: #484f58; font-size: 11px; float: right; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pomodoro Tracker</h1>
+  <span id="status" class="badge idle">Idle</span>
+</header>
+
+<div class="timer-section">
+  <div id="timer" class="timer-display idle">25:00</div>
+  <div id="timer-label" class="timer-label">Ready to focus</div>
+  <button id="stop-btn" class="timer-btn" disabled onclick="stopTimer()">Stop</button>
+</div>
+
+<div class="layout">
+  <div class="main">
+    <div class="task-list" id="tasks"></div>
+    <div class="add-task">
+      <input type="text" id="new-task" placeholder="Add a new task..."
+             onkeydown="if(event.key==='Enter')addTask()">
+      <button onclick="addTask()">Add</button>
+    </div>
+  </div>
+  <aside class="sidebar">
+    <h2>Activity</h2>
+    <div class="activity-list" id="activity"></div>
+  </aside>
+</div>
+
+<script>
+  let state = null;
+
+  // Get initial state
+  window.api.getState().then(s => {
+    state = s;
+    render();
+  });
+
+  // Listen for updates
+  window.api.onStateUpdate(s => {
+    state = s;
+    render();
+  });
+
+  window.api.onActivity(a => {
+    addActivityItem(a.source, a.message, a.time);
+  });
+
+  function render() {
+    if (!state) return;
+    renderTimer();
+    renderTasks();
+  }
+
+  function renderTimer() {
+    const p = state.pomodoro;
+    const timerEl = document.getElementById("timer");
+    const labelEl = document.getElementById("timer-label");
+    const statusEl = document.getElementById("status");
+    const stopBtn = document.getElementById("stop-btn");
+
+    timerEl.textContent = formatTime(p.remaining);
+    timerEl.className = "timer-display " + p.status;
+
+    if (p.status === "running") {
+      const task = state.tasks.find(t => t.id === p.taskId);
+      labelEl.textContent = task ? `Working on: ${task.title}` : "Working...";
+      statusEl.textContent = "Working";
+      statusEl.className = "badge running";
+      stopBtn.disabled = false;
+    } else if (p.status === "break") {
+      labelEl.textContent = "Break time!";
+      statusEl.textContent = "Break";
+      statusEl.className = "badge break";
+      stopBtn.disabled = false;
+    } else {
+      labelEl.textContent = "Ready to focus";
+      statusEl.textContent = "Idle";
+      statusEl.className = "badge idle";
+      stopBtn.disabled = true;
+    }
+  }
+
+  function renderTasks() {
+    const el = document.getElementById("tasks");
+    const pending = state.tasks.filter(t => !t.done);
+    const done = state.tasks.filter(t => t.done);
+
+    let html = "";
+    if (pending.length > 0) {
+      html += '<div class="section-title">Pending</div>';
+      html += pending.map(t => renderTask(t)).join("");
+    }
+    if (done.length > 0) {
+      html += '<div class="section-title">Completed</div>';
+      html += done.map(t => renderTask(t)).join("");
+    }
+    if (state.tasks.length === 0) {
+      html = '<div style="padding:40px;text-align:center;color:#6e7681">No tasks yet. Add one below.</div>';
+    }
+    el.innerHTML = html;
+  }
+
+  function renderTask(task) {
+    const isActive = state.pomodoro.taskId === task.id && state.pomodoro.status !== "idle";
+    return `
+      <div class="task${task.done ? " done" : ""}${isActive ? " active" : ""}">
+        <input type="checkbox" ${task.done ? "checked" : ""} onchange="toggleTask('${task.id}')">
+        <span class="title">${esc(task.title)}</span>
+        ${task.pomodoros > 0 ? `<span class="pomodoros">${task.pomodoros}</span>` : ""}
+        <div class="task-actions">
+          ${!task.done && !isActive ? `<button class="task-btn start" title="Start Pomodoro" onclick="startPomodoro('${task.id}')">&#9654;</button>` : ""}
+          <button class="task-btn danger" title="Delete" onclick="deleteTask('${task.id}')">&times;</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m + ":" + s.toString().padStart(2, "0");
+  }
+
+  function esc(s) {
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // --- Actions ---
+
+  function addTask() {
+    const input = document.getElementById("new-task");
+    const title = input.value.trim();
+    if (!title) return;
+    window.api.send({ type: "add_task", title });
+    input.value = "";
+  }
+
+  function toggleTask(id) {
+    window.api.send({ type: "toggle", taskId: id });
+  }
+
+  function deleteTask(id) {
+    window.api.send({ type: "delete", taskId: id });
+  }
+
+  function startPomodoro(taskId) {
+    window.api.send({ type: "start_pomodoro", taskId });
+  }
+
+  function stopTimer() {
+    window.api.send({ type: "stop" });
+  }
+
+  // --- Activity ---
+
+  function addActivityItem(source, message, time) {
+    const el = document.getElementById("activity");
+    const t = new Date(time).toLocaleTimeString();
+    const cls = source === "agent" ? "source-agent" : "source-browser";
+    const label = source === "agent" ? "AI" : "You";
+    const item = document.createElement("div");
+    item.className = "activity-item";
+    item.innerHTML = `<span class="time">${t}</span><span class="source ${cls}">${label}</span>${esc(message)}`;
+    el.prepend(item);
+  }
+</script>
+</body>
+</html>

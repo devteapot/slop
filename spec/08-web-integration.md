@@ -83,165 +83,391 @@ Integrating SLOP into a web app involves two things:
 
 The integration should be **non-invasive** — it should not require changes to the app's UI layer. The SLOP tree is derived from state, not from the UI. The two are separate concerns.
 
-#### The core contract
+#### Package architecture
 
-SLOP integration requires only three things from the app:
+SLOP's client library follows the TanStack Query model: a framework-agnostic core client with minimal framework adapters. No contexts, no providers — just an object you create and import.
 
 ```
-1. Give me your current state     →  () => State
-2. Tell me when it changes        →  subscribe(callback)
-3. Here's an action to run        →  handler(params, path)
+@slop/core           — SlopClient class: tree assembly, diffing, transport, invocation dispatch
+@slop/react          — useSlop() hook (~15 lines)
+@slop/vue            — useSlop() composable (~10 lines)
+@slop/svelte         — useSlop() rune (~10 lines)
+(vanilla JS)         — use @slop/core directly, no adapter needed
 ```
 
-Every state management approach — React useState, Zustand, Redux, MobX, Jotai, Vue refs, Svelte runes, or a plain variable — already provides #1 and #2. This is the universal contract that SLOP binds to.
+The core does all the work. Framework adapters only handle one thing: registering a node on mount, updating on state change, and unregistering on unmount. No state-library-specific adapters are needed — the pattern works with useState, Zustand, Redux, MobX, Jotai, Pinia, or plain variables.
 
-This means **SLOP does not need adapters for individual state management libraries**. A single integration point works with any state source, as long as it can return current state and notify on change.
+#### The core client
 
-#### Framework-agnostic core
+The app creates a single `SlopClient` instance. It's a plain JavaScript object — no framework dependency, no context, no provider.
 
-The lowest-level API is framework-agnostic. The app provides a subscribe function, a tree builder, and handlers:
-
-```js
+```ts
+// slop.ts — create once, import anywhere in your app
 import { createSlop } from "@slop/core";
 
-const slop = createSlop({
+export const slop = createSlop({
   id: "my-app",
-  subscribe: (onChange) => store.subscribe(onChange),
-  tree: () => buildTree(store.getState()),
+  name: "My App",
+  // transport is auto-detected: postMessage in browser, ws/unix in Node
 });
-
-slop.on("add_todo", ({ title }) => store.dispatch(addTodo(title)));
-slop.on("toggle", (_, path) => store.dispatch(toggle(extractId(path))));
-slop.on("delete", (_, path) => store.dispatch(remove(extractId(path))));
 ```
 
-This works with any store — Zustand, Redux, MobX, a plain object with an event emitter, or anything else. The core doesn't know or care what manages the state.
+The client has three methods:
 
-#### Framework bindings
+```ts
+slop.register(path, descriptor)   // add or update a node in the tree
+slop.unregister(path)             // remove a node from the tree
+slop.scope(path, descriptor?)     // create a scoped client for a subtree
+```
 
-Framework bindings are thin wrappers (~10–20 lines each) that adapt the core to each framework's reactivity model. They handle **when to re-run the tree builder** — nothing more.
+That's the entire public API. Internally, the client:
+1. Collects all registered node descriptors
+2. Assembles them into a hierarchical SLOP state tree (paths determine nesting)
+3. Diffs against the previous tree on each change
+4. Pushes patches via the configured transport (postMessage or WebSocket)
+5. Routes incoming `invoke` messages to the handler declared in the descriptor
+6. Injects `<meta name="slop">` into the page automatically
 
-**React:**
+#### Typed schema
 
-```tsx
-function TodoApp() {
-  const [todos, setTodos] = useState(initialTodos);
+The `createSlop` function accepts an optional `schema` that defines the tree's structural skeleton. When provided, all paths are type-checked at compile time — invalid paths are TypeScript errors, and valid paths get full autocomplete.
 
-  const slop = useSlop("todo-app", () => ({
-    id: "root",
-    type: "root",
-    children: [
-      {
-        id: "todos",
-        type: "collection",
-        properties: { count: todos.length },
-        children: todos.map(todo => ({
-          id: todo.id,
-          type: "item",
-          properties: { title: todo.title, done: todo.done },
-          affordances: [{ action: "toggle" }, { action: "delete", dangerous: true }],
-        })),
+```ts
+// slop.ts
+import { createSlop } from "@slop/core";
+
+const schema = {
+  inbox: {
+    messages: "collection",
+    compose: "form",
+    unread: "status",
+  },
+  settings: {
+    account: "group",
+    notifications: "group",
+    privacy: "group",
+  },
+} as const;
+
+export const slop = createSlop({ id: "mail-app", name: "Mail", schema });
+```
+
+Now `register()` only accepts paths that exist in the schema:
+
+```ts
+slop.register("inbox", { ... });              // ✓ valid path, autocomplete works
+slop.register("inbox/messages", { ... });     // ✓
+slop.register("settings/account", { ... });   // ✓
+
+slop.register("inbox/nonexistent", { ... });  // ✗ compile error
+slop.register("foo", { ... });                // ✗ compile error
+```
+
+The schema declares **structure** (what paths exist), not **data** (what values they hold). Dynamic children — items in a collection — are not in the schema. They're declared in the descriptor's `items` array:
+
+```ts
+slop.register("inbox/messages", {
+  type: "collection",
+  items: messages.map(m => ({    // ← dynamic items, not in schema
+    id: m.id,
+    props: { from: m.from, subject: m.subject },
+    actions: { archive: () => archiveMessage(m.id) },
+  })),
+});
+```
+
+The schema also constrains the descriptor type. If the schema declares `messages: "collection"`, the descriptor for that path must have `type: "collection"` and can use `items`. A node declared as `"status"` can't have `items`.
+
+**How it works internally** — TypeScript's template literal types recursively extract all valid paths from the schema:
+
+```ts
+type ExtractPaths<T, P extends string = ""> = {
+  [K in keyof T & string]:
+    | `${P}${K}`
+    | (T[K] extends string ? never : ExtractPaths<T[K], `${P}${K}/`>)
+}[keyof T & string];
+
+// From the schema above, produces:
+// "inbox" | "inbox/messages" | "inbox/compose" | "inbox/unread"
+// | "settings" | "settings/account" | "settings/notifications" | "settings/privacy"
+```
+
+Scoped clients are also type-narrowed:
+
+```ts
+const inbox = slop.scope("inbox");          // type: SlopClient<InboxSubSchema>
+inbox.register("messages", { ... });        // ✓ valid under inbox
+inbox.register("nonexistent", { ... });     // ✗ compile error
+```
+
+The schema is optional — `createSlop()` without a schema works the same way, just without compile-time path checking. This lets teams adopt typing incrementally.
+
+#### Node descriptors
+
+Developers describe nodes using a **developer-friendly format**, not raw SLOP protocol structures. The library translates internally.
+
+```js
+{
+  type: "collection",                           // SLOP node type
+  props: { count: 42 },                         // properties (not "properties")
+  items: [                                      // children of type "item" (not "children")
+    {
+      id: "note-1",
+      props: { title: "Hello", pinned: true },
+      actions: {                                // affordances (not "affordances")
+        toggle: () => togglePin("note-1"),      // simple action — just a callback
+        delete: {                               // action with options
+          handler: () => remove("note-1"),
+          dangerous: true,
+        },
+        edit: {                                 // action with typed parameters
+          params: { title: "string", content: "string" },
+          handler: ({ title, content }) => update("note-1", title, content),
+        },
       },
-    ],
-    affordances: [{ action: "add_todo", params: { title: { type: "string" } } }],
-  }));
-
-  slop.on("add_todo", ({ title }) => setTodos(t => [...t, makeTodo(title)]));
-  slop.on("toggle", (_, path) => setTodos(t => toggleById(t, extractId(path))));
-  slop.on("delete", (_, path) => setTodos(t => t.filter(x => x.id !== extractId(path))));
-
-  // UI is completely SLOP-free
-  return <div>{todos.map(t => <TodoItem key={t.id} todo={t} />)}</div>;
+    },
+  ],
+  actions: {                                    // collection-level actions
+    create: {
+      params: { title: "string" },
+      handler: ({ title }) => addNote(title),
+    },
+  },
 }
 ```
 
-**Vue:**
+Key naming choices:
+- `props` not `properties` — shorter, matches React convention
+- `actions` not `affordances` — developers think in actions, not affordances
+- `items` not `children` — semantic shorthand for `children` with `type: "item"`
+- Handlers are callbacks, not serialized function names
 
-```js
-const slop = useSlop("todo-app", () => buildTree(todos.value));
+The library expands this to proper SLOP nodes internally. The developer never writes `{ id: "x", type: "item", properties: {...}, affordances: [...], meta: {...} }` by hand.
 
-slop.on("toggle", (_, path) => toggleTodo(extractId(path)));
+#### Hierarchical registration
+
+Nodes are registered from different components using **path-based IDs** that encode their position in the tree. The client assembles the hierarchy automatically.
+
+```tsx
+// InboxView.tsx — registers the view node
+import { slop } from "./slop";
+import { useSlop } from "@slop/react";
+
+function InboxView() {
+  useSlop(slop, "inbox", { type: "view", props: { label: "Inbox" } });
+
+  return (
+    <div>
+      <MessageList />
+      <UnreadBadge />
+    </div>
+  );
+}
 ```
 
-**Svelte:**
+```tsx
+// MessageList.tsx — registers under inbox/messages
+function MessageList() {
+  const [messages] = useMessages();
 
-```js
-const slop = useSlop("todo-app", () => buildTree(todos));
-
-slop.on("toggle", (_, path) => toggleTodo(extractId(path)));
-```
-
-The pattern is identical across frameworks: a hook/composable takes an ID and a tree builder function, returns an object with `.on()` for registering handlers. The JSX/template is untouched.
-
-#### What each layer does
-
-```
-┌──────────────────────────────────────────────┐
-│  @slop/core                                   │  Provider, diffing, patches,
-│  (browser build, framework-agnostic)          │  PostMessage + WebSocket transport,
-│                                               │  subscribe/tree/handlers contract
-└─────────────────────┬────────────────────────┘
-                      │
-           ┌──────────┼──────────┐
-           │          │          │
-      @slop/react  @slop/vue  @slop/svelte       10–20 lines each,
-      (useSlop)    (useSlop)   (useSlop)          wires framework reactivity
-```
-
-The core does the real work. Framework bindings are so thin they could be documented examples rather than separate packages. No state-library-specific adapters are needed — the `subscribe + tree function` contract is universal.
-
-#### Tree building DX
-
-The tree builder is the part the developer writes by hand. This is the main integration cost. Several approaches, from most explicit to most concise:
-
-**Raw SLOP nodes** — full control, verbose:
-
-```js
-tree: () => ({
-  id: "root", type: "root",
-  children: [{
-    id: "todos", type: "collection",
-    properties: { count: todos.length },
-    children: todos.map(todo => ({
-      id: todo.id, type: "item",
-      properties: { title: todo.title, done: todo.done },
-      affordances: [{ action: "toggle" }],
+  useSlop(slop, "inbox/messages", {
+    type: "collection",
+    props: { count: messages.length },
+    items: messages.map(m => ({
+      id: m.id,
+      props: { from: m.from, subject: m.subject, unread: m.unread },
+      actions: {
+        open: () => openMessage(m.id),
+        archive: () => archiveMessage(m.id),
+        delete: { handler: () => deleteMessage(m.id), dangerous: true },
+      },
     })),
-  }],
-})
+  });
+
+  return <div>{messages.map(m => <MessageRow key={m.id} message={m} />)}</div>;
+}
 ```
 
-**Builder helpers** — less boilerplate, still explicit:
+```tsx
+// UnreadBadge.tsx — registers under inbox/unread
+function UnreadBadge() {
+  const count = useUnreadCount();
+
+  useSlop(slop, "inbox/unread", {
+    type: "status",
+    props: { count },
+  });
+
+  return <span className="badge">{count}</span>;
+}
+```
+
+The client parses the paths and assembles the tree:
+
+```
+root
+├── inbox (view) ← from InboxView
+│   ├── messages (collection) ← from MessageList
+│   │   ├── msg-1 (item)
+│   │   └── msg-2 (item)
+│   └── unread (status) ← from UnreadBadge
+```
+
+Each component only knows about its own path. When a component unmounts, its nodes (and their children) disappear from the tree automatically.
+
+#### Scoped clients
+
+For reusable components that shouldn't hardcode their position in the tree, use `scope()`:
+
+```tsx
+function InboxView() {
+  const inbox = slop.scope("inbox", { type: "view" });
+
+  return (
+    <div>
+      {/* MessageList doesn't know it's under "inbox" */}
+      <MessageList slop={inbox} />
+      <UnreadBadge slop={inbox} />
+    </div>
+  );
+}
+
+function MessageList({ slop: scope }) {
+  const [messages] = useMessages();
+
+  // Registers as "inbox/messages" internally — but this component doesn't know that
+  useSlop(scope, "messages", {
+    type: "collection",
+    items: messages.map(m => ({
+      id: m.id,
+      props: { from: m.from, subject: m.subject },
+      actions: { archive: () => archiveMessage(m.id) },
+    })),
+  });
+
+  return <div>{messages.map(...)}</div>;
+}
+
+// MessageList is reusable — mount it under inbox, archive, or search results:
+<MessageList slop={slop.scope("inbox")} />
+<MessageList slop={slop.scope("search-results")} />
+```
+
+#### Inline children
+
+For components that own a full subtree, declare children inline in the descriptor:
+
+```tsx
+useSlop(slop, "settings", {
+  type: "view",
+  children: {
+    account: {
+      type: "group",
+      props: { email: user.email, plan: user.plan },
+      actions: {
+        change_email: {
+          params: { email: "string" },
+          handler: ({ email }) => updateEmail(email),
+        },
+      },
+    },
+    notifications: {
+      type: "group",
+      props: { enabled: prefs.notifications },
+      actions: {
+        toggle: () => toggleNotifications(),
+      },
+    },
+  },
+});
+```
+
+All three patterns — path IDs, scoped clients, inline children — produce the same tree. Mix them based on component structure:
+
+| Pattern | Use when |
+|---|---|
+| Path IDs (`"inbox/messages"`) | Component knows where it sits. Simple, explicit. |
+| Scoped client (`slop.scope("inbox")`) | Component is reusable across different tree positions. |
+| Inline children (`children: {...}`) | One component owns the full subtree. |
+
+#### Framework adapters
+
+Each adapter is a thin wrapper that handles mount/update/unmount lifecycle. The logic is identical; only the framework API differs.
+
+**React** (`@slop/react`):
+
+```tsx
+import { useEffect, useRef } from "react";
+import type { SlopClient, NodeDescriptor } from "@slop/core";
+
+export function useSlop(client: SlopClient, id: string, descriptor: NodeDescriptor) {
+  client.register(id, descriptor);  // register/update on every render
+
+  useEffect(() => {
+    return () => client.unregister(id);  // unregister on unmount
+  }, [client, id]);
+}
+```
+
+**Vue** (`@slop/vue`):
 
 ```js
-import { root, collection, item } from "@slop/helpers";
+import { watchEffect, onUnmounted } from "vue";
 
-tree: () => root("Todo App",
-  collection("todos", todos, todo =>
-    item(todo.id, { title: todo.title, done: todo.done }, [
-      { action: "toggle" },
-      { action: "delete", dangerous: true },
-    ])
-  ),
-)
+export function useSlop(client, id, descriptorFn) {
+  watchEffect(() => client.register(id, descriptorFn()));
+  onUnmounted(() => client.unregister(id));
+}
 ```
 
-**Compact format** — convention over configuration:
+**Svelte** (`@slop/svelte`):
 
 ```js
-tree: () => ({
-  todos: todos.map(todo => ({
-    $type: "item",
-    title: todo.title,
-    done: todo.done,
-    $afford: ["toggle", { action: "delete", dangerous: true }],
-  })),
-})
+import { onDestroy } from "svelte";
+
+export function useSlop(client, id, descriptorFn) {
+  $effect(() => client.register(id, descriptorFn()));
+  onDestroy(() => client.unregister(id));
+}
 ```
 
-In the compact format, `$type`, `$afford`, and `$meta` are reserved keys. Everything else becomes a property or a child. The library expands it to the full SLOP node structure. This trades some explicitness for significantly less boilerplate.
+**Vanilla JS** (no adapter needed):
 
-The right approach depends on the app and the developer's preference. All three produce the same SLOP tree — they're syntactic choices, not protocol choices.
+```js
+import { slop } from "./slop";
+
+slop.register("notes", { ... });
+store.subscribe(() => slop.register("notes", { ... }));  // register doubles as update
+```
+
+#### What the core handles
+
+```
+Component A: slop.register("inbox", { type: "view" })
+Component B: slop.register("inbox/messages", { type: "collection", items: [...] })
+Component C: slop.register("inbox/unread", { type: "status", props: { count: 5 } })
+Component D: slop.register("settings", { type: "view", children: { account: {...} } })
+                    ↓
+         @slop/core assembles hierarchical tree:
+         root
+         ├── inbox (view)
+         │   ├── messages (collection)
+         │   │   ├── msg-1 (item)
+         │   │   └── msg-2 (item)
+         │   └── unread (status)
+         └── settings (view)
+             └── account (group)
+                    ↓
+         Diffs against previous tree
+                    ↓
+         Pushes patches via transport
+         (postMessage or WebSocket)
+                    ↓
+         Receives invoke("archive", "/inbox/messages/msg-1")
+                    ↓
+         Routes to the handler registered in
+         Component B's descriptor for msg-1
+```
 
 ## Tier 2: Framework adapter
 
@@ -370,8 +596,14 @@ The extension should prefer higher tiers — if a meta tag is present, don't als
 
 4. **Transport matches the architecture.** Server-backed apps use WebSocket. Client-only SPAs use postMessage. Both are SLOP transports. The app's architecture determines the transport, not the protocol.
 
-5. **Adapt to state, not to state libraries.** SLOP needs two things from the app: current state and change notification. Every state management approach already provides both. Build one universal contract (`subscribe` + `tree function`), not per-library adapters.
+5. **Adapt to state, not to state libraries.** The `register(id, descriptor)` API works with any state source — React useState, Zustand, Redux, MobX, Vue refs, Svelte runes, or plain variables. No per-library adapters.
 
-6. **Don't invade the UI layer.** SLOP integration belongs alongside state management, not in the component tree. The tree is derived from state, not from JSX/templates. The UI should be completely SLOP-free.
+6. **Don't invade the UI layer.** SLOP declarations live in the component logic (next to `useState`), not in the template (JSX/HTML). The UI should be completely SLOP-free.
 
-7. **The tree is a curated projection.** Developers choose what to expose — SLOP doesn't dump internal state. The semantic mapping (what does this data *mean*?) is inherently app-specific and should stay that way. Libraries can reduce boilerplate (helpers, compact format) but should not attempt to auto-generate semantic meaning.
+7. **No contexts, no providers.** The `SlopClient` is a plain object you create and import — like TanStack's `QueryClient`. Framework adapters are hooks that call `register`/`unregister`, not context providers that wrap the component tree.
+
+8. **Distributed, not centralized.** Each component registers its own SLOP nodes near the state it owns. Components don't know about each other's nodes. The client assembles the full tree. When a component unmounts, its nodes disappear.
+
+9. **Developer-friendly names.** The descriptor API uses `props`, `actions`, `items` — not `properties`, `affordances`, `children`. Handlers are callbacks, not action name strings. The library translates to protocol format internally.
+
+10. **The tree is a curated projection.** Developers choose what to expose — SLOP doesn't dump internal state. The semantic mapping is inherently app-specific. Libraries reduce boilerplate but don't attempt to auto-generate semantic meaning.

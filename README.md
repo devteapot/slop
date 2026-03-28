@@ -49,16 +49,36 @@ The full specification is in [`spec/`](./spec/):
 8. [Web Integration](./spec/08-web-integration.md)
 9. [Scaling](./spec/09-scaling.md)
 10. [Desktop Integration](./spec/10-desktop-integration.md)
+11. [Agent-Assisted Integration](./spec/11-agent-integration.md)
 
-## MVP
+## Project structure
 
-A working implementation lives in [`mvp/`](./mvp/):
-
-- `@slop/types` — protocol type definitions
-- `@slop/provider` — SDK for apps exposing state
-- `@slop/consumer` — SDK for AI/clients reading state
-- `demo-web` — Kanban board web app (browser UI + SLOP provider)
-- `demo-agent` — LLM agent (Ollama) that observes and acts via SLOP
+```
+slop/
+├── spec/                        ← the protocol specification (language-agnostic)
+│   ├── 01-overview.md
+│   └── ...11 docs
+│
+├── packages/                    ← publishable npm packages
+│   ├── core/                    ← @slop/core — browser client (createSlop, register, typed schema)
+│   ├── react/                   ← @slop/react — useSlop hook
+│   ├── vue/                     ← @slop/vue — useSlop composable
+│   ├── svelte/                  ← @slop/svelte — useSlop rune
+│   ├── server/                  ← @slop/server — Node/Bun provider SDK
+│   └── types/                   ← @slop/types — shared protocol types
+│
+├── extension/                   ← Chrome extension (SLOP consumer + LLM chat)
+│
+├── examples/                    ← runnable demos
+│   ├── kanban/                  ← server-backed web app with SLOP
+│   ├── notes-spa/               ← React SPA with in-browser SLOP provider
+│   ├── todo-cli/                ← CLI provider + consumer
+│   └── agent/                   ← LLM agent that observes and acts via SLOP
+│
+├── desktop/                     ← Tauri desktop app
+│
+└── mvp/                         ← prototyping sandbox
+```
 
 ## Status
 

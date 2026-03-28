@@ -21,114 +21,15 @@ An adapter:
 4. Detects changes and emits patches
 5. Translates affordance invocations back into app-native actions
 
-## Web apps — Browser adapter
+## Web apps
 
-The richest near-term opportunity. A browser extension or injected script can bridge any web app to SLOP.
+Web integration is covered in detail in [08 — Web Integration](./08-web-integration.md). It defines three tiers:
 
-### Source: Accessibility tree
+1. **SLOP-native** — the app implements SLOP directly (server-side via WebSocket, or client-side via postMessage)
+2. **Framework adapter** — an extension hooks into React/Vue/Svelte state
+3. **Accessibility adapter** — an extension reads the browser's accessibility tree
 
-The browser already computes an accessibility tree (AX tree) for every page. This is the best generic source:
-
-```
-AX tree node          →  SLOP node
-─────────────────────────────────────
-role: "main"          →  type: "view"
-role: "list"          →  type: "collection"
-role: "listitem"      →  type: "item"
-role: "textbox"       →  type: "field"
-role: "button"        →  type: "control"
-name: "Send"          →  properties.label: "Send"
-value: "hello"        →  properties.value: "hello"
-states: ["focused"]   →  meta.focus: true
-```
-
-**Affordances from ARIA:**
-- `role: "button"` → affordance: `{ action: "click" }`
-- `role: "textbox"` → affordance: `{ action: "fill", params: { value: "string" } }`
-- `role: "link"` → affordance: `{ action: "follow" }`
-- `aria-expanded: true` → affordance: `{ action: "collapse" }`
-
-### Source: Framework state (richer)
-
-For apps using React, Vue, Svelte, etc., an adapter can hook into the component tree or state store:
-
-```
-React component tree  →  SLOP semantic tree
-──────────────────────────────────────────────
-<InboxView>           →  type: "view", id: "inbox"
-<MessageList>         →  type: "collection"
-<MessageRow>          →  type: "item" + properties from props/state
-  props.unread        →  properties.unread
-  onClick             →  affordance: { action: "open" }
-```
-
-**Redux/Zustand/MobX stores** are even better — they're already structured state:
-
-```js
-// Redux store
-{
-  messages: { byId: { ... }, allIds: [...] },
-  ui: { selectedId: "msg-42", composing: false }
-}
-// Maps almost directly to a SLOP tree
-```
-
-### Change detection
-
-- **MutationObserver** on DOM for accessibility tree changes
-- **Store subscriptions** for framework state
-- **Debounce** at 50–100ms to batch rapid changes into single patches
-
-### Implementation sketch
-
-```js
-// Browser extension content script
-class WebSLOPAdapter {
-  constructor() {
-    this.tree = null;
-    this.version = 0;
-    this.subscriptions = new Map();
-  }
-
-  // Build SLOP tree from accessibility tree
-  buildTree(axNode, depth = 3) {
-    return {
-      id: axNode.id || generateId(axNode),
-      type: mapRole(axNode.role),
-      properties: {
-        label: axNode.name,
-        value: axNode.value,
-        selected: axNode.states.includes("selected"),
-        disabled: axNode.states.includes("disabled"),
-      },
-      affordances: deriveAffordances(axNode),
-      children: depth > 0
-        ? axNode.children.map(c => this.buildTree(c, depth - 1))
-        : undefined,
-      meta: {
-        focus: axNode.states.includes("focused"),
-        total_children: axNode.children.length,
-      }
-    };
-  }
-
-  // Detect changes and emit patches
-  onMutation(mutations) {
-    const newTree = this.buildTree(getAXRoot());
-    const patches = diffTrees(this.tree, newTree);
-    this.tree = newTree;
-    this.version++;
-    for (const [id, sub] of this.subscriptions) {
-      this.send(sub.consumer, {
-        type: "patch",
-        subscription: id,
-        version: this.version,
-        ops: filterPatches(patches, sub.path, sub.depth)
-      });
-    }
-  }
-}
-```
+The remaining sections of this document cover non-web adapters.
 
 ## Terminal apps — Terminal adapter
 

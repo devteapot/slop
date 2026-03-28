@@ -17,6 +17,7 @@ Recommended transports:
 | **Unix domain socket** | Local apps, daemons | Low latency, no network exposure |
 | **WebSocket** | Web apps, remote | Standard, widely supported |
 | **stdio** (stdin/stdout) | CLI tools, spawned processes | Simplest possible — newline-delimited JSON |
+| **postMessage** | In-browser SPAs, extensions | Browser-native IPC between page and extension contexts |
 | **Named pipe** | Windows apps | Windows equivalent of Unix sockets |
 
 ### Stdio convention
@@ -36,6 +37,37 @@ If fd 3/4 are not available (e.g., simple pipes), fall back to:
 For WebSocket transports, each WebSocket message is one SLOP message (a JSON object). No additional framing needed.
 
 The WebSocket endpoint should be at a well-known path: `ws://host:port/slop`
+
+### postMessage convention
+
+For in-browser communication between a page (SPA running a SLOP provider) and an extension (SLOP consumer), `window.postMessage` serves as the transport.
+
+All SLOP messages are wrapped in a postMessage envelope:
+
+```jsonc
+// Page → Extension or Extension → Page
+window.postMessage({
+  slop: true,              // Identifies this as a SLOP message
+  message: { ... }         // The SLOP message (subscribe, snapshot, patch, etc.)
+}, "*");
+```
+
+The `slop: true` field distinguishes SLOP traffic from other postMessage usage on the page. Both sides filter on this field.
+
+**Connection handshake:**
+
+1. Extension posts `{ slop: true, message: { type: "connect" } }` to the page
+2. Page responds with the standard `hello` message
+3. From here, the standard SLOP message flow applies — subscribe, snapshot, patch, invoke
+
+This transport satisfies all three requirements: it is bidirectional, ordered (postMessage preserves order within a single origin), and framed (each postMessage is one discrete message).
+
+**When to use postMessage vs WebSocket:**
+
+- **postMessage** — the provider runs inside the browser (client-only SPAs, local-first apps). No server involved.
+- **WebSocket** — the provider runs on a server. The browser connects to it. This is the common case for server-backed web apps.
+
+Both speak the same SLOP protocol. The app's architecture determines which transport to use, not the protocol.
 
 ## Discovery
 
@@ -96,6 +128,9 @@ Each provider writes a JSON file named `{app-id}.json`:
 
 // Named pipe (Windows)
 { "type": "pipe", "name": "\\\\.\\pipe\\slop-vscode" }
+
+// postMessage (in-browser SPA)
+{ "type": "postmessage" }
 ```
 
 ### Lifecycle
@@ -103,6 +138,47 @@ Each provider writes a JSON file named `{app-id}.json`:
 - Providers create their descriptor file on startup and delete it on shutdown.
 - If a provider crashes (descriptor exists but `pid` is dead), consumers should treat the descriptor as stale and may clean it up.
 - Consumers can watch the discovery directory for changes (via `inotify`, `FSEvents`, `kqueue`) to detect new/removed providers.
+
+### Web discovery
+
+Web apps declare SLOP support through two complementary mechanisms:
+
+**HTML meta tag** — instant discovery for extensions scanning the page:
+
+```html
+<meta name="slop" content="ws://localhost:3737/slop">
+```
+
+For in-browser providers using postMessage:
+
+```html
+<meta name="slop" content="postmessage">
+```
+
+**Well-known URL** — machine-discoverable, follows [RFC 8615](https://datatracker.ietf.org/doc/html/rfc8615):
+
+```
+GET /.well-known/slop
+```
+
+Response:
+
+```jsonc
+{
+  "id": "kanban",
+  "name": "Kanban Board",
+  "slop_version": "0.1",
+  "transport": {
+    "type": "ws",
+    "url": "ws://localhost:3737/slop"
+  },
+  "capabilities": ["state", "patches", "affordances"]
+}
+```
+
+This is the same descriptor format used in local discovery. The only difference is the delivery mechanism — HTTP instead of a filesystem read.
+
+Apps should implement both: the meta tag costs one line of HTML, the well-known URL is a single endpoint. Extensions check the meta tag first (no extra request), then fall back to probing `/.well-known/slop`.
 
 ### Network discovery (future)
 

@@ -46,7 +46,19 @@ The full specification is in [`spec/`](./spec/):
 5. [Affordances](./spec/05-affordances.md)
 6. [Attention & Salience](./spec/06-attention.md)
 7. [Adapters](./spec/07-adapters.md)
+8. [Web Integration](./spec/08-web-integration.md)
+9. [Scaling](./spec/09-scaling.md)
+
+## MVP
+
+A working implementation lives in [`mvp/`](./mvp/):
+
+- `@slop/types` — protocol type definitions
+- `@slop/provider` — SDK for apps exposing state
+- `@slop/consumer` — SDK for AI/clients reading state
+- `demo-web` — Kanban board web app (browser UI + SLOP provider)
+- `demo-agent` — LLM agent (Ollama) that observes and acts via SLOP
 
 ## Status
 
-Early spec. Everything is subject to change.
+Early spec + working MVP. Everything is subject to change.

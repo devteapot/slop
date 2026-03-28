@@ -3,6 +3,14 @@ import { connectTab, disconnectTab, handleUserMessage, getTabState } from "./slo
 import { getStorage, saveStorage, fetchModels, setActiveModel } from "./llm";
 import { getActiveProfile } from "../shared/messages";
 
+// Keep service worker alive while there are active connections
+// MV3 service workers get killed after 30s of inactivity
+setInterval(() => {
+  if (ports.size > 0) {
+    // noop — just keeps the event loop alive
+  }
+}, 20000);
+
 // Track ports per tab
 const ports = new Map<number, chrome.runtime.Port>();
 

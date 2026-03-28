@@ -260,12 +260,15 @@
     handleMessage(msg) {
       switch (msg.type) {
         case "snapshot": {
+          const existed = this.mirrors.has(msg.id);
           const mirror = new StateMirror(msg);
           this.mirrors.set(msg.id, mirror);
           const p = this.pending.get(msg.id);
           if (p) {
             this.pending.delete(msg.id);
             p.resolve(msg.tree);
+          } else if (existed) {
+            this.emit("patch", msg.id, [], msg.version);
           }
           break;
         }
@@ -614,14 +617,18 @@ You are running inside a browser extension chat panel. Keep responses concise.`;
       const consumer = new SlopConsumer(clientTransport);
       const hello = await consumer.connect();
       const { id: subId, snapshot } = await consumer.subscribe("/", -1);
+      const existingConversation = tabs.get(tabId)?.conversation;
       const state = {
         consumer,
         subscriptionId: subId,
         currentTree: snapshot,
         port,
-        conversation: [{ role: "system", content: SYSTEM_PROMPT }],
+        conversation: existingConversation ?? [{ role: "system", content: SYSTEM_PROMPT }],
         providerName: hello.provider.name,
-        processing: false
+        processing: false,
+        transport,
+        endpoint,
+        reconnecting: false
       };
       tabs.set(tabId, state);
       sendToPort(port, {
@@ -636,7 +643,15 @@ You are running inside a browser extension chat panel. Keep responses concise.`;
       });
       consumer.on("disconnect", () => {
         sendToPort(port, { type: "connection-status", status: "disconnected" });
-        tabs.delete(tabId);
+        if (!state.reconnecting) {
+          state.reconnecting = true;
+          setTimeout(() => {
+            if (tabs.has(tabId) || state.reconnecting) {
+              tabs.delete(tabId);
+              connectTab(tabId, port, transport, endpoint);
+            }
+          }, 2000);
+        }
       });
     } catch (err) {
       sendToPort(port, { type: "connection-status", status: "disconnected" });
@@ -716,6 +731,9 @@ ${formatTree(state.currentTree)}`;
   }
 
   // src/background/index.ts
+  setInterval(() => {
+    if (ports.size > 0) {}
+  }, 20000);
   var ports = new Map;
   chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== "slop")

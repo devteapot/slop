@@ -27,6 +27,9 @@ interface TabState {
   conversation: ChatMessage[];
   providerName: string;
   processing: boolean;
+  transport: "ws" | "postmessage";
+  endpoint?: string;
+  reconnecting: boolean;
 }
 
 const tabs = new Map<number, TabState>();
@@ -56,14 +59,20 @@ export async function connectTab(
 
     const { id: subId, snapshot } = await consumer.subscribe("/", -1);
 
+    // Preserve conversation across reconnects
+    const existingConversation = tabs.get(tabId)?.conversation;
+
     const state: TabState = {
       consumer,
       subscriptionId: subId,
       currentTree: snapshot,
       port,
-      conversation: [{ role: "system", content: SYSTEM_PROMPT }],
+      conversation: existingConversation ?? [{ role: "system", content: SYSTEM_PROMPT }],
       providerName: hello.provider.name,
       processing: false,
+      transport,
+      endpoint,
+      reconnecting: false,
     };
     tabs.set(tabId, state);
 
@@ -81,7 +90,16 @@ export async function connectTab(
 
     consumer.on("disconnect", () => {
       sendToPort(port, { type: "connection-status", status: "disconnected" });
-      tabs.delete(tabId);
+      // Auto-reconnect after 2 seconds
+      if (!state.reconnecting) {
+        state.reconnecting = true;
+        setTimeout(() => {
+          if (tabs.has(tabId) || state.reconnecting) {
+            tabs.delete(tabId);
+            connectTab(tabId, port, transport, endpoint);
+          }
+        }, 2000);
+      }
     });
   } catch (err: any) {
     sendToPort(port, { type: "connection-status", status: "disconnected" });

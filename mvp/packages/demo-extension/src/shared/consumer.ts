@@ -78,10 +78,17 @@ export class SlopConsumer extends Emitter {
   private handleMessage(msg: ProviderMessage): void {
     switch (msg.type) {
       case "snapshot": {
+        const existed = this.mirrors.has(msg.id);
         const mirror = new StateMirror(msg);
         this.mirrors.set(msg.id, mirror);
         const p = this.pending.get(msg.id);
-        if (p) { this.pending.delete(msg.id); p.resolve(msg.tree); }
+        if (p) {
+          this.pending.delete(msg.id);
+          p.resolve(msg.tree);
+        } else if (existed) {
+          // Re-snapshot for an existing subscription — emit as a state change
+          this.emit("patch", msg.id, [], msg.version);
+        }
         break;
       }
       case "patch": {

@@ -1,25 +1,23 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { SlopClientImpl } from "../src/client";
 import type { NodeDescriptor } from "../src/types";
+import type { Transport } from "../src/transport";
 
-// Mock postMessage for testing (no real DOM)
+// Mock transport for testing
 const sentMessages: any[] = [];
 const incomingHandlers: ((msg: any) => void)[] = [];
 
-// Patch globalThis for postMessage
-globalThis.window = {
-  postMessage: (data: any) => sentMessages.push(data),
-  addEventListener: (_: string, handler: any) => {},
-  removeEventListener: () => {},
-} as any;
-globalThis.document = {
-  head: { appendChild: () => {}, },
-  querySelector: () => null,
-  createElement: (tag: string) => ({ name: "", content: "", remove: () => {} }),
-} as any;
+function createMockTransport(): Transport {
+  return {
+    send(message: unknown) { sentMessages.push(message); },
+    onMessage(handler: (msg: any) => void) { incomingHandlers.push(handler); },
+    start() {},
+    stop() {},
+  };
+}
 
 function createTestClient() {
-  const client = new SlopClientImpl({ id: "test", name: "Test App" });
+  const client = new SlopClientImpl({ id: "test", name: "Test App" }, createMockTransport());
   // Don't call start() — we test tree assembly without transport
   return client;
 }
@@ -137,7 +135,7 @@ describe("SlopClient", () => {
   });
 
   test("maxNodes: tree under budget is unchanged", () => {
-    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 100 });
+    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 100 }, createMockTransport());
     client.register("a", { type: "group" });
     client.register("b", { type: "group" });
     client.flush();
@@ -145,7 +143,7 @@ describe("SlopClient", () => {
   });
 
   test("maxNodes: tree over budget gets compacted", () => {
-    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 5 });
+    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 5 }, createMockTransport());
     // Create a tree with many nodes: root + section + 10 items = 12 nodes
     client.register("section", {
       type: "collection",
@@ -160,7 +158,7 @@ describe("SlopClient", () => {
   });
 
   test("maxNodes: low salience nodes collapsed first", () => {
-    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 5 });
+    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 5 }, createMockTransport());
     client.register("important", {
       type: "collection",
       meta: { salience: 1.0 },

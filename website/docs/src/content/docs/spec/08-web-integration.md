@@ -105,7 +105,7 @@ The app creates a single `SlopClient` instance. It's a plain JavaScript object â
 
 ```ts
 // slop.ts â€” create once, import anywhere in your app
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 export const slop = createSlop({
   id: "my-app",
@@ -136,7 +136,7 @@ The `createSlop` function accepts an optional `schema` that defines the tree's s
 
 ```ts
 // slop.ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 const schema = {
   inbox: {

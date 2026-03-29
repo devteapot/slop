@@ -4,7 +4,7 @@ import type {
 } from "./types";
 import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
-import { createPostMessageTransport, type Transport } from "./transport";
+import type { Transport } from "./transport";
 
 interface Subscription {
   id: string;
@@ -22,9 +22,9 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
   private subscriptions = new Map<string, Subscription>();
   private rebuildQueued = false;
 
-  constructor(options: SlopClientOptions<S>) {
+  constructor(options: SlopClientOptions<S>, transport: Transport) {
     this.options = options;
-    this.transport = createPostMessageTransport();
+    this.transport = transport;
   }
 
   register(path: string, descriptor: NodeDescriptor): void {
@@ -411,6 +411,7 @@ function createScopedClient<S>(parent: SlopClientImpl<any>, prefix: string): Slo
     flush() {
       parent.flush();
     },
+    asyncAction: parent.asyncAction.bind(parent) as any,
     stop() {
       // Scoped clients don't own the transport
     },

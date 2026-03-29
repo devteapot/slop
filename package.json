@@ -4,5 +4,5 @@
   "description": "State Layer for Observable Programs — a protocol for AI to observe and interact with application state",
   "license": "MIT",
   "repository": "https://github.com/devteapot/slop",
-  "workspaces": ["packages/*", "examples/*", "extension", "desktop"]
+  "workspaces": ["packages/*", "mvp/packages/*", "examples/*", "extension", "desktop"]
 }

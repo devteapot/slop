@@ -5,10 +5,10 @@ description: How to use SLOP with plain JavaScript or TypeScript without a frame
 
 ## Installation
 
-No adapter is needed. Use `@slop-ai/core` directly.
+No adapter is needed. Use `@slop-ai/client` directly.
 
 ```bash
-npm install @slop-ai/core
+npm install @slop-ai/client
 ```
 
 ## Setup
@@ -16,7 +16,7 @@ npm install @slop-ai/core
 Create a SLOP client instance for your app:
 
 ```ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 export const slop = createSlop({
   id: "notes-app",
@@ -31,7 +31,7 @@ Call `slop.register(path, descriptor)` to publish a node and `slop.unregister(pa
 ## Full Example
 
 ```ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 interface Note {
   id: string;

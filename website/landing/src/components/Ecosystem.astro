@@ -4,15 +4,21 @@ const frameworks = [
   { name: "Vue", pkg: "@slop-ai/vue" },
   { name: "Solid", pkg: "@slop-ai/solid" },
   { name: "Angular", pkg: "@slop-ai/angular" },
-  { name: "Svelte", pkg: "@slop-ai/core" },
-  { name: "Vanilla JS", pkg: "@slop-ai/core" },
+  { name: "Svelte", pkg: "@slop-ai/client" },
+  { name: "Vanilla JS", pkg: "@slop-ai/client" },
+  { name: "Next.js", pkg: "@slop-ai/server" },
+  { name: "Nuxt", pkg: "@slop-ai/server" },
+  { name: "SvelteKit", pkg: "@slop-ai/server" },
+  { name: "Electron", pkg: "@slop-ai/server" },
 ];
 
 const ecosystem = [
-  { title: "@slop-ai/core", desc: "Browser client library. createSlop, register, typed schema.", icon: "&#9881;" },
-  { title: "Chrome Extension", desc: "AI chat overlay on any SLOP-enabled web app.", icon: "&#127760;" },
+  { title: "@slop-ai/core", desc: "Shared engine. Tree assembly, diffing, descriptors, types.", icon: "&#9881;" },
+  { title: "@slop-ai/client", desc: "Browser provider. createSlop() + postMessage transport.", icon: "&#127760;" },
+  { title: "@slop-ai/server", desc: "Server/native provider. WebSocket, Unix socket, stdio.", icon: "&#9889;" },
+  { title: "Chrome Extension", desc: "AI chat overlay on any SLOP-enabled web app.", icon: "&#128269;" },
   { title: "Desktop App", desc: "Unified dashboard for all your SLOP providers.", icon: "&#128187;" },
-  { title: "Protocol Spec", desc: "Open, language-agnostic standard. 12 documents.", icon: "&#128220;" },
+  { title: "Protocol Spec", desc: "Open, language-agnostic standard. 14 documents.", icon: "&#128220;" },
 ];
 ---
 <section class="ecosystem">

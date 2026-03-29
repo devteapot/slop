@@ -195,7 +195,7 @@ The agent:
 The agent creates `slop.ts` at the project root:
 
 ```ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 const schema = {
   inbox: {
@@ -369,7 +369,7 @@ Given a typical React + Zustand todo app, the agent generates:
 
 **`slop.ts`** (new file):
 ```ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 const schema = {
   todos: "collection",

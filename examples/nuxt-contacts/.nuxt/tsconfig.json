@@ -1,0 +1,191 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@unhead/vue": [
+        "../../../node_modules/.bun/@unhead+vue@2.1.12+b3ce730b3bb9df29/node_modules/@unhead/vue"
+      ],
+      "@nuxt/devtools": [
+        "../../../node_modules/.bun/@nuxt+devtools@3.2.4+c025781e7188587b/node_modules/@nuxt/devtools"
+      ],
+      "vue": [
+        "../../../node_modules/.bun/vue@3.5.31+b3ce730b3bb9df29/node_modules/vue"
+      ],
+      "@vue/runtime-core": [
+        "../../../node_modules/.bun/@vue+runtime-core@3.5.31/node_modules/@vue/runtime-core"
+      ],
+      "@vue/compiler-sfc": [
+        "../../../node_modules/.bun/@vue+compiler-sfc@3.5.31/node_modules/@vue/compiler-sfc"
+      ],
+      "vue-router": [
+        "../../../node_modules/.bun/vue-router@4.6.4+b3ce730b3bb9df29/node_modules/vue-router"
+      ],
+      "vue-router/auto-routes": [
+        "../../../node_modules/.bun/vue-router@4.6.4+b3ce730b3bb9df29/node_modules/vue-router/vue-router-auto-routes"
+      ],
+      "unplugin-vue-router/client": [
+        "../../../node_modules/.bun/unplugin-vue-router@0.19.2+37fed58e9529ac26/node_modules/unplugin-vue-router/client"
+      ],
+      "@nuxt/schema": [
+        "../../../node_modules/.bun/@nuxt+schema@3.21.2/node_modules/@nuxt/schema"
+      ],
+      "nuxt": [
+        "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt"
+      ],
+      "vite/client": [
+        "../../../node_modules/.bun/vite@6.4.1+9a042e849c4b20fa/node_modules/vite/client"
+      ],
+      "nitropack/types": [
+        "../../../node_modules/.bun/nitropack@2.13.2+d56b95ac411b1cdd/node_modules/nitropack/types"
+      ],
+      "nitropack/runtime": [
+        "../../../node_modules/.bun/nitropack@2.13.2+d56b95ac411b1cdd/node_modules/nitropack/runtime"
+      ],
+      "nitropack": [
+        "../../../node_modules/.bun/nitropack@2.13.2+d56b95ac411b1cdd/node_modules/nitropack"
+      ],
+      "defu": [
+        "../../../node_modules/.bun/defu@6.1.4/node_modules/defu"
+      ],
+      "h3": [
+        "../../../node_modules/.bun/h3@1.15.10/node_modules/h3"
+      ],
+      "consola": [
+        "../../../node_modules/.bun/consola@3.4.2/node_modules/consola"
+      ],
+      "ofetch": [
+        "../../../node_modules/.bun/ofetch@1.5.1/node_modules/ofetch"
+      ],
+      "crossws": [
+        "../../../node_modules/.bun/crossws@0.3.5/node_modules/crossws"
+      ],
+      "~": [
+        ".."
+      ],
+      "~/*": [
+        "../*"
+      ],
+      "@": [
+        ".."
+      ],
+      "@/*": [
+        "../*"
+      ],
+      "~~": [
+        ".."
+      ],
+      "~~/*": [
+        "../*"
+      ],
+      "@@": [
+        ".."
+      ],
+      "@@/*": [
+        "../*"
+      ],
+      "#shared": [
+        "../shared"
+      ],
+      "#shared/*": [
+        "../shared/*"
+      ],
+      "assets": [
+        "../assets"
+      ],
+      "assets/*": [
+        "../assets/*"
+      ],
+      "public": [
+        "../public"
+      ],
+      "public/*": [
+        "../public/*"
+      ],
+      "#server": [
+        "../server"
+      ],
+      "#server/*": [
+        "../server/*"
+      ],
+      "#app": [
+        "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/app"
+      ],
+      "#app/*": [
+        "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/app/*"
+      ],
+      "vue-demi": [
+        "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/app/compat/vue-demi"
+      ],
+      "#vue-router": [
+        "../../../node_modules/.bun/vue-router@4.6.4+b3ce730b3bb9df29/node_modules/vue-router"
+      ],
+      "#unhead/composables": [
+        "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/head/runtime/composables/v3"
+      ],
+      "#imports": [
+        "./imports"
+      ],
+      "#app-manifest": [
+        "./manifest/meta/ed6ea739-411e-49fe-aae8-2c99e728a6b1"
+      ],
+      "#components": [
+        "./components"
+      ],
+      "#build": [
+        "."
+      ],
+      "#build/*": [
+        "./*"
+      ]
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowArbitraryExtensions": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
+    "module": "preserve",
+    "noEmit": true,
+    "lib": [
+      "ESNext",
+      "dom",
+      "dom.iterable",
+      "webworker"
+    ],
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "types": [],
+    "moduleResolution": "Bundler",
+    "useDefineForClassFields": true,
+    "noImplicitThis": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "../**/*",
+    "../.config/nuxt.*",
+    "./nuxt.d.ts",
+    "../../../node_modules/.bun/@nuxt+telemetry@2.7.0+be636cae03a3a270/node_modules/runtime",
+    "../../../node_modules/.bun/@nuxt+telemetry@2.7.0+be636cae03a3a270/node_modules/dist/runtime",
+    "..",
+    "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/app",
+    "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/app/compat/vue-demi",
+    "../../../node_modules/.bun/vue-router@4.6.4+b3ce730b3bb9df29/node_modules/vue-router/vue-router.node",
+    "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/dist/head/runtime/composables/v3"
+  ],
+  "exclude": [
+    "../dist",
+    "../.data",
+    "../../../node_modules",
+    "../../../node_modules/.bun/nuxt@3.21.2+5622742ba370b332/node_modules/nuxt/node_modules",
+    "../../../node_modules/.bun/@nuxt+telemetry@2.7.0+be636cae03a3a270/node_modules/@nuxt/telemetry/node_modules",
+    "../../../node_modules/.bun/@nuxt+telemetry@2.7.0+be636cae03a3a270/node_modules/runtime/server",
+    "../../../node_modules/.bun/@nuxt+telemetry@2.7.0+be636cae03a3a270/node_modules/dist/runtime/server",
+    "../.output"
+  ]
+}

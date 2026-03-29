@@ -3,18 +3,19 @@ title: "@slop-ai/core"
 description: API reference for the SLOP core client library
 ---
 
-The core package provides `createSlop` and all types needed to add SLOP to any JavaScript application.
+The core package is the shared engine that powers all SLOP integrations. It exports types, helpers (`action`, `pick`, `omit`, `NodeDescriptor`), and internal machinery. The `createSlop` function has moved to `@slop-ai/client`.
 
 ```bash
-bun add @slop-ai/core
+bun add @slop-ai/core          # types and helpers only
+bun add @slop-ai/client         # createSlop + full client (depends on core)
 ```
 
 ## `createSlop(options)`
 
-Creates a SLOP client instance. Call once, import anywhere.
+Creates a SLOP client instance. Call once, import anywhere. **Exported from `@slop-ai/client`** (not `@slop-ai/core`).
 
 ```ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 const slop = createSlop({
   id: "my-app",

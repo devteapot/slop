@@ -3,16 +3,16 @@ title: Installation
 description: Install SLOP packages for your framework
 ---
 
-## Core package
+## Core + Client packages
 
-Every SLOP integration starts with `@slop-ai/core`:
+Every SLOP integration starts with `@slop-ai/client` (which depends on `@slop-ai/core`):
 
 ```bash
-bun add @slop-ai/core
-# or: npm install @slop-ai/core
+bun add @slop-ai/client
+# or: npm install @slop-ai/client
 ```
 
-This gives you `createSlop`, `register`, `unregister`, `scope`, and typed schemas. It works in any JavaScript environment (browser, Node, Bun, Deno).
+`@slop-ai/client` gives you `createSlop`, `register`, `unregister`, `scope`, and typed schemas. `@slop-ai/core` is the shared engine — it exports types and helpers (`action`, `pick`, `omit`, `NodeDescriptor`) but `createSlop` lives in `@slop-ai/client`. Both work in any JavaScript environment (browser, Node, Bun, Deno).
 
 ## Framework adapters
 
@@ -24,10 +24,10 @@ Add the adapter for your framework:
 | Vue 3 | `@slop-ai/vue` | `bun add @slop-ai/vue` |
 | SolidJS | `@slop-ai/solid` | `bun add @slop-ai/solid` |
 | Angular 16+ | `@slop-ai/angular` | `bun add @slop-ai/angular` |
-| Svelte 5 | — | Use `@slop-ai/core` directly |
-| Vanilla JS | — | Use `@slop-ai/core` directly |
+| Svelte 5 | — | Use `@slop-ai/client` directly |
+| Vanilla JS | — | Use `@slop-ai/client` directly |
 
-Svelte and vanilla JS don't need an adapter — `$effect` + `onDestroy` (Svelte) or `store.subscribe` (vanilla) map directly to `register`/`unregister`.
+Svelte and vanilla JS don't need an adapter — `$effect` + `onDestroy` (Svelte) or `store.subscribe` (vanilla) map directly to `register`/`unregister`. Use `@slop-ai/client` directly.
 
 ## Consumer package
 

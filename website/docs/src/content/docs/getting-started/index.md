@@ -8,8 +8,8 @@ SLOP lets AI observe and interact with your application's state. This guide show
 ## Install
 
 ```bash
-bun add @slop-ai/core @slop-ai/react
-# or: npm install @slop-ai/core @slop-ai/react
+bun add @slop-ai/client @slop-ai/react
+# or: npm install @slop-ai/client @slop-ai/react
 ```
 
 ## Create the SLOP client
@@ -18,7 +18,7 @@ Create a file that initializes the client. You'll import this from any component
 
 ```ts
 // slop.ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 export const slop = createSlop({ id: "my-app", name: "My App" });
 ```

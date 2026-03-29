@@ -6,7 +6,7 @@ description: How to use SLOP with Angular to expose component state to AI agents
 ## Installation
 
 ```bash
-npm install @slop-ai/core @slop-ai/angular
+npm install @slop-ai/client @slop-ai/angular
 ```
 
 ## Setup
@@ -14,7 +14,7 @@ npm install @slop-ai/core @slop-ai/angular
 Create a SLOP client instance for your app:
 
 ```ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 export const slop = createSlop({
   id: "notes-app",

@@ -6,7 +6,7 @@ description: API reference for the SLOP React hook
 React hook for registering SLOP nodes in components.
 
 ```bash
-bun add @slop-ai/react @slop-ai/core
+bun add @slop-ai/react @slop-ai/client
 ```
 
 ## `useSlop(client, path, descriptor)`

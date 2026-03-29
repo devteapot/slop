@@ -25,5 +25,5 @@ Bun.serve({
 });
 
 console.log(`Notes app running at http://localhost:${PORT}`);
-console.log(`  SLOP: postMessage (in-browser, via @slop-ai/core)`);
+console.log(`  SLOP: postMessage (in-browser, via @slop-ai/client)`);
 console.log(`  Extension auto-discovers via <meta name="slop" content="postmessage">`);

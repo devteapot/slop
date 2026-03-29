@@ -1,0 +1,105 @@
+---
+---
+<section class="how-it-works">
+  <div class="container">
+    <span class="label">How It Works</span>
+    <h2>Three concepts, one protocol</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>App exposes state</h3>
+        <p>Your app registers semantic nodes — not DOM elements, not database rows — <em>meaning</em>.</p>
+        <div class="code-block">
+          <pre set:html={`<span class="fn">useSlop</span>(slop, <span class="string">"notes"</span>, {
+  type: <span class="string">"collection"</span>,
+  props: { count: notes.length },
+  items: notes.<span class="fn">map</span>(n =&gt; ({
+    id: n.id,
+    props: { title: n.title },
+  })),
+});`} />
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>AI observes</h3>
+        <p>The AI subscribes to the state tree and receives incremental patches as things change.</p>
+        <div class="code-block tree-view">
+          <pre>[root] My App
+  [collection] notes (count=3)
+    [item] Meeting notes
+    [item] Grocery list  <span class="string">★ pinned</span>
+    [item] App ideas
+  [status] stats (total=3, pinned=1)</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number glow">3</div>
+        <h3>AI acts in context</h3>
+        <p>Actions live on the nodes they affect. The AI sees what it can do alongside what it sees.</p>
+        <div class="code-block">
+          <pre set:html={`actions: {
+  <span class="fn">toggle_pin</span>: () =&gt; togglePin(note.id),
+  <span class="fn">edit</span>: {
+    params: { title: <span class="string">"string"</span> },
+    handler: ({ title }) =&gt; updateNote(note.id, title),
+  },
+  <span class="fn">delete</span>: { handler: () =&gt; remove(note.id), dangerous: <span class="keyword">true</span> },
+}`} />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .how-it-works h2 {
+    font-size: 2.25rem;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-10);
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+  }
+  @media (max-width: 900px) {
+    .steps { grid-template-columns: 1fr; }
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .step-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface-container-high);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-machine);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .step h3 {
+    font-size: 1.25rem;
+  }
+  .step p {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+  }
+  .step .code-block {
+    margin-top: var(--space-2);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+  .tree-view {
+    color: var(--secondary);
+  }
+</style>

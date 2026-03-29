@@ -1,0 +1,57 @@
+---
+---
+<nav>
+  <div class="container nav-inner">
+    <a href="/" class="logo">
+      <img src="/logo.svg" alt="SLOP" width="32" height="32" />
+      <span>SLOP</span>
+    </a>
+    <div class="nav-links">
+      <a href="https://docs.slopai.dev">Docs</a>
+      <a href="https://github.com/devteapot/slop">GitHub</a>
+      <a href="https://www.npmjs.com/org/slop-ai">npm</a>
+    </div>
+  </div>
+</nav>
+
+<style>
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: var(--space-3) 0;
+    background: rgba(17, 19, 25, 0.8);
+    backdrop-filter: blur(12px);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .logo img {
+    border-radius: 6px;
+  }
+  .nav-links {
+    display: flex;
+    gap: var(--space-5);
+  }
+  .nav-links a {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+  .nav-links a:hover {
+    color: var(--text-primary);
+  }
+</style>

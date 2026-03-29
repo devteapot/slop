@@ -1,0 +1,62 @@
+---
+---
+<section class="hero">
+  <div class="container">
+    <span class="label">State Layer for Observable Programs</span>
+    <h1>The perception layer<br />for AI agents</h1>
+    <p class="subline">
+      SLOP lets AI see and interact with application state directly —
+      no screenshots, no scraping, no blind tool calls.
+    </p>
+    <div class="actions">
+      <a href="https://docs.slopai.dev/getting-started" class="btn btn-primary">Get Started</a>
+      <a href="https://github.com/devteapot/slop" class="btn btn-secondary">View on GitHub</a>
+    </div>
+    <div class="hero-visual">
+      <div class="code-block">
+        <pre set:html={`<span class="comment">// 3 lines to add SLOP to any app</span>
+<span class="keyword">import</span> { createSlop } <span class="keyword">from</span> <span class="string">"@slop-ai/core"</span>;
+
+<span class="keyword">export const</span> slop = <span class="fn">createSlop</span>({ id: <span class="string">"my-app"</span>, name: <span class="string">"My App"</span> });`} />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-top: 10rem;
+    padding-bottom: var(--space-16);
+    text-align: left;
+  }
+  .hero .label {
+    margin-bottom: var(--space-4);
+    display: inline-block;
+  }
+  h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    margin-bottom: var(--space-5);
+    color: var(--text-primary);
+  }
+  .subline {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin-bottom: var(--space-8);
+    line-height: 1.6;
+  }
+  .actions {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-10);
+    flex-wrap: wrap;
+  }
+  .hero-visual {
+    max-width: 700px;
+  }
+  .hero-visual .code-block {
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+</style>

@@ -1,14 +1,14 @@
 [package]
-name = "demo-desktop"
+name = "slop-desktop"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "demo_desktop_lib"
+name = "slop_desktop_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [[bin]]
-name = "demo-desktop"
+name = "slop-desktop"
 path = "src/main.rs"
 
 [dependencies]

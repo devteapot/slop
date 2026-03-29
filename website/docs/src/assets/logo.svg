@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Owl body -->
+  <circle cx="32" cy="34" r="24" fill="#5ba3f5"/>
+  <!-- Ears -->
+  <polygon points="14,16 20,24 10,24" fill="#5ba3f5"/>
+  <polygon points="50,16 54,24 44,24" fill="#5ba3f5"/>
+  <!-- Wings -->
+  <ellipse cx="14" cy="38" rx="8" ry="12" fill="#4a94e8" opacity="0.6"/>
+  <ellipse cx="50" cy="38" rx="8" ry="12" fill="#4a94e8" opacity="0.6"/>
+  <!-- Eyes -->
+  <circle cx="24" cy="34" r="10" fill="#91db37" opacity="0.9"/>
+  <circle cx="40" cy="34" r="10" fill="#91db37" opacity="0.9"/>
+  <!-- Pupils -->
+  <circle cx="24" cy="35" r="4" fill="#111319"/>
+  <circle cx="40" cy="35" r="4" fill="#111319"/>
+  <!-- Beak -->
+  <polygon points="32,40 30,44 34,44" fill="#4a94e8"/>
+</svg>

@@ -1,0 +1,98 @@
+---
+const frameworks = [
+  { name: "React", pkg: "@slop-ai/react" },
+  { name: "Vue", pkg: "@slop-ai/vue" },
+  { name: "Solid", pkg: "@slop-ai/solid" },
+  { name: "Angular", pkg: "@slop-ai/angular" },
+  { name: "Svelte", pkg: "@slop-ai/core" },
+  { name: "Vanilla JS", pkg: "@slop-ai/core" },
+];
+
+const ecosystem = [
+  { title: "@slop-ai/core", desc: "Browser client library. createSlop, register, typed schema.", icon: "&#9881;" },
+  { title: "Chrome Extension", desc: "AI chat overlay on any SLOP-enabled web app.", icon: "&#127760;" },
+  { title: "Desktop App", desc: "Unified dashboard for all your SLOP providers.", icon: "&#128187;" },
+  { title: "Protocol Spec", desc: "Open, language-agnostic standard. 12 documents.", icon: "&#128220;" },
+];
+---
+<section class="ecosystem">
+  <div class="container">
+    <span class="label">Ecosystem</span>
+    <h2>Works with your stack</h2>
+
+    <div class="framework-grid">
+      {frameworks.map(f => (
+        <div class="framework-item">
+          <span class="framework-name">{f.name}</span>
+          <code>{f.pkg}</code>
+        </div>
+      ))}
+    </div>
+
+    <div class="ecosystem-grid">
+      {ecosystem.map(item => (
+        <div class="card ecosystem-card">
+          <span class="eco-icon">{item.icon}</span>
+          <h3>{item.title}</h3>
+          <p>{item.desc}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .ecosystem h2 {
+    font-size: 2.25rem;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-8);
+  }
+  .framework-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-10);
+  }
+  .framework-item {
+    background: var(--surface-container);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    transition: background 0.15s;
+  }
+  .framework-item:hover {
+    background: var(--surface-container-high);
+  }
+  .framework-name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .framework-item code {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+  }
+  .ecosystem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--space-5);
+  }
+  .ecosystem-card {
+    padding: var(--space-6);
+  }
+  .eco-icon {
+    font-size: 1.5rem;
+    display: block;
+    margin-bottom: var(--space-3);
+  }
+  .ecosystem-card h3 {
+    font-family: var(--font-machine);
+    font-size: 0.9375rem;
+    margin-bottom: var(--space-2);
+  }
+  .ecosystem-card p {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+</style>

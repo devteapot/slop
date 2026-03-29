@@ -1,0 +1,183 @@
+/* SLOP Design System — "The Nocturnal Observer" */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Core surfaces */
+  --surface: #111319;
+  --surface-container-low: #161a23;
+  --surface-container: #1b1f2a;
+  --surface-container-high: #222735;
+  --surface-container-highest: #2a3040;
+  --surface-container-lowest: #0c0e14;
+  --surface-variant: rgba(34, 39, 53, 0.6);
+
+  /* Primary — The Glow */
+  --primary: #91db37;
+  --primary-dim: rgba(145, 219, 55, 0.15);
+  --primary-container: #6aaf1a;
+
+  /* Secondary */
+  --secondary: #adc6ff;
+  --secondary-dim: rgba(173, 198, 255, 0.12);
+  --secondary-container: rgba(173, 198, 255, 0.4);
+
+  /* Text */
+  --text-primary: #e8ecf4;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+
+  /* Outline */
+  --outline-variant: rgba(173, 198, 255, 0.15);
+
+  /* Fonts */
+  --font-human: 'Space Grotesk', system-ui, sans-serif;
+  --font-machine: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+  --space-12: 5rem;
+  --space-16: 7rem;
+  --space-20: 9rem;
+
+  /* Radius */
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-human);
+  background: var(--surface);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-human);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+code, pre, .mono {
+  font-family: var(--font-machine);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Utility */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+.label {
+  font-family: var(--font-machine);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-machine);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--surface);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 20px rgba(145, 219, 55, 0.4);
+  text-decoration: none;
+}
+
+.btn-secondary {
+  background: var(--surface-variant);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+}
+.btn-secondary:hover {
+  background: var(--surface-container-high);
+  text-decoration: none;
+}
+
+/* Cards */
+.card {
+  background: var(--surface-container);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  transition: background 0.2s;
+}
+.card:hover {
+  background: var(--surface-container-high);
+}
+
+.glass {
+  background: var(--surface-variant);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius);
+}
+
+/* Code blocks */
+.code-block {
+  background: var(--surface-container-lowest);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  overflow-x: auto;
+  font-family: var(--font-machine);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.code-block .keyword { color: var(--secondary); }
+.code-block .string { color: var(--primary); }
+.code-block .comment { color: var(--text-tertiary); }
+.code-block .fn { color: #e8b4f8; }
+
+/* Vision glow */
+.glow {
+  filter: drop-shadow(0 0 8px rgba(145, 219, 55, 0.25));
+}
+
+/* Section spacing */
+section {
+  padding: var(--space-16) 0;
+}

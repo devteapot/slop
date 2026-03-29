@@ -1,0 +1,73 @@
+name: Update Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-formula:
+    if: startsWith(github.event.release.tag_name, 'desktop-v')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: devteapot/homebrew-slop
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Get release info
+        id: release
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#desktop-v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Download ARM dmg and get sha
+          ARM_URL="https://github.com/devteapot/slop/releases/download/${{ github.event.release.tag_name }}/SLOP.Desktop_${VERSION}_aarch64.dmg"
+          curl -sL "$ARM_URL" -o arm.dmg
+          ARM_SHA=$(shasum -a 256 arm.dmg | awk '{print $1}')
+          echo "arm_sha=$ARM_SHA" >> $GITHUB_OUTPUT
+
+          # Download Intel dmg and get sha
+          INTEL_URL="https://github.com/devteapot/slop/releases/download/${{ github.event.release.tag_name }}/SLOP.Desktop_${VERSION}_x64.dmg"
+          curl -sL "$INTEL_URL" -o intel.dmg
+          INTEL_SHA=$(shasum -a 256 intel.dmg | awk '{print $1}')
+          echo "intel_sha=$INTEL_SHA" >> $GITHUB_OUTPUT
+
+      - name: Update formula
+        run: |
+          cat > Casks/slop-desktop.rb << 'FORMULA'
+          cask "slop-desktop" do
+            version "${{ steps.release.outputs.version }}"
+
+            on_arm do
+              url "https://github.com/devteapot/slop/releases/download/${{ github.event.release.tag_name }}/SLOP.Desktop_${{ steps.release.outputs.version }}_aarch64.dmg"
+              sha256 "${{ steps.release.outputs.arm_sha }}"
+            end
+
+            on_intel do
+              url "https://github.com/devteapot/slop/releases/download/${{ github.event.release.tag_name }}/SLOP.Desktop_${{ steps.release.outputs.version }}_x64.dmg"
+              sha256 "${{ steps.release.outputs.intel_sha }}"
+            end
+
+            name "SLOP Desktop"
+            desc "AI-powered desktop client for the SLOP protocol"
+            homepage "https://slopai.dev"
+
+            app "SLOP Desktop.app"
+
+            zap trash: [
+              "~/Library/Application Support/com.slop.desktop",
+              "~/Library/Caches/com.slop.desktop",
+              "~/Library/Preferences/com.slop.desktop.plist",
+              "~/.slop",
+            ]
+          end
+          FORMULA
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add Casks/slop-desktop.rb
+          git commit -m "Update slop-desktop to ${{ steps.release.outputs.version }}"
+          git push

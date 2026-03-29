@@ -16,7 +16,7 @@ The agent analyzes the full codebase, generates the schema, and adds `register()
 1. A typed schema file (`slop.ts`) declaring the tree structure
 2. `useSlop()` calls added to existing components, near the state they describe
 3. Action handlers wired to existing state mutations
-4. `@slop/core` and the appropriate framework adapter added to dependencies
+4. `@slop-ai/core` and the appropriate framework adapter added to dependencies
 
 ### Incremental mode: "Add SLOP to this component"
 
@@ -90,7 +90,7 @@ The agent scans `package.json` and imports to identify:
 - **Framework:** React, Vue, Svelte, vanilla
 - **State management:** useState, Zustand, Redux, Pinia, MobX, Jotai, Svelte stores
 - **Router:** React Router, Next.js, Vue Router, SvelteKit
-- **Existing SLOP integration:** check for `@slop/core` in dependencies
+- **Existing SLOP integration:** check for `@slop-ai/core` in dependencies
 
 ### Step 2: Map routes to views
 
@@ -195,7 +195,7 @@ The agent:
 The agent creates `slop.ts` at the project root:
 
 ```ts
-import { createSlop } from "@slop/core";
+import { createSlop } from "@slop-ai/core";
 
 const schema = {
   inbox: {
@@ -219,7 +219,7 @@ export const slop = createSlop({
 ### Step 6: Install dependencies
 
 ```bash
-npm install @slop/core @slop/react   # or @slop/vue, @slop/svelte
+npm install @slop-ai/core @slop-ai/react   # or @slop-ai/vue, @slop-ai/svelte
 ```
 
 ## Incremental workflow
@@ -283,8 +283,8 @@ The command reads the codebase context, runs the analysis, and applies changes t
 A standalone CLI that wraps an LLM API call:
 
 ```bash
-npx @slop/init                           # scaffold
-npx @slop/init src/components/Chat.tsx    # incremental
+npx @slop-ai/init                           # scaffold
+npx @slop-ai/init src/components/Chat.tsx    # incremental
 ```
 
 The CLI:
@@ -322,7 +322,7 @@ You are adding SLOP integration to a web application.
 
 SLOP (State Layer for Observable Programs) is a protocol that lets AI observe
 and interact with application state. You are adding the developer-side
-integration using the @slop/core library.
+integration using the @slop-ai/core library.
 
 Your job:
 1. Analyze the component's state (useState, stores, etc.)
@@ -369,7 +369,7 @@ Given a typical React + Zustand todo app, the agent generates:
 
 **`slop.ts`** (new file):
 ```ts
-import { createSlop } from "@slop/core";
+import { createSlop } from "@slop-ai/core";
 
 const schema = {
   todos: "collection",
@@ -387,7 +387,7 @@ export const slop = createSlop({
 **`TodoList.tsx`** (modified — `useSlop` added):
 ```tsx
 import { slop } from "./slop";
-import { useSlop } from "@slop/react";
+import { useSlop } from "@slop-ai/react";
 import { useTodoStore } from "./store";
 
 function TodoList() {
@@ -423,7 +423,7 @@ function TodoList() {
 **`FilterBar.tsx`** (modified):
 ```tsx
 import { slop } from "./slop";
-import { useSlop } from "@slop/react";
+import { useSlop } from "@slop-ai/react";
 
 function FilterBar() {
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
@@ -446,7 +446,7 @@ function FilterBar() {
 **`StatsBar.tsx`** (modified):
 ```tsx
 import { slop } from "./slop";
-import { useSlop } from "@slop/react";
+import { useSlop } from "@slop-ai/react";
 
 function StatsBar() {
   const { todos } = useTodoStore();
@@ -465,8 +465,8 @@ function StatsBar() {
 ```json
 {
   "dependencies": {
-    "@slop/core": "^1.0.0",
-    "@slop/react": "^1.0.0"
+    "@slop-ai/core": "^1.0.0",
+    "@slop-ai/react": "^1.0.0"
   }
 }
 ```

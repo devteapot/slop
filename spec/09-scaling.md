@@ -233,6 +233,112 @@ Two subscriptions: overview + active view. Salience filtering. Windowed collecti
 { "type": "subscribe", "id": "detail", "path": "/inbox", "depth": -1 }
 ```
 
+## Developer API for scaling
+
+The scaling patterns described above translate to specific features in the `@slop-ai/core` descriptor API. Developers don't need to construct SLOP protocol messages manually — the library handles it.
+
+### Summaries
+
+Every node can include a `summary` field in its descriptor. When the node is collapsed (beyond the consumer's depth limit), the summary replaces the full content.
+
+```ts
+slop.register("inbox", {
+  type: "view",
+  props: { label: "Inbox" },
+  summary: "142 messages, 12 unread, 3 flagged",
+  items: [...],
+});
+```
+
+The summary is critical for AI comprehension. When the AI sees the tree at depth 1, it reads:
+
+```
+[view] Inbox — "142 messages, 12 unread, 3 flagged"
+```
+
+Instead of loading all 142 messages, the AI knows what's in the inbox from the summary alone. If it needs detail, it drills in.
+
+**Guidelines for summaries:**
+- Include counts, important states, and recency: `"47 PRs: 12 need review, 8 have conflicts"`
+- Keep under 100 characters — it's a glance, not a paragraph
+- Update the summary when state changes — stale summaries mislead the AI
+
+### Windowed collections
+
+For collections with many items (messages, rows, search results), expose only the **visible window** — the items the user can currently see.
+
+```ts
+slop.register("inbox/messages", {
+  type: "collection",
+  props: { count: allMessages.length },
+  summary: `${allMessages.length} messages, ${unread} unread`,
+  window: {
+    items: visibleMessages.map(m => ({
+      id: m.id,
+      props: { from: m.from, subject: m.subject, unread: m.unread },
+      actions: { archive: () => archive(m.id) },
+    })),
+    total: allMessages.length,
+    offset: scrollPosition,
+  },
+});
+```
+
+When `window` is provided instead of `items`:
+- The library sets `meta.total_children` to `window.total`
+- The library sets `meta.window` to `[window.offset, items.length]`
+- Only the windowed items appear as children in the tree
+- The summary tells the AI what's in the full collection
+
+The AI sees:
+```
+[collection] messages (count=500)
+  summary: "500 messages, 12 unread"
+  window: [0, 25] of 500
+  [item] msg-1: "Q3 Report" from alice (unread)
+  [item] msg-2: "Meeting notes" from bob
+  ... (25 items shown)
+```
+
+### Depth control
+
+The consumer controls how deep it wants the tree resolved. The `@slop-ai/core` client supports a `maxDepth` option that truncates the tree before sending to consumers:
+
+```ts
+const slop = createSlop({
+  id: "my-app",
+  name: "My App",
+  maxDepth: 3,  // nodes beyond depth 3 become stubs with summaries
+});
+```
+
+Nodes beyond `maxDepth` are replaced with stubs:
+```json
+{ "id": "thread-42", "type": "group", "meta": { "total_children": 15, "summary": "15 replies, 3 unread" } }
+```
+
+The consumer can query deeper on demand via the SLOP `query` message with a specific path and unlimited depth.
+
+### Salience in descriptors
+
+Mark node importance via `meta.salience` in the descriptor:
+
+```ts
+slop.register("notifications", {
+  type: "collection",
+  items: notifications.map(n => ({
+    id: n.id,
+    props: { message: n.message, time: n.time },
+    meta: {
+      salience: n.unread ? 1.0 : 0.2,
+      urgency: n.priority === "high" ? "high" : "none",
+    },
+  })),
+});
+```
+
+Consumers that subscribe with `min_salience` will only receive nodes above the threshold. This lets the AI focus its context window on what matters.
+
 ## Provider implementation guidelines
 
 1. **Structure the tree around views.** Use the user's navigation as the primary organizing principle. Each route/page/screen is a view node.

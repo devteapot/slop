@@ -50,6 +50,8 @@ The full specification is in [`spec/`](./spec/):
 9. [Scaling](./spec/09-scaling.md)
 10. [Desktop Integration](./spec/10-desktop-integration.md)
 11. [Agent-Assisted Integration](./spec/11-agent-integration.md)
+12. [OpenClaw Integration](./spec/12-openclaw-integration.md)
+13. [Content References](./spec/13-content-references.md)
 
 ## Project structure
 

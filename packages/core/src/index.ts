@@ -41,6 +41,8 @@ export type {
   NodeMeta,
   JsonSchema,
   PatchOp,
+  ContentRef,
+  WindowDescriptor,
 } from "./types";
 
 // Re-export schema types

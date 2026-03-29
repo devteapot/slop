@@ -62,9 +62,26 @@ export type Action = ActionHandler | {
   idempotent?: boolean;
 };
 
+export interface ContentRef {
+  type: "text" | "binary" | "stream";
+  mime: string;
+  size?: number;
+  uri?: string;
+  summary: string;
+  preview?: string;
+  encoding?: string;
+}
+
+export interface WindowDescriptor {
+  items: ItemDescriptor[];
+  total: number;
+  offset: number;
+}
+
 export interface ItemDescriptor {
   id: string;
   props?: Record<string, unknown>;
+  summary?: string;
   actions?: Record<string, Action>;
   meta?: Partial<NodeMeta>;
   children?: Record<string, NodeDescriptor>;
@@ -73,7 +90,10 @@ export interface ItemDescriptor {
 export interface NodeDescriptor {
   type: string;
   props?: Record<string, unknown>;
+  summary?: string;
   items?: ItemDescriptor[];
+  window?: WindowDescriptor;
+  contentRef?: ContentRef;
   children?: Record<string, NodeDescriptor>;
   actions?: Record<string, Action>;
   meta?: Partial<NodeMeta>;
@@ -85,6 +105,8 @@ export interface SlopClientOptions<S = unknown> {
   id: string;
   name: string;
   schema?: S;
+  maxDepth?: number;
+  maxNodes?: number;
 }
 
 export interface SlopClient<S = unknown> {

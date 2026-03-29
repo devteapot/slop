@@ -121,7 +121,7 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
           type: "snapshot",
           id: msg.id,
           version: this.version,
-          tree: this.currentTree,
+          tree: this.getOutputTree(),
         });
         break;
 
@@ -134,7 +134,7 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
           type: "snapshot",
           id: msg.id,
           version: this.version,
-          tree: this.currentTree,
+          tree: this.getOutputTree(),
         });
         break;
 
@@ -194,6 +194,17 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
     return undefined;
   }
 
+  private getOutputTree(): SlopNode {
+    let tree = this.currentTree;
+    if (this.options.maxDepth != null) {
+      tree = truncateTree(tree, this.options.maxDepth);
+    }
+    if (this.options.maxNodes != null) {
+      tree = autoCompact(tree, this.options.maxNodes);
+    }
+    return tree;
+  }
+
   private broadcastUpdate(ops: PatchOp[]): void {
     for (const [, sub] of this.subscriptions) {
       this.transport.send({
@@ -204,6 +215,117 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
       });
     }
   }
+}
+
+function truncateTree(node: SlopNode, depth: number): SlopNode {
+  if (depth <= 0 && node.children?.length) {
+    return {
+      id: node.id,
+      type: node.type,
+      ...(node.properties && { properties: node.properties }),
+      meta: {
+        ...node.meta,
+        total_children: node.children.length,
+      },
+    };
+  }
+  if (!node.children) return node;
+  return {
+    ...node,
+    children: node.children.map(c => truncateTree(c, depth - 1)),
+  };
+}
+
+function countNodes(node: SlopNode): number {
+  return 1 + (node.children?.reduce((sum, c) => sum + countNodes(c), 0) ?? 0);
+}
+
+interface CompactCandidate {
+  path: number[];       // index path from root to this node
+  score: number;
+  childCount: number;   // how many nodes we save by collapsing
+}
+
+function collectCandidates(
+  node: SlopNode,
+  path: number[],
+  candidates: CompactCandidate[],
+  isRootChild: boolean = false
+): void {
+  if (!node.children) return;
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i];
+    const childPath = [...path, i];
+
+    if (child.children?.length && !isRootChild) {
+      // This node has children and is collapsible (not a root direct child)
+      const childCount = countNodes(child) - 1; // nodes saved = total - the stub
+      const salience = child.meta?.salience ?? 0.5;
+      const depth = childPath.length;
+      const score = salience - (depth * 0.01) - (childCount * 0.001);
+      candidates.push({ path: childPath, score, childCount });
+    }
+
+    // Recurse — but root's direct children are protected (pass isRootChild=false for grandchildren)
+    collectCandidates(child, childPath, candidates, false);
+  }
+}
+
+function collapseAtPath(tree: SlopNode, path: number[]): number {
+  let node = tree;
+  for (let i = 0; i < path.length - 1; i++) {
+    if (!node.children?.[path[i]]) return 0;
+    node = node.children[path[i]];
+  }
+
+  const idx = path[path.length - 1];
+  if (!node.children?.[idx]) return 0;
+
+  const target = node.children[idx];
+  const saved = countNodes(target) - 1; // we keep the stub, remove children
+
+  // Collapse: remove children, set meta
+  node.children[idx] = {
+    id: target.id,
+    type: target.type,
+    ...(target.properties && { properties: target.properties }),
+    ...(target.affordances && { affordances: target.affordances }),
+    meta: {
+      ...target.meta,
+      total_children: target.children?.length ?? 0,
+      summary: target.meta?.summary ?? `${target.children?.length ?? 0} children`,
+    },
+  };
+
+  return saved;
+}
+
+function autoCompact(root: SlopNode, maxNodes: number): SlopNode {
+  const total = countNodes(root);
+  if (total <= maxNodes) return root;
+
+  // Collect collapsible candidates (skip root's direct children — navigation skeleton)
+  const candidates: CompactCandidate[] = [];
+  if (root.children) {
+    for (let i = 0; i < root.children.length; i++) {
+      collectCandidates(root.children[i], [i], candidates, false);
+    }
+  }
+
+  // Sort: lowest score = collapse first
+  candidates.sort((a, b) => a.score - b.score);
+
+  // Clone and collapse until under budget
+  const tree = structuredClone(root);
+  let nodeCount = total;
+
+  for (const candidate of candidates) {
+    if (nodeCount <= maxNodes) break;
+    const saved = collapseAtPath(tree, candidate.path);
+    nodeCount -= saved;
+  }
+
+  return tree;
 }
 
 function createScopedClient<S>(parent: SlopClientImpl<any>, prefix: string): SlopClient<S> {

@@ -123,4 +123,87 @@ describe("normalizeDescriptor", () => {
     });
     expect(handlers.get("inbox/messages/msg-1/edit")).toBe(editFn);
   });
+
+  test("summary maps to meta.summary", () => {
+    const { node } = normalizeDescriptor("inbox", "inbox", {
+      type: "view",
+      summary: "142 messages, 12 unread",
+    });
+    expect(node.meta?.summary).toBe("142 messages, 12 unread");
+  });
+
+  test("summary merges with existing meta", () => {
+    const { node } = normalizeDescriptor("inbox", "inbox", {
+      type: "view",
+      summary: "142 messages",
+      meta: { salience: 0.8 },
+    });
+    expect(node.meta?.summary).toBe("142 messages");
+    expect(node.meta?.salience).toBe(0.8);
+  });
+
+  test("window creates children with total_children and window meta", () => {
+    const { node } = normalizeDescriptor("messages", "messages", {
+      type: "collection",
+      window: {
+        items: [
+          { id: "m1", props: { title: "First" } },
+          { id: "m2", props: { title: "Second" } },
+        ],
+        total: 500,
+        offset: 10,
+      },
+    });
+    expect(node.children).toHaveLength(2);
+    expect(node.children![0].id).toBe("m1");
+    expect(node.meta?.total_children).toBe(500);
+    expect(node.meta?.window).toEqual([10, 2]);
+  });
+
+  test("contentRef maps to content_ref in properties", () => {
+    const { node } = normalizeDescriptor("doc", "doc", {
+      type: "document",
+      props: { title: "main.ts" },
+      contentRef: {
+        type: "text",
+        mime: "text/typescript",
+        size: 12400,
+        summary: "TypeScript module",
+        preview: "import { createSlop }...",
+      },
+    });
+    expect(node.properties?.title).toBe("main.ts");
+    expect(node.properties?.content_ref).toBeDefined();
+    const ref = node.properties!.content_ref as any;
+    expect(ref.type).toBe("text");
+    expect(ref.mime).toBe("text/typescript");
+    expect(ref.summary).toBe("TypeScript module");
+    expect(ref.uri).toBe("slop://content/doc");
+  });
+
+  test("contentRef uses explicit uri when provided", () => {
+    const { node } = normalizeDescriptor("img", "img", {
+      type: "document",
+      contentRef: {
+        type: "binary",
+        mime: "image/png",
+        summary: "Photo",
+        uri: "https://cdn.example.com/photo.png",
+      },
+    });
+    const ref = node.properties!.content_ref as any;
+    expect(ref.uri).toBe("https://cdn.example.com/photo.png");
+  });
+
+  test("item summary maps to meta.summary", () => {
+    const { node } = normalizeDescriptor("notes", "notes", {
+      type: "collection",
+      items: [{
+        id: "n1",
+        props: { title: "Note" },
+        summary: "A short note about testing",
+      }],
+    });
+    expect(node.children![0].meta?.summary).toBe("A short note about testing");
+  });
 });

@@ -1,5 +1,5 @@
 import type {
-  SlopNode, Affordance, JsonSchema, ActionHandler,
+  SlopNode, Affordance, JsonSchema, ActionHandler, NodeMeta,
   NodeDescriptor, ItemDescriptor, Action, ParamDef,
 } from "./types";
 
@@ -20,8 +20,22 @@ export function normalizeDescriptor(
   const handlers = new Map<string, ActionHandler>();
   const children: SlopNode[] = [];
 
-  // Convert items → children with type "item"
-  if (descriptor.items) {
+  // Build meta from explicit meta + summary + window metadata
+  const meta: Partial<NodeMeta> = { ...descriptor.meta };
+  if (descriptor.summary) meta.summary = descriptor.summary;
+
+  // Convert windowed collection OR items → children
+  if (descriptor.window) {
+    // Windowed: only include the window slice
+    for (const item of descriptor.window.items) {
+      const itemPath = path ? `${path}/${item.id}` : item.id;
+      const { node: itemNode, handlers: itemHandlers } = normalizeItem(itemPath, item);
+      children.push(itemNode);
+      for (const [k, v] of itemHandlers) handlers.set(k, v);
+    }
+    meta.total_children = descriptor.window.total;
+    meta.window = [descriptor.window.offset, descriptor.window.items.length];
+  } else if (descriptor.items) {
     for (const item of descriptor.items) {
       const itemPath = path ? `${path}/${item.id}` : item.id;
       const { node: itemNode, handlers: itemHandlers } = normalizeItem(itemPath, item);
@@ -45,13 +59,26 @@ export function normalizeDescriptor(
   // Convert actions → affordances + extract handlers
   const affordances = normalizeActions(path, descriptor.actions, handlers);
 
+  // Build properties, including content_ref if provided
+  let properties = descriptor.props ? { ...descriptor.props } : undefined;
+  if (descriptor.contentRef) {
+    const ref = descriptor.contentRef;
+    properties = {
+      ...properties,
+      content_ref: {
+        ...ref,
+        uri: ref.uri ?? `slop://content/${path}`,
+      },
+    };
+  }
+
   const node: SlopNode = {
     id,
     type: descriptor.type,
-    ...(descriptor.props && { properties: descriptor.props }),
+    ...(properties && { properties }),
     ...(children.length > 0 && { children }),
     ...(affordances.length > 0 && { affordances }),
-    ...(descriptor.meta && { meta: descriptor.meta }),
+    ...(Object.keys(meta).length > 0 && { meta }),
   };
 
   return { node, handlers };
@@ -76,13 +103,16 @@ function normalizeItem(
 
   const affordances = normalizeActions(path, item.actions, handlers);
 
+  const meta: Partial<NodeMeta> = { ...item.meta };
+  if (item.summary) meta.summary = item.summary;
+
   const node: SlopNode = {
     id: item.id,
     type: "item",
     ...(item.props && { properties: item.props }),
     ...(children.length > 0 && { children }),
     ...(affordances.length > 0 && { affordances }),
-    ...(item.meta && { meta: item.meta }),
+    ...(Object.keys(meta).length > 0 && { meta }),
   };
 
   return { node, handlers };

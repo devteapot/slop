@@ -339,6 +339,91 @@ slop.register("notifications", {
 
 Consumers that subscribe with `min_salience` will only receive nodes above the threshold. This lets the AI focus its context window on what matters.
 
+## Tree navigation
+
+For large applications, the AI needs to **navigate** between different parts of the tree to find and act on the right state. The AI navigates the SLOP tree — not the UI. The developer maps tree navigation to whatever makes sense in their app: a route change, a tab switch, a section expand, or just loading more state.
+
+The key principle: **the AI asks to see more of the tree, the app decides how to provide it.**
+
+### The pattern
+
+1. The **root** always shows all major sections as stubs with summaries
+2. The root exposes `navigate` and/or `search` as affordances
+3. The **active section** is registered with full detail (items, affordances, props)
+4. **Inactive sections** are registered as stubs — just type + summary, no children
+5. When the AI invokes `navigate`, the app fulfills it (route push, state load, etc.)
+6. The tree rebuilds: the new section expands, the old one collapses to a stub
+
+### Example: Amazon-scale app
+
+```ts
+// Root — always visible, provides navigation
+slop.register("/", {
+  type: "root",
+  actions: {
+    navigate: {
+      params: { to: { type: "string", enum: ["shop", "cart", "orders", "profile"] } },
+      handler: ({ to }) => router.push(`/${to}`),
+    },
+    search: {
+      params: { query: "string" },
+      handler: ({ query }) => router.push(`/search?q=${query}`),
+    },
+  },
+});
+
+// Active view — full detail (registered by the mounted page component)
+useSlop(slop, "profile", {
+  type: "view",
+  props: { name: "Alice", email: "alice@example.com" },
+  actions: { edit_name: { params: { name: "string" }, handler: ... } },
+});
+
+// Inactive views — stubs with summaries (registered by the app shell)
+useSlop(slop, "cart", {
+  type: "view",
+  summary: "3 items, $127.49 — wireless mouse, USB-C cable, monitor stand",
+});
+
+useSlop(slop, "orders", {
+  type: "view",
+  summary: "12 recent orders, 1 in transit (arriving tomorrow)",
+});
+
+useSlop(slop, "shop", {
+  type: "view",
+  summary: "2.4M products across 30 categories",
+});
+```
+
+The AI sees:
+
+```
+[root] Amazon
+  actions: {navigate(to), search(query)}
+  [view] Profile (name="Alice", email="alice@example.com")
+    actions: {edit_name(name)}
+  [view] Cart — "3 items, $127.49 — wireless mouse, USB-C cable, monitor stand"
+  [view] Orders — "12 recent orders, 1 in transit (arriving tomorrow)"
+  [view] Shop — "2.4M products across 30 categories"
+```
+
+When the user says "buy the wireless mouse in my cart":
+
+1. AI reads cart summary → mentions "wireless mouse"
+2. AI invokes `navigate({ to: "cart" })`
+3. App navigates → profile component unmounts (becomes stub), cart component mounts (registers full state)
+4. AI now sees cart items in detail → invokes `checkout` or `buy_now`
+
+The AI navigated the tree by invoking an affordance. The protocol didn't change. The app decided how to respond.
+
+### What makes navigation work
+
+- **Summaries are the AI's preview.** `"3 items, $127.49"` tells the AI what's in the cart without loading all items. Good summaries are the single most important scaling feature.
+- **The app controls granularity.** Navigation can mean "switch pages" or "expand a section" or "load the next 25 items." The protocol doesn't prescribe what happens.
+- **Search is navigation.** For apps with millions of items (Amazon, a database), search is how the AI finds things. Expose it as a root affordance.
+- **Stubs are cheap.** A collapsed view with a summary is ~50 bytes. An app with 100 sections still has a small root tree.
+
 ## Provider implementation guidelines
 
 1. **Structure the tree around views.** Use the user's navigation as the primary organizing principle. Each route/page/screen is a view node.

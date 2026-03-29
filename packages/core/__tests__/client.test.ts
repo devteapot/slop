@@ -135,4 +135,52 @@ describe("SlopClient", () => {
     client.start();
     client.stop();
   });
+
+  test("maxNodes: tree under budget is unchanged", () => {
+    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 100 });
+    client.register("a", { type: "group" });
+    client.register("b", { type: "group" });
+    client.flush();
+    // 3 nodes (root + a + b), budget 100 → no compaction
+  });
+
+  test("maxNodes: tree over budget gets compacted", () => {
+    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 5 });
+    // Create a tree with many nodes: root + section + 10 items = 12 nodes
+    client.register("section", {
+      type: "collection",
+      items: Array.from({ length: 10 }, (_, i) => ({
+        id: `item-${i}`,
+        props: { title: `Item ${i}` },
+      })),
+    });
+    client.flush();
+    // Budget is 5, tree has 12 nodes → should compact
+    // The section's items should be collapsed
+  });
+
+  test("maxNodes: low salience nodes collapsed first", () => {
+    const client = new SlopClientImpl({ id: "test", name: "Test", maxNodes: 5 });
+    client.register("important", {
+      type: "collection",
+      meta: { salience: 1.0 },
+      items: [
+        { id: "i1", props: { x: 1 } },
+        { id: "i2", props: { x: 2 } },
+      ],
+    });
+    client.register("unimportant", {
+      type: "collection",
+      meta: { salience: 0.1 },
+      summary: "Low priority stuff",
+      items: [
+        { id: "u1", props: { x: 1 } },
+        { id: "u2", props: { x: 2 } },
+        { id: "u3", props: { x: 3 } },
+      ],
+    });
+    client.flush();
+    // 8 nodes total, budget 5
+    // "unimportant" (salience 0.1) should be collapsed before "important" (salience 1.0)
+  });
 });

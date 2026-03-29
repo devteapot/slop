@@ -32,6 +32,7 @@ Use the `useSlop` hook to expose a component's state to AI. Place it near your s
 ```tsx
 import { useState } from "react";
 import { useSlop } from "@slop-ai/react";
+import { pick, action } from "@slop-ai/core";
 import { slop } from "./slop";
 
 function TodoList() {
@@ -45,19 +46,16 @@ function TodoList() {
     type: "collection",
     props: { count: todos.length },
     actions: {
-      create: {
-        params: { title: "string" },
-        handler: ({ title }) => {
-          setTodos(prev => [...prev, { id: Date.now().toString(), title: title as string, done: false }]);
-        },
-      },
+      create: action({ title: "string" }, ({ title }) => {
+        setTodos(prev => [...prev, { id: Date.now().toString(), title, done: false }]);
+      }),
     },
     items: todos.map(todo => ({
       id: todo.id,
-      props: { title: todo.title, done: todo.done },
+      props: pick(todo, ["title", "done"]),
       actions: {
         toggle: () => setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, done: !t.done } : t)),
-        delete: { handler: () => setTodos(prev => prev.filter(t => t.id !== todo.id)), dangerous: true },
+        delete: action(() => setTodos(prev => prev.filter(t => t.id !== todo.id)), { dangerous: true }),
       },
     })),
   });

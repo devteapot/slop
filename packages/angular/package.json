@@ -1,0 +1,15 @@
+{
+  "name": "@slop/angular",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "files": ["src"],
+  "sideEffects": false,
+  "license": "MIT",
+  "description": "SLOP integration for Angular — useSlop() with signals",
+  "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/angular" },
+  "dependencies": { "@slop/core": "workspace:*" },
+  "peerDependencies": { "@angular/core": ">=16.0.0" }
+}

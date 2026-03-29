@@ -61,11 +61,11 @@ slop/
 │
 ├── packages/                    ← publishable npm packages
 │   ├── core/                    ← @slop/core — browser client (createSlop, register, typed schema)
+│   ├── consumer/                ← @slop/consumer — connect to providers, subscribe, invoke
 │   ├── react/                   ← @slop/react — useSlop hook
 │   ├── vue/                     ← @slop/vue — useSlop composable
-│   ├── svelte/                  ← @slop/svelte — useSlop rune
-│   ├── server/                  ← @slop/server — Node/Bun provider SDK
-│   └── types/                   ← @slop/types — shared protocol types
+│   ├── solid/                   ← @slop/solid — useSlop primitive
+│   └── angular/                 ← @slop/angular — useSlop with signals
 │
 ├── extension/                   ← Chrome extension (SLOP consumer + LLM chat)
 │
@@ -86,7 +86,6 @@ slop/
 - Firefox extension
 - Safari extension
 - Python SDK (`slop-py`)
-- `@slop/vue`, `@slop/svelte` adapters
 - OpenClaw integration
 - Agent CLI (`npx @slop/init`)
 - Extension Tier 3: accessibility tree adapter (works on any website)

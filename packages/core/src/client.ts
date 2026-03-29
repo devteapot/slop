@@ -158,11 +158,14 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
 
     try {
       const data = await handler(msg.params ?? {});
+      // Check for async action convention
+      const isAsync = data && typeof data === "object" && (data as any).__async === true;
+      const { __async, ...resultData } = (data as any) ?? {};
       this.transport.send({
         type: "result",
         id: msg.id,
-        status: "ok",
-        data: data ?? undefined,
+        status: isAsync ? "accepted" : "ok",
+        data: Object.keys(resultData).length > 0 ? resultData : undefined,
       });
     } catch (err: any) {
       this.transport.send({

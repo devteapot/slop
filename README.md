@@ -52,6 +52,7 @@ The full specification is in [`spec/`](./spec/):
 11. [Agent-Assisted Integration](./spec/11-agent-integration.md)
 12. [OpenClaw Integration](./spec/12-openclaw-integration.md)
 13. [Content References](./spec/13-content-references.md)
+14. [Async Actions](./spec/14-async-actions.md)
 
 ## Project structure
 

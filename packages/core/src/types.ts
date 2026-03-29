@@ -16,6 +16,7 @@ export interface Affordance {
   params?: JsonSchema;
   dangerous?: boolean;
   idempotent?: boolean;
+  estimate?: "instant" | "fast" | "slow" | "async";
 }
 
 export interface NodeMeta {
@@ -60,6 +61,7 @@ export type Action = ActionHandler | {
   description?: string;
   dangerous?: boolean;
   idempotent?: boolean;
+  estimate?: "instant" | "fast" | "slow" | "async";
 };
 
 export interface ContentRef {

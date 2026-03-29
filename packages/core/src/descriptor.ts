@@ -142,6 +142,7 @@ function normalizeActions(
         ...(action.description && { description: action.description }),
         ...(action.dangerous && { dangerous: true }),
         ...(action.idempotent && { idempotent: true }),
+        ...(action.estimate && { estimate: action.estimate }),
         ...(action.params && { params: normalizeParams(action.params) }),
       });
     }

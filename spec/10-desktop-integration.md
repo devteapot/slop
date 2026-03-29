@@ -125,34 +125,106 @@ Browser page ←—postMessage—→ Extension ←—native messaging (stdio)—
 - Requires a native messaging host manifest to be registered on the system
 - stdio communication adds serialization overhead (negligible for SLOP message volumes)
 
-## Recommended architecture
+## Recommended architecture: local WebSocket bridge
 
-The desktop app should support **all direct transports** (Unix socket, WebSocket, stdio) natively. For the browser gap, the approach depends on the product stage:
+The three approaches above (WebSocket relay, CDP, native messaging) are all viable for the SPA bridge case. For simplicity and zero-setup operation, the recommended approach is a **local WebSocket bridge** — the desktop runs a WebSocket server at a well-known port, the extension auto-connects.
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │          Desktop app                 │
-                    │  (unified SLOP consumer + chat UI)   │
-                    └──┬──────────┬──────────┬─────────┬──┘
-                       │          │          │         │
-                  Unix socket  WebSocket   stdio   native msg
-                       │          │          │         │
-                  Local apps  Server-backed  CLI    Extension
-                              web apps      tools   (SPA relay)
+Local apps ──Unix socket──┐
+                          │
+CLI tools ──stdio─────────┤
+                          ├── Desktop app (unified provider list)
+Server-backed web apps ───┤        ↑
+  (direct WebSocket)      │        │ ws://localhost:9339/slop-bridge
+                          │        ↓
+SPAs ──postMessage──Extension (relay only for SPAs)
 ```
 
-| Phase | Strategy |
-|---|---|
-| **MVP** | Desktop connects directly to Unix socket + WebSocket providers. SPAs are accessed through the browser extension's own chat UI (no desktop relay yet). |
-| **v1** | Add native messaging. The extension becomes a thin relay for SPAs, piping postMessage to the desktop app via `connectNative()`. The desktop app is the single client for all providers. |
-| **Future** | Optionally support CDP for extensionless access to SPAs (power-user/developer mode). |
+### How the bridge works
+
+The desktop app starts a WebSocket server at `ws://localhost:9339/slop-bridge`. The extension's background worker connects to it on startup (and reconnects if the desktop restarts).
+
+The bridge serves **two purposes**:
+
+1. **Discovery** — the extension announces ALL web providers it finds to the desktop
+2. **Relay** — only for SPAs, where the desktop can't reach the in-page provider directly
+
+### Bridge protocol
+
+Extension → Desktop:
+
+```jsonc
+// Provider discovered on a page
+{
+  "type": "provider-available",
+  "tabId": 42,
+  "provider": {
+    "id": "kanban-board",
+    "name": "Kanban Board",
+    "transport": "ws",                          // or "postmessage"
+    "url": "ws://localhost:3737/slop"            // only for ws transport
+  }
+}
+
+// Provider gone (tab closed, navigated away)
+{ "type": "provider-unavailable", "tabId": 42 }
+
+// SLOP message relayed from an SPA page
+{ "type": "slop-relay", "tabId": 42, "message": { "type": "snapshot", ... } }
+```
+
+Desktop → Extension:
+
+```jsonc
+// SLOP message to relay to an SPA page
+{ "type": "slop-relay", "tabId": 42, "message": { "type": "subscribe", ... } }
+```
+
+### Connection strategy per provider type
+
+When the desktop receives a `provider-available` announcement, it decides how to connect based on the transport:
+
+| Provider transport | Desktop connection | Extension role |
+|---|---|---|
+| `"ws"` | Desktop connects **directly** to the WebSocket URL | Discovery only — not in the data path |
+| `"postmessage"` | Desktop sends SLOP messages **through the bridge relay** | Discovery + relay — extension pipes messages to/from the page |
+
+For server-backed web apps, the extension's only job is telling the desktop "this WebSocket URL exists." The desktop opens its own WebSocket connection — faster, more reliable, no middleman.
+
+For SPAs, the extension is the relay — it receives SLOP messages from the desktop over the bridge, forwards them to the page via postMessage, and relays responses back.
+
+### Zero-setup operation
+
+- If the desktop is not running, the extension works standalone (its own chat UI)
+- If the extension is not installed, the desktop works standalone (local + manual WebSocket providers)
+- When both are running, the extension tries `ws://localhost:9339/slop-bridge` on startup — if it connects, discovery and relay are active. No configuration, no manifest files, no installation steps.
+- The extension retries the bridge connection periodically (every 30 seconds) so it auto-reconnects when the desktop launches.
+
+### Implementation size
+
+The bridge is lightweight:
+- Desktop: WebSocket server + provider announcement handler (~50 lines)
+- Extension: auto-connect to bridge + announcement sender + relay handler (~60 lines)
+- Bridge protocol: 3 message types
 
 ## Discovery unification
 
-The desktop app should aggregate providers from all discovery sources into a single list:
+The desktop app aggregates providers from all discovery sources into a single list:
 
 1. **Local filesystem** — scan `~/.slop/providers/` for descriptor files (Unix socket, stdio providers)
 2. **HTTP probe** — check `/.well-known/slop` on known/configured hosts (WebSocket providers)
-3. **Extension relay** — the extension reports discovered in-page providers via native messaging (postMessage providers)
+3. **Extension bridge** — the extension announces discovered web providers via the local WebSocket bridge
+4. **Manual** — user-configured WebSocket URLs
 
-Each discovered provider is a connection the user can activate. The desktop app doesn't need to know *how* the provider was found — it just sees a `ProviderDescriptor` with a transport type and connects accordingly.
+Each discovered provider appears in the desktop's sidebar regardless of how it was found. The desktop connects using the appropriate transport — Unix socket, direct WebSocket, or bridge relay — transparently.
+
+```
+Desktop sidebar:
+  LOCAL
+    ├── my-cli-tool (Unix socket, from ~/.slop/providers/)
+    └── background-service (Unix socket, from ~/.slop/providers/)
+  WEB (from extension bridge)
+    ├── Kanban Board (WebSocket — direct connection)
+    ├── Notes App (postMessage — via extension relay)
+    └── Gmail (accessibility tree — via extension relay)
+```

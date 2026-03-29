@@ -80,6 +80,19 @@ slop/
 └── mvp/                         ← prototyping sandbox
 ```
 
+## Roadmap
+
+### Post-launch
+- Firefox extension
+- Safari extension
+- Python SDK (`slop-py`)
+- `@slop/vue`, `@slop/svelte` adapters
+- OpenClaw integration
+- Agent CLI (`npx @slop/init`)
+- Extension Tier 3: accessibility tree adapter (works on any website)
+- Extension per-site toggles (enable/disable SLOP per domain, like an ad blocker)
+- Desktop app (Tauri)
+
 ## Status
 
 Early spec + working MVP. Everything is subject to change.

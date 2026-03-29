@@ -2,11 +2,22 @@
   "name": "openclaw-plugin-slop",
   "version": "0.1.0",
   "type": "module",
+  "description": "OpenClaw plugin for observing and controlling SLOP-enabled applications",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "extensions/openclaw-plugin-slop"
+  },
   "openclaw": {
     "extensions": ["./src/index.ts"]
   },
   "dependencies": {
-    "@slop-ai/consumer": "file:../../packages/consumer"
+    "@slop-ai/consumer": "file:../../packages/consumer",
+    "@sinclair/typebox": "^0.34.49"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

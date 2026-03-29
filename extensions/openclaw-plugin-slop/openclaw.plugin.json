@@ -5,13 +5,7 @@
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
-    "properties": {
-      "autoConnect": {
-        "type": "boolean",
-        "description": "Automatically connect to discovered applications",
-        "default": true
-      }
-    }
+    "properties": {}
   },
   "contracts": {
     "tools": ["connected_apps", "app_action"]

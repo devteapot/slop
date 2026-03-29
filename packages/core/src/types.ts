@@ -101,6 +101,26 @@ export interface NodeDescriptor {
   meta?: Partial<NodeMeta>;
 }
 
+// --- Type inference for action params ---
+
+type InferParam<T> = T extends "string" ? string
+  : T extends "number" ? number
+  : T extends "boolean" ? boolean
+  : T extends { type: "string" } ? string
+  : T extends { type: "number" } ? number
+  : T extends { type: "boolean" } ? boolean
+  : unknown;
+
+export type InferParams<T> = { [K in keyof T]: InferParam<T[K]> };
+
+// --- Task handle for async actions ---
+
+export interface TaskHandle {
+  id: string;
+  signal: AbortSignal;
+  update(progress: number, message: string): void;
+}
+
 // --- Client types ---
 
 export interface SlopClientOptions<S = unknown> {
@@ -115,6 +135,11 @@ export interface SlopClient<S = unknown> {
   register(path: string, descriptor: NodeDescriptor): void;
   unregister(path: string, opts?: { recursive?: boolean }): void;
   scope(path: string, descriptor?: NodeDescriptor): SlopClient<unknown>;
+  asyncAction<P extends Record<string, ParamDef>>(
+    params: P,
+    fn: (params: InferParams<P>, task: TaskHandle) => Promise<unknown>,
+    options?: { label?: string; description?: string; cancelable?: boolean }
+  ): Action;
   flush(): void;
   stop(): void;
 }

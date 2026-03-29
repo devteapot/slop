@@ -1,6 +1,6 @@
 import type {
-  SlopNode, PatchOp, ActionHandler,
-  NodeDescriptor, SlopClient, SlopClientOptions,
+  SlopNode, PatchOp, ActionHandler, Action, ParamDef,
+  NodeDescriptor, SlopClient, SlopClientOptions, TaskHandle, InferParams,
 } from "./types";
 import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
@@ -58,6 +58,72 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
       this.rebuildQueued = false;
       this.rebuild();
     }
+  }
+
+  asyncAction<P extends Record<string, ParamDef>>(
+    params: P,
+    fn: (params: InferParams<P>, task: TaskHandle) => Promise<unknown>,
+    options?: { label?: string; description?: string; cancelable?: boolean }
+  ): Action {
+    return {
+      estimate: "async" as const,
+      params,
+      label: options?.label,
+      description: options?.description,
+      handler: (rawParams: Record<string, unknown>) => {
+        const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const abortController = new AbortController();
+
+        const task: TaskHandle = {
+          id: taskId,
+          signal: abortController.signal,
+          update: (progress: number, message: string) => {
+            this.register(`tasks/${taskId}`, {
+              type: "status",
+              props: { progress, message, status: "running", action: options?.label ?? "task" },
+              meta: { salience: 0.8 },
+              ...(options?.cancelable && {
+                actions: {
+                  cancel: {
+                    dangerous: true,
+                    handler: () => {
+                      abortController.abort();
+                      this.register(`tasks/${taskId}`, {
+                        type: "status",
+                        props: { status: "cancelled", message: "Cancelled" },
+                        meta: { salience: 0.3 },
+                      });
+                      setTimeout(() => this.unregister(`tasks/${taskId}`), 10000);
+                    },
+                  },
+                },
+              }),
+            });
+          },
+        };
+
+        task.update(0, options?.label ? `${options.label}...` : "Starting...");
+
+        fn(rawParams as InferParams<P>, task)
+          .then((result) => {
+            this.register(`tasks/${taskId}`, {
+              type: "status",
+              props: { progress: 1, message: "Complete", status: "done", result },
+              meta: { salience: 0.5 },
+            });
+            setTimeout(() => this.unregister(`tasks/${taskId}`), 30000);
+          })
+          .catch((err: any) => {
+            this.register(`tasks/${taskId}`, {
+              type: "status",
+              props: { progress: 0, message: err.message ?? String(err), status: "failed" },
+              meta: { salience: 1.0, urgency: "high" },
+            });
+          });
+
+        return { __async: true, taskId };
+      },
+    };
   }
 
   start(): void {

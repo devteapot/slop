@@ -43,7 +43,12 @@ export type {
   PatchOp,
   ContentRef,
   WindowDescriptor,
+  TaskHandle,
+  InferParams,
 } from "./types";
 
 // Re-export schema types
 export type { ExtractPaths, ExtractSubSchema } from "./schema-types";
+
+// Re-export helpers
+export { pick, omit, action } from "./helpers";

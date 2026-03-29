@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { ClientTransport, Connection, SlopMessage, MessageHandler } from "@slop/consumer/browser";
+import type { ClientTransport, Connection, SlopMessage, MessageHandler } from "@slop-ai/consumer/browser";
 
 /**
  * Unix socket transport that bridges through Tauri Rust commands.

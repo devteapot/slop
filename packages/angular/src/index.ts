@@ -1,5 +1,5 @@
 import { effect, DestroyRef, inject } from "@angular/core";
-import type { SlopClient, NodeDescriptor } from "@slop/core";
+import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 /**
  * Angular function that registers a SLOP node.
@@ -9,7 +9,7 @@ import type { SlopClient, NodeDescriptor } from "@slop/core";
  *
  * ```ts
  * import { Component, signal } from "@angular/core";
- * import { useSlop } from "@slop/angular";
+ * import { useSlop } from "@slop-ai/angular";
  * import { slop } from "./slop";
  *
  * @Component({ ... })

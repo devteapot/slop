@@ -28,7 +28,7 @@ cd extension && bun run build.ts
 ## Project structure
 
 - `spec/` — Protocol specification (language-agnostic)
-- `packages/` — Publishable npm packages (`@slop/core`, `@slop/react`, `@slop/consumer`)
+- `packages/` — Publishable npm packages (`@slop-ai/core`, `@slop-ai/react`, `@slop-ai/consumer`)
 - `extension/` — Chrome extension
 - `desktop/` — Tauri desktop app
 - `examples/` — Runnable example apps
@@ -64,7 +64,7 @@ Open an issue describing:
 
 - Bug fixes
 - New transport implementations
-- Framework adapters (`@slop/vue`, `@slop/svelte`, etc.)
+- Framework adapters (`@slop-ai/vue`, `@slop-ai/svelte`, etc.)
 - Language SDKs (Python, Go, Rust, etc.)
 - Example apps showing SLOP integration
 - Spec improvements and clarifications
@@ -73,7 +73,7 @@ Open an issue describing:
 ## Code style
 
 - TypeScript for all packages
-- No external runtime dependencies in `@slop/core` (browser-only)
+- No external runtime dependencies in `@slop-ai/core` (browser-only)
 - Tests use Bun's built-in test runner (`bun:test`)
 - Keep it simple — prefer small, focused changes
 

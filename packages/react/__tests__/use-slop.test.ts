@@ -1,5 +1,5 @@
 import { describe, test, expect, mock } from "bun:test";
-import type { SlopClient, NodeDescriptor } from "@slop/core";
+import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 /**
  * Since useSlop is ~10 lines and the real validation happens in the demo-spa rewrite,

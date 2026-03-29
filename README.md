@@ -60,12 +60,12 @@ slop/
 │   └── ...11 docs
 │
 ├── packages/                    ← publishable npm packages
-│   ├── core/                    ← @slop/core — browser client (createSlop, register, typed schema)
-│   ├── consumer/                ← @slop/consumer — connect to providers, subscribe, invoke
-│   ├── react/                   ← @slop/react — useSlop hook
-│   ├── vue/                     ← @slop/vue — useSlop composable
-│   ├── solid/                   ← @slop/solid — useSlop primitive
-│   └── angular/                 ← @slop/angular — useSlop with signals
+│   ├── core/                    ← @slop-ai/core — browser client (createSlop, register, typed schema)
+│   ├── consumer/                ← @slop-ai/consumer — connect to providers, subscribe, invoke
+│   ├── react/                   ← @slop-ai/react — useSlop hook
+│   ├── vue/                     ← @slop-ai/vue — useSlop composable
+│   ├── solid/                   ← @slop-ai/solid — useSlop primitive
+│   └── angular/                 ← @slop-ai/angular — useSlop with signals
 │
 ├── extension/                   ← Chrome extension (SLOP consumer + LLM chat)
 │
@@ -87,7 +87,7 @@ slop/
 - Safari extension
 - Python SDK (`slop-py`)
 - OpenClaw integration
-- Agent CLI (`npx @slop/init`)
+- Agent CLI (`npx @slop-ai/init`)
 - Extension Tier 3: accessibility tree adapter (works on any website)
 - Extension per-site toggles (enable/disable SLOP per domain, like an ad blocker)
 - Desktop app (Tauri)

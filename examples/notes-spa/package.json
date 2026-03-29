@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@slop/core": "workspace:*",
-    "@slop/react": "workspace:*",
+    "@slop-ai/core": "workspace:*",
+    "@slop-ai/react": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

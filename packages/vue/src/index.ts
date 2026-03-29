@@ -1,5 +1,5 @@
 import { watchEffect, onUnmounted } from "vue";
-import type { SlopClient, NodeDescriptor } from "@slop/core";
+import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 /**
  * Vue composable that registers a SLOP node.
@@ -10,7 +10,7 @@ import type { SlopClient, NodeDescriptor } from "@slop/core";
  * ```vue
  * <script setup>
  * import { ref } from "vue";
- * import { useSlop } from "@slop/vue";
+ * import { useSlop } from "@slop-ai/vue";
  * import { slop } from "./slop";
  *
  * const notes = ref([...]);

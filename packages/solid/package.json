@@ -1,5 +1,5 @@
 {
-  "name": "@slop/solid",
+  "name": "@slop-ai/solid",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
@@ -10,6 +10,6 @@
   "license": "MIT",
   "description": "SLOP integration for SolidJS — useSlop() primitive",
   "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/solid" },
-  "dependencies": { "@slop/core": "workspace:*" },
+  "dependencies": { "@slop-ai/core": "workspace:*" },
   "peerDependencies": { "solid-js": ">=1.8.0" }
 }

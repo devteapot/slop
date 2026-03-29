@@ -1,5 +1,5 @@
 import type { LlmProfile } from "./profiles";
-import type { ChatMessage, LlmTool } from "@slop/consumer/browser";
+import type { ChatMessage, LlmTool } from "@slop-ai/consumer/browser";
 
 export async function chatCompletion(
   profile: LlmProfile,

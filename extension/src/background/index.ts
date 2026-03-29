@@ -58,7 +58,7 @@ chrome.runtime.onConnect.addListener((port) => {
       case "get-state": {
         const state = getTabState(tabId);
         if (state?.currentTree) {
-          const { formatTree, affordancesToTools } = await import("@slop/consumer/browser");
+          const { formatTree, affordancesToTools } = await import("@slop-ai/consumer/browser");
           port.postMessage({
             type: "state-update",
             formattedTree: formatTree(state.currentTree),

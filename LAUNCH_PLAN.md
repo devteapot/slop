@@ -39,9 +39,9 @@ Acquisition value comes from:
 - [ ] Document how SLOP + OpenClaw work together (OpenClaw = agent, SLOP = perception)
 
 ### SDKs (for app developers to adopt SLOP)
-- [x] TypeScript/Bun: @slop/types, @slop/provider, @slop/consumer
+- [x] TypeScript/Bun: @slop-ai/types, @slop-ai/provider, @slop-ai/consumer
 - [ ] Python: slop-py (provider + consumer)
-- [ ] Browser: @slop/provider-browser (postMessage transport, useSlop hook)
+- [ ] Browser: @slop-ai/provider-browser (postMessage transport, useSlop hook)
 - [ ] Documentation site with integration guides
 
 ### Spec
@@ -102,7 +102,7 @@ slop/                              ← rename from slop-slop-slop
 - Test extension end-to-end with demo-web and demo-spa
 
 **Day 5: Browser SDK**
-- Extract `BrowserSlopProvider` + `useSlop` hook from demo-spa into `@slop/provider-browser` package
+- Extract `BrowserSlopProvider` + `useSlop` hook from demo-spa into `@slop-ai/provider-browser` package
 - Add Vue composable (`useSlop`) and vanilla JS API (`createSlop`)
 - Write integration guide: "Add SLOP to your React app in 5 minutes"
 
@@ -130,7 +130,7 @@ slop/                              ← rename from slop-slop-slop
 
 **Day 11: Soft launch**
 - Push to GitHub (public)
-- Publish npm packages (@slop/types, @slop/provider, @slop/consumer, @slop/provider-browser)
+- Publish npm packages (@slop-ai/types, @slop-ai/provider, @slop-ai/consumer, @slop-ai/provider-browser)
 - Publish Python package to PyPI
 - Submit extension to Chrome Web Store (or provide sideload instructions)
 
@@ -274,7 +274,7 @@ The accessibility tree mode (Tier 3) — "install this extension and AI can see 
 | Week | Action | Switching cost created |
 |---|---|---|
 | Launch | Extension works on any site (Tier 3) | Users depend on the extension |
-| Week 1 | npm + PyPI packages published | Developers build on @slop/provider |
+| Week 1 | npm + PyPI packages published | Developers build on @slop-ai/provider |
 | Week 2 | OpenClaw integration live | OpenClaw ecosystem tied to SLOP |
 | Week 2 | 2-3 real apps ship SLOP support | Apps would need to support two protocols |
 | Week 3 | Community PRs for Go, Rust, Swift SDKs | Multi-language ecosystem |

@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { ChatMessage } from "@slop/consumer/browser";
-import { affordancesToTools, formatTree, decodeTool } from "@slop/consumer/browser";
+import type { ChatMessage } from "@slop-ai/consumer/browser";
+import { affordancesToTools, formatTree, decodeTool } from "@slop-ai/consumer/browser";
 import { chatCompletion } from "../slop/llm";
 import { useProviderStore } from "./use-provider-store";
 import { useLlmStore } from "./use-llm-store";

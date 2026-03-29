@@ -1,5 +1,5 @@
-import type { SlopNode, PatchOp, ResultMessage, ChatMessage } from "@slop/consumer/browser";
-import { SlopConsumer, WebSocketClientTransport, PostMessageClientTransport, affordancesToTools, formatTree, decodeTool } from "@slop/consumer/browser";
+import type { SlopNode, PatchOp, ResultMessage, ChatMessage } from "@slop-ai/consumer/browser";
+import { SlopConsumer, WebSocketClientTransport, PostMessageClientTransport, affordancesToTools, formatTree, decodeTool } from "@slop-ai/consumer/browser";
 import type { BackgroundMessage, ContentMessage } from "../shared/messages";
 import { chatCompletion } from "./llm";
 

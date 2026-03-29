@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { SlopClient, NodeDescriptor } from "@slop/core";
+import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 /**
  * React hook that registers a SLOP node for this component.
@@ -9,8 +9,8 @@ import type { SlopClient, NodeDescriptor } from "@slop/core";
  * and unregistered when the component unmounts.
  *
  * ```tsx
- * import { createSlop } from "@slop/core";
- * import { useSlop } from "@slop/react";
+ * import { createSlop } from "@slop-ai/core";
+ * import { useSlop } from "@slop-ai/react";
  *
  * const slop = createSlop({ id: "my-app", name: "My App" });
  *

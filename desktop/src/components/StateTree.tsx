@@ -1,5 +1,5 @@
 import { useProviderStore } from "../hooks/use-provider-store";
-import { formatTree, affordancesToTools } from "@slop/consumer/browser";
+import { formatTree, affordancesToTools } from "@slop-ai/consumer/browser";
 
 export function StateTree() {
   const activeProvider = useProviderStore(s => s.getActiveProvider());

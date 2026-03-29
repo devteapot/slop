@@ -1,5 +1,5 @@
 {
-  "name": "@slop/vue",
+  "name": "@slop-ai/vue",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
@@ -10,6 +10,6 @@
   "license": "MIT",
   "description": "SLOP integration for Vue — useSlop() composable",
   "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/vue" },
-  "dependencies": { "@slop/core": "workspace:*" },
+  "dependencies": { "@slop-ai/core": "workspace:*" },
   "peerDependencies": { "vue": ">=3.3.0" }
 }

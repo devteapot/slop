@@ -1,4 +1,4 @@
-import { useSlop } from "@slop/react";
+import { useSlop } from "@slop-ai/react";
 import { slop } from "./slop";
 import type { Folder, Note } from "./App";
 

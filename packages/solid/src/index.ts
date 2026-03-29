@@ -1,5 +1,5 @@
 import { createEffect, onCleanup } from "solid-js";
-import type { SlopClient, NodeDescriptor } from "@slop/core";
+import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 /**
  * SolidJS primitive that registers a SLOP node.
@@ -9,7 +9,7 @@ import type { SlopClient, NodeDescriptor } from "@slop/core";
  *
  * ```tsx
  * import { createSignal } from "solid-js";
- * import { useSlop } from "@slop/solid";
+ * import { useSlop } from "@slop-ai/solid";
  * import { slop } from "./slop";
  *
  * function NotesList() {

@@ -88,11 +88,11 @@ The integration should be **non-invasive** — it should not require changes to 
 SLOP's client library follows the TanStack Query model: a framework-agnostic core client with minimal framework adapters. No contexts, no providers — just an object you create and import.
 
 ```
-@slop/core           — SlopClient class: tree assembly, diffing, transport, invocation dispatch
-@slop/react          — useSlop() hook (~15 lines)
-@slop/vue            — useSlop() composable (~10 lines)
-@slop/svelte         — useSlop() rune (~10 lines)
-(vanilla JS)         — use @slop/core directly, no adapter needed
+@slop-ai/core           — SlopClient class: tree assembly, diffing, transport, invocation dispatch
+@slop-ai/react          — useSlop() hook (~15 lines)
+@slop-ai/vue            — useSlop() composable (~10 lines)
+@slop-ai/svelte         — useSlop() rune (~10 lines)
+(vanilla JS)         — use @slop-ai/core directly, no adapter needed
 ```
 
 The core does all the work. Framework adapters only handle one thing: registering a node on mount, updating on state change, and unregistering on unmount. No state-library-specific adapters are needed — the pattern works with useState, Zustand, Redux, MobX, Jotai, Pinia, or plain variables.
@@ -103,7 +103,7 @@ The app creates a single `SlopClient` instance. It's a plain JavaScript object �
 
 ```ts
 // slop.ts — create once, import anywhere in your app
-import { createSlop } from "@slop/core";
+import { createSlop } from "@slop-ai/core";
 
 export const slop = createSlop({
   id: "my-app",
@@ -134,7 +134,7 @@ The `createSlop` function accepts an optional `schema` that defines the tree's s
 
 ```ts
 // slop.ts
-import { createSlop } from "@slop/core";
+import { createSlop } from "@slop-ai/core";
 
 const schema = {
   inbox: {
@@ -251,7 +251,7 @@ Nodes are registered from different components using **path-based IDs** that enc
 ```tsx
 // InboxView.tsx — registers the view node
 import { slop } from "./slop";
-import { useSlop } from "@slop/react";
+import { useSlop } from "@slop-ai/react";
 
 function InboxView() {
   useSlop(slop, "inbox", { type: "view", props: { label: "Inbox" } });
@@ -394,11 +394,11 @@ All three patterns — path IDs, scoped clients, inline children — produce the
 
 Each adapter is a thin wrapper that handles mount/update/unmount lifecycle. The logic is identical; only the framework API differs.
 
-**React** (`@slop/react`):
+**React** (`@slop-ai/react`):
 
 ```tsx
 import { useEffect, useRef } from "react";
-import type { SlopClient, NodeDescriptor } from "@slop/core";
+import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 export function useSlop(client: SlopClient, id: string, descriptor: NodeDescriptor) {
   client.register(id, descriptor);  // register/update on every render
@@ -409,7 +409,7 @@ export function useSlop(client: SlopClient, id: string, descriptor: NodeDescript
 }
 ```
 
-**Vue** (`@slop/vue`):
+**Vue** (`@slop-ai/vue`):
 
 ```js
 import { watchEffect, onUnmounted } from "vue";
@@ -420,7 +420,7 @@ export function useSlop(client, id, descriptorFn) {
 }
 ```
 
-**Svelte** (`@slop/svelte`):
+**Svelte** (`@slop-ai/svelte`):
 
 ```js
 import { onDestroy } from "svelte";
@@ -448,7 +448,7 @@ Component B: slop.register("inbox/messages", { type: "collection", items: [...] 
 Component C: slop.register("inbox/unread", { type: "status", props: { count: 5 } })
 Component D: slop.register("settings", { type: "view", children: { account: {...} } })
                     ↓
-         @slop/core assembles hierarchical tree:
+         @slop-ai/core assembles hierarchical tree:
          root
          ├── inbox (view)
          │   ├── messages (collection)

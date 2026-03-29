@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { SlopNode } from "@slop/consumer/browser";
-import { SlopConsumer, WebSocketClientTransport } from "@slop/consumer/browser";
+import type { SlopNode } from "@slop-ai/consumer/browser";
+import { SlopConsumer, WebSocketClientTransport } from "@slop-ai/consumer/browser";
 import { UnixClientTransport } from "../slop/transport-unix";
 import { BridgeClientTransport } from "../slop/transport-bridge";
 

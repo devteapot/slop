@@ -1,4 +1,4 @@
-// SLOP types — merged from @slop/types for browser use
+// SLOP types — merged from @slop-ai/types for browser use
 
 export interface SlopNode {
   id: string;

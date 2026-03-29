@@ -1,5 +1,5 @@
 {
-  "name": "@slop/react",
+  "name": "@slop-ai/react",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.ts",
@@ -17,7 +17,7 @@
     "directory": "packages/react"
   },
   "dependencies": {
-    "@slop/core": "workspace:*"
+    "@slop-ai/core": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

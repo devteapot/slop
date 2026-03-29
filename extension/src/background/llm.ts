@@ -1,6 +1,6 @@
 import type { LlmProfile, SlopStorage } from "../shared/messages";
 import { DEFAULT_STORAGE, getActiveProfile } from "../shared/messages";
-import type { ChatMessage, LlmTool } from "@slop/consumer/browser";
+import type { ChatMessage, LlmTool } from "@slop-ai/consumer/browser";
 
 export async function getStorage(): Promise<SlopStorage> {
   const result = await chrome.storage.sync.get("slopStorage");

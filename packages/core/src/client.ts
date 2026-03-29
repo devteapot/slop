@@ -196,13 +196,11 @@ export class SlopClientImpl<S = unknown> implements SlopClient<S> {
 
   private broadcastUpdate(ops: PatchOp[]): void {
     for (const [, sub] of this.subscriptions) {
-      // For simplicity, send full snapshot on any change
-      // (proper patch filtering can be added later)
       this.transport.send({
-        type: "snapshot",
-        id: sub.id,
+        type: "patch",
+        subscription: sub.id,
         version: this.version,
-        tree: this.currentTree,
+        ops,
       });
     }
   }

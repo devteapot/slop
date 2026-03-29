@@ -1,5 +1,0 @@
-{
-  "name": "slop-packages",
-  "private": true,
-  "workspaces": ["core", "react"]
-}

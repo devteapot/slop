@@ -62,7 +62,16 @@ async function saveEdit(id: string) {
   await fetchContacts();
 }
 
-onMounted(fetchContacts);
+onMounted(() => {
+  fetchContacts();
+
+  // Subscribe to SLOP WebSocket for real-time sync with AI actions
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const ws = new WebSocket(`${protocol}//${window.location.host}/slop`);
+  ws.onopen = () => ws.send(JSON.stringify({ type: "subscribe", id: "ui-sync", path: "/", depth: 0 }));
+  ws.onmessage = () => fetchContacts();
+  onUnmounted(() => ws.close());
+});
 </script>
 
 <template>

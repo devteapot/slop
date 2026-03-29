@@ -75,9 +75,9 @@ SLOP-native apps declare themselves via an HTML meta tag and/or a well-known URL
 <meta name="slop" content="postmessage">
 ```
 
-### Developer integration
+### Client-side developer integration (SPAs)
 
-Integrating SLOP into a web app involves two things:
+Integrating SLOP into a client-side SPA involves two things:
 
 1. **Tree building** — a function that maps app state to a SLOP tree. This is inherently app-specific: the developer decides what state to expose, how to structure it, and what affordances to offer. The SLOP tree is a *curated projection*, not a raw dump — just as a REST API doesn't expose the database.
 
@@ -87,17 +87,70 @@ The integration should be **non-invasive** — it should not require changes to 
 
 #### Package architecture
 
-SLOP's client library follows the TanStack Query model: a framework-agnostic core client with minimal framework adapters. No contexts, no providers — just an object you create and import.
+SLOP's library follows the TanStack Query model: a shared engine with thin transport shells and framework adapters. No contexts, no providers — just objects you create and import.
+
+The library is organized into layers. Each layer is framework-agnostic — it handles one concern and delegates the rest.
 
 ```
-@slop-ai/core           — SlopClient class: tree assembly, diffing, transport, invocation dispatch
+Layer 0: Protocol (spec/)               — Messages, state trees, affordances
+Layer 1: Engine (@slop-ai/core)          — Tree assembly, diffing, descriptor format, types
+Layer 2: Transport (@slop-ai/client,     — postMessage, WebSocket, Unix socket, stdio
+         @slop-ai/server)
+Layer 3: SPA adapters (@slop-ai/react,   — useSlop() hooks for component lifecycle
+         vue, solid, angular)
+Layer 4: Meta-framework adapters         — Full integration for Next.js, Nuxt, SvelteKit
+         (@slop-ai/next, nuxt, sveltekit)  (server setup, UI sync, state composition)
+```
+
+```
+@slop-ai/core           — Shared engine: tree assembly, diffing, descriptor format, types, helpers
+@slop-ai/client         — Browser provider: createSlop() + postMessage transport
+@slop-ai/server         — Server/native provider: createSlopServer() + WebSocket, Unix socket, stdio transports
 @slop-ai/react          — useSlop() hook (~15 lines)
 @slop-ai/vue            — useSlop() composable (~10 lines)
-@slop-ai/svelte         — useSlop() rune (~10 lines)
-(vanilla JS)         — use @slop-ai/core directly, no adapter needed
+@slop-ai/solid          — useSlop() primitive (~10 lines)
+@slop-ai/angular        — useSlop() with signals (~15 lines)
+@slop-ai/next           — Next.js integration (server setup + UI sync + state composition)
+@slop-ai/nuxt           — Nuxt module (Nitro WebSocket + auto-sync + composables)
+@slop-ai/sveltekit      — SvelteKit integration (Vite plugin + load invalidation)
+(vanilla JS)            — use @slop-ai/client directly, no adapter needed
 ```
 
-The core does all the work. Framework adapters only handle one thing: registering a node on mount, updating on state change, and unregistering on unmount. No state-library-specific adapters are needed — the pattern works with useState, Zustand, Redux, MobX, Jotai, Pinia, or plain variables.
+`@slop-ai/core` is the engine — it owns tree assembly, diffing, descriptor-to-wire-format translation, typed schema, and helpers (`action`, `pick`, `omit`, `asyncAction`). It has no transport. `@slop-ai/client` and `@slop-ai/server` are thin shells that wrap the engine with a transport layer. Meta-framework adapters sit on top and handle the full developer experience for a specific framework.
+
+```
+@slop-ai/next ──────────┐
+@slop-ai/nuxt ──────────┼──→ @slop-ai/server + @slop-ai/client
+@slop-ai/sveltekit ─────┘         ↑
+                            @slop-ai/core (shared engine)
+                                   ↑
+@slop-ai/react ──┐                 │
+@slop-ai/vue  ──┤                 │
+@slop-ai/solid ──┼─────────────────┘
+@slop-ai/angular─┘
+```
+
+| | `@slop-ai/core` | `@slop-ai/client` | `@slop-ai/server` |
+|---|---|---|---|
+| Runs in | Any JS environment | Browser | Node, Bun, Deno |
+| Transport | None | postMessage | WebSocket, Unix socket, stdio |
+| Descriptor format | Defines it | Uses it | Uses it |
+| Tree assembly & diffing | Owns it | Delegates to core | Delegates to core |
+| Reactivity | None — pure logic | Framework re-renders | Descriptor functions + `refresh()` |
+| Discovery | None | `<meta>` tag injection | `/.well-known/slop`, `~/.slop/providers/` |
+
+| App type | Install | Layer |
+|---|---|---|
+| React/Vue/Solid SPA | `@slop-ai/client` + `@slop-ai/react` (or vue, solid, angular) | 2 + 3 |
+| Vanilla JS SPA | `@slop-ai/client` | 2 |
+| Next.js fullstack | `@slop-ai/next` (wraps server + client) | 4 |
+| Nuxt fullstack | `@slop-ai/nuxt` (Nuxt module) | 4 |
+| SvelteKit fullstack | `@slop-ai/sveltekit` (wraps server + client) | 4 |
+| Express / Fastify / Hono | `@slop-ai/server` | 2 |
+| Electron / Tauri native app | `@slop-ai/server` (Unix socket transport) | 2 |
+| CLI tool | `@slop-ai/server` (stdio transport) | 2 |
+
+Framework adapters depend on `@slop-ai/core` only — they call `register()`/`unregister()` on the engine, which is transport-agnostic. No state-library-specific adapters are needed — the pattern works with useState, Zustand, Redux, MobX, Jotai, Pinia, or plain variables.
 
 #### The core client
 
@@ -110,7 +163,7 @@ import { createSlop } from "@slop-ai/client";
 export const slop = createSlop({
   id: "my-app",
   name: "My App",
-  // transport is auto-detected: postMessage in browser, ws/unix in Node
+  // automatically uses postMessage transport, injects <meta name="slop"> tag
 });
 ```
 
@@ -136,7 +189,7 @@ The `createSlop` function accepts an optional `schema` that defines the tree's s
 
 ```ts
 // slop.ts
-import { createSlop } from "@slop-ai/client";
+import { createSlop } from "@slop-ai/core";
 
 const schema = {
   inbox: {
@@ -442,34 +495,397 @@ slop.register("notes", { ... });
 store.subscribe(() => slop.register("notes", { ... }));  // register doubles as update
 ```
 
-#### What the core handles
+#### What the client handles
 
 ```
 Component A: slop.register("inbox", { type: "view" })
 Component B: slop.register("inbox/messages", { type: "collection", items: [...] })
 Component C: slop.register("inbox/unread", { type: "status", props: { count: 5 } })
-Component D: slop.register("settings", { type: "view", children: { account: {...} } })
                     ↓
-         @slop-ai/core assembles hierarchical tree:
-         root
-         ├── inbox (view)
-         │   ├── messages (collection)
-         │   │   ├── msg-1 (item)
-         │   │   └── msg-2 (item)
-         │   └── unread (status)
-         └── settings (view)
-             └── account (group)
+         @slop-ai/core assembles hierarchical tree
                     ↓
-         Diffs against previous tree
+         @slop-ai/client pushes patches via postMessage
                     ↓
-         Pushes patches via transport
-         (postMessage or WebSocket)
-                    ↓
-         Receives invoke("archive", "/inbox/messages/msg-1")
-                    ↓
-         Routes to the handler registered in
-         Component B's descriptor for msg-1
+         Receives invoke → routes to handler in descriptor
 ```
+
+### Server-side developer integration
+
+Server-backed apps (Next.js, Nuxt, SvelteKit, Express) and native apps (Electron, Tauri, CLI tools) use `@slop-ai/server`. The server owns the canonical state and serves it over WebSocket, Unix socket, or stdio.
+
+#### The server client
+
+```ts
+// lib/slop.ts — create once, import anywhere in your server
+import { createSlopServer } from "@slop-ai/server";
+
+export const slop = createSlopServer({
+  id: "my-app",
+  name: "My App",
+});
+```
+
+The server client has the same core methods as the browser client, plus `refresh()`:
+
+```ts
+slop.register(path, descriptorFn)   // add or update a node (accepts a function)
+slop.unregister(path)               // remove a node
+slop.scope(path, descriptorFn?)     // create a scoped server client
+slop.refresh()                      // re-evaluate all descriptors, diff, broadcast
+slop.stop()                         // shutdown: close transports, unregister discovery
+```
+
+#### Descriptor functions
+
+On the client, framework reactivity (React renders, Vue `watchEffect`) automatically re-calls `register()` when state changes. On the server, there is no reactivity system. The descriptor function solves this — `register()` accepts a function that returns a descriptor, and the server re-evaluates it at well-defined moments:
+
+1. **On initial registration** — evaluates immediately to build the initial tree segment.
+2. **After every successful invoke** — the server automatically calls `refresh()` after an action handler completes, because invocations almost always mutate state.
+3. **On explicit `refresh()`** — for mutations that happen outside of SLOP (REST API calls, background jobs, database triggers).
+
+```ts
+import { createSlopServer } from "@slop-ai/server";
+import { getTodos, addTodo, toggleTodo, deleteTodo } from "./state";
+
+const slop = createSlopServer({ id: "nextjs-todos", name: "Next.js Todos" });
+
+slop.register("todos", () => ({
+  type: "collection",
+  props: { count: getTodos().length, done: getTodos().filter(t => t.done).length },
+  actions: {
+    add: {
+      params: { title: "string" },
+      handler: ({ title }) => addTodo(title),
+      // After handler completes, server auto-refreshes — no manual setTree() needed
+    },
+  },
+  items: getTodos().map(t => ({
+    id: t.id,
+    props: { title: t.title, done: t.done },
+    actions: {
+      toggle: () => toggleTodo(t.id),
+      delete: { handler: () => deleteTodo(t.id), dangerous: true },
+    },
+  })),
+}));
+```
+
+For mutations outside of SLOP (e.g., from the app's own REST API):
+
+```ts
+// REST endpoint — mutation happens outside SLOP
+app.post("/api/todos", (req, res) => {
+  addTodo(req.body.title);
+  slop.refresh();  // re-evaluate all descriptor functions, diff, broadcast patches
+  res.json({ ok: true });
+});
+```
+
+The developer never constructs wire-format trees (`properties`, `affordances`, `children`) or manages subscriptions by hand. The same descriptor format — `props`, `actions`, `items` — works identically on client and server.
+
+#### Transport adapters
+
+The server SDK provides adapters for attaching to existing servers. Each adapter handles connection lifecycle, the SLOP protocol handshake, and optionally discovery.
+
+| Adapter | Import | Use case |
+|---|---|---|
+| `attachSlop(slop, httpServer)` | `@slop-ai/server/node` | Node HTTP, Express, Fastify, Hono |
+| `bunHandler(slop)` | `@slop-ai/server/bun` | Bun.serve |
+| `listenUnix(slop, path?)` | `@slop-ai/server/unix` | Electron, Tauri, daemons |
+| `listenStdio(slop)` | `@slop-ai/server/stdio` | CLI tools, subprocess providers |
+
+**Node.js HTTP / Express:**
+
+```ts
+import { createServer } from "node:http";
+import { attachSlop } from "@slop-ai/server/node";
+import { slop } from "./lib/slop";
+
+const server = createServer(app);
+attachSlop(slop, server, { path: "/slop" });  // handles WS upgrade + /.well-known/slop
+server.listen(3000);
+```
+
+**Unix socket (native apps):**
+
+```ts
+import { listenUnix } from "@slop-ai/server/unix";
+
+listenUnix(slop, "/tmp/slop/my-app.sock", { register: true });
+// register: true → writes ~/.slop/providers/my-app.json, cleans up on shutdown
+```
+
+**Multiple transports simultaneously:**
+
+```ts
+attachSlop(slop, httpServer);     // remote consumers via WebSocket
+listenUnix(slop);                 // local agents via Unix socket
+```
+
+All transports share the same provider instance — one state tree, multiple access paths. An action invoked via WebSocket updates the tree for Unix socket subscribers too.
+
+#### Meta-framework helpers
+
+One-liner integrations for popular frameworks:
+
+**Nuxt (Nitro WebSocket handler):**
+
+```ts
+// server/routes/slop.ts
+import { nitroHandler } from "@slop-ai/server/nitro";
+import { slop } from "../utils/slop";
+
+export default nitroHandler(slop);
+```
+
+**SvelteKit (Vite plugin for dev + adapter-node for prod):**
+
+```ts
+// vite.config.ts
+import { sveltekit } from "@sveltejs/kit/vite";
+import { slopPlugin } from "@slop-ai/server/vite";
+import { slop } from "./src/lib/server/slop";
+
+export default { plugins: [sveltekit(), slopPlugin(slop)] };
+```
+
+**Next.js (custom server with attachSlop):**
+
+```ts
+// server.ts
+import next from "next";
+import { createServer } from "node:http";
+import { attachSlop } from "@slop-ai/server/node";
+import { slop } from "./lib/slop";
+
+const app = next({ dev: true });
+await app.prepare();
+const server = createServer((req, res) => app.getRequestHandler()(req, res));
+attachSlop(slop, server);
+server.listen(3000);
+```
+
+#### Native apps
+
+Electron, Tauri, and CLI tools are server-side providers — they run as processes and serve the SLOP protocol over sockets. They use `@slop-ai/server` with the appropriate transport:
+
+```ts
+// Electron main process
+import { createSlopServer } from "@slop-ai/server";
+import { listenUnix } from "@slop-ai/server/unix";
+
+const slop = createSlopServer({ id: "clipboard-manager", name: "Clipboard Manager" });
+
+slop.register("entries", () => ({
+  type: "collection",
+  props: { count: getEntries().length },
+  items: getEntries().map(e => ({
+    id: e.id,
+    props: { preview: e.preview, favorite: e.favorite },
+    actions: {
+      copy: () => copyToClipboard(e.id),
+      favorite: () => toggleFavorite(e.id),
+      delete: { handler: () => deleteEntry(e.id), dangerous: true },
+    },
+  })),
+}));
+
+listenUnix(slop, "/tmp/slop/clipboard.sock", { register: true });
+```
+
+The desktop app or CLI agent discovers this provider via `~/.slop/providers/clipboard-manager.json` and connects over Unix socket — no browser extension needed.
+
+#### Discovery
+
+Server transports handle discovery automatically:
+
+- **`attachSlop()`** auto-serves `GET /.well-known/slop` as a JSON endpoint (returning the provider descriptor). Disable with `{ discovery: false }`.
+- **`listenUnix()`** auto-writes `~/.slop/providers/{id}.json` when `register: true` is set, and deletes it on shutdown.
+- **`listenStdio()`** sends `hello` as the first message per the SLOP protocol — no separate discovery needed.
+
+#### Typed schema and scoped clients
+
+The server client accepts the same `schema` option as the browser client:
+
+```ts
+const slop = createSlopServer({
+  id: "my-app",
+  name: "My App",
+  schema: { todos: "collection", settings: { theme: "status" } } as const,
+});
+
+slop.register("todos", () => ({ ... }));           // ✓ valid
+slop.register("settings/theme", () => ({ ... }));  // ✓ valid
+slop.register("nonexistent", () => ({ ... }));     // ✗ compile error
+```
+
+Scoped clients work the same way:
+
+```ts
+const api = slop.scope("api");
+api.register("users", () => ({ ... }));     // registers at "api/users"
+api.register("posts", () => ({ ... }));     // registers at "api/posts"
+```
+
+#### What the server handles
+
+```
+slop.register("todos", () => ({ type: "collection", ... }))
+slop.register("settings", () => ({ type: "view", ... }))
+                    ↓
+         @slop-ai/core evaluates descriptor functions, assembles tree
+                    ↓
+         Diffs against previous tree (same engine as client)
+                    ↓
+         @slop-ai/server pushes patches via WebSocket / Unix socket / stdio
+                    ↓
+         Receives invoke → routes to handler in descriptor
+                    ↓
+         Auto-refreshes: re-evaluates all descriptor functions, diffs, broadcasts
+```
+
+### Meta-framework adapters (Layer 4)
+
+The SPA adapters (Layer 3) and the server/client transports (Layer 2) handle the protocol — but they don't handle the **full developer experience** in fullstack meta-frameworks like Next.js, Nuxt, and SvelteKit. These frameworks have their own conventions for data fetching, server/client boundaries, state management, and cache invalidation. A clean SLOP integration must work *with* those conventions, not around them.
+
+Meta-framework adapters are a layer above the protocol. The protocol is completely agnostic to what uses it — it is the adapter's job to compose and keep state in sync using the framework's own patterns.
+
+#### The problem they solve
+
+In a fullstack app, SLOP integration involves three concerns that Layers 1–3 don't address:
+
+1. **Server setup** — wiring the SLOP WebSocket endpoint into the framework's server (Nitro, adapter-node, custom server). Currently manual.
+2. **UI sync** — when AI mutates state via the SLOP protocol, the browser UI must update. The SLOP WebSocket already broadcasts changes, but the framework needs to know *how* to react (Next.js: `revalidatePath`; Nuxt: `refreshNuxtData`; SvelteKit: `invalidateAll`).
+3. **State composition** — fullstack apps have both server state (database, in-memory) and client state (component state, form inputs, UI toggles). A complete SLOP tree should compose both.
+
+Each of these is framework-specific. The protocol doesn't dictate how to solve them — the adapter does.
+
+#### Architecture
+
+A meta-framework adapter wraps `@slop-ai/server` (for the SLOP endpoint) and `@slop-ai/client` (for client-side state), then adds framework-specific glue:
+
+```
+┌─ @slop-ai/next ──────────────────────────────────────┐
+│                                                       │
+│  Server side:                                         │
+│  ┌─────────────────────────────────────┐              │
+│  │ @slop-ai/server                     │              │
+│  │ • Descriptor functions for DB state │              │
+│  │ • WebSocket endpoint                │              │
+│  │ • Auto-refresh after invoke         │              │
+│  └─────────────────────────────────────┘              │
+│                                                       │
+│  Client side:                                         │
+│  ┌─────────────────────────────────────┐              │
+│  │ @slop-ai/client                     │              │
+│  │ • useSlop() for component state     │              │
+│  │ • Subscribes to server WebSocket    │              │
+│  │   for change notifications          │              │
+│  └─────────────────────────────────────┘              │
+│                                                       │
+│  Framework glue:                                      │
+│  • Wires server WebSocket automatically               │
+│  • Invalidates data cache on SLOP state change        │
+│  • Merges server tree + client tree into one provider │
+│  • Injects <meta name="slop"> discovery tag           │
+│                                                       │
+└───────────────────────────────────────────────────────┘
+```
+
+#### What each adapter handles
+
+| Concern | Next.js (`@slop-ai/next`) | Nuxt (`@slop-ai/nuxt`) | SvelteKit (`@slop-ai/sveltekit`) |
+|---|---|---|---|
+| Server endpoint | Custom server + `attachSlop` | Nitro WebSocket handler (module auto-configures) | Vite plugin + adapter-node |
+| UI sync trigger | `router.refresh()` or `revalidatePath` | `refreshNuxtData()` | `invalidateAll()` |
+| Client state | `useSlop()` via `@slop-ai/react` | `useSlop()` via `@slop-ai/vue` | `$effect` + `@slop-ai/client` directly |
+| Configuration | `withSlop()` in next.config | `modules: ["@slop-ai/nuxt"]` | `slopPlugin()` in vite.config |
+| Discovery | `<meta>` injected by layout component | `<meta>` injected by module | `<meta>` in app.html |
+
+#### Developer experience goals
+
+The ideal experience for a Nuxt developer:
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  modules: ["@slop-ai/nuxt"],
+});
+```
+
+```ts
+// server/slop/todos.ts — register server state
+export default defineSlopNode("todos", () => ({
+  type: "collection",
+  props: { count: getTodos().length },
+  items: getTodos().map(t => ({
+    id: t.id,
+    props: { title: t.title, done: t.done },
+    actions: {
+      toggle: () => toggleTodo(t.id),
+      delete: { handler: () => deleteTodo(t.id), dangerous: true },
+    },
+  })),
+}));
+```
+
+```vue
+<!-- pages/index.vue — UI auto-syncs when AI changes state -->
+<script setup>
+const { data: todos } = useFetch("/api/todos");
+// No manual WebSocket code. The module handles sync.
+</script>
+```
+
+The Nuxt module auto-configures the Nitro WebSocket handler, subscribes to SLOP changes on the client, and calls `refreshNuxtData` when the AI invokes an action. The developer writes zero protocol code.
+
+For Next.js, the equivalent:
+
+```ts
+// next.config.ts
+import { withSlop } from "@slop-ai/next";
+
+export default withSlop({
+  slop: { id: "my-app", name: "My App" },
+});
+```
+
+```ts
+// lib/slop/todos.ts — register server state
+import { slop } from "@slop-ai/next/server";
+
+slop.register("todos", () => ({ ... }));
+```
+
+```tsx
+// app/page.tsx — client component, auto-syncs
+"use client";
+import { useSlopAwareQuery } from "@slop-ai/next";
+
+export default function Page() {
+  const todos = useSlopAwareQuery("/api/todos");
+  // Auto re-fetches when AI mutates state. No manual WebSocket code.
+}
+```
+
+#### Separation of concerns
+
+The protocol (Layers 0–2) handles:
+- State tree structure, affordances, patches
+- Transport (WebSocket, postMessage, Unix, stdio)
+- Discovery (meta tags, well-known URLs, provider files)
+
+The meta-framework adapter (Layer 4) handles:
+- How to set up the SLOP endpoint in this framework
+- How to notify the browser UI when state changes
+- How to compose server state and client state
+- How to make it feel native to the framework's conventions
+
+This separation means:
+- The protocol never needs to know about `revalidatePath` or `invalidateAll`
+- Framework adapters can evolve independently of the protocol
+- New frameworks can be supported without protocol changes
+- The protocol remains testable and portable across any JavaScript environment
 
 ## Tier 2: Framework adapter
 
@@ -609,3 +1025,11 @@ The extension should prefer higher tiers — if a meta tag is present, don't als
 9. **Developer-friendly names.** The descriptor API uses `props`, `actions`, `items` — not `properties`, `affordances`, `children`. Handlers are callbacks, not action name strings. The library translates to protocol format internally.
 
 10. **The tree is a curated projection.** Developers choose what to expose — SLOP doesn't dump internal state. The semantic mapping is inherently app-specific. Libraries reduce boilerplate but don't attempt to auto-generate semantic meaning.
+
+11. **Descriptor functions, not manual tree building.** On the server, `register()` accepts a function that returns a descriptor. The server re-evaluates it after invocations and on explicit `refresh()`. Developers never construct wire-format trees or manage subscriptions by hand — the SDK handles the reactivity gap.
+
+12. **Attach to existing servers, don't replace them.** `attachSlop(slop, httpServer)` adds a SLOP WebSocket endpoint alongside existing routes. It doesn't create its own server, claim a port, or interfere with routing. One more endpoint, like any other.
+
+13. **Shared engine, separate transports.** `@slop-ai/core` is the engine — tree assembly, diffing, descriptor format. `@slop-ai/client` and `@slop-ai/server` are transport shells. Learn `register()` once, use it everywhere — browser, server, CLI, native app.
+
+14. **The protocol is framework-agnostic. Adapters are not.** The SLOP protocol handles state exposure and AI interaction. How the browser UI stays in sync, how server/client state is composed, and how the endpoint is configured — these are framework concerns, solved by framework-specific adapters (Layer 4), not by the protocol.

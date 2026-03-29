@@ -38,6 +38,12 @@ A score indicating how relevant this node is to the current moment. Providers co
 
 Salience is relative within a tree. It helps the consumer decide *what to read first*, not whether something exists.
 
+### `pinned` (boolean)
+
+When `true`, this node and its children must never be collapsed by auto-compaction, regardless of salience score or node budget. Use for subtrees that should always be visible to the AI — such as the `ui` node in fullstack apps, or critical status indicators.
+
+Default: `false`.
+
 ### `changed` (boolean)
 
 Set to `true` on nodes that were modified in the most recent patch. Automatically cleared on the next patch cycle. This lets the consumer quickly scan for what's new without diffing.

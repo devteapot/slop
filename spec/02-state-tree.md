@@ -94,6 +94,7 @@ Metadata about the node itself (not the domain data). See [06 — Attention & Sa
   "meta": {
     "summary": "12 unread messages, 3 flagged",  // NL summary for truncated subtrees
     "salience": 0.8,          // 0–1, how relevant this node is right now
+    "pinned": false,          // If true, never collapse this node or its children during auto-compaction
     "changed": true,          // This node was modified in the last patch
     "total_children": 142,    // Total children (when not all are inline)
     "window": [0, 25],        // Which slice of children is inline [offset, limit]

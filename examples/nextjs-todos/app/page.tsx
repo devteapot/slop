@@ -22,6 +22,19 @@ export default function Home() {
     load();
   }, [load]);
 
+  // Subscribe to SLOP WebSocket for real-time sync.
+  // When AI (or anyone) invokes an action via SLOP, the server broadcasts
+  // a snapshot — we use that as a "state changed" signal to re-fetch.
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${window.location.host}/api/slop`);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "subscribe", id: "ui-sync", path: "/", depth: 0 }));
+    };
+    ws.onmessage = () => load();
+    return () => ws.close();
+  }, [load]);
+
   const add = async () => {
     if (!newTitle.trim()) return;
     await fetch("/api/todos", {

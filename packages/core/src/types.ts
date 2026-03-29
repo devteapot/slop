@@ -22,6 +22,7 @@ export interface Affordance {
 export interface NodeMeta {
   summary?: string;
   salience?: number;
+  pinned?: boolean;
   changed?: boolean;
   focus?: boolean;
   urgency?: "none" | "low" | "medium" | "high" | "critical";

@@ -326,8 +326,8 @@ function collectCandidates(
     const child = node.children[i];
     const childPath = [...path, i];
 
-    if (child.children?.length && !isRootChild) {
-      // This node has children and is collapsible (not a root direct child)
+    if (child.children?.length && !isRootChild && !child.meta?.pinned) {
+      // This node has children, is collapsible (not root child), and is not pinned
       const childCount = countNodes(child) - 1; // nodes saved = total - the stub
       const salience = child.meta?.salience ?? 0.5;
       const depth = childPath.length;

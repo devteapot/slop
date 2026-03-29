@@ -4,6 +4,11 @@ import { assembleTree } from "../src/tree-assembler";
 import { diffNodes } from "../src/diff";
 import { SlopClientImpl } from "../src/client";
 import type { SlopNode, NodeDescriptor } from "../src/types";
+import type { Transport } from "../src/transport";
+
+function mockTransport(): Transport {
+  return { send() {}, onMessage() {}, start() {}, stop() {} };
+}
 
 // --- Helpers ---
 
@@ -323,7 +328,7 @@ describe("maxDepth", () => {
   }
 
   test("maxDepth: 0 collapses everything except root", () => {
-    const client = new SlopClientImpl({ id: "test", name: "T", maxDepth: 0 });
+    const client = new SlopClientImpl({ id: "test", name: "T", maxDepth: 0 }, mockTransport());
     // Access getOutputTree indirectly — register nodes and check the snapshot
     // For unit testing, test truncateTree directly via the assembled tree
     const tree = makeDeepTree();
@@ -405,7 +410,7 @@ function truncateTreeForTest(node: SlopNode, depth: number): SlopNode {
 
 describe("maxNodes auto-compaction", () => {
   test("tree under budget is unchanged", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 100 });
+    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 100 }, mockTransport());
     client.register("a", { type: "group" });
     client.register("b", { type: "group" });
     client.flush();
@@ -413,7 +418,7 @@ describe("maxNodes auto-compaction", () => {
   });
 
   test("tree over budget gets compacted", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 5 });
+    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 5 }, mockTransport());
     client.register("section", {
       type: "collection",
       items: Array.from({ length: 10 }, (_, i) => ({
@@ -426,7 +431,7 @@ describe("maxNodes auto-compaction", () => {
   });
 
   test("low salience nodes collapsed before high salience", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 6 });
+    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 6 }, mockTransport());
     client.register("important", {
       type: "collection",
       meta: { salience: 1.0 },
@@ -443,7 +448,7 @@ describe("maxNodes auto-compaction", () => {
   });
 
   test("maxNodes: 1 collapses everything to root", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 1 });
+    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 1 }, mockTransport());
     client.register("a", {
       type: "collection",
       items: [{ id: "x" }, { id: "y" }],
@@ -496,7 +501,7 @@ describe("maxNodes auto-compaction", () => {
   });
 
   test("maxDepth + maxNodes combined", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T", maxDepth: 2, maxNodes: 10 });
+    const client = new SlopClientImpl({ id: "t", name: "T", maxDepth: 2, maxNodes: 10 }, mockTransport());
     // Deep + wide tree
     client.register("a", { type: "view" });
     client.register("a/b", { type: "collection" });
@@ -528,7 +533,7 @@ describe("maxNodes auto-compaction", () => {
   });
 
   test("empty tree with maxNodes", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 10 });
+    const client = new SlopClientImpl({ id: "t", name: "T", maxNodes: 10 }, mockTransport());
     client.flush();
     // Just root node, budget 10 → no issue
   });
@@ -549,7 +554,7 @@ function autoCompactForTest(root: SlopNode, maxNodes: number): SlopNode {
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
       const childPath = [...path, i];
-      if (child.children?.length) {
+      if (child.children?.length && !child.meta?.pinned) {
         const childCount = countNodes(child) - 1;
         const salience = child.meta?.salience ?? 0.5;
         const depth = childPath.length;
@@ -592,6 +597,225 @@ function autoCompactForTest(root: SlopNode, maxNodes: number): SlopNode {
 
   return tree;
 }
+
+// ============================================================
+// PINNED NODES (meta.pinned)
+// ============================================================
+
+describe("Pinned nodes", () => {
+  test("pinned node is never collapsed by auto-compaction", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        {
+          id: "data", type: "group",
+          meta: { salience: 0.3 },
+          children: Array.from({ length: 10 }, (_, i) => ({
+            id: `item-${i}`, type: "item",
+          })),
+        },
+        {
+          id: "ui", type: "view",
+          meta: { pinned: true, salience: 0.5 },
+          children: [
+            { id: "filters", type: "status", properties: { category: "work" } },
+            { id: "compose", type: "view", properties: { title: "Draft" } },
+          ],
+        },
+      ],
+    };
+    // 15 nodes total, budget 5
+    // Without pinned: both branches are candidates for collapse
+    // With pinned: ui branch must survive, data branch collapses
+    const compacted = autoCompactForTest(tree, 5);
+
+    const ui = compacted.children?.find(c => c.id === "ui");
+    expect(ui).toBeDefined();
+    // ui should still have its children (not collapsed)
+    expect(ui!.children).toBeDefined();
+    expect(ui!.children!.length).toBe(2);
+    expect(ui!.children![0].id).toBe("filters");
+    expect(ui!.children![1].id).toBe("compose");
+  });
+
+  test("pinned node with low salience still survives compaction", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        {
+          id: "high-salience", type: "group",
+          meta: { salience: 1.0 },
+          children: [{ id: "h1", type: "item" }, { id: "h2", type: "item" }],
+        },
+        {
+          id: "pinned-low", type: "group",
+          meta: { pinned: true, salience: 0.1 },
+          children: [{ id: "p1", type: "item" }, { id: "p2", type: "item" }],
+        },
+      ],
+    };
+    // 7 nodes, budget 4
+    // pinned-low has lowest salience but is pinned — cannot be collapsed
+    // high-salience must be the one that gets collapsed
+    const compacted = autoCompactForTest(tree, 4);
+
+    const pinnedNode = compacted.children?.find(c => c.id === "pinned-low");
+    expect(pinnedNode).toBeDefined();
+    expect(pinnedNode!.children).toBeDefined();
+    expect(pinnedNode!.children!.length).toBe(2);
+  });
+
+  test("non-pinned sibling is collapsed while pinned sibling survives", () => {
+    // Use a nested structure so the collapsible node is NOT a root direct child
+    // (root direct children are always protected by the compaction algorithm)
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [{
+        id: "app", type: "view",
+        children: [
+          {
+            id: "collapsible", type: "collection",
+            children: Array.from({ length: 8 }, (_, i) => ({
+              id: `c-${i}`, type: "item",
+            })),
+          },
+          {
+            id: "protected", type: "view",
+            meta: { pinned: true },
+            children: [
+              { id: "route", type: "status", properties: { path: "/todos" } },
+              { id: "filter", type: "status", properties: { active: "all" } },
+            ],
+          },
+        ],
+      }],
+    };
+    // 14 nodes, budget 6
+    const compacted = autoCompactForTest(tree, 6);
+
+    const app = compacted.children![0];
+
+    // protected (pinned) should keep its children
+    const protectedNode = app.children?.find(c => c.id === "protected");
+    expect(protectedNode).toBeDefined();
+    expect(protectedNode!.children).toBeDefined();
+    expect(protectedNode!.children!.length).toBe(2);
+
+    // collapsible should be collapsed (stub with total_children)
+    const collapsibleNode = app.children?.find(c => c.id === "collapsible");
+    expect(collapsibleNode).toBeDefined();
+    expect(collapsibleNode!.meta?.total_children).toBeDefined();
+    expect(collapsibleNode!.children).toBeUndefined();
+  });
+
+  test("deeply nested pinned node protects its subtree", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [{
+        id: "section", type: "group",
+        children: [{
+          id: "pinned-deep", type: "view",
+          meta: { pinned: true },
+          children: [
+            { id: "d1", type: "item" },
+            { id: "d2", type: "item" },
+            { id: "d3", type: "item" },
+          ],
+        }, {
+          id: "unpinned-deep", type: "collection",
+          children: [
+            { id: "u1", type: "item" },
+            { id: "u2", type: "item" },
+            { id: "u3", type: "item" },
+          ],
+        }],
+      }],
+    };
+    // 10 nodes, budget 6
+    const compacted = autoCompactForTest(tree, 6);
+
+    const section = compacted.children![0];
+    const pinnedDeep = section.children?.find(c => c.id === "pinned-deep");
+    const unpinnedDeep = section.children?.find(c => c.id === "unpinned-deep");
+
+    // pinned-deep keeps its children
+    expect(pinnedDeep!.children).toBeDefined();
+    expect(pinnedDeep!.children!.length).toBe(3);
+
+    // unpinned-deep gets collapsed
+    expect(unpinnedDeep!.children).toBeUndefined();
+    expect(unpinnedDeep!.meta?.total_children).toBe(3);
+  });
+
+  test("pinned: false is the same as not setting pinned", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [{
+        id: "section", type: "group",
+        children: [{
+          id: "explicit-false", type: "collection",
+          meta: { pinned: false },
+          children: [{ id: "a", type: "item" }, { id: "b", type: "item" }],
+        }],
+      }],
+    };
+    // 5 nodes, budget 3
+    const compacted = autoCompactForTest(tree, 3);
+
+    // explicit-false should be collapsed (not protected)
+    const section = compacted.children![0];
+    const node = section.children?.[0];
+    expect(node!.children).toBeUndefined();
+    expect(node!.meta?.total_children).toBe(2);
+  });
+
+  test("all nodes pinned means nothing can be collapsed", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [{
+        id: "a", type: "group",
+        meta: { pinned: true },
+        children: [{
+          id: "b", type: "collection",
+          meta: { pinned: true },
+          children: [
+            { id: "c1", type: "item" },
+            { id: "c2", type: "item" },
+          ],
+        }],
+      }],
+    };
+    // 5 nodes, budget 2 — but everything is pinned
+    const compacted = autoCompactForTest(tree, 2);
+
+    // Nothing can be collapsed — tree should be unchanged
+    expect(countNodes(compacted)).toBe(5);
+  });
+
+  test("pinned node preserves meta fields through compaction", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        {
+          id: "ui", type: "view",
+          meta: { pinned: true, salience: 0.9, summary: "Current page context" },
+          children: [{ id: "route", type: "status" }],
+        },
+        {
+          id: "data", type: "collection",
+          children: Array.from({ length: 5 }, (_, i) => ({ id: `d${i}`, type: "item" })),
+        },
+      ],
+    };
+    const compacted = autoCompactForTest(tree, 4);
+
+    const ui = compacted.children?.find(c => c.id === "ui");
+    expect(ui!.meta?.pinned).toBe(true);
+    expect(ui!.meta?.salience).toBe(0.9);
+    expect(ui!.meta?.summary).toBe("Current page context");
+    expect(ui!.children!.length).toBe(1);
+  });
+});
 
 // ============================================================
 // TREE PATCHING (diff correctness with scaling features)
@@ -793,7 +1017,7 @@ describe("Edge cases", () => {
   });
 
   test("rapid register/unregister in same tick", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T" });
+    const client = new SlopClientImpl({ id: "t", name: "T" }, mockTransport());
     // Register and unregister rapidly
     for (let i = 0; i < 100; i++) {
       client.register(`node-${i}`, { type: "item" });
@@ -806,7 +1030,7 @@ describe("Edge cases", () => {
   });
 
   test("register same path multiple times (last wins)", () => {
-    const client = new SlopClientImpl({ id: "t", name: "T" });
+    const client = new SlopClientImpl({ id: "t", name: "T" }, mockTransport());
     client.register("x", { type: "group", summary: "first" });
     client.register("x", { type: "view", summary: "second" });
     client.register("x", { type: "collection", summary: "third" });

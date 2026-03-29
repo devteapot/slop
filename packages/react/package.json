@@ -11,6 +11,11 @@
   "sideEffects": false,
   "license": "MIT",
   "description": "React hook for SLOP — useSlop() to expose component state to AI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/react"
+  },
   "dependencies": {
     "@slop/core": "workspace:*"
   },

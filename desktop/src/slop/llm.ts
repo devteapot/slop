@@ -29,7 +29,7 @@ async function openaiChatCompletion(
     headers["Authorization"] = `Bearer ${profile.apiKey}`;
   }
   if (profile.llmProvider === "openrouter") {
-    headers["HTTP-Referer"] = "https://github.com/anthropics/slop";
+    headers["HTTP-Referer"] = "https://github.com/devteapot/slop";
     headers["X-Title"] = "SLOP Desktop";
   }
 
@@ -186,7 +186,7 @@ export async function fetchModels(profile: LlmProfile): Promise<string[]> {
       }
       case "openrouter": {
         const headers: Record<string, string> = {
-          "HTTP-Referer": "https://github.com/anthropics/slop",
+          "HTTP-Referer": "https://github.com/devteapot/slop",
         };
         if (profile.apiKey) headers["Authorization"] = `Bearer ${profile.apiKey}`;
         const res = await fetch("https://openrouter.ai/api/v1/models", { headers });

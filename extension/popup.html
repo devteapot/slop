@@ -58,6 +58,28 @@
     padding: 4px 0; cursor: pointer;
   }
   .link-row a:hover { text-decoration: underline; }
+
+  .scan-section {
+    margin-bottom: 12px; padding: 10px 12px;
+    background: #161b22; border-radius: 8px;
+  }
+  .scan-status {
+    font-size: 12px; color: #8b949e; margin-bottom: 8px;
+  }
+  .scan-status .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+  }
+  .dot.green { background: #3fb950; }
+  .dot.yellow { background: #d29922; }
+  .dot.gray { background: #6e7681; }
+  .scan-btn {
+    width: 100%; padding: 8px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+  .scan-btn.start { background: #238636; color: #fff; }
+  .scan-btn.start:hover { background: #2ea043; }
+  .scan-btn.stop { background: #30363d; color: #8b949e; }
+  .scan-btn.stop:hover { background: #484f58; color: #e1e4e8; }
 </style>
 </head>
 <body>
@@ -72,6 +94,11 @@
     <input type="checkbox" id="activeToggle">
     <span class="slider"></span>
   </label>
+</div>
+
+<div id="scanSection" class="scan-section" style="display:none">
+  <div id="scanStatus" class="scan-status"></div>
+  <button id="scanBtn" class="scan-btn">Scan this page</button>
 </div>
 
 <div class="sub-toggles" id="subToggles">

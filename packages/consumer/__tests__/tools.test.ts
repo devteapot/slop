@@ -27,7 +27,7 @@ describe("encodeTool / decodeTool", () => {
 });
 
 describe("affordancesToTools", () => {
-  test("extracts tools from tree", () => {
+  test("extracts tools from tree with path-based names", () => {
     const tree: SlopNode = {
       id: "root", type: "root",
       affordances: [{ action: "create", label: "Create" }],
@@ -41,6 +41,21 @@ describe("affordancesToTools", () => {
     expect(tools[0].function.name).toBe("invoke__create");
     expect(tools[1].function.name).toBe("invoke__item-1__delete");
     expect(tools[1].function.description).toContain("DANGEROUS");
+  });
+
+  test("description includes path", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [{
+        id: "inbox", type: "view",
+        children: [{
+          id: "msg-1", type: "item",
+          affordances: [{ action: "archive", label: "Archive message" }],
+        }],
+      }],
+    };
+    const tools = affordancesToTools(tree);
+    expect(tools[0].function.description).toContain("/inbox/msg-1");
   });
 });
 

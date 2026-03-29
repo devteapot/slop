@@ -73,6 +73,15 @@ async function geminiChatCompletion(
   const baseUrl = profile.endpoint || "https://generativelanguage.googleapis.com";
   const url = `${baseUrl}/v1beta/models/${profile.model}:generateContent?key=${profile.apiKey}`;
 
+  // Build tool name maps upfront (needed for message history conversion)
+  const nameMap = new Map<string, string>();   // tool_N → original
+  const reverseMap = new Map<string, string>(); // original → tool_N
+  tools.forEach((t, i) => {
+    const geminiName = `tool_${i}`;
+    nameMap.set(geminiName, t.function.name);
+    reverseMap.set(t.function.name, geminiName);
+  });
+
   // Convert OpenAI messages → Gemini contents
   const contents: any[] = [];
   let systemInstruction: any = undefined;
@@ -90,9 +99,11 @@ async function geminiChatCompletion(
       if (msg.content) parts.push({ text: msg.content });
       if (msg.tool_calls) {
         for (const tc of msg.tool_calls) {
+          // Map original name to Gemini-safe indexed name
+          const geminiName = reverseMap.get(tc.function.name) ?? tc.function.name;
           parts.push({
             functionCall: {
-              name: tc.function.name,
+              name: geminiName,
               args: JSON.parse(tc.function.arguments || "{}"),
             },
           });
@@ -100,11 +111,12 @@ async function geminiChatCompletion(
       }
       contents.push({ role: "model", parts });
     } else if (msg.role === "tool") {
+      const geminiName = reverseMap.get(msg.tool_call_id ?? "") ?? (msg.tool_call_id ?? "unknown");
       contents.push({
         role: "function",
         parts: [{
           functionResponse: {
-            name: msg.tool_call_id ?? "unknown",
+            name: geminiName,
             response: { content: msg.content },
           },
         }],
@@ -113,11 +125,12 @@ async function geminiChatCompletion(
   }
 
   // Convert OpenAI tools → Gemini function declarations
+  // Gemini has strict naming rules — use the pre-built indexed names
   const geminiTools: any[] = [];
   if (tools.length > 0) {
     geminiTools.push({
-      functionDeclarations: tools.map(t => ({
-        name: t.function.name,
+      functionDeclarations: tools.map((t, i) => ({
+        name: `tool_${i}`,
         description: t.function.description,
         parameters: convertSchemaForGemini(t.function.parameters),
       })),
@@ -155,14 +168,17 @@ async function geminiChatCompletion(
   };
 
   if (functionCalls.length > 0) {
-    result.tool_calls = functionCalls.map((fc: any, i: number) => ({
-      id: fc.functionCall.name,  // Gemini doesn't have call IDs, use function name
-      type: "function" as const,
-      function: {
-        name: fc.functionCall.name,
-        arguments: JSON.stringify(fc.functionCall.args ?? {}),
-      },
-    }));
+    result.tool_calls = functionCalls.map((fc: any) => {
+      const originalName = nameMap.get(fc.functionCall.name) ?? fc.functionCall.name;
+      return {
+        id: originalName,
+        type: "function" as const,
+        function: {
+          name: originalName,
+          arguments: JSON.stringify(fc.functionCall.args ?? {}),
+        },
+      };
+    });
   }
 
   return result;

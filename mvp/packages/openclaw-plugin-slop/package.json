@@ -1,0 +1,16 @@
+{
+  "name": "openclaw-plugin-slop",
+  "version": "0.1.0",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./src/index.ts"]
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.49",
+    "@slop/consumer": "file:../../../packages/consumer",
+    "openclaw": "^2026.3.28"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}

@@ -1,5 +1,6 @@
-// Engine class
-export { SlopClientImpl } from "./client";
+// Provider base (shared between client and server)
+export { ProviderBase } from "./provider";
+export type { SubscriptionFilter, OutputRequest } from "./provider";
 
 // Re-export types
 export type {
@@ -33,3 +34,14 @@ export { pick, omit, action } from "./helpers";
 // Re-export internals for advanced use
 export { assembleTree } from "./tree-assembler";
 export { diffNodes } from "./diff";
+
+// Scaling utilities
+export {
+  prepareTree,
+  getSubtree,
+  truncateTree,
+  autoCompact,
+  filterTree,
+  countNodes,
+} from "./scaling";
+export type { OutputTreeOptions } from "./scaling";

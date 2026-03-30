@@ -1,4 +1,4 @@
-import { SlopClientImpl } from "@slop-ai/core";
+import { SlopClientImpl } from "./client";
 import type { SlopClient, SlopClientOptions } from "@slop-ai/core";
 import { createPostMessageTransport } from "./postmessage-transport";
 
@@ -28,11 +28,15 @@ export function createSlop<S = unknown>(
   return client;
 }
 
-// Re-export everything from core for convenience
+// Export the client class
+export { SlopClientImpl } from "./client";
+
+// Re-export core types and utilities for convenience
 export {
-  SlopClientImpl,
+  ProviderBase,
   pick, omit, action,
   assembleTree, diffNodes,
+  prepareTree, getSubtree, truncateTree, autoCompact, filterTree, countNodes,
 } from "@slop-ai/core";
 
 export type {
@@ -55,6 +59,9 @@ export type {
   Transport,
   ExtractPaths,
   ExtractSubSchema,
+  SubscriptionFilter,
+  OutputRequest,
+  OutputTreeOptions,
 } from "@slop-ai/core";
 
 export { createPostMessageTransport } from "./postmessage-transport";

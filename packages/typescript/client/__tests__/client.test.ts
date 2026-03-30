@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { SlopClientImpl } from "../src/client";
-import type { NodeDescriptor } from "../src/types";
-import type { Transport } from "../src/transport";
+import type { NodeDescriptor, Transport } from "@slop-ai/core";
 
 // Mock transport for testing
 const sentMessages: any[] = [];
@@ -180,5 +179,129 @@ describe("SlopClient", () => {
     client.flush();
     // 8 nodes total, budget 5
     // "unimportant" (salience 0.1) should be collapsed before "important" (salience 1.0)
+  });
+});
+
+// ============================================================
+// Integration: scaling through the message protocol
+// ============================================================
+
+describe("SlopClient scaling integration", () => {
+  function createTrackedClient(opts: { maxDepth?: number; maxNodes?: number } = {}) {
+    const sent: any[] = [];
+    const handlers: ((msg: any) => void)[] = [];
+    const transport: Transport = {
+      send(msg) { sent.push(msg); },
+      onMessage(h) { handlers.push(h); },
+      start() {},
+      stop() {},
+    };
+    const client = new SlopClientImpl({ id: "app", name: "App", ...opts }, transport);
+    client.start();
+    const simulate = (msg: any) => handlers.forEach(h => h(msg));
+    return { client, sent, simulate };
+  }
+
+  test("subscribe respects depth from consumer", () => {
+    const { client, sent, simulate } = createTrackedClient();
+    client.register("a", { type: "view" });
+    client.register("a/b", { type: "collection" });
+    client.register("a/b/c", { type: "item", props: { deep: true } });
+    client.flush();
+
+    simulate({ type: "subscribe", id: "sub-1", path: "/", depth: 1 });
+    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    expect(snapshot).toBeDefined();
+    // At depth 1, a should be present but its children truncated
+    const a = snapshot.tree.children?.find((c: any) => c.id === "a");
+    expect(a).toBeDefined();
+    expect(a.children).toBeUndefined();
+    expect(a.meta?.total_children).toBe(1);
+  });
+
+  test("subscribe respects min_salience filter", () => {
+    const { client, sent, simulate } = createTrackedClient();
+    client.register("high", { type: "item", meta: { salience: 0.9 } });
+    client.register("low", { type: "item", meta: { salience: 0.1 } });
+    client.flush();
+
+    simulate({ type: "subscribe", id: "sub-1", filter: { min_salience: 0.5 } });
+    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    const ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
+    expect(ids).toContain("high");
+    expect(ids).not.toContain("low");
+  });
+
+  test("subscribe respects types filter", () => {
+    const { client, sent, simulate } = createTrackedClient();
+    client.register("alert", { type: "notification" });
+    client.register("data", { type: "collection" });
+    client.flush();
+
+    simulate({ type: "subscribe", id: "sub-1", filter: { types: ["notification"] } });
+    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    const ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
+    expect(ids).toContain("alert");
+    expect(ids).not.toContain("data");
+  });
+
+  test("subscribe to subtree path", () => {
+    const { client, sent, simulate } = createTrackedClient();
+    client.register("inbox", { type: "view", props: { label: "Inbox" } });
+    client.register("inbox/messages", { type: "collection", items: [{ id: "m1", props: { text: "hi" } }] });
+    client.register("settings", { type: "view" });
+    client.flush();
+
+    simulate({ type: "subscribe", id: "sub-1", path: "/inbox" });
+    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    // Should get the inbox subtree, not the full tree
+    expect(snapshot.tree.id).toBe("inbox");
+    expect(snapshot.tree.children?.[0]?.id).toBe("messages");
+  });
+
+  test("query respects depth and filter", () => {
+    const { client, sent, simulate } = createTrackedClient();
+    client.register("a", { type: "view", meta: { salience: 0.9 } });
+    client.register("a/b", { type: "item" });
+    client.register("noise", { type: "item", meta: { salience: 0.1 } });
+    client.flush();
+
+    simulate({ type: "query", id: "q-1", depth: 1, filter: { min_salience: 0.5 } });
+    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "q-1");
+    const ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
+    expect(ids).toContain("a");
+    expect(ids).not.toContain("noise");
+    // a's children should be truncated at depth 1
+    const a = snapshot.tree.children?.find((c: any) => c.id === "a");
+    expect(a?.children).toBeUndefined();
+  });
+
+  test("broadcast sends per-subscription filtered trees", () => {
+    const { client, sent, simulate } = createTrackedClient();
+    client.register("high", { type: "item", meta: { salience: 0.9 }, props: { v: 1 } });
+    client.register("low", { type: "item", meta: { salience: 0.1 } });
+    client.flush();
+
+    // Two subscriptions with different filters
+    simulate({ type: "subscribe", id: "all", path: "/" });
+    simulate({ type: "subscribe", id: "filtered", path: "/", filter: { min_salience: 0.5 } });
+    sent.length = 0; // clear
+
+    // Trigger a change
+    client.register("high", { type: "item", meta: { salience: 0.9 }, props: { v: 2 } });
+    client.flush();
+
+    const allSnapshot = sent.find(m => m.subscription === "all");
+    const filteredSnapshot = sent.find(m => m.subscription === "filtered");
+    expect(allSnapshot).toBeDefined();
+    expect(filteredSnapshot).toBeDefined();
+
+    // "all" subscription should see both nodes
+    const allIds = allSnapshot.tree.children?.map((c: any) => c.id) ?? [];
+    expect(allIds).toContain("low");
+
+    // "filtered" subscription should only see high salience
+    const filteredIds = filteredSnapshot.tree.children?.map((c: any) => c.id) ?? [];
+    expect(filteredIds).not.toContain("low");
   });
 });

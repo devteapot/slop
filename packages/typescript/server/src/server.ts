@@ -1,7 +1,7 @@
-import { assembleTree, diffNodes } from "@slop-ai/core";
+import { ProviderBase } from "@slop-ai/core";
 import type {
-  SlopNode, PatchOp, ActionHandler, NodeDescriptor,
-  SlopClientOptions,
+  SlopNode, ActionHandler, NodeDescriptor,
+  SlopClientOptions, SubscriptionFilter,
 } from "@slop-ai/core";
 
 /** A descriptor function that returns a NodeDescriptor when called. */
@@ -18,49 +18,54 @@ interface Subscription {
   id: string;
   path: string;
   depth: number;
+  filter?: SubscriptionFilter;
   connection: Connection;
 }
 
 export interface SlopServerOptions<S = unknown> extends SlopClientOptions<S> {}
 
-export class SlopServer<S = unknown> {
+/**
+ * Server-side SLOP provider. Extends ProviderBase with:
+ * - Multiple simultaneous consumer connections
+ * - Descriptor functions (re-evaluated on refresh)
+ * - Eager rebuild (no microtask batching)
+ * - Auto-refresh after invoke
+ * - Change listeners
+ */
+export class SlopServer<S = unknown> extends ProviderBase<S> {
   readonly id: string;
   readonly name: string;
 
-  private options: SlopServerOptions<S>;
-  private registrations = new Map<string, DescriptorFn>();
+  private dynamicRegistrations = new Map<string, DescriptorFn>();
   private staticRegistrations = new Map<string, NodeDescriptor>();
-  private currentTree: SlopNode = { id: "root", type: "root" };
-  private currentHandlers = new Map<string, ActionHandler>();
-  private version = 0;
   private subscriptions: Subscription[] = [];
   private connections = new Set<Connection>();
   private changeListeners = new Set<() => void>();
 
   constructor(options: SlopServerOptions<S>) {
-    this.options = options;
+    super(options);
     this.id = options.id;
     this.name = options.name;
   }
 
   /**
-   * Register a node with a descriptor function.
-   * The function is re-evaluated on refresh() and after invoke().
+   * Register a node with a static descriptor or a descriptor function.
+   * Functions are re-evaluated on refresh() and after invoke().
    */
   register(path: string, descriptorOrFn: DescriptorFn | NodeDescriptor): void {
     if (typeof descriptorOrFn === "function") {
-      this.registrations.set(path, descriptorOrFn);
+      this.dynamicRegistrations.set(path, descriptorOrFn);
       this.staticRegistrations.delete(path);
     } else {
       this.staticRegistrations.set(path, descriptorOrFn);
-      this.registrations.delete(path);
+      this.dynamicRegistrations.delete(path);
     }
     this.rebuild();
   }
 
   /** Remove a registration. */
   unregister(path: string): void {
-    this.registrations.delete(path);
+    this.dynamicRegistrations.delete(path);
     this.staticRegistrations.delete(path);
     this.rebuild();
   }
@@ -68,7 +73,6 @@ export class SlopServer<S = unknown> {
   /** Create a scoped server that prefixes all paths. */
   scope(prefix: string): SlopServer<unknown> {
     const parent = this;
-    // Return a proxy-like object that delegates to parent with prefixed paths
     return {
       ...parent,
       register(path: string, descriptorOrFn: DescriptorFn | NodeDescriptor) {
@@ -92,50 +96,31 @@ export class SlopServer<S = unknown> {
     this.rebuild();
   }
 
-  /** Get the current tree (for inspection/testing). */
-  getTree(): SlopNode {
-    return this.currentTree;
-  }
-
-  /** Get the current version. */
-  getVersion(): number {
-    return this.version;
-  }
-
   // --- Connection management (used by transport adapters) ---
 
   /** Handle a new consumer connection. */
   handleConnection(conn: Connection): void {
     this.connections.add(conn);
-
-    // Send hello
-    conn.send({
-      type: "hello",
-      provider: {
-        id: this.id,
-        name: this.name,
-        slop_version: "0.1",
-        capabilities: ["state", "patches", "affordances"],
-      },
-    });
+    conn.send(this.helloMessage());
   }
 
   /** Handle a message from a consumer. */
   async handleMessage(conn: Connection, msg: any): Promise<void> {
     switch (msg.type) {
       case "subscribe": {
-        this.subscriptions.push({
+        const sub: Subscription = {
           id: msg.id,
           path: msg.path ?? "/",
           depth: msg.depth ?? -1,
+          filter: msg.filter,
           connection: conn,
-        });
-        conn.send({
-          type: "snapshot",
-          id: msg.id,
-          version: this.version,
-          tree: this.currentTree,
-        });
+        };
+        this.subscriptions.push(sub);
+        conn.send(this.snapshotMessage(msg.id, {
+          path: sub.path,
+          depth: sub.depth,
+          filter: sub.filter,
+        }));
         break;
       }
 
@@ -148,17 +133,17 @@ export class SlopServer<S = unknown> {
       }
 
       case "query": {
-        conn.send({
-          type: "snapshot",
-          id: msg.id,
-          version: this.version,
-          tree: this.currentTree,
-        });
+        conn.send(this.snapshotMessage(msg.id, {
+          path: msg.path,
+          depth: msg.depth,
+          filter: msg.filter,
+        }));
         break;
       }
 
       case "invoke": {
-        await this.handleInvoke(conn, msg);
+        const result = await this.executeInvoke(msg);
+        conn.send(result);
         break;
       }
     }
@@ -185,109 +170,38 @@ export class SlopServer<S = unknown> {
     this.subscriptions = [];
   }
 
-  // --- Internal ---
+  // --- ProviderBase hooks ---
 
-  private rebuild(): void {
-    // Evaluate all descriptor functions
-    const allDescriptors = new Map<string, NodeDescriptor>();
+  protected getRegistrations(): Map<string, NodeDescriptor> {
+    const all = new Map<string, NodeDescriptor>();
 
-    for (const [path, fn] of this.registrations) {
+    for (const [path, fn] of this.dynamicRegistrations) {
       try {
-        allDescriptors.set(path, fn());
+        all.set(path, fn());
       } catch (e) {
         console.error(`[slop] Error evaluating descriptor at "${path}":`, e);
       }
     }
 
     for (const [path, desc] of this.staticRegistrations) {
-      allDescriptors.set(path, desc);
+      all.set(path, desc);
     }
 
-    const { tree, handlers } = assembleTree(allDescriptors, this.id, this.name);
-    const ops = diffNodes(this.currentTree, tree);
-    this.currentHandlers = handlers;
-
-    if (ops.length > 0) {
-      this.currentTree = tree;
-      this.version++;
-      this.broadcastPatches(ops);
-      for (const fn of this.changeListeners) fn();
-    } else if (this.version === 0) {
-      // First build — store tree even if no diff (there's nothing to diff against)
-      this.currentTree = tree;
-      this.version = 1;
-    }
+    return all;
   }
 
-  private async handleInvoke(
-    conn: Connection,
-    msg: { id: string; path: string; action: string; params?: Record<string, unknown> }
-  ): Promise<void> {
-    const handler = this.resolveHandler(msg.path, msg.action);
-    if (!handler) {
-      conn.send({
-        type: "result",
-        id: msg.id,
-        status: "error",
-        error: {
-          code: "not_found",
-          message: `No handler for ${msg.action} at ${msg.path}`,
-        },
-      });
-      return;
-    }
-
-    try {
-      const data = await handler(msg.params ?? {});
-      conn.send({
-        type: "result",
-        id: msg.id,
-        status: "ok",
-        ...(data != null && { data }),
-      });
-
-      // Auto-refresh after invoke — re-evaluate descriptors and broadcast changes
-      this.rebuild();
-    } catch (err: any) {
-      conn.send({
-        type: "result",
-        id: msg.id,
-        status: "error",
-        error: {
-          code: err.code ?? "internal",
-          message: err.message ?? String(err),
-        },
-      });
-    }
-  }
-
-  private resolveHandler(path: string, action: string): ActionHandler | undefined {
-    // Strip root prefix
-    const rootPrefix = `/${this.id}/`;
-    let cleanPath = path;
-    if (cleanPath.startsWith(rootPrefix)) {
-      cleanPath = cleanPath.slice(rootPrefix.length);
-    } else if (cleanPath.startsWith("/")) {
-      cleanPath = cleanPath.slice(1);
-    }
-
-    const key = cleanPath ? `${cleanPath}/${action}` : action;
-    return this.currentHandlers.get(key);
-  }
-
-  private broadcastPatches(ops: PatchOp[]): void {
+  protected broadcast(): void {
     for (const sub of this.subscriptions) {
       try {
-        // Send full snapshot (simpler and more reliable than filtered patches)
-        sub.connection.send({
-          type: "snapshot",
-          id: sub.id,
-          version: this.version,
-          tree: this.currentTree,
-        });
+        sub.connection.send(this.snapshotMessage(sub.id, {
+          path: sub.path,
+          depth: sub.depth,
+          filter: sub.filter,
+        }));
       } catch {
         // Connection may have been closed
       }
     }
+    for (const fn of this.changeListeners) fn();
   }
 }

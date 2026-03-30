@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { SlopClientImpl } from "../src/client";
-import type { SlopNode } from "../src/types";
+import type { SlopNode } from "@slop-ai/core";
 
 // Mock DOM globals for transport
 globalThis.window = {

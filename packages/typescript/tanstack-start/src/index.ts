@@ -1,6 +1,5 @@
 // Client-side exports
 export { useSlopUI, useSlop } from "./hooks";
-export { SlopUIAdapter } from "./adapter";
 
 // Middleware (client+server safe — resolves slop instance at runtime from globalThis)
 import { createMiddleware } from "@tanstack/react-start";

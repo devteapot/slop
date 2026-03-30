@@ -28,8 +28,8 @@ export function createPostMessageTransport(): Transport {
       };
       window.addEventListener("message", listener);
 
-      // Inject meta tag for discovery
-      if (typeof document !== "undefined" && !document.querySelector('meta[name="slop"]')) {
+      // Inject meta tag for discovery (always — a page can have multiple SLOP providers)
+      if (typeof document !== "undefined" && !document.querySelector('meta[name="slop"][content="postmessage"]')) {
         metaTag = document.createElement("meta");
         metaTag.name = "slop";
         metaTag.content = "postmessage";

@@ -3,7 +3,7 @@ title: "TanStack Start"
 description: How to use SLOP with TanStack Start to expose server and UI state to AI agents.
 ---
 
-TanStack Start is a full-stack React meta-framework with SSR, server functions, and file-based routing. The `@slop-ai/tanstack-start` adapter is a **Layer 4** integration that wires everything together: the server owns the SLOP tree, the browser reports UI state over a bidirectional WebSocket, and AI consumers connect to the same socket.
+TanStack Start is a full-stack React meta-framework with SSR, server functions, and file-based routing. The `@slop-ai/tanstack-start` adapter is a **Layer 4** integration that wires everything together: the server runs a data provider (WebSocket), the browser runs a UI provider (postMessage), and AI consumers subscribe to both.
 
 See the full working example in [`examples/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/tanstack-start).
 
@@ -161,11 +161,11 @@ The plugin uses `server.ssrLoadModule` to import the SLOP instance from within V
 
 Call `useSlopUI()` once in your root layout (`__root.tsx`). It:
 
-- Opens a WebSocket connection to the SLOP server
+- Creates a browser-side SLOP provider (postMessage) for UI state
 - Registers the current route (path, params, available routes) automatically
-- Provides `ui_navigate` and `ui_back` actions so AI can navigate the user
+- Provides `navigate` and `back` actions so AI can navigate the user
+- Registers a `refresh` affordance the consumer invokes for data invalidation
 - Auto-updates on every navigation
-- Triggers `router.invalidate()` when server data changes
 
 ```tsx
 // src/routes/__root.tsx
@@ -187,7 +187,7 @@ Since it's in the root layout, every page gets SLOP connectivity for free. Indiv
 
 ### `useSlop(path, descriptor)` — in page components
 
-Register page-specific UI state under the `ui/` prefix. Each call creates a node that AI agents can read and interact with:
+Register page-specific UI state on the browser's SLOP provider. Each call creates a node that AI agents can read and interact with:
 
 ```tsx
 // src/routes/index.tsx
@@ -203,7 +203,7 @@ function ProjectsPage() {
     type: "status",
     props: { status: filter },
     actions: {
-      ui_set_filter: {
+      set_filter: {
         params: { status: "string" },
         handler: (params: any) => setFilter(params.status),
       },
@@ -215,17 +215,17 @@ function ProjectsPage() {
     type: "view",
     props: { name: newName },
     actions: {
-      ui_type: {
+      type: {
         params: { value: "string" },
         handler: (params: any) => setNewName(params.value),
       },
-      ui_submit: async () => {
+      submit: async () => {
         if (newName.trim()) {
           await createProjectFn({ data: { name: newName } });
           setNewName("");
         }
       },
-      ui_clear: () => setNewName(""),
+      clear: () => setNewName(""),
     },
   });
 
@@ -233,11 +233,11 @@ function ProjectsPage() {
 }
 ```
 
-When the user navigates to a different page, the old `useSlop` registrations unregister automatically and the new page's registrations take their place — the `ui/` subtree in the SLOP tree updates to reflect the current page.
+When the user navigates to a different page, the old `useSlop` registrations unregister automatically and the new page's registrations take their place — the browser provider's tree updates to reflect the current page.
 
 ## Discovery
 
-Add a `<meta name="slop">` tag so AI agents can find the WebSocket endpoint. This goes in the `head()` route option alongside `useSlopUI()` in the root route:
+Add a `<meta name="slop">` tag so AI agents can find the server's WebSocket endpoint. The browser-side UI provider's meta tag (`postmessage`) is injected automatically by `useSlopUI()`.
 
 ```tsx
 // src/routes/__root.tsx
@@ -246,6 +246,7 @@ export const Route = createRootRoute({
     meta: [
       // ... other meta tags
       { name: "slop", content: "ws://localhost:3000/slop" },
+      // Note: useSlopUI() auto-injects a second meta tag for the postMessage UI provider
     ],
   }),
   shellComponent: RootDocument,
@@ -253,57 +254,58 @@ export const Route = createRootRoute({
 });
 ```
 
-The `<HeadContent />` component in the shell renders the meta tag. AI agents visiting the page read it to discover the WebSocket endpoint.
+AI consumers discover both providers: the WebSocket endpoint (data) from the meta tag, and the postMessage provider (UI) from the auto-injected tag.
 
 ## What the AI sees
 
-When an AI consumer connects to the WebSocket, it sees a merged tree of server-side data and client-side UI state:
+The consumer (extension or desktop app) subscribes to both providers and merges them into one tree:
 
 ```
-/
-  projects/                          # server data (from slop.register)
-    props: { total: 3, active: 2 }
-    actions: [create_project]
-    p1/
-      props: { name: "SLOP Protocol", status: "active", taskCount: 3, done: 1 }
-      actions: [archive, rename, add_task]
-      tasks/
-        t1/
-          props: { title: "Write spec", done: true }
-          actions: [toggle, delete]
-        t2/ ...
-    p2/ ...
-  ui/                                # client UI state
-    route/                           # auto-registered by useSlopUI()
+[root] merged                            # merged by the consumer
+  [data] My App                          # from server provider (WebSocket)
+    projects/
+      props: { total: 3, active: 2 }
+      actions: [create_project]
+      p1/
+        props: { name: "SLOP Protocol", status: "active", taskCount: 3, done: 1 }
+        actions: [archive, rename, add_task]
+        tasks/
+          t1/ props: { title: "Write spec", done: true }  actions: [toggle, delete]
+          t2/ ...
+      p2/ ...
+  [ui] UI                                # from browser provider (postMessage)
+    route/                               # auto-registered by useSlopUI()
       props: { path: "/", availableRoutes: ["/", "/about", "/projects/$id"] }
-      actions: [ui_navigate, ui_back]
-    filters/                         # registered by useSlop("filters", ...)
+      actions: [navigate, back]
+    __adapter/                           # auto-registered refresh affordance
+      actions: [refresh]
+    filters/                             # registered by useSlop("filters", ...)
       props: { status: "all" }
-      actions: [ui_set_filter]
-    create_form/                     # registered by useSlop("create_form", ...)
+      actions: [set_filter]
+    create_form/                         # registered by useSlop("create_form", ...)
       props: { name: "" }
-      actions: [ui_type, ui_submit, ui_clear]
+      actions: [type, submit, clear]
 ```
 
-Server data and UI state live side by side. The `ui/route` node is auto-generated by `useSlopUI()` — it includes the current path, route params, available routes from the router, and navigation actions. The AI can navigate the user with `ui_navigate`, read what page they're on, invoke server actions like `rename`, or interact with UI state like `ui_set_filter`.
+The AI can navigate with `navigate`, invoke server actions like `rename`, interact with UI state like `set_filter`, or trigger a data re-fetch with `refresh`.
 
 ## How it works
 
-The architecture has three participants: the **server**, the **browser**, and one or more **AI consumers**. All three communicate through the SLOP server over WebSocket.
+The architecture has three participants: the **server** (data provider), the **browser** (UI provider), and the **consumer** (extension/desktop app). Both providers speak standard SLOP — no custom protocol extensions.
 
-**Server owns the tree.** Descriptor functions registered with `slop.register()` produce the data portion of the tree. The server is the source of truth.
+**Server is the data provider.** Descriptor functions registered with `slop.register()` produce the data tree. Connected via WebSocket.
 
-**Browser reports UI state.** When `useSlopUI()` mounts, the browser opens a WebSocket to the server and pushes its current UI state (from `useSlop` calls). The server merges this into the tree under `ui/`.
+**Browser runs a UI provider.** When `useSlopUI()` mounts, the browser's `@slop-ai/client` instance exposes UI state (route, filters, compose form) via postMessage. The adapter also registers a `refresh` affordance that calls `router.invalidate()` when invoked.
 
-**AI consumers connect to the same WebSocket.** They receive the full merged tree and can invoke actions on either the data or UI side.
+**AI consumers subscribe to both providers.** The consumer (extension or desktop app) connects to the server's WebSocket for data state and to the browser's postMessage for UI state. It merges them into one tree and routes invokes to the correct provider.
 
 ### Data flow
 
-1. **Data invalidation:** A server function mutates state. The `slopMiddleware` calls `slop.refresh()`, which re-evaluates descriptor functions and computes a diff. Connected clients receive a `data_changed` signal. The browser handles this by calling `router.invalidate()`, triggering TanStack Router to re-run loaders and re-render.
+1. **Data actions:** An AI consumer invokes a data action (e.g. `create_project`). The consumer routes this to the server provider. The server executes the handler, refreshes the tree, and the consumer sees the updated data via patches.
 
-2. **UI actions:** An AI consumer invokes a UI action (e.g. `ui_set_filter`). The server forwards this to the browser over WebSocket. The browser executes the handler locally (a React state setter), which updates the component and reports the new UI state back to the server.
+2. **Data invalidation:** After a data action completes, the consumer invokes `refresh` on the browser's UI provider. The adapter's refresh handler calls `router.invalidate()`, triggering TanStack Router to re-run loaders and re-render with fresh data.
 
-3. **Data actions:** An AI consumer invokes a data action (e.g. `create_project`). The server executes the handler directly, then refreshes the tree. Both the browser and AI consumer see the updated state.
+3. **UI actions:** An AI consumer invokes a UI action (e.g. `set_filter`). The consumer routes this to the browser's UI provider. The browser executes the handler locally (a React state setter), which updates the component and the UI provider's tree.
 
 ## Next steps
 

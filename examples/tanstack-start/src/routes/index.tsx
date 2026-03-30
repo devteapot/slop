@@ -37,7 +37,7 @@ function ProjectsPage() {
     type: 'status',
     props: { status: filter },
     actions: {
-      ui_set_filter: {
+      set_filter: {
         params: { status: 'string' },
         handler: (params: any) => setFilter(params.status),
       },
@@ -48,17 +48,17 @@ function ProjectsPage() {
     type: 'view',
     props: { name: newName },
     actions: {
-      ui_type: {
+      type: {
         params: { value: 'string' },
         handler: (params: any) => setNewName(params.value),
       },
-      ui_submit: async () => {
+      submit: async () => {
         if (newName.trim()) {
           await createProjectFn({ data: { name: newName } })
           setNewName('')
         }
       },
-      ui_clear: () => setNewName(''),
+      clear: () => setNewName(''),
     },
   })
 
@@ -137,7 +137,7 @@ function ProjectsPage() {
         )}
 
         <p className="mt-8 text-center text-xs text-[var(--sea-ink-soft)] opacity-50">
-          {projects.length} projects · SLOP WebSocket at /slop
+          {projects.length} projects · SLOP data at /slop · UI via postMessage
         </p>
       </div>
     </main>

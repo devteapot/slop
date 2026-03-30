@@ -60,14 +60,14 @@ function ProjectDetailPage() {
     type: 'view',
     props: { text: newTask },
     actions: {
-      ui_type: { params: { value: 'string' }, handler: (params: any) => setNewTask(params.value) },
-      ui_submit: async () => {
+      type: { params: { value: 'string' }, handler: (params: any) => setNewTask(params.value) },
+      submit: async () => {
         if (newTask.trim()) {
           await addTaskFn({ data: { projectId: project.id, title: newTask } })
           setNewTask('')
         }
       },
-      ui_clear: () => setNewTask(''),
+      clear: () => setNewTask(''),
     },
   })
 
@@ -75,13 +75,13 @@ function ProjectDetailPage() {
     type: 'status',
     props: { editing, name: editName },
     actions: {
-      ui_start_edit: () => { setEditing(true); setEditName(project.name) },
-      ui_type_name: { params: { value: 'string' }, handler: (params: any) => setEditName(params.value) },
-      ui_save: async () => {
+      start_edit: () => { setEditing(true); setEditName(project.name) },
+      type_name: { params: { value: 'string' }, handler: (params: any) => setEditName(params.value) },
+      save: async () => {
         await renameProjectFn({ data: { id: project.id, name: editName } })
         setEditing(false)
       },
-      ui_cancel: () => setEditing(false),
+      cancel: () => setEditing(false),
     },
   })
 

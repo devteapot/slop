@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSlop } from '@slop-ai/tanstack-start'
 
 type ThemeMode = 'light' | 'dark' | 'auto'
 
@@ -34,6 +35,17 @@ function applyThemeMode(mode: ThemeMode) {
 export default function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>('auto')
 
+  useSlop('theme', {
+    type: 'status',
+    props: { status: mode },
+    actions: {
+      toggleMode: {
+        params: { status: 'string' },
+        handler: (params: any) => updateMode(params.status),
+      },
+    },
+  })
+
   useEffect(() => {
     const initialMode = getInitialMode()
     setMode(initialMode)
@@ -54,12 +66,16 @@ export default function ThemeToggle() {
     }
   }, [mode])
 
-  function toggleMode() {
-    const nextMode: ThemeMode =
-      mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light'
+  function updateMode(nextMode: ThemeMode) {
     setMode(nextMode)
     applyThemeMode(nextMode)
     window.localStorage.setItem('theme', nextMode)
+  }
+
+  function toggleMode() {
+    const nextMode: ThemeMode =
+      mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light'
+    updateMode(nextMode)
   }
 
   const label =

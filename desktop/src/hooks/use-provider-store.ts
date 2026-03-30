@@ -2,9 +2,14 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { SlopNode } from "@slop-ai/consumer/browser";
-import { SlopConsumer, WebSocketClientTransport } from "@slop-ai/consumer/browser";
+import { SlopConsumer, SlopMultiConsumer, WebSocketClientTransport } from "@slop-ai/consumer/browser";
 import { UnixClientTransport } from "../slop/transport-unix";
 import { BridgeClientTransport } from "../slop/transport-bridge";
+
+export interface BridgeChannel {
+  transport: "ws" | "postmessage";
+  endpoint?: string;
+}
 
 export interface ProviderEntry {
   id: string;
@@ -17,7 +22,10 @@ export interface ProviderEntry {
   currentTree: SlopNode | null;
   providerName: string | null;
   source: "manual" | "discovered" | "bridge";
-  bridgeTabId?: number;  // for SPA relay through extension
+  bridgeTabId?: number;
+  // For bridge tab groups — multiple channels merged via SlopMultiConsumer
+  channels?: BridgeChannel[];
+  multi?: SlopMultiConsumer;
 }
 
 const MANUAL_PROVIDERS_KEY = "slopManualProviders";
@@ -146,7 +154,7 @@ export const useProviderStore = create<ProviderState>((set, get) => {
 
       if (msg.type === "provider-available") {
         const { tabId, provider } = msg;
-        const id = `bridge-${tabId}`;
+        const id = `bridge-${provider.id}`;
 
         set(state => {
           const providers = new Map(state.providers);
@@ -166,6 +174,7 @@ export const useProviderStore = create<ProviderState>((set, get) => {
               currentTree: null,
               providerName: null,
               source: "bridge",
+              bridgeTabId: tabId,
             });
           } else if (provider.transport === "postmessage") {
             // SPA: needs relay through extension bridge
@@ -188,14 +197,18 @@ export const useProviderStore = create<ProviderState>((set, get) => {
       }
 
       if (msg.type === "provider-unavailable") {
-        const id = `bridge-${msg.tabId}`;
-        const { providers } = get();
-        const entry = providers.get(id);
-        if (entry?.consumer) entry.consumer.disconnect();
+        // Remove all providers for this tab
+        const tabId = msg.tabId;
         set(state => {
           const providers = new Map(state.providers);
-          providers.delete(id);
-          const activeProviderId = state.activeProviderId === id ? null : state.activeProviderId;
+          let activeProviderId = state.activeProviderId;
+          for (const [id, entry] of providers) {
+            if (entry.source === "bridge" && entry.bridgeTabId === tabId) {
+              if (entry.consumer) entry.consumer.disconnect();
+              providers.delete(id);
+              if (activeProviderId === id) activeProviderId = null;
+            }
+          }
           return { providers, activeProviderId };
         });
       }
@@ -259,7 +272,8 @@ export const useProviderStore = create<ProviderState>((set, get) => {
     });
 
     try {
-      const transport = entry.bridgeTabId != null
+      // Bridge providers: WS connects directly, postMessage uses bridge relay
+      const transport = entry.bridgeTabId != null && !entry.url
         ? new BridgeClientTransport(entry.bridgeTabId)
         : entry.transportType === "unix"
           ? new UnixClientTransport(entry.url)
@@ -290,6 +304,16 @@ export const useProviderStore = create<ProviderState>((set, get) => {
           if (tree) get().updateTree(id, tree);
         }
       });
+
+      // Auto-connect paired providers from the same browser tab
+      if (entry.bridgeTabId != null) {
+        const { providers: allProviders } = get();
+        for (const [sibId, sib] of allProviders) {
+          if (sibId !== id && sib.bridgeTabId === entry.bridgeTabId && sib.status === "disconnected") {
+            get().connectProvider(sibId);
+          }
+        }
+      }
 
       consumer.on("disconnect", () => {
         const { providers } = get();

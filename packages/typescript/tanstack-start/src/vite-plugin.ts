@@ -4,8 +4,8 @@ import type { SlopHandlerOptions } from "./ws-handler";
 import { createWebSocketHandler } from "./ws-handler";
 
 /**
- * Creates a Vite plugin that attaches the full SLOP adapter WebSocket
- * (browser bidirectional + AI consumer) to the dev server.
+ * Creates a Vite plugin that attaches a SLOP WebSocket endpoint
+ * for AI consumers to the Vite dev server.
  *
  * ```ts
  * // app.config.ts or vite.config.ts

@@ -26,14 +26,16 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener(async (msg: ContentMessage) => {
     switch (msg.type) {
       case "slop-discovered":
-        await connectTab(tabId, port, msg.transport, msg.endpoint);
-        // Announce to desktop via bridge
-        announceProvider(tabId, {
-          id: `tab-${tabId}`,
-          name: port.sender?.tab?.title ?? `Tab ${tabId}`,
-          transport: msg.transport,
-          url: msg.endpoint,
-        });
+        await connectTab(tabId, port, msg.providers);
+        // Announce each provider to desktop via bridge (always suffixed to avoid duplicates)
+        for (const p of msg.providers) {
+          announceProvider(tabId, {
+            id: `tab-${tabId}-${p.transport}`,
+            name: port.sender?.tab?.title ?? `Tab ${tabId}`,
+            transport: p.transport,
+            url: p.endpoint,
+          });
+        }
         break;
 
       case "slop-lost":

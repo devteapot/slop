@@ -2,6 +2,7 @@
 
 // Consumer
 export { SlopConsumer } from "./consumer";
+export { SlopMultiConsumer } from "./multi";
 export { StateMirror } from "./state-mirror";
 
 // Browser transports only

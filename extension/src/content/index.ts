@@ -6,33 +6,50 @@ import type { BackgroundMessage, ContentMessage } from "../shared/messages";
 
 let port: chrome.runtime.Port | null = null;
 let chatUI: ReturnType<typeof createChatUI> | null = null;
-let currentDiscovery: SlopDiscovery | null = null;
+let currentDiscoveries: SlopDiscovery[] = [];
 let isActive = true;
 let axCleanup: (() => void) | null = null;
+let bridgeStarted = false;
 
 async function init() {
   // Check master toggle
   const result = await chrome.storage.local.get("prefs");
   isActive = result.prefs?.active ?? true;
 
-  const discovery = discoverSlop();
-  if (discovery) {
-    currentDiscovery = discovery;
-    if (isActive) setup(discovery);
-  } else {
-    observeDiscovery((d) => {
-      currentDiscovery = d;
-      if (isActive) setup(d);
-    });
+  const discoveries = discoverSlop();
+  if (discoveries.length > 0) {
+    currentDiscoveries = discoveries;
+    if (isActive) setup(discoveries);
   }
+
+  // Always watch for new meta tags — SPAs inject postMessage meta tag after hydration
+  observeDiscovery((ds) => {
+    const hadProviders = currentDiscoveries.length > 0;
+    currentDiscoveries = ds;
+    if (!isActive) return;
+    if (!hadProviders) {
+      setup(ds);
+    } else if (port) {
+      // Start bridge if a postMessage provider appeared after initial setup
+      if (!bridgeStarted && ds.some((d) => d.transport === "postmessage")) {
+        startBridge(port);
+        bridgeStarted = true;
+      }
+      // Re-announce with updated provider list (new provider appeared)
+      port.postMessage({
+        type: "slop-discovered",
+        providers: ds.map((d) => ({ transport: d.transport, endpoint: d.endpoint })),
+      } satisfies ContentMessage);
+    }
+  });
 
   // React to master toggle changes
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.prefs) {
       const newActive = changes.prefs.newValue?.active ?? true;
-      if (newActive && !isActive && currentDiscovery) {
+      if (newActive && !isActive && currentDiscoveries.length > 0) {
         isActive = true;
-        setup(currentDiscovery);
+        setup(currentDiscoveries);
       } else if (!newActive && isActive) {
         isActive = false;
         teardown();
@@ -50,15 +67,16 @@ function teardown() {
   }
 }
 
-function setup(discovery: SlopDiscovery) {
+function setup(discoveries: SlopDiscovery[]) {
   if (port) return; // already set up
 
   // Connect to background
   port = chrome.runtime.connect({ name: "slop" });
 
-  // Set up postMessage bridge if needed
-  if (discovery.transport === "postmessage") {
+  // Set up postMessage bridge if any provider uses postMessage
+  if (discoveries.some((d) => d.transport === "postmessage")) {
     startBridge(port);
+    bridgeStarted = true;
   }
 
   // Listen for background messages (always — chat UI checks for null)
@@ -94,11 +112,13 @@ function setup(discovery: SlopDiscovery) {
     chatUI?.setStatus("disconnected");
   });
 
-  // Notify background of discovery (always — needed for bridge)
+  // Notify background of all discovered providers
   port.postMessage({
     type: "slop-discovered",
-    transport: discovery.transport,
-    endpoint: discovery.endpoint,
+    providers: discoveries.map((d) => ({
+      transport: d.transport,
+      endpoint: d.endpoint,
+    })),
   } satisfies ContentMessage);
 
   // Create or hide chat UI based on prefs
@@ -168,7 +188,7 @@ function startAxAdapter() {
   // Announce to background (enables bridge to desktop)
   port.postMessage({
     type: "slop-discovered",
-    transport: "postmessage",
+    providers: [{ transport: "postmessage" }],
   } satisfies ContentMessage);
 
   // Build initial tree and send as synthetic provider
@@ -315,13 +335,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ status: "stopped" });
   }
   if (msg.type === "get-scan-status") {
-    sendResponse({ scanning: !!axCleanup, hasSlop: !!currentDiscovery });
+    sendResponse({ scanning: !!axCleanup, hasSlop: currentDiscoveries.length > 0 });
   }
   if (msg.type === "get-slop-status") {
     sendResponse({
-      hasSlop: !!currentDiscovery,
-      transport: currentDiscovery?.transport ?? null,
-      endpoint: currentDiscovery?.endpoint ?? null,
+      hasSlop: currentDiscoveries.length > 0,
+      providers: currentDiscoveries,
       providerName: document.title,
     });
   }

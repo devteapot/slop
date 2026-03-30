@@ -180,6 +180,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const result = await provider.consumer!.invoke(path, action, params);
           await new Promise(r => setTimeout(r, 100));
 
+          // Auto-refresh: if this was a data action, trigger refresh on paired UI provider
+          if (result.status === "ok" && provider.bridgeTabId != null) {
+            const allProviders = useProviderStore.getState().providers;
+            for (const [, p] of allProviders) {
+              if (p.id !== provider.id && p.bridgeTabId === provider.bridgeTabId && p.consumer && p.status === "connected") {
+                try {
+                  await p.consumer.invoke("/__adapter", "refresh");
+                  await new Promise(r => setTimeout(r, 200));
+                } catch {}
+              }
+            }
+          }
+
           const resultStr = result.status === "ok"
             ? `OK${result.data ? ": " + JSON.stringify(result.data) : ""}`
             : `Error [${result.error?.code}]: ${result.error?.message}`;

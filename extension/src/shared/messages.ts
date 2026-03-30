@@ -2,7 +2,7 @@ import type { SlopMessage, SlopNode } from "./types";
 
 // Content script → Background
 export type ContentMessage =
-  | { type: "slop-discovered"; transport: "ws" | "postmessage"; endpoint?: string }
+  | { type: "slop-discovered"; providers: Array<{ transport: "ws" | "postmessage"; endpoint?: string }> }
   | { type: "slop-lost" }
   | { type: "user-message"; text: string }
   | { type: "get-state" }

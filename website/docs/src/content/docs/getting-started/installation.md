@@ -54,6 +54,43 @@ bun add @slop-ai/consumer
 
 This includes `SlopConsumer`, `StateMirror`, transport implementations (WebSocket, postMessage), and LLM tool utilities.
 
+## Python
+
+One package for everything:
+
+```bash
+pip install slop-ai[websocket]
+```
+
+Zero required dependencies. The `[websocket]` extra installs `websockets` for the WebSocket transport.
+
+### Quick example (FastAPI)
+
+```python
+from fastapi import FastAPI
+from slop import SlopServer
+from slop.transports.asgi import SlopMiddleware
+
+app = FastAPI()
+slop = SlopServer("my-api", "My API")
+
+@slop.node("todos")
+def todos_node():
+    return {
+        "type": "collection",
+        "items": [{"id": t.id, "props": {"title": t.title}} for t in get_todos()],
+    }
+
+@slop.action("todos", "create", params={"title": "string"})
+def create_todo(title: str):
+    db.create_todo(title)
+    slop.refresh()
+
+app.add_middleware(SlopMiddleware, slop=slop)
+```
+
+See the [Python guide](/guides/python) for full setup with all transports.
+
 ## Browser extension
 
 The SLOP Chrome extension discovers providers on any web page and provides an AI chat overlay.

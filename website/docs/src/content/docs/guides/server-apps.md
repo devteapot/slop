@@ -13,12 +13,23 @@ This guide covers the lower-level `@slop-ai/server` API — useful for Express, 
 
 ## Transport comparison
 
+### JavaScript / TypeScript
+
 | App type | Package | Transport | Discovery |
 |---|---|---|---|
 | **SPA** (React, Vue, etc.) | `@slop-ai/client` | postMessage | `<meta name="slop">` tag |
 | **Server-backed web app** | `@slop-ai/server` | WebSocket | `/.well-known/slop` endpoint |
 | **Native app** (Electron, Tauri) | `@slop-ai/server` | Unix socket | `~/.slop/providers/*.json` |
 | **CLI tool** | `@slop-ai/server` | Unix socket or stdio | `~/.slop/providers/*.json` |
+
+### Python
+
+| App type | Package | Transport | Discovery |
+|---|---|---|---|
+| **FastAPI / Starlette** | `slop-ai` | ASGI WebSocket | `/.well-known/slop` endpoint |
+| **Backend service** | `slop-ai` | WebSocket | `/.well-known/slop` endpoint |
+| **Desktop app** (tkinter, PyQt) | `slop-ai` | Unix socket | `~/.slop/providers/*.json` |
+| **CLI tool** | `slop-ai` | Unix socket or stdio | `~/.slop/providers/*.json` |
 
 **The key difference:** SPAs run inside the browser — the only way to reach them is through the extension (postMessage). Server and native apps run as processes — they open a socket that anything can connect to directly.
 
@@ -199,11 +210,15 @@ listenUnix(slop);               // local agents via Unix socket
 | Scenario | Use |
 |---|---|
 | React/Vue/Solid SPA, no server | `@slop-ai/client` + postMessage |
-| Web app with a backend | `@slop-ai/server` + `attachSlop` |
+| Web app with a JS backend | `@slop-ai/server` + `attachSlop` |
 | Next.js / Nuxt / SvelteKit | `@slop-ai/server` + framework helper |
+| FastAPI / Starlette | `slop-ai` + `SlopMiddleware` |
+| Python backend service | `slop-ai` + WebSocket transport |
+| Python CLI tool | `slop-ai` + stdio transport |
+| Python desktop app (tkinter, PyQt) | `slop-ai` + Unix socket |
 | Electron app | `@slop-ai/server` + `listenUnix` |
 | Tauri app | `@slop-ai/server` + `listenUnix` |
-| CLI tool | `@slop-ai/server` + `listenStdio` |
+| JS CLI tool | `@slop-ai/server` + `listenStdio` |
 | Background daemon | `@slop-ai/server` + `listenUnix` |
 
 ## Examples

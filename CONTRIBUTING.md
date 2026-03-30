@@ -4,6 +4,8 @@ Thanks for your interest in contributing to SLOP! Here's how to get started.
 
 ## Development setup
 
+### JavaScript / TypeScript
+
 ```bash
 # Clone the repo
 git clone https://github.com/devteapot/slop.git
@@ -25,10 +27,27 @@ cd mvp && bun run demo:web
 cd extension && bun run build.ts
 ```
 
+### Python
+
+```bash
+# Create a virtual environment
+cd packages/python
+python3 -m venv .venv
+
+# Install in editable mode
+.venv/bin/pip install -e slop-ai
+
+# Run tests
+.venv/bin/pip install pytest
+.venv/bin/pytest slop-ai/tests/
+```
+
 ## Project structure
 
 - `spec/` — Protocol specification (language-agnostic)
-- `packages/` — Publishable npm packages (`@slop-ai/core`, `@slop-ai/react`, `@slop-ai/consumer`)
+- `packages/` — Publishable SDK packages
+  - TypeScript: `@slop-ai/core`, `@slop-ai/client`, `@slop-ai/server`, `@slop-ai/react`, `@slop-ai/consumer`, etc.
+  - Python: `slop-ai` (in `packages/python/slop-ai/`)
 - `extension/` — Chrome extension
 - `desktop/` — Tauri desktop app
 - `examples/` — Runnable example apps
@@ -65,16 +84,24 @@ Open an issue describing:
 - Bug fixes
 - New transport implementations
 - Framework adapters (`@slop-ai/vue`, `@slop-ai/svelte`, etc.)
-- Language SDKs (Python, Go, Rust, etc.)
+- Language SDKs (Go, Rust, etc. — Python SDK already exists)
 - Example apps showing SLOP integration
 - Spec improvements and clarifications
 - Documentation fixes
 
 ## Code style
 
-- TypeScript for all packages
+### TypeScript packages
 - No external runtime dependencies in `@slop-ai/core` (browser-only)
 - Tests use Bun's built-in test runner (`bun:test`)
+
+### Python packages
+- Python 3.10+ with type hints throughout
+- Zero required dependencies in `slop-ai`
+- Tests use pytest
+- Pythonic API (decorators, context managers, properties) — not a TypeScript transliteration
+
+### General
 - Keep it simple — prefer small, focused changes
 
 ## License

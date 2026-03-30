@@ -108,9 +108,33 @@ slop.register("todos", () => ({
 
 See the [Server & Native Apps guide](/guides/server-apps) or [TanStack Start guide](/guides/tanstack-start) for full setup.
 
+## Python
+
+SLOP also ships a Python SDK for backend services, CLI tools, and desktop apps:
+
+```python
+from slop import SlopServer
+from slop.transports.asgi import SlopMiddleware
+
+slop = SlopServer("my-api", "My API")
+
+@slop.node("todos")
+def todos_node():
+    return {
+        "type": "collection",
+        "items": [{"id": t.id, "props": {"title": t.title, "done": t.done}} for t in get_todos()],
+    }
+
+# FastAPI integration
+app.add_middleware(SlopMiddleware, slop=slop)
+```
+
+See the [Python guide](/guides/python) for full setup including ASGI, WebSocket, Unix socket, and stdio transports.
+
 ## Next steps
 
-- [Installation guide](/getting-started/installation) — all package options
+- [Installation guide](/getting-started/installation) — all package options (JavaScript + Python)
 - [React guide](/guides/react) — full React integration patterns
 - [Other frameworks](/guides/vue) — Vue, Solid, Angular, Svelte, vanilla JS
+- [Python guide](/guides/python) — FastAPI, CLI tools, desktop apps
 - [API Reference](/api/core) — `createSlop`, `register`, `scope`, typed schemas

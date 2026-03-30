@@ -62,13 +62,16 @@ slop/
 │   ├── 01-overview.md
 │   └── ...11 docs
 │
-├── packages/                    ← publishable npm packages
-│   ├── core/                    ← @slop-ai/core — browser client (createSlop, register, typed schema)
+├── packages/                    ← publishable SDK packages
+│   ├── core/                    ← @slop-ai/core — types, tree assembly, diffing engine
+│   ├── client/                  ← @slop-ai/client — browser provider (postMessage transport)
+│   ├── server/                  ← @slop-ai/server — server provider (WebSocket, Unix, stdio)
 │   ├── consumer/                ← @slop-ai/consumer — connect to providers, subscribe, invoke
 │   ├── react/                   ← @slop-ai/react — useSlop hook
 │   ├── vue/                     ← @slop-ai/vue — useSlop composable
 │   ├── solid/                   ← @slop-ai/solid — useSlop primitive
-│   └── angular/                 ← @slop-ai/angular — useSlop with signals
+│   ├── angular/                 ← @slop-ai/angular — useSlop with signals
+│   └── python/slop-ai/          ← slop-ai — Python SDK (WebSocket, Unix, stdio, ASGI)
 │
 ├── extension/                   ← Chrome extension (SLOP consumer + LLM chat)
 │
@@ -88,7 +91,7 @@ slop/
 ### Post-launch
 - Firefox extension
 - Safari extension
-- Python SDK (`slop-py`)
+- ~~Python SDK~~ — **shipped** (`slop-ai` on PyPI)
 - OpenClaw integration
 - Agent CLI (`npx @slop-ai/init`)
 - Extension Tier 3: accessibility tree adapter (works on any website)

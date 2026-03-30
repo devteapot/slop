@@ -33,6 +33,7 @@ export default defineConfig({
 						{ label: 'Vanilla JS', slug: 'guides/vanilla' },
 						{ label: 'Server & Native Apps', slug: 'guides/server-apps' },
 						{ label: 'TanStack Start', slug: 'guides/tanstack-start' },
+						{ label: 'Python', slug: 'guides/python' },
 					],
 				},
 				{

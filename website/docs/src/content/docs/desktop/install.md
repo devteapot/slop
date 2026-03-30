@@ -24,12 +24,16 @@ bunx tauri dev
 
 ## Features
 
+- **Workspaces** — organize providers into workspace tabs, each with its own chat and connections
+- **Unified multi-provider chat** — AI sees all connected providers at once, can act across apps
+- **Smart sidebar** — providers grouped by Pinned, Local Apps, Browser Tabs (collapsible)
+- **Pin providers** — pin per workspace, auto-reconnect on workspace activation
+- **Workspace-scoped connections** — switching workspaces switches active provider sets
 - **Provider discovery** — automatically finds local SLOP providers via `~/.slop/providers/`
 - **Manual connections** — add WebSocket or Unix socket URLs manually
 - **Browser bridge** — sees browser providers announced by the Chrome extension
 - **LLM chat** — chat with AI about any connected provider's state
 - **State tree viewer** — inspect the live SLOP tree
-- **Multi-provider** — connect to multiple providers simultaneously
 
 ## Browser bridge
 
@@ -46,3 +50,27 @@ The desktop app runs a WebSocket bridge server at `ws://localhost:9339`. When th
 | Web apps | WebSocket | Extension bridge announcement |
 | SPAs | postMessage (relayed) | Extension bridge announcement |
 | Manual | WebSocket or Unix socket | User enters URL |
+
+## Roadmap: SLOP-enabled desktop app
+
+The desktop app is currently a SLOP **consumer** — it connects to providers and lets you interact with their state. A planned feature is making the desktop app itself a SLOP **provider**, exposing its own state via Unix socket at `~/.slop/providers/slop-desktop.json`.
+
+This would allow CLI agents, Claude Code, or any SLOP consumer to programmatically control the desktop app:
+
+```
+root (slop-desktop)
+├── providers                    ← connected providers
+│   ├── kanban-board             ← { status: "connected", transport: "ws" }
+│   │   actions: disconnect, show_tree
+│   └── (collection)              actions: connect(url: string)
+├── conversations                ← chat history per provider
+│   └── kanban-board             actions: send_message(text: string), clear
+└── settings
+    └── active_profile           ← { name: "Google", model: "gemini-2.5-flash" }
+        actions: switch_profile, switch_model
+```
+
+Use cases:
+- **AI workspace orchestration** — an agent discovers the desktop app and uses it to connect to multiple providers, run queries, and aggregate results
+- **CLI integration** — `slop invoke slop-desktop/providers connect --url ws://localhost:3000/slop` from the terminal
+- **SLOP all the way down** — the tool that consumes SLOP also speaks SLOP

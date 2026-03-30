@@ -51,3 +51,11 @@ Click the SLOP extension icon in the toolbar to access the popup:
 | OpenAI | `https://api.openai.com` | Requires API key |
 | OpenRouter | `https://openrouter.ai/api` | Access to many models |
 | Google Gemini | `https://generativelanguage.googleapis.com` | Requires API key |
+
+## Desktop bridge resilience
+
+The extension maintains a robust connection to the desktop app's WebSocket bridge:
+
+- **Auto-retry** — reconnects on a 5-second interval when the bridge disconnects
+- **Full re-announcement** — re-announces all active browser providers on reconnect so the desktop app's sidebar is immediately up to date
+- **MV3 service worker recovery** — handles Chrome Manifest V3 service worker restarts by actively querying all tabs, ensuring no providers are lost when Chrome suspends and wakes the background script

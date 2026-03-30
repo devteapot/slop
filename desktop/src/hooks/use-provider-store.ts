@@ -51,7 +51,11 @@ interface ProviderState {
   updateTree: (id: string, tree: SlopNode) => void;
 }
 
-export const useProviderStore = create<ProviderState>((set, get) => ({
+export const useProviderStore = create<ProviderState>((set, get) => {
+  // Expose store on globalThis so workspace store can access without circular imports
+  setTimeout(() => { (globalThis as any).__slopProviderStore = useProviderStore; }, 0);
+
+  return ({
   providers: new Map(),
   activeProviderId: null,
   bridgeListening: false,
@@ -361,4 +365,4 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
       return { providers };
     });
   },
-}));
+})});

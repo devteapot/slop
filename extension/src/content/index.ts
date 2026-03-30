@@ -317,6 +317,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "get-scan-status") {
     sendResponse({ scanning: !!axCleanup, hasSlop: !!currentDiscovery });
   }
+  if (msg.type === "get-slop-status") {
+    sendResponse({
+      hasSlop: !!currentDiscovery,
+      transport: currentDiscovery?.transport ?? null,
+      endpoint: currentDiscovery?.endpoint ?? null,
+      providerName: document.title,
+    });
+  }
 });
 
 init();

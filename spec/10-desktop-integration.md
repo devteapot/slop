@@ -125,6 +125,86 @@ Browser page ←—postMessage—→ Extension ←—native messaging (stdio)—
 - Requires a native messaging host manifest to be registered on the system
 - stdio communication adds serialization overhead (negligible for SLOP message volumes)
 
+## Workspaces
+
+The desktop app organizes connections into **workspaces** — displayed as tabs across the top of the window. Each workspace has its own set of connected providers and a unified chat thread.
+
+A workspace is defined by:
+- A name (user-editable)
+- A list of `providerIds` — the providers currently connected in that workspace
+- A chat history — one conversation thread per workspace
+
+The AI in each workspace sees a **merged state tree** from all connected providers. It can read state and invoke actions across providers in a single turn. Switching workspaces disconnects the old workspace's providers and connects the new ones. This keeps conversations scoped — a "Work" workspace with Jira + Slack won't bleed state into a "Personal" workspace with a todo app.
+
+### Workspace-scoped connections
+
+Each workspace maintains its own `providerIds` array. When the user activates a workspace:
+
+1. Providers from the previously active workspace are disconnected (subscriptions torn down)
+2. Providers in the newly active workspace's `providerIds` are connected (subscriptions started)
+3. The chat thread switches to the new workspace's conversation
+
+Explicitly disconnecting a provider removes it from the active workspace's `providerIds`. Pinned providers (see Sidebar groups) auto-reconnect when their workspace is activated.
+
+## Unified multi-provider chat
+
+Each workspace has a single conversation thread. The AI sees a merged tree from all connected providers — it can read a Kanban board's columns and a Slack channel's messages in the same context.
+
+### Tool name disambiguation
+
+When multiple providers are connected, tool names are prefixed with the provider name to avoid collisions:
+
+```
+kanban-board__invoke__columns__add_card
+slack__invoke__channels__send_message
+```
+
+The format is `{provider}__invoke__{path}__{action}`. In **single-provider mode** (only one provider connected), the prefix is dropped for cleaner names:
+
+```
+invoke__columns__add_card
+```
+
+### Gemini compatibility
+
+Gemini's function calling API has strict constraints on tool names (alphanumeric + underscores, limited length). The desktop app maps tools to indexed names when using Gemini:
+
+```
+tool_0  →  kanban-board__invoke__columns__add_card
+tool_1  →  slack__invoke__channels__send_message
+```
+
+The mapping is maintained for the duration of the conversation. When Gemini calls `tool_0`, the desktop maps it back to the original tool name and routes the invocation to the correct provider.
+
+## Sidebar groups
+
+The desktop sidebar organizes providers into three groups:
+
+### Pinned
+
+Per-workspace, persisted to disk. These are providers the user has explicitly pinned to a workspace. Pinned providers auto-reconnect when the workspace is activated — the desktop re-establishes subscriptions without user interaction.
+
+### Local Apps
+
+Discovered via `~/.slop/providers/` and `/tmp/slop/providers/`. These appear automatically as local apps register or deregister. See [03 — Transport & Discovery](./03-transport.md#local-discovery).
+
+### Browser Tabs
+
+Populated from the extension bridge. Each tab with a SLOP provider appears here, grouped under a collapsible "Browser Tabs" header. Tabs come and go as the user navigates — the extension announces arrivals and departures over the bridge.
+
+```
+Workspace: "Project Alpha"
+  PINNED
+    ├── Kanban Board (WebSocket — direct)
+    └── Slack (WebSocket — direct)
+  LOCAL APPS
+    ├── my-cli-tool (Unix socket)
+    └── background-service (Unix socket)
+  BROWSER TABS
+    ├── Notes App (postMessage — via relay)
+    └── Gmail (accessibility tree — via relay)
+```
+
 ## Recommended architecture: local WebSocket bridge
 
 The three approaches above (WebSocket relay, CDP, native messaging) are all viable for the SPA bridge case. For simplicity and zero-setup operation, the recommended approach is a **local WebSocket bridge** — the desktop runs a WebSocket server at a well-known port, the extension auto-connects.
@@ -198,7 +278,17 @@ For SPAs, the extension is the relay — it receives SLOP messages from the desk
 - If the desktop is not running, the extension works standalone (its own chat UI)
 - If the extension is not installed, the desktop works standalone (local + manual WebSocket providers)
 - When both are running, the extension tries `ws://localhost:9339/slop-bridge` on startup — if it connects, discovery and relay are active. No configuration, no manifest files, no installation steps.
-- The extension retries the bridge connection periodically (every 30 seconds) so it auto-reconnects when the desktop launches.
+- The extension retries the bridge connection every **5 seconds** when the desktop is unavailable, so it auto-reconnects quickly when the desktop launches.
+
+### Provider discovery resilience
+
+The extension bridge handles several edge cases that arise from MV3's service worker lifecycle and network interruptions:
+
+**Retry on disconnect.** When the bridge WebSocket closes (desktop quit, network blip), the extension retries every 5 seconds until it reconnects.
+
+**Re-announce on reconnect.** When the bridge reconnects, the extension re-announces all known providers. This ensures the desktop's provider list is complete even if the extension accumulated discoveries while the desktop was down.
+
+**Active tab query on restart.** MV3 service workers can be terminated by Chrome at any time. When the service worker restarts, in-memory state (which tabs have SLOP providers) is lost. On restart, the extension sends a `get-slop-status` message to all tabs to rediscover providers, then announces them over the bridge. This handles the cold-start case where the bridge is already connected but the extension's memory was wiped.
 
 ### Implementation size
 
@@ -216,15 +306,10 @@ The desktop app aggregates providers from all discovery sources into a single li
 3. **Extension bridge** — the extension announces discovered web providers via the local WebSocket bridge
 4. **Manual** — user-configured WebSocket URLs
 
-Each discovered provider appears in the desktop's sidebar regardless of how it was found. The desktop connects using the appropriate transport — Unix socket, direct WebSocket, or bridge relay — transparently.
+Each discovered provider appears in the desktop's sidebar under the appropriate group (Pinned, Local Apps, or Browser Tabs — see Sidebar groups above). The desktop connects using the appropriate transport — Unix socket, direct WebSocket, or bridge relay — transparently.
 
-```
-Desktop sidebar:
-  LOCAL
-    ├── my-cli-tool (Unix socket, from ~/.slop/providers/)
-    └── background-service (Unix socket, from ~/.slop/providers/)
-  WEB (from extension bridge)
-    ├── Kanban Board (WebSocket — direct connection)
-    ├── Notes App (postMessage — via extension relay)
-    └── Gmail (accessibility tree — via extension relay)
-```
+## Roadmap: SLOP-enabled desktop app
+
+The desktop app itself can become a SLOP provider. Its own state — the workspace list, connected providers, chat history, settings — is observable via the same protocol it consumes. Another SLOP client (a CLI agent, a second desktop instance, a web dashboard) could connect to the desktop app and read or manipulate its state.
+
+This turns the desktop from a leaf consumer into a node in the SLOP graph — consuming providers below it and exposing its own state to consumers above it.

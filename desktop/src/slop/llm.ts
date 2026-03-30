@@ -60,6 +60,15 @@ async function geminiChatCompletion(
   const baseUrl = profile.endpoint || "https://generativelanguage.googleapis.com";
   const url = `${baseUrl}/v1beta/models/${profile.model}:generateContent?key=${profile.apiKey}`;
 
+  // Gemini requires alphanumeric tool names — build maps early so conversation can reference them
+  const nameMap = new Map<string, string>();   // tool_N → original
+  const reverseMap = new Map<string, string>(); // original → tool_N
+  tools.forEach((t, i) => {
+    const geminiName = `tool_${i}`;
+    nameMap.set(geminiName, t.function.name);
+    reverseMap.set(t.function.name, geminiName);
+  });
+
   const contents: any[] = [];
   let systemInstruction: any = undefined;
 
@@ -77,7 +86,7 @@ async function geminiChatCompletion(
         for (const tc of msg.tool_calls) {
           parts.push({
             functionCall: {
-              name: tc.function.name,
+              name: reverseMap.get(tc.function.name) ?? tc.function.name,
               args: JSON.parse(tc.function.arguments || "{}"),
             },
           });
@@ -89,7 +98,7 @@ async function geminiChatCompletion(
         role: "function",
         parts: [{
           functionResponse: {
-            name: msg.tool_call_id ?? "unknown",
+            name: reverseMap.get(msg.tool_call_id ?? "") ?? msg.tool_call_id ?? "unknown",
             response: { content: msg.content },
           },
         }],
@@ -100,9 +109,9 @@ async function geminiChatCompletion(
   const geminiTools: any[] = [];
   if (tools.length > 0) {
     geminiTools.push({
-      functionDeclarations: tools.map(t => ({
-        name: t.function.name,
-        description: t.function.description,
+      functionDeclarations: tools.map((t, i) => ({
+        name: `tool_${i}`,
+        description: `[${t.function.name}] ${t.function.description}`,
         parameters: convertSchemaForGemini(t.function.parameters),
       })),
     });
@@ -139,10 +148,11 @@ async function geminiChatCompletion(
 
   if (functionCalls.length > 0) {
     result.tool_calls = functionCalls.map((fc: any) => ({
-      id: fc.functionCall.name,
+      id: nameMap.get(fc.functionCall.name) ?? fc.functionCall.name,
       type: "function" as const,
       function: {
-        name: fc.functionCall.name,
+        // Map indexed name back to original
+        name: nameMap.get(fc.functionCall.name) ?? fc.functionCall.name,
         arguments: JSON.stringify(fc.functionCall.args ?? {}),
       },
     }));

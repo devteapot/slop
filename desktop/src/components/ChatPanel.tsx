@@ -1,18 +1,26 @@
 import { useState, useRef, useEffect } from "react";
 import { useChatStore } from "../hooks/use-chat";
 import { useProviderStore } from "../hooks/use-provider-store";
+import { useWorkspaceStore } from "../hooks/use-workspace-store";
 
 export function ChatPanel() {
-  const messages = useChatStore(s => s.messages);
+  const workspace = useWorkspaceStore(s => s.getActiveWorkspace());
+  const messages = workspace.messages;
   const processing = useChatStore(s => s.processing);
   const sendMessage = useChatStore(s => s.sendMessage);
-  const activeProvider = useProviderStore(s => s.getActiveProvider());
+
+  // Check if any provider in the workspace is connected
+  const providers = useProviderStore(s => s.providers);
+  const connectedCount = workspace.providerIds.filter(id => {
+    const p = providers.get(id);
+    return p?.status === "connected";
+  }).length;
+  const connected = connectedCount > 0;
 
   const [text, setText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const connected = activeProvider?.status === "connected";
   const canSend = connected && !processing && text.trim().length > 0;
 
   useEffect(() => {
@@ -35,8 +43,8 @@ export function ChatPanel() {
       {messages.length === 0 ? (
         <div className="chat-empty">
           {connected
-            ? "Connected. Ask the AI to interact with the app."
-            : "Connect to a provider to start chatting."}
+            ? `${connectedCount} provider${connectedCount > 1 ? "s" : ""} connected. Ask the AI anything.`
+            : "Connect providers to start chatting."}
         </div>
       ) : (
         <div className="chat-messages">

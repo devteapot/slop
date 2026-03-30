@@ -9,7 +9,7 @@
 import { getPrefs } from "../shared/messages";
 
 const BRIDGE_URL = "ws://127.0.0.1:9339/slop-bridge";
-const RETRY_INTERVAL = 30000; // 30 seconds
+const RETRY_INTERVAL = 5000; // 5 seconds — fast enough to catch desktop app startup
 
 let ws: WebSocket | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -67,10 +67,14 @@ function tryConnect(): void {
       connected = true;
       console.log("Bridge: connected to desktop app");
 
-      // Re-announce all known providers
+      // Re-announce from in-memory map (survives if service worker stayed alive)
       for (const announcement of announcedProviders.values()) {
         send({ type: "provider-available", ...announcement });
       }
+
+      // Also actively query all tabs for SLOP status
+      // (handles MV3 service worker restart where announcedProviders is empty)
+      queryAllTabsForSlop();
     };
 
     ws.onmessage = (event) => {
@@ -149,6 +153,44 @@ const bridgeRelayHandlers: ((tabId: number, message: any) => void)[] = [];
 /** Register a handler for relay messages from the desktop */
 export function onBridgeRelay(handler: (tabId: number, message: any) => void): void {
   bridgeRelayHandlers.push(handler);
+}
+
+/**
+ * Query all open tabs for their SLOP status.
+ * Handles MV3 service worker restart: announcedProviders is empty
+ * but tabs still have SLOP providers. Re-populates the map.
+ */
+async function queryAllTabsForSlop(): Promise<void> {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (!tab.id || !tab.url) continue;
+      // Skip chrome:// and extension pages
+      if (tab.url.startsWith("chrome") || tab.url.startsWith("about")) continue;
+
+      try {
+        chrome.tabs.sendMessage(tab.id, { type: "get-slop-status" }, (response) => {
+          if (chrome.runtime.lastError || !response) return;
+          if (response.hasSlop && response.transport) {
+            const tabId = tab.id!;
+            // Only announce if not already in the map
+            if (!announcedProviders.has(tabId)) {
+              announceProvider(tabId, {
+                id: `tab-${tabId}`,
+                name: response.providerName ?? tab.title ?? `Tab ${tabId}`,
+                transport: response.transport,
+                url: response.endpoint,
+              });
+            }
+          }
+        });
+      } catch {
+        // Tab might not have content script loaded
+      }
+    }
+  } catch {
+    // Query failed
+  }
 }
 
 /** Relay a SLOP message from a tab back to the desktop */

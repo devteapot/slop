@@ -10,7 +10,7 @@ export function ChatPanel() {
 
   const [text, setText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const connected = activeProvider?.status === "connected";
   const canSend = connected && !processing && text.trim().length > 0;
@@ -52,13 +52,14 @@ export function ChatPanel() {
         </div>
       )}
       <form className="chat-input" onSubmit={handleSubmit}>
-        <input
+        <textarea
           ref={inputRef}
-          type="text"
           placeholder={connected ? "Ask about the app..." : "Connect to a provider first"}
           value={text}
           onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
           disabled={!connected || processing}
+          rows={1}
         />
         <button type="submit" disabled={!canSend}>Send</button>
       </form>

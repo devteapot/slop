@@ -1,8 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 :host {
   all: initial;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 14px;
-  color: #e1e4e8;
+  color: #e6edf3;
 }
 
 .slop-fab {
@@ -12,17 +14,17 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #1c2028;
-  border: 2px solid #30363d;
+  background: #1a1d27;
+  border: 1px solid rgba(173, 198, 255, 0.15);
   cursor: pointer;
   z-index: 2147483647;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  transition: border-color 0.2s, transform 0.2s;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
-.slop-fab:hover { border-color: #58a6ff; transform: scale(1.05); }
+.slop-fab:hover { border-color: #adc6ff; box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 15px rgba(173, 198, 255, 0.25); transform: scale(1.05); }
 .slop-fab svg { width: 24px; height: 24px; }
 .slop-fab .status-dot {
   position: absolute;
@@ -31,9 +33,9 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #1c2028;
+  border: 2px solid #1a1d27;
 }
-.status-dot.connected { background: #3fb950; }
+.status-dot.connected { background: #91db37; }
 .status-dot.connecting { background: #d29922; }
 .status-dot.disconnected { background: #6e7681; }
 
@@ -43,42 +45,49 @@
   right: 20px;
   width: 400px;
   height: min(600px, calc(100vh - 100px));
-  background: #0f1117;
-  border: 1px solid #30363d;
-  border-radius: 12px;
+  background: rgba(26, 29, 39, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(173, 198, 255, 0.1);
+  border-radius: 4px;
   z-index: 2147483647;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
   overflow: hidden;
 }
 .slop-panel.hidden { display: none; }
 
 .slop-header {
   padding: 12px 16px;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  background: #1a1d27;
+  border-bottom: none;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .slop-header .title {
   flex: 1;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   font-size: 13px;
+  letter-spacing: -0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .slop-header .badge {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: 4px;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
-.badge.connected { background: #238636; color: #fff; }
-.badge.connecting { background: #9e6a03; color: #fff; }
-.badge.disconnected { background: #6e7681; color: #fff; }
+.badge.connected { background: #91db37; color: #111319; }
+.badge.connecting { background: #d29922; color: #111319; }
+.badge.disconnected { background: rgba(110, 118, 129, 0.3); color: #8b949e; }
 
 .slop-header button {
   background: none;
@@ -89,37 +98,37 @@
   font-size: 14px;
   border-radius: 4px;
 }
-.slop-header button:hover { color: #e1e4e8; background: #30363d; }
+.slop-header button:hover { color: #e6edf3; background: #232733; }
 
 .slop-model-bar {
   display: flex;
   gap: 6px;
   padding: 6px 12px;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  background: #1a1d27;
+  border-bottom: none;
 }
 
 .profile-select, .model-select {
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: #111319;
+  border: 1px solid rgba(173, 198, 255, 0.15);
   color: #8b949e;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   padding: 4px 6px;
   border-radius: 4px;
   cursor: pointer;
-  font-family: inherit;
 }
 .profile-select { flex: 0 0 auto; max-width: 140px; }
 .model-select { flex: 1; min-width: 0; }
-.profile-select:focus, .model-select:focus { outline: none; border-color: #58a6ff; color: #e1e4e8; }
+.profile-select:focus, .model-select:focus { outline: none; border-color: transparent; border-bottom: 2px solid #91db37; color: #e6edf3; }
 
 .slop-tree-drawer {
   max-height: 150px;
   overflow-y: auto;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  background: #1a1d27;
+  border-bottom: none;
   padding: 8px 12px;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   line-height: 1.4;
   color: #8b949e;
@@ -139,21 +148,21 @@
 .msg {
   max-width: 85%;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   font-size: 13px;
   line-height: 1.4;
   word-wrap: break-word;
 }
 .msg.user {
   align-self: flex-end;
-  background: #1f6feb;
-  color: #fff;
+  background: rgba(173, 198, 255, 0.12);
+  color: #e6edf3;
   border-bottom-right-radius: 4px;
 }
 .msg.assistant {
   align-self: flex-start;
-  background: #1c2028;
-  border: 1px solid #30363d;
+  background: #1a1d27;
+  border: none;
   border-bottom-left-radius: 4px;
 }
 .msg.tool-progress {
@@ -161,9 +170,9 @@
   background: transparent;
   color: #8b949e;
   font-size: 11px;
-  font-family: monospace;
+  font-family: 'JetBrains Mono', monospace;
   padding: 4px 8px;
-  border-left: 2px solid #3fb950;
+  border-left: 2px solid #91db37;
 }
 .msg.error {
   align-self: flex-start;
@@ -176,31 +185,32 @@
   display: flex;
   gap: 8px;
   padding: 12px;
-  border-top: 1px solid #30363d;
-  background: #161b22;
+  border-top: none;
+  background: #1a1d27;
 }
 .slop-input input {
   flex: 1;
-  background: #0d1117;
-  border: 1px solid #30363d;
-  color: #e1e4e8;
+  background: #232733;
+  border: none;
+  color: #e6edf3;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 13px;
-  font-family: inherit;
+  font-family: 'JetBrains Mono', monospace;
   outline: none;
 }
-.slop-input input:focus { border-color: #58a6ff; }
+.slop-input input:focus { border-bottom: 2px solid #91db37; }
 .slop-input input:disabled { opacity: 0.5; }
 .slop-input button {
-  background: #238636;
-  color: #fff;
+  background: linear-gradient(135deg, #91db37, #6ba62a);
+  color: #111319;
   border: none;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
+  transition: box-shadow 0.2s;
 }
-.slop-input button:hover { background: #2ea043; }
-.slop-input button:disabled { opacity: 0.5; cursor: default; }
+.slop-input button:hover { box-shadow: 0 0 15px rgba(145, 219, 55, 0.4); }
+.slop-input button:disabled { opacity: 0.4; cursor: default; }

@@ -2,26 +2,37 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #0f1117; color: #e1e4e8;
+    font-family: 'Space Grotesk', sans-serif;
+    background: #111319; color: #e6edf3;
     width: 280px; padding: 16px;
   }
   .header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 12px;
   }
-  .header h1 { font-size: 15px; font-weight: 600; }
-  .header .version { font-size: 11px; color: #6e7681; }
+  .header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+  .header .version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #6e7681;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
 
   .master-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; margin-bottom: 12px;
-    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    background: #1a1d27; border: none; border-radius: 4px;
   }
-  .master-row .toggle-label { font-size: 14px; font-weight: 600; }
+  .master-row .toggle-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
 
   .sub-toggles { }
   .sub-toggles.disabled { opacity: 0.4; pointer-events: none; }
@@ -30,8 +41,12 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 0;
   }
-  .toggle-row + .toggle-row { border-top: 1px solid #21262d; }
-  .toggle-label { font-size: 13px; }
+  .toggle-row + .toggle-row { border-top: 1px solid rgba(173, 198, 255, 0.1); }
+  .toggle-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
   .toggle-desc { font-size: 11px; color: #6e7681; margin-top: 2px; }
 
   .switch {
@@ -44,42 +59,52 @@
   }
   .slider::before {
     content: ""; position: absolute; width: 16px; height: 16px;
-    left: 2px; bottom: 2px; background: #e1e4e8; border-radius: 50%;
+    left: 2px; bottom: 2px; background: #e6edf3; border-radius: 50%;
     transition: transform 0.2s;
   }
-  input:checked + .slider { background: #238636; }
+  input:checked + .slider { background: #91db37; }
   input:checked + .slider::before { transform: translateX(16px); }
 
   .link-row {
-    margin-top: 10px; padding-top: 10px; border-top: 1px solid #30363d;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(173, 198, 255, 0.1);
   }
   .link-row a {
-    display: block; color: #58a6ff; text-decoration: none; font-size: 13px;
+    display: block; color: #adc6ff; text-decoration: none; font-size: 13px;
     padding: 4px 0; cursor: pointer;
   }
   .link-row a:hover { text-decoration: underline; }
 
   .scan-section {
     margin-bottom: 12px; padding: 10px 12px;
-    background: #161b22; border-radius: 8px;
+    background: #1a1d27; border-radius: 4px;
   }
   .scan-status {
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px; color: #8b949e; margin-bottom: 8px;
   }
   .scan-status .dot {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
   }
-  .dot.green { background: #3fb950; }
+  .dot.green { background: #91db37; }
   .dot.yellow { background: #d29922; }
   .dot.gray { background: #6e7681; }
   .scan-btn {
-    width: 100%; padding: 8px; border: none; border-radius: 6px;
+    width: 100%; padding: 8px; border: none; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: box-shadow 0.2s;
   }
-  .scan-btn.start { background: #238636; color: #fff; }
-  .scan-btn.start:hover { background: #2ea043; }
-  .scan-btn.stop { background: #30363d; color: #8b949e; }
-  .scan-btn.stop:hover { background: #484f58; color: #e1e4e8; }
+  .scan-btn.start {
+    background: linear-gradient(135deg, #91db37, #6ba62a);
+    color: #111319;
+  }
+  .scan-btn.start:hover { box-shadow: 0 0 15px rgba(145, 219, 55, 0.4); }
+  .scan-btn.stop {
+    background: transparent; color: #8b949e;
+    border: 1px solid rgba(173, 198, 255, 0.1);
+  }
+  .scan-btn.stop:hover { background: #232733; color: #e6edf3; }
 </style>
 </head>
 <body>

@@ -190,20 +190,28 @@ Discovered via `~/.slop/providers/` and `/tmp/slop/providers/`. These appear aut
 
 ### Browser Tabs
 
-Populated from the extension bridge. Each tab with a SLOP provider appears here, grouped under a collapsible "Browser Tabs" header. Tabs come and go as the user navigates — the extension announces arrivals and departures over the bridge.
+Populated from the extension bridge. Each browser tab with SLOP providers appears here, grouped under a collapsible "Browser Tabs" header. Tabs come and go as the user navigates — the extension announces arrivals and departures over the bridge.
+
+A single browser tab can have **multiple providers** — fullstack apps (TanStack Start, Next.js, Nuxt) have a server provider (WebSocket, direct) and a client UI provider (postMessage, via bridge relay). Each provider appears as a separate entry grouped by tab:
 
 ```
 Workspace: "Project Alpha"
   PINNED
-    ├── Kanban Board (WebSocket — direct)
-    └── Slack (WebSocket — direct)
+    ├── Kanban Board (ws — direct)
+    └── Slack (ws — direct)
   LOCAL APPS
-    ├── my-cli-tool (Unix socket)
-    └── background-service (Unix socket)
+    ├── my-cli-tool (sock)
+    └── background-service (sock)
   BROWSER TABS
-    ├── Notes App (postMessage — via relay)
-    └── Gmail (accessibility tree — via relay)
+    ├── Project Tracker          ws    ← server data (direct WebSocket)
+    ├── Project Tracker          pm    ← client UI (postMessage relay)
+    ├── Notes App                pm    ← SPA (postMessage relay)
+    └── Gmail                    pm    ← accessibility tree (relay)
 ```
+
+**Connection behavior on tab close:**
+- **WebSocket providers** stay connected — the desktop connected directly, no bridge dependency. The entry persists until manually disconnected.
+- **postMessage providers** lose their bridge relay when the tab closes. The connection drops and the entry is removed (unless pinned, in which case it persists for later reconnect).
 
 ## Recommended architecture: local WebSocket bridge
 
@@ -234,22 +242,32 @@ The bridge serves **two purposes**:
 Extension → Desktop:
 
 ```jsonc
-// Provider discovered on a page
+// Provider discovered on a page (one message per provider)
+// Fullstack apps send TWO announcements — one for server (ws), one for client (pm)
 {
   "type": "provider-available",
   "tabId": 42,
   "provider": {
-    "id": "kanban-board",
-    "name": "Kanban Board",
-    "transport": "ws",                          // or "postmessage"
-    "url": "ws://localhost:3737/slop"            // only for ws transport
+    "id": "tab-42-ws",                           // unique per provider, not per tab
+    "name": "Project Tracker",
+    "transport": "ws",
+    "url": "ws://localhost:3000/slop"
+  }
+}
+{
+  "type": "provider-available",
+  "tabId": 42,
+  "provider": {
+    "id": "tab-42-postmessage",
+    "name": "Project Tracker",
+    "transport": "postmessage"                   // no url — uses bridge relay
   }
 }
 
-// Provider gone (tab closed, navigated away)
+// Provider gone (tab closed, navigated away) — removes ALL providers for the tab
 { "type": "provider-unavailable", "tabId": 42 }
 
-// SLOP message relayed from an SPA page
+// SLOP message relayed from a postMessage provider
 { "type": "slop-relay", "tabId": 42, "message": { "type": "snapshot", ... } }
 ```
 

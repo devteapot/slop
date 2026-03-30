@@ -798,7 +798,7 @@ The consumer subscribes to both providers and presents **one unified tree** to t
 
 The LLM sees one coherent tree. It doesn't know or care that the data came from two different providers. When it invokes `toggle` on `todo-1`, the consumer routes it to the data provider. When it invokes `set_filter`, the consumer routes it to the UI provider.
 
-This merge logic lives in the consumer (`@slop-ai/consumer`), not in the protocol. The consumer tracks which provider owns which subtree and routes accordingly.
+This merge logic lives in the consumer application (extension, desktop app), not in the protocol or the provider libraries. The consumer connects to each provider with a standard `SlopConsumer`, concatenates their trees, and routes invokes to the correct provider based on path.
 
 #### Per-session data providers
 

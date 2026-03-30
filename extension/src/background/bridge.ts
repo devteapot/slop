@@ -26,8 +26,8 @@ interface ProviderAnnouncement {
   };
 }
 
-// Track announced providers so we can re-announce on reconnect
-const announcedProviders = new Map<number, ProviderAnnouncement>();
+// Track announced providers so we can re-announce on reconnect (keyed by provider.id)
+const announcedProviders = new Map<string, ProviderAnnouncement>();
 
 export async function startBridgeClient(): Promise<void> {
   const prefs = await getPrefs();
@@ -122,16 +122,18 @@ export function announceProvider(
   provider: { id: string; name: string; transport: "ws" | "postmessage"; url?: string }
 ): void {
   const announcement: ProviderAnnouncement = { tabId, provider };
-  announcedProviders.set(tabId, announcement);
+  announcedProviders.set(provider.id, announcement);
 
   if (connected) {
     send({ type: "provider-available", ...announcement });
   }
 }
 
-/** Announce a provider is no longer available */
+/** Announce all providers for a tab are no longer available */
 export function announceProviderGone(tabId: number): void {
-  announcedProviders.delete(tabId);
+  for (const [id, ann] of announcedProviders) {
+    if (ann.tabId === tabId) announcedProviders.delete(id);
+  }
 
   if (connected) {
     send({ type: "provider-unavailable", tabId });
@@ -171,16 +173,18 @@ async function queryAllTabsForSlop(): Promise<void> {
       try {
         chrome.tabs.sendMessage(tab.id, { type: "get-slop-status" }, (response) => {
           if (chrome.runtime.lastError || !response) return;
-          if (response.hasSlop && response.transport) {
+          if (response.hasSlop && response.providers?.length > 0) {
             const tabId = tab.id!;
-            // Only announce if not already in the map
-            if (!announcedProviders.has(tabId)) {
-              announceProvider(tabId, {
-                id: `tab-${tabId}`,
-                name: response.providerName ?? tab.title ?? `Tab ${tabId}`,
-                transport: response.transport,
-                url: response.endpoint,
-              });
+            for (const p of response.providers) {
+              const providerId = `tab-${tabId}-${p.transport}`;
+              if (!announcedProviders.has(providerId)) {
+                announceProvider(tabId, {
+                  id: providerId,
+                  name: response.providerName ?? tab.title ?? `Tab ${tabId}`,
+                  transport: p.transport,
+                  url: p.endpoint,
+                });
+              }
             }
           }
         });

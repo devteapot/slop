@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
-import { useSlopUI, useSlop } from '@slop-ai/tanstack-start'
+import { useSlop } from '@slop-ai/tanstack-start'
 import { slopMiddleware } from '../server/middleware'
 
 const fetchProjects = createServerFn({ method: 'GET' }).handler(async () => {
@@ -32,8 +32,6 @@ function ProjectsPage() {
   const { projects } = Route.useLoaderData()
   const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all')
   const [newName, setNewName] = useState('')
-
-  useSlopUI()
 
   useSlop('filters', {
     type: 'status',

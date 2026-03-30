@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
-import { useSlopUI, useSlop } from '@slop-ai/tanstack-start'
+import { useSlop } from '@slop-ai/tanstack-start'
 import { slopMiddleware } from '../server/middleware'
 
 const fetchProject = createServerFn({ method: 'GET' })
@@ -55,8 +55,6 @@ function ProjectDetailPage() {
   const [newTask, setNewTask] = useState('')
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState(project.name)
-
-  useSlopUI()
 
   useSlop('task_form', {
     type: 'view',

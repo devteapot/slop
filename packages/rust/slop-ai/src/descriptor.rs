@@ -78,8 +78,11 @@ pub fn normalize_descriptor(
     // Actions → affordances + handlers
     let affordances = normalize_actions(path, descriptor.get("actions"), &mut handlers);
 
-    // Properties, including content_ref
-    let properties = build_properties(path, descriptor);
+    // Properties (without content_ref — that's a top-level field)
+    let properties = descriptor.get("props").and_then(|v| v.as_object()).cloned();
+
+    // Content ref as top-level field (per spec 13)
+    let content_ref = build_content_ref(path, descriptor);
 
     let meta_opt = if meta.is_empty() { None } else { Some(meta) };
 
@@ -90,6 +93,7 @@ pub fn normalize_descriptor(
         children: if children.is_empty() { None } else { Some(children) },
         affordances: if affordances.is_empty() { None } else { Some(affordances) },
         meta: meta_opt,
+        content_ref,
     };
 
     (node, handlers)
@@ -122,6 +126,7 @@ fn normalize_item(path: &str, item: &Value) -> (SlopNode, HashMap<String, Action
         children: if children.is_empty() { None } else { Some(children) },
         affordances: if affordances.is_empty() { None } else { Some(affordances) },
         meta: meta_opt,
+        content_ref: build_content_ref(path, item),
     };
 
     (node, handlers)
@@ -271,25 +276,15 @@ fn extract_meta(descriptor: &Value) -> NodeMeta {
     meta
 }
 
-fn build_properties(path: &str, descriptor: &Value) -> Option<Map<String, Value>> {
-    let props = descriptor.get("props").and_then(|v| v.as_object());
-    let content_ref = descriptor.get("content_ref");
-
-    match (props, content_ref) {
-        (None, None) => None,
-        (Some(p), None) => Some(p.clone()),
-        (props, Some(cr)) => {
-            let mut result = props.cloned().unwrap_or_default();
-            let mut ref_val = cr.clone();
-            if let Some(obj) = ref_val.as_object_mut() {
-                if !obj.contains_key("uri") {
-                    obj.insert("uri".into(), Value::String(format!("slop://content/{path}")));
-                }
-            }
-            result.insert("content_ref".into(), ref_val);
-            Some(result)
+fn build_content_ref(path: &str, descriptor: &Value) -> Option<crate::types::ContentRef> {
+    let cr = descriptor.get("content_ref").or_else(|| descriptor.get("contentRef"))?;
+    let mut ref_val = cr.clone();
+    if let Some(obj) = ref_val.as_object_mut() {
+        if !obj.contains_key("uri") {
+            obj.insert("uri".into(), Value::String(format!("slop://content/{path}")));
         }
     }
+    serde_json::from_value(ref_val).ok()
 }
 
 #[cfg(test)]
@@ -355,10 +350,11 @@ mod tests {
             }
         });
         let (node, _) = normalize_descriptor("editor/file", "file", &desc);
-        let props = node.properties.unwrap();
-        let cr = props["content_ref"].as_object().unwrap();
-        assert_eq!(cr["type"], "text");
-        assert_eq!(cr["uri"], "slop://content/editor/file");
+        // content_ref should be top-level, not inside properties
+        assert!(node.properties.as_ref().unwrap().get("content_ref").is_none());
+        let cr = node.content_ref.unwrap();
+        assert_eq!(cr.content_type, crate::types::ContentType::Text);
+        assert_eq!(cr.uri.as_deref(), Some("slop://content/editor/file"));
     }
 
     #[test]

@@ -42,32 +42,28 @@ func normalizeDescriptor(path, id string, node Node) (WireNode, map[string]Handl
 
 	// Properties
 	var properties Props
-	if node.Props != nil || node.ContentRef != nil {
+	if node.Props != nil {
 		properties = Props{}
 		for k, v := range node.Props {
 			properties[k] = v
 		}
-		if node.ContentRef != nil {
-			ref := map[string]any{
-				"type":    node.ContentRef.Type,
-				"mime":    node.ContentRef.MIME,
-				"summary": node.ContentRef.Summary,
-			}
-			if node.ContentRef.URI != "" {
-				ref["uri"] = node.ContentRef.URI
-			} else {
-				ref["uri"] = fmt.Sprintf("slop://content/%s", path)
-			}
-			if node.ContentRef.Size != nil {
-				ref["size"] = *node.ContentRef.Size
-			}
-			if node.ContentRef.Preview != "" {
-				ref["preview"] = node.ContentRef.Preview
-			}
-			if node.ContentRef.Encoding != "" {
-				ref["encoding"] = node.ContentRef.Encoding
-			}
-			properties["content_ref"] = ref
+	}
+
+	// Content ref as top-level field (per spec 13)
+	var wireContentRef *WireContentRef
+	if node.ContentRef != nil {
+		uri := node.ContentRef.URI
+		if uri == "" {
+			uri = fmt.Sprintf("slop://content/%s", path)
+		}
+		wireContentRef = &WireContentRef{
+			Type:     node.ContentRef.Type,
+			MIME:     node.ContentRef.MIME,
+			Summary:  node.ContentRef.Summary,
+			Size:     node.ContentRef.Size,
+			URI:      uri,
+			Preview:  node.ContentRef.Preview,
+			Encoding: node.ContentRef.Encoding,
 		}
 	}
 
@@ -75,6 +71,7 @@ func normalizeDescriptor(path, id string, node Node) (WireNode, map[string]Handl
 		ID:         id,
 		Type:       node.Type,
 		Properties: properties,
+		ContentRef: wireContentRef,
 	}
 	if len(children) > 0 {
 		wn.Children = children

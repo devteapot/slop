@@ -59,6 +59,7 @@ pub fn truncate_tree(node: &SlopNode, depth: i32) -> SlopNode {
                     children: None,
                     affordances: None,
                     meta: Some(meta),
+                    content_ref: node.content_ref.clone(),
                 };
             }
         }
@@ -222,6 +223,7 @@ fn collapse_at_path(tree: &mut SlopNode, path: &[usize]) -> usize {
         children: None,
         affordances: target.affordances.clone(),
         meta: Some(meta),
+        content_ref: target.content_ref.clone(),
     };
 
     saved

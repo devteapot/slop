@@ -56,6 +56,19 @@ export function diffNodes(
     }
   }
 
+  // Diff content_ref (replace entire object if changed)
+  if (JSON.stringify(oldNode.content_ref) !== JSON.stringify(newNode.content_ref)) {
+    if (newNode.content_ref) {
+      ops.push({
+        op: oldNode.content_ref ? "replace" : "add",
+        path: `${basePath}/content_ref`,
+        value: newNode.content_ref,
+      });
+    } else if (oldNode.content_ref) {
+      ops.push({ op: "remove", path: `${basePath}/content_ref` });
+    }
+  }
+
   // Diff children
   const oldChildren = oldNode.children ?? [];
   const newChildren = newNode.children ?? [];

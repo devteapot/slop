@@ -1,5 +1,5 @@
 import type {
-  SlopNode, Affordance, JsonSchema, ActionHandler, NodeMeta,
+  SlopNode, Affordance, JsonSchema, ActionHandler, NodeMeta, ContentRef,
   NodeDescriptor, ItemDescriptor, Action, ParamDef,
 } from "./types";
 
@@ -59,16 +59,14 @@ export function normalizeDescriptor(
   // Convert actions → affordances + extract handlers
   const affordances = normalizeActions(path, descriptor.actions, handlers);
 
-  // Build properties, including content_ref if provided
-  let properties = descriptor.props ? { ...descriptor.props } : undefined;
+  const properties = descriptor.props ? { ...descriptor.props } : undefined;
+
+  // Build content_ref as top-level field (per spec 13)
+  let content_ref: ContentRef | undefined;
   if (descriptor.contentRef) {
-    const ref = descriptor.contentRef;
-    properties = {
-      ...properties,
-      content_ref: {
-        ...ref,
-        uri: ref.uri ?? `slop://content/${path}`,
-      },
+    content_ref = {
+      ...descriptor.contentRef,
+      uri: descriptor.contentRef.uri ?? `slop://content/${path}`,
     };
   }
 
@@ -79,6 +77,7 @@ export function normalizeDescriptor(
     ...(children.length > 0 && { children }),
     ...(affordances.length > 0 && { affordances }),
     ...(Object.keys(meta).length > 0 && { meta }),
+    ...(content_ref && { content_ref }),
   };
 
   return { node, handlers };

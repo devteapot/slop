@@ -13,33 +13,30 @@
 //! }
 //! ```
 
-use std::sync::Arc;
+use std::io::Write;
+use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::error::{Result, SlopError};
 use crate::server::{Connection, SlopServer};
 
-struct StdioConnection;
+struct StdioConnection {
+    stdout: Mutex<std::io::Stdout>,
+}
 
 impl Connection for StdioConnection {
     fn send(&self, message: &Value) -> Result<()> {
         let mut line = serde_json::to_string(message)?;
         line.push('\n');
-        let rt = tokio::runtime::Handle::try_current()
+        let mut stdout = self.stdout.lock().unwrap();
+        stdout
+            .write_all(line.as_bytes())
             .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            let mut stdout = tokio::io::stdout();
-            stdout
-                .write_all(line.as_bytes())
-                .await
-                .map_err(|e| SlopError::Transport(e.to_string()))?;
-            stdout
-                .flush()
-                .await
-                .map_err(|e| SlopError::Transport(e.to_string()))
-        })
+        stdout
+            .flush()
+            .map_err(|e| SlopError::Transport(e.to_string()))
     }
 
     fn close(&self) -> Result<()> {
@@ -49,7 +46,9 @@ impl Connection for StdioConnection {
 
 /// Listen on stdin/stdout with NDJSON. Blocks until stdin is closed.
 pub async fn listen(slop: &SlopServer) -> Result<()> {
-    let conn: Arc<dyn Connection> = Arc::new(StdioConnection);
+    let conn: Arc<dyn Connection> = Arc::new(StdioConnection {
+        stdout: Mutex::new(std::io::stdout()),
+    });
     slop.handle_connection(conn.clone());
 
     let stdin = tokio::io::stdin();

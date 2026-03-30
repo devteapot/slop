@@ -133,6 +133,7 @@ class SlopNode:
     children: list[SlopNode] | None = None
     affordances: list[Affordance] | None = None
     meta: NodeMeta | None = None
+    content_ref: ContentRef | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"id": self.id, "type": self.type}
@@ -144,6 +145,8 @@ class SlopNode:
             d["affordances"] = [a.to_dict() for a in self.affordances]
         if self.meta is not None:
             d["meta"] = self.meta.to_dict()
+        if self.content_ref is not None:
+            d["content_ref"] = self.content_ref.to_dict()
         return d
 
     @classmethod
@@ -157,6 +160,9 @@ class SlopNode:
         meta = None
         if "meta" in data and data["meta"] is not None:
             meta = NodeMeta.from_dict(data["meta"])
+        content_ref = None
+        if "content_ref" in data and data["content_ref"] is not None:
+            content_ref = ContentRef.from_dict(data["content_ref"])
         return cls(
             id=data["id"],
             type=data["type"],
@@ -164,6 +170,7 @@ class SlopNode:
             children=children,
             affordances=affordances,
             meta=meta,
+            content_ref=content_ref,
         )
 
     def to_json(self, **kwargs: Any) -> str:

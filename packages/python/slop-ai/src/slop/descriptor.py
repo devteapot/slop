@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from .types import Affordance, NodeMeta, SlopNode
+from .types import Affordance, ContentRef, NodeMeta, SlopNode
 
 
 ActionHandler = Callable[..., Any]
@@ -58,17 +58,18 @@ def normalize_descriptor(
     # Actions → affordances + handlers
     affordances = _normalize_actions(path, descriptor.get("actions"), handlers)
 
-    # Properties, including content_ref
-    properties: dict[str, Any] | None = None
+    # Properties
     props = descriptor.get("props")
-    content_ref = descriptor.get("content_ref")
-    if props or content_ref:
-        properties = dict(props) if props else {}
-        if content_ref:
-            ref = dict(content_ref)
-            if "uri" not in ref:
-                ref["uri"] = f"slop://content/{path}"
-            properties["content_ref"] = ref
+    properties = dict(props) if props else None
+
+    # Content ref as top-level field (per spec 13)
+    cr: ContentRef | None = None
+    cr_raw = descriptor.get("content_ref") or descriptor.get("contentRef")
+    if cr_raw:
+        ref = dict(cr_raw)
+        if "uri" not in ref:
+            ref["uri"] = f"slop://content/{path}"
+        cr = ContentRef.from_dict(ref)
 
     meta = NodeMeta.from_dict(meta_dict) if meta_dict else None
 
@@ -79,6 +80,7 @@ def normalize_descriptor(
         children=children or None,
         affordances=affordances or None,
         meta=meta,
+        content_ref=cr,
     )
     return node, handlers
 

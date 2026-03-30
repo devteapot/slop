@@ -81,6 +81,7 @@ fn ensure_node<'a>(
             children: Some(Vec::new()),
             affordances: None,
             meta: None,
+            content_ref: None,
         };
         nodes_by_path.insert(path.to_string(), synthetic);
 

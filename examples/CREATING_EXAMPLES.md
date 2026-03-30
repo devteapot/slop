@@ -128,6 +128,30 @@ Design seed data to exercise the features you're showcasing:
   - If you demo async: include state that triggers async operations
 ```
 
+#### Cross-SDK alignment section
+
+Every blueprint with multi-language implementations **must** include a "Cross-SDK alignment notes" section. This section captures SDK-specific gotchas that cause implementations to diverge. Without it, agents will make the same mistakes.
+
+Key rules to include (these are now spec-level requirements, not workarounds):
+
+- **Affordance placement (spec 05).** Actions belong on the node they operate on — search on the collection, navigate on the view. The root node carries identity, not actions.
+- **Affordances must be in descriptors (spec 05).** Separately-registered handlers don't automatically appear in the tree. The descriptor is the source of truth for what the consumer sees.
+- **Use inline actions in dynamic descriptors.** This is the most portable pattern — the descriptor function returns actions alongside props/items/meta.
+- **State-dependent affordances.** Specify exactly which affordances appear for each state (e.g., pending vs completed tasks). Implementations will diverge if this isn't explicit.
+- **Content ref is top-level (spec 13).** `content_ref` is a sibling of `properties` on the wire, not nested inside `properties`. All SDKs enforce this.
+
+#### Test harness
+
+Every multi-language example should include a `test-harness.ts` that spawns each implementation as a subprocess, speaks SLOP over stdio, and asserts on the tree structure and action results. This is the automated enforcement of the blueprint contract.
+
+The harness should test:
+- Handshake (hello message format)
+- Tree structure (node IDs, types, properties, affordances)
+- Mutations (invoke → result → verify tree changed)
+- Each "special" feature (content refs, salience ordering, windowing)
+
+Run with: `bun run test-harness.ts all`
+
 #### Tips for good blueprints
 
 **The tree is the spec.** Spend most of your time on the SLOP tree section. If the tree is precise, the implementation follows mechanically.
@@ -207,12 +231,15 @@ The agent has everything it needs in the blueprint. The guide is for humans expl
 Before considering an example complete:
 
 - [ ] `BLUEPRINT.md` exists with all required sections
+- [ ] `BLUEPRINT.md` includes "Cross-SDK alignment notes" section
 - [ ] `GUIDE.md` exists with setup, normal mode, SLOP mode, side-by-side sections
 - [ ] `seed.json` is shared across all implementations (byte-identical)
+- [ ] `test-harness.ts` exists and tests all implementations
 - [ ] At least one language implementation exists and runs
 - [ ] Normal mode works as described in the guide
 - [ ] SLOP mode produces the tree described in the blueprint
 - [ ] All affordances listed in the blueprint are functional
 - [ ] All interaction scenarios from the blueprint work end-to-end
+- [ ] `bun run test-harness.ts all` passes with 0 failures
 - [ ] Discovery file is written/cleaned up (if applicable)
 - [ ] `README.md` in each implementation has build + run instructions

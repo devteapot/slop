@@ -15,6 +15,8 @@ pub struct SlopNode {
     pub affordances: Option<Vec<Affordance>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<NodeMeta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_ref: Option<ContentRef>,
 }
 
 impl SlopNode {
@@ -26,6 +28,7 @@ impl SlopNode {
             children: None,
             affordances: None,
             meta: None,
+            content_ref: None,
         }
     }
 
@@ -39,6 +42,7 @@ impl SlopNode {
             children: Some(Vec::new()),
             affordances: None,
             meta: None,
+            content_ref: None,
         }
     }
 }

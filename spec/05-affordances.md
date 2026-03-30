@@ -150,19 +150,23 @@ Sometimes an action requires multiple steps (e.g., "merge and delete branch"). R
 
 This keeps each affordance atomic and lets the AI make decisions between steps.
 
-## Root affordances
+## Affordance declaration
 
-Some actions are app-global, not tied to a specific entity. These live on the root node:
+Affordances must be **declared in the node's descriptor** to appear in the state tree. The descriptor is the source of truth for what the consumer sees.
 
-```jsonc
-{
-  "id": "root",
-  "type": "root",
-  "properties": { "label": "Mail" },
-  "affordances": [
-    { "action": "compose", "description": "Start a new email" },
-    { "action": "search", "params": { "type": "object", "properties": { "query": { "type": "string" } } } },
-    { "action": "refresh" }
-  ]
-}
-```
+A handler registered separately (e.g., for routing or middleware) does not automatically create an affordance in the tree. If a developer registers a handler for `"delete"` on a node but doesn't include `"delete"` in the node's affordances, the action is callable but invisible to the consumer. This is intentional — it allows providers to have internal actions that aren't exposed to AI consumers.
+
+## Affordance placement
+
+Affordances should be placed on the node they operate on. This applies at every level:
+
+| Scope | Affordance examples | Where to place |
+|---|---|---|
+| **Item** | edit, delete, toggle, archive | On the item node |
+| **Collection** | add, clear, search, sort, export | On the collection node |
+| **View** | refresh, change_layout | On the view node |
+| **App-global** | navigate, compose, logout | On the root or a `context` child |
+
+App-level affordances (search, navigate, compose) should be placed on the **node they operate on** rather than the root. For example, `search` belongs on the collection it searches, `navigate` on a navigation context node. This keeps affordances co-located with the state they affect and ensures consistent behavior across SDK implementations.
+
+The root node carries the app's identity (`id`, `name`, `version`) and may hold truly global affordances like `logout`, but most actions belong on their target node.

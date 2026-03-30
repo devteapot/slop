@@ -76,7 +76,6 @@ This is the exact tree structure the provider must expose. Node IDs, types, prop
 ```
 [root] tsk
   properties: { version: "0.1.0" }
-  affordances: [search(query: string)]
   │
   ├── [context] user
   │   properties: { file: "~/.tsk/tasks.json", total_tasks: 47, total_done: 32 }
@@ -91,7 +90,8 @@ This is the exact tree structure the provider must expose. Node IDs, types, prop
   │   affordances: [
   │     add(title: string, due?: string, tags?: string),
   │     clear_done(),
-  │     export(format: string)        ← async action
+  │     export(format: string),       ← async action
+  │     search(query: string)         ← search lives here, not on root
   │   ]
   │   │
   │   ├── [item] t-4                  ← overdue tasks first (highest salience)
@@ -160,25 +160,6 @@ Task notes use content references (spec 13):
 
 ## Affordance schemas
 
-### Root level
-
-```json
-{
-  "action": "search",
-  "label": "Search tasks",
-  "description": "Search tasks by title or tag",
-  "params": {
-    "type": "object",
-    "properties": {
-      "query": { "type": "string", "description": "Search term (matches title and tags)" }
-    },
-    "required": ["query"]
-  },
-  "idempotent": true,
-  "estimate": "instant"
-}
-```
-
 ### Collection level (tasks)
 
 ```json
@@ -216,6 +197,20 @@ Task notes use content references (spec 13):
       "required": ["format"]
     },
     "estimate": "slow"
+  },
+  {
+    "action": "search",
+    "label": "Search tasks",
+    "description": "Search tasks by title or tag",
+    "params": {
+      "type": "object",
+      "properties": {
+        "query": { "type": "string", "description": "Search term (matches title and tags)" }
+      },
+      "required": ["query"]
+    },
+    "idempotent": true,
+    "estimate": "instant"
   }
 ]
 ```
@@ -333,7 +328,7 @@ Provider returns: { content: "Milk, eggs, bread, avocados\nCheck if we need coff
 ### 5. AI searches
 
 ```
-AI invokes: search({ query: "work" })
+AI invokes: search({ query: "work" }) on /tasks
 Provider returns: filtered task list matching "work" (by title or tag)
 ```
 
@@ -392,6 +387,24 @@ When invoked with `--slop`:
      "description": "Task manager with 47 tasks (15 pending, 2 overdue)"
    }
    ```
+
+## Cross-SDK alignment notes
+
+These rules ensure all implementations produce identical SLOP trees. They follow the protocol spec — see the referenced sections for details.
+
+1. **Affordances go on the node they operate on (spec 05).** Don't register on the root path. Place search on the tasks collection, not on root. The root carries identity, not actions.
+
+2. **Affordances must be declared in descriptors (spec 05).** Handlers registered separately don't automatically appear in the tree. Include actions in the descriptor dict/JSON returned by dynamic registrations.
+
+3. **Use inline actions in dynamic descriptors.** When using `register_fn` / `@slop.node` / dynamic registration, include actions directly in the returned descriptor. This is the most portable pattern.
+
+4. **Salience values must be numeric.** All SDKs expect `meta.salience` as a float (0.0–1.0).
+
+5. **Item actions must match done/pending state.** Pending tasks expose `done`, `edit`, `delete`, `read_notes`, `write_notes`. Completed tasks expose `undo`, `delete`. Never both `done` and `undo` on the same item.
+
+6. **`content_ref` is a top-level field (spec 13).** It is a sibling of `properties` on the wire node, not nested inside `properties`. Use the descriptor's `contentRef` / `content_ref` field and the SDK normalizes it correctly.
+
+7. **The test harness (`test-harness.ts`) is the source of truth.** Run `bun run test-harness.ts all` after any change. All implementations must pass all tests.
 
 ## Implementation constraints
 

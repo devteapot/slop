@@ -7,6 +7,7 @@ export interface SlopNode {
   children?: SlopNode[];
   affordances?: Affordance[];
   meta?: NodeMeta;
+  content_ref?: ContentRef;
 }
 
 export interface Affordance {

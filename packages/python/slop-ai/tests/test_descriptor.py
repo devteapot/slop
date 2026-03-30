@@ -98,10 +98,10 @@ def test_content_ref():
             "summary": "Python source file",
         },
     })
-    assert "content_ref" in node.properties
-    ref = node.properties["content_ref"]
-    assert ref["type"] == "text"
-    assert ref["uri"] == "slop://content/editor/file"
+    assert node.content_ref is not None
+    assert "content_ref" not in (node.properties or {})
+    assert node.content_ref.type == "text"
+    assert node.content_ref.uri == "slop://content/editor/file"
 
 
 def test_windowed_collection():

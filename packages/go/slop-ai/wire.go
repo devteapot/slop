@@ -2,12 +2,25 @@ package slop
 
 // WireNode is the JSON wire format for a SLOP state tree node.
 type WireNode struct {
-	ID          string       `json:"id"`
-	Type        string       `json:"type"`
-	Properties  Props        `json:"properties,omitempty"`
-	Children    []WireNode   `json:"children,omitempty"`
-	Affordances []Affordance `json:"affordances,omitempty"`
-	Meta        *WireMeta    `json:"meta,omitempty"`
+	ID          string          `json:"id"`
+	Type        string          `json:"type"`
+	Properties  Props           `json:"properties,omitempty"`
+	Children    []WireNode      `json:"children,omitempty"`
+	Affordances []Affordance    `json:"affordances,omitempty"`
+	Meta        *WireMeta       `json:"meta,omitempty"`
+	ContentRef  *WireContentRef `json:"content_ref,omitempty"`
+}
+
+// WireContentRef is the wire format for a content reference.
+type WireContentRef struct {
+	Type     string `json:"type"`
+	MIME     string `json:"mime"`
+	Summary  string `json:"summary"`
+	Size     *int   `json:"size,omitempty"`
+	URI      string `json:"uri,omitempty"`
+	Preview  string `json:"preview,omitempty"`
+	Encoding string `json:"encoding,omitempty"`
+	Hash     string `json:"hash,omitempty"`
 }
 
 // Affordance is an action available on a node (wire format).

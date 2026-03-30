@@ -160,15 +160,14 @@ describe("Windowed collections", () => {
 });
 
 describe("Content references", () => {
-  test("contentRef maps to content_ref in properties", () => {
+  test("contentRef maps to top-level content_ref field", () => {
     const { node } = normalizeDescriptor("doc", "doc", {
       type: "document",
       contentRef: { type: "text", mime: "text/markdown", summary: "A markdown document" },
     });
-    const ref = node.properties?.content_ref as any;
-    expect(ref).toBeDefined();
-    expect(ref.type).toBe("text");
-    expect(ref.mime).toBe("text/markdown");
+    expect(node.content_ref).toBeDefined();
+    expect(node.content_ref!.type).toBe("text");
+    expect(node.content_ref!.mime).toBe("text/markdown");
   });
 
   test("contentRef auto-generates slop:// URI", () => {
@@ -176,7 +175,7 @@ describe("Content references", () => {
       type: "document",
       contentRef: { type: "text", mime: "text/typescript", summary: "TS file" },
     });
-    expect((node.properties?.content_ref as any).uri).toBe("slop://content/editor/main-ts");
+    expect(node.content_ref!.uri).toBe("slop://content/editor/main-ts");
   });
 
   test("contentRef preserves explicit URI", () => {
@@ -184,17 +183,18 @@ describe("Content references", () => {
       type: "document",
       contentRef: { type: "binary", mime: "image/png", summary: "Photo", uri: "https://cdn.example.com/photo.png" },
     });
-    expect((node.properties?.content_ref as any).uri).toBe("https://cdn.example.com/photo.png");
+    expect(node.content_ref!.uri).toBe("https://cdn.example.com/photo.png");
   });
 
-  test("contentRef merges with existing props", () => {
+  test("contentRef does not pollute properties", () => {
     const { node } = normalizeDescriptor("doc", "doc", {
       type: "document",
       props: { title: "Report", language: "markdown" },
       contentRef: { type: "text", mime: "text/markdown", summary: "Report doc" },
     });
     expect(node.properties?.title).toBe("Report");
-    expect(node.properties?.content_ref).toBeDefined();
+    expect(node.properties?.content_ref).toBeUndefined();
+    expect(node.content_ref).toBeDefined();
   });
 
   test("contentRef + actions together", () => {
@@ -204,7 +204,7 @@ describe("Content references", () => {
       contentRef: { type: "text", mime: "text/plain", summary: "Doc" },
       actions: { read_content: readFn },
     });
-    expect(node.properties?.content_ref).toBeDefined();
+    expect(node.content_ref).toBeDefined();
     expect(node.affordances).toHaveLength(1);
     expect(handlers.get("doc/read_content")).toBe(readFn);
   });
@@ -608,7 +608,7 @@ describe("Patching with scaling features", () => {
 
   test("adding content_ref produces a patch", () => {
     const old: SlopNode = { id: "root", type: "root", children: [{ id: "doc", type: "document", properties: { title: "test" } }] };
-    const nw: SlopNode = { id: "root", type: "root", children: [{ id: "doc", type: "document", properties: { title: "test", content_ref: { type: "text", mime: "text/plain", summary: "Doc" } } }] };
+    const nw: SlopNode = { id: "root", type: "root", children: [{ id: "doc", type: "document", properties: { title: "test" }, content_ref: { type: "text", mime: "text/plain", summary: "Doc" } }] };
     const ops = diffNodes(old, nw);
     expect(ops.some(op => op.path.includes("content_ref"))).toBe(true);
   });
@@ -683,7 +683,7 @@ describe("Edge cases", () => {
     expect(countNodes(tree)).toBe(5);
     expect(findNode(tree, "profile")?.meta?.summary).toBe("User profile");
     expect(findNode(tree, "messages")?.meta?.total_children).toBe(500);
-    expect(findNode(tree, "editor")?.properties?.content_ref).toBeDefined();
+    expect(findNode(tree, "editor")?.content_ref).toBeDefined();
   });
 
   test("maxNodes on tree where all nodes have same salience", () => {

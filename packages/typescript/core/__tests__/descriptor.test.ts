@@ -160,7 +160,7 @@ describe("normalizeDescriptor", () => {
     expect(node.meta?.window).toEqual([10, 2]);
   });
 
-  test("contentRef maps to content_ref in properties", () => {
+  test("contentRef maps to top-level content_ref field", () => {
     const { node } = normalizeDescriptor("doc", "doc", {
       type: "document",
       props: { title: "main.ts" },
@@ -173,12 +173,12 @@ describe("normalizeDescriptor", () => {
       },
     });
     expect(node.properties?.title).toBe("main.ts");
-    expect(node.properties?.content_ref).toBeDefined();
-    const ref = node.properties!.content_ref as any;
-    expect(ref.type).toBe("text");
-    expect(ref.mime).toBe("text/typescript");
-    expect(ref.summary).toBe("TypeScript module");
-    expect(ref.uri).toBe("slop://content/doc");
+    expect(node.properties?.content_ref).toBeUndefined();
+    expect(node.content_ref).toBeDefined();
+    expect(node.content_ref!.type).toBe("text");
+    expect(node.content_ref!.mime).toBe("text/typescript");
+    expect(node.content_ref!.summary).toBe("TypeScript module");
+    expect(node.content_ref!.uri).toBe("slop://content/doc");
   });
 
   test("contentRef uses explicit uri when provided", () => {
@@ -191,8 +191,7 @@ describe("normalizeDescriptor", () => {
         uri: "https://cdn.example.com/photo.png",
       },
     });
-    const ref = node.properties!.content_ref as any;
-    expect(ref.uri).toBe("https://cdn.example.com/photo.png");
+    expect(node.content_ref!.uri).toBe("https://cdn.example.com/photo.png");
   });
 
   test("item summary maps to meta.summary", () => {

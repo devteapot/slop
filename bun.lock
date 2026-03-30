@@ -24,6 +24,16 @@
         "vite": "^6.0.0",
       },
     },
+    "examples/cli/bun": {
+      "name": "tsk",
+      "version": "0.1.0",
+      "bin": {
+        "tsk": "src/index.ts",
+      },
+      "dependencies": {
+        "@slop-ai/server": "workspace:*",
+      },
+    },
     "examples/notes-spa": {
       "name": "example-notes-spa",
       "version": "0.1.0",
@@ -1903,6 +1913,8 @@
     "ts-algebra": ["ts-algebra@2.0.0", "", {}, "sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw=="],
 
     "tsconfck": ["tsconfck@3.1.6", "", { "peerDependencies": { "typescript": "^5.0.0" }, "optionalPeers": ["typescript"], "bin": { "tsconfck": "bin/tsconfck.js" } }, "sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w=="],
+
+    "tsk": ["tsk@workspace:examples/cli/bun"],
 
     "tslib": ["tslib@2.8.1", "", {}, "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="],
 

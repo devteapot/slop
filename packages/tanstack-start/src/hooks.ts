@@ -37,6 +37,54 @@ export function useSlopUI(wsPath: string = "/slop"): void {
 
     return () => {};
   }, [wsPath]);
+
+  // Auto-register route node with navigation — updates on every navigation
+  const pathname = router.state.location.pathname;
+  const params = router.state.matches?.at(-1)?.params;
+
+  // Extract available routes from the router's route tree
+  const availableRoutes = useRef<string[]>([]);
+  if (availableRoutes.current.length === 0) {
+    const routes: string[] = [];
+    const walk = (route: any) => {
+      if (route.fullPath && route.fullPath !== "/__root__") {
+        routes.push(route.fullPath);
+      }
+      for (const child of route.children ?? []) {
+        walk(child);
+      }
+    };
+    walk(router.routeTree);
+    availableRoutes.current = [...new Set(routes)];
+  }
+
+  useEffect(() => {
+    if (globalAdapter) {
+      globalAdapter.register("route", {
+        type: "status",
+        props: {
+          path: pathname,
+          ...(params && Object.keys(params).length > 0 ? { params } : {}),
+          availableRoutes: availableRoutes.current,
+        },
+        actions: {
+          ui_navigate: {
+            label: "Navigate to a page",
+            params: { path: "string" },
+            handler: (p: any) => {
+              router.navigate({ to: p.path });
+            },
+          },
+          ui_back: {
+            label: "Go back",
+            handler: () => {
+              router.history.back();
+            },
+          },
+        },
+      });
+    }
+  }, [pathname]);
 }
 
 /**

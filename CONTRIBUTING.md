@@ -42,12 +42,28 @@ python3 -m venv .venv
 .venv/bin/pytest slop-ai/tests/
 ```
 
+### Go
+
+```bash
+cd packages/go/slop-ai
+go test ./...
+```
+
+### Rust
+
+```bash
+cd packages/rust/slop-ai
+cargo test
+```
+
 ## Project structure
 
 - `spec/` — Protocol specification (language-agnostic)
 - `packages/` — Publishable SDK packages
   - TypeScript: `@slop-ai/core`, `@slop-ai/client`, `@slop-ai/server`, `@slop-ai/react`, `@slop-ai/consumer`, etc.
   - Python: `slop-ai` (in `packages/python/slop-ai/`)
+  - Rust: `slop-ai` (in `packages/rust/slop-ai/`)
+  - Go: `github.com/slop-ai/slop-go` (in `packages/go/slop-ai/`)
 - `extension/` — Chrome extension
 - `desktop/` — Tauri desktop app
 - `examples/` — Runnable example apps
@@ -84,7 +100,7 @@ Open an issue describing:
 - Bug fixes
 - New transport implementations
 - Framework adapters (`@slop-ai/vue`, `@slop-ai/svelte`, etc.)
-- Language SDKs (Go, Rust, etc. — Python SDK already exists)
+- Language SDKs (Swift, C#, etc. — Python, Rust, and Go SDKs already exist)
 - Example apps showing SLOP integration
 - Spec improvements and clarifications
 - Documentation fixes
@@ -99,7 +115,18 @@ Open an issue describing:
 - Python 3.10+ with type hints throughout
 - Zero required dependencies in `slop-ai`
 - Tests use pytest
-- Pythonic API (decorators, context managers, properties) — not a TypeScript transliteration
+- Pythonic API (decorators, context managers, properties)
+
+### Rust crate
+- Core engine has no async runtime dependency (WASM-ready)
+- Feature flags for transports (`websocket`, `unix`, `stdio`, `axum`)
+- `serde` + `thiserror`
+
+### Go package
+- Single external dependency (`nhooyr.io/websocket`)
+- `Handler`/`HandlerFunc` mirrors `http.Handler` pattern
+- `context.Context` in all handlers
+- `net/http` native — `server.Mount(mux)` works with any HTTP framework
 
 ### General
 - Keep it simple — prefer small, focused changes

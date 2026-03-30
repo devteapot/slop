@@ -71,7 +71,9 @@ slop/
 │   ├── vue/                     ← @slop-ai/vue — useSlop composable
 │   ├── solid/                   ← @slop-ai/solid — useSlop primitive
 │   ├── angular/                 ← @slop-ai/angular — useSlop with signals
-│   └── python/slop-ai/          ← slop-ai — Python SDK (WebSocket, Unix, stdio, ASGI)
+│   ├── python/slop-ai/          ← slop-ai — Python SDK (WebSocket, Unix, stdio, ASGI)
+│   ├── rust/slop-ai/            ← slop-ai — Rust SDK (WebSocket, Unix, stdio, axum)
+│   └── go/slop-ai/              ← slop-ai — Go SDK (net/http, WebSocket, Unix, stdio)
 │
 ├── extension/                   ← Chrome extension (SLOP consumer + LLM chat)
 │
@@ -92,6 +94,8 @@ slop/
 - Firefox extension
 - Safari extension
 - ~~Python SDK~~ — **shipped** (`slop-ai` on PyPI)
+- ~~Rust SDK~~ — **shipped** (`slop-ai` on crates.io)
+- ~~Go SDK~~ — **shipped** (`github.com/slop-ai/slop-go`)
 - OpenClaw integration
 - Agent CLI (`npx @slop-ai/init`)
 - Extension Tier 3: accessibility tree adapter (works on any website)

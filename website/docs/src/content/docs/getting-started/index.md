@@ -131,10 +131,47 @@ app.add_middleware(SlopMiddleware, slop=slop)
 
 See the [Python guide](/guides/python) for full setup including ASGI, WebSocket, Unix socket, and stdio transports.
 
+## Go
+
+```go
+import slop "github.com/slop-ai/slop-go"
+
+server := slop.NewServer("my-api", "My API")
+
+server.Register("todos", slop.Node{
+    Type:  "collection",
+    Props: slop.Props{"count": len(todos)},
+    Items: todosToItems(todos),
+})
+
+// Works with any net/http router
+server.Mount(mux) // adds /slop (ws) + /.well-known/slop
+```
+
+See the [Go guide](/guides/go) for full setup including `net/http`, WebSocket, Unix socket, and stdio transports.
+
+## Rust
+
+```rust
+use slop_ai::SlopServer;
+use serde_json::json;
+
+let slop = SlopServer::new("my-app", "My App");
+
+slop.register("todos", json!({
+    "type": "collection",
+    "props": {"count": todos.len()},
+}));
+```
+
+See the [Rust guide](/guides/rust) for full setup including WebSocket, Unix socket, stdio, and axum transports.
+
 ## Next steps
 
-- [Installation guide](/getting-started/installation) — all package options (JavaScript + Python)
+- [Installation guide](/getting-started/installation) — all package options
 - [React guide](/guides/react) — full React integration patterns
 - [Other frameworks](/guides/vue) — Vue, Solid, Angular, Svelte, vanilla JS
 - [Python guide](/guides/python) — FastAPI, CLI tools, desktop apps
+- [Go guide](/guides/go) — net/http, CLI tools, infrastructure
+- [Rust guide](/guides/rust) — systems, CLI, axum, WASM-ready
 - [API Reference](/api/core) — `createSlop`, `register`, `scope`, typed schemas

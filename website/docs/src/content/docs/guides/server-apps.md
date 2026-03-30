@@ -31,6 +31,24 @@ This guide covers the lower-level `@slop-ai/server` API — useful for Express, 
 | **Desktop app** (tkinter, PyQt) | `slop-ai` | Unix socket | `~/.slop/providers/*.json` |
 | **CLI tool** | `slop-ai` | Unix socket or stdio | `~/.slop/providers/*.json` |
 
+### Go
+
+| App type | Package | Transport | Discovery |
+|---|---|---|---|
+| **HTTP service** (net/http, chi, gin) | `slop-ai` | WebSocket via `server.Mount(mux)` | `/.well-known/slop` endpoint |
+| **Backend service** | `slop-ai` | WebSocket | `/.well-known/slop` endpoint |
+| **CLI tool** | `slop-ai` | Unix socket or stdio | `~/.slop/providers/*.json` |
+| **Daemon / agent** | `slop-ai` | Unix socket | `~/.slop/providers/*.json` |
+
+### Rust
+
+| App type | Package | Transport | Discovery |
+|---|---|---|---|
+| **axum web app** | `slop-ai` | axum WebSocket | `/.well-known/slop` endpoint |
+| **Backend service** | `slop-ai` | WebSocket (tokio-tungstenite) | `/.well-known/slop` endpoint |
+| **CLI tool** | `slop-ai` | Unix socket or stdio | `~/.slop/providers/*.json` |
+| **Daemon / embedded** | `slop-ai` | Unix socket | `~/.slop/providers/*.json` |
+
 **The key difference:** SPAs run inside the browser — the only way to reach them is through the extension (postMessage). Server and native apps run as processes — they open a socket that anything can connect to directly.
 
 ## Quick start
@@ -216,6 +234,11 @@ listenUnix(slop);               // local agents via Unix socket
 | Python backend service | `slop-ai` + WebSocket transport |
 | Python CLI tool | `slop-ai` + stdio transport |
 | Python desktop app (tkinter, PyQt) | `slop-ai` + Unix socket |
+| Go HTTP service | `slop-ai` + `server.Mount(mux)` |
+| Go CLI tool | `slop-ai` + `ListenStdio` |
+| Go daemon | `slop-ai` + `ListenUnix` |
+| Rust axum web app | `slop-ai` + `slop_router` |
+| Rust CLI tool | `slop-ai` + stdio transport |
 | Electron app | `@slop-ai/server` + `listenUnix` |
 | Tauri app | `@slop-ai/server` + `listenUnix` |
 | JS CLI tool | `@slop-ai/server` + `listenStdio` |
@@ -225,7 +248,5 @@ listenUnix(slop);               // local agents via Unix socket
 
 See the `examples/` directory for complete working apps:
 
-- `examples/nextjs-todos/` — Next.js + WebSocket
-- `examples/nuxt-contacts/` — Nuxt + Nitro WebSocket
-- `examples/sveltekit-links/` — SvelteKit + Vite plugin
-- `examples/clipboard-manager/` — Electron + Unix socket
+- `examples/notes-spa/` — React SPA + postMessage
+- `examples/tanstack-start/` — TanStack Start fullstack + WebSocket

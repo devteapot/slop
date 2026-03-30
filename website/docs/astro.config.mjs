@@ -34,6 +34,8 @@ export default defineConfig({
 						{ label: 'Server & Native Apps', slug: 'guides/server-apps' },
 						{ label: 'TanStack Start', slug: 'guides/tanstack-start' },
 						{ label: 'Python', slug: 'guides/python' },
+						{ label: 'Go', slug: 'guides/go' },
+						{ label: 'Rust', slug: 'guides/rust' },
 					],
 				},
 				{

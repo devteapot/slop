@@ -91,6 +91,59 @@ app.add_middleware(SlopMiddleware, slop=slop)
 
 See the [Python guide](/guides/python) for full setup with all transports.
 
+## Go
+
+```bash
+go get github.com/slop-ai/slop-go
+```
+
+Single external dependency (`nhooyr.io/websocket`). Works with any `net/http` compatible router.
+
+### Quick example
+
+```go
+package main
+
+import (
+    "net/http"
+    slop "github.com/slop-ai/slop-go"
+)
+
+func main() {
+    server := slop.NewServer("my-app", "My App")
+
+    server.Register("status", slop.Node{
+        Type:  "status",
+        Props: slop.Props{"healthy": true},
+    })
+
+    server.Mount(http.DefaultServeMux) // adds /slop (ws) + /.well-known/slop
+    http.ListenAndServe(":8080", nil)
+}
+```
+
+See the [Go guide](/guides/go) for full setup with all transports.
+
+## Rust
+
+```bash
+cargo add slop-ai
+```
+
+Zero required dependencies for the core engine. Feature flags control transports.
+
+### Quick example
+
+```rust
+use slop_ai::SlopServer;
+use serde_json::json;
+
+let slop = SlopServer::new("my-app", "My App");
+slop.register("status", json!({"type": "status", "props": {"healthy": true}}));
+```
+
+See the [Rust guide](/guides/rust) for full setup with all transports.
+
 ## Browser extension
 
 The SLOP Chrome extension discovers providers on any web page and provides an AI chat overlay.

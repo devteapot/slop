@@ -145,10 +145,9 @@ Should show status `loaded` with tools `connected_apps` and `app_action`.
 ### Start a SLOP provider
 
 ```bash
-# Any of the demo providers:
-bun run demo:web       # Kanban board (WebSocket)
-bun run demo:electron  # Pomodoro tracker (WebSocket)
-bun run demo:unix-socket  # Clipboard manager (Unix socket)
+# Start one of the example apps:
+cd examples/notes-spa && bun dev
+cd examples/tanstack-start && bun dev
 ```
 
 Then chat with OpenClaw from any channel:

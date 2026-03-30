@@ -204,3 +204,80 @@ async def main():
 
 asyncio.run(main())
 ```
+
+## Consumer
+
+Connect to a SLOP provider, subscribe to state, and invoke actions:
+
+```python
+import asyncio
+from slop import SlopConsumer
+from slop.transports.ws_client import WebSocketClientTransport
+
+async def main():
+    transport = WebSocketClientTransport("ws://localhost:8765")
+    consumer = SlopConsumer(transport)
+
+    hello = await consumer.connect()
+    print(f"Connected to {hello['provider']['name']}")
+
+    sub_id, snapshot = await consumer.subscribe("/", depth=-1)
+    print(f"Got tree with {len(snapshot.children or [])} children")
+
+    # Invoke an action
+    result = await consumer.invoke("/todos", "create", {"title": "New task"})
+    print(f"Created: {result}")
+
+    # Listen for patches
+    consumer.on_patch(lambda sub, ops, ver: print(f"Patch v{ver}: {len(ops)} ops"))
+
+    # Query a subtree
+    node = await consumer.query("/todos", depth=1)
+
+    consumer.disconnect()
+
+asyncio.run(main())
+```
+
+Transports: `WebSocketClientTransport` and `UnixClientTransport` (from `slop.transports.unix_client`).
+
+## Scaling
+
+Prepare trees for output with depth truncation, salience filtering, and node-budget compaction:
+
+```python
+from slop import prepare_tree, truncate_tree, filter_tree, auto_compact, OutputTreeOptions
+
+# Apply all scaling in one call
+prepared = prepare_tree(tree, OutputTreeOptions(
+    max_depth=2,
+    min_salience=0.3,
+    max_nodes=50,
+))
+
+# Or apply individually
+shallow = truncate_tree(tree, depth=2)       # collapse beyond depth 2
+relevant = filter_tree(tree, min_salience=0.5)  # drop low-salience nodes
+compact = auto_compact(tree, max_nodes=50)    # collapse lowest-salience subtrees
+```
+
+## LLM tools
+
+Convert a SLOP tree into LLM-compatible tool definitions:
+
+```python
+from slop import affordances_to_tools, format_tree, encode_tool, decode_tool
+
+# Convert tree affordances to OpenAI-style tool list
+tools = affordances_to_tools(tree)
+# [{"type": "function", "function": {"name": "invoke__todos__create", ...}}]
+
+# Format tree as readable text for LLM context
+context = format_tree(tree)
+# [collection] Inbox (count=42, unread=5)  actions: {compose(subject, body)}
+#   [item] msg-1 (from="alice", subject="Hello")  actions: {open, archive}
+
+# Encode/decode tool names
+name = encode_tool("/todos", "create")   # "invoke__todos__create"
+path, action = decode_tool(name).values() # "/todos", "create"
+```

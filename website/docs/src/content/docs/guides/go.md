@@ -239,3 +239,72 @@ go http.ListenAndServe(":8080", mux)
 // Unix socket for local agents
 go slop.ListenUnix(ctx, server, "/tmp/slop/my-app.sock")
 ```
+
+## Consumer
+
+Connect to a SLOP provider, subscribe to state, and invoke actions:
+
+```go
+transport := &slop.WSClientTransport{URL: "ws://localhost:8765/slop"}
+consumer := slop.NewConsumer(transport)
+
+hello, err := consumer.Connect(ctx)
+fmt.Println("Connected to", hello["provider"])
+
+subID, tree, err := consumer.Subscribe(ctx, "/", -1)
+fmt.Printf("Got %d children\n", len(tree.Children))
+
+// Invoke an action
+result, err := consumer.Invoke(ctx, "/todos", "create", slop.Params{"title": "New task"})
+
+// Listen for patches
+consumer.OnPatch(func(subID string, ops []slop.PatchOp, version int) {
+    fmt.Printf("Patch v%d: %d ops\n", version, len(ops))
+})
+
+// Query a subtree
+node, err := consumer.Query(ctx, "/todos", 1)
+
+consumer.Disconnect()
+```
+
+Transports: `WSClientTransport` and `UnixClientTransport`.
+
+## Scaling
+
+Prepare trees for output with depth truncation, salience filtering, and node-budget compaction:
+
+```go
+// Apply all scaling in one call
+opts := slop.OutputTreeOptions{
+    MaxDepth:    intPtr(2),
+    MinSalience: floatPtr(0.3),
+    MaxNodes:    intPtr(50),
+}
+prepared := slop.PrepareTree(tree, opts)
+
+// Or apply individually
+shallow := slop.TruncateTree(tree, 2)
+relevant := slop.FilterTree(tree, floatPtr(0.5), nil)
+compact := slop.AutoCompact(tree, 50)
+
+// Extract a subtree
+sub := slop.GetSubtree(&tree, "/inbox/msg-42")
+```
+
+## LLM tools
+
+Convert a SLOP tree into LLM-compatible tool definitions:
+
+```go
+// Convert tree affordances to OpenAI-style tool list
+tools := slop.AffordancesToTools(tree, "")
+// []LlmTool{{Type: "function", Function: {Name: "invoke__todos__create", ...}}}
+
+// Format tree as readable text for LLM context
+context := slop.FormatTree(tree, 0)
+
+// Encode/decode tool names
+name := slop.EncodeTool("/todos", "create")   // "invoke__todos__create"
+path, action := slop.DecodeTool(name)          // "/todos", "create"
+```

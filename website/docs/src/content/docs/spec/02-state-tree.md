@@ -22,7 +22,8 @@ The state tree is the core data structure of SLOP. It is a rooted tree of **node
   },
   "children": [ ... ],     // Ordered list of child nodes
   "affordances": [ ... ],  // Actions available on this node (see 05-affordances.md)
-  "meta": { ... }          // Attention hints and tree metadata (see below)
+  "meta": { ... },         // Attention hints and tree metadata (see below)
+  "content_ref": { ... }   // Reference to large content (see 13-content-references.md)
 }
 ```
 

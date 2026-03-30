@@ -223,3 +223,78 @@ tokio::select! {
     _ = unix_handle => {},
 }
 ```
+
+## Consumer
+
+Connect to a SLOP provider, subscribe to state, and invoke actions (requires `native` feature):
+
+```rust
+use slop_ai::{SlopConsumer, ClientTransport};
+use serde_json::json;
+
+// Implement ClientTransport or use a built-in one
+let consumer = SlopConsumer::new();
+let hello = consumer.connect(&transport).await?;
+println!("Connected to {:?}", hello);
+
+let (sub_id, snapshot) = consumer.subscribe("/", -1).await?;
+println!("Got tree: {}", snapshot.id);
+
+// Invoke an action
+let result = consumer.invoke("/todos", "create", Some(json!({"title": "New task"}))).await?;
+
+// Listen for patches
+consumer.on_patch(|sub_id, ops, version| {
+    println!("Patch v{}: {} ops", version, ops.len());
+});
+
+// Query a subtree
+let node = consumer.query("/todos", 1).await?;
+
+consumer.disconnect();
+```
+
+## Scaling
+
+Prepare trees for output with depth truncation, salience filtering, and node-budget compaction:
+
+```rust
+use slop_ai::{prepare_tree, truncate_tree, filter_tree, auto_compact, OutputTreeOptions};
+
+// Apply all scaling in one call
+let opts = OutputTreeOptions {
+    max_depth: Some(2),
+    min_salience: Some(0.3),
+    max_nodes: Some(50),
+    ..Default::default()
+};
+let prepared = prepare_tree(&tree, &opts);
+
+// Or apply individually
+let shallow = truncate_tree(&tree, 2);
+let relevant = filter_tree(&tree, Some(0.5), None);
+let compact = auto_compact(&tree, 50);
+
+// Extract a subtree
+if let Some(sub) = get_subtree(&tree, "/inbox/msg-42") {
+    println!("Found: {}", sub.id);
+}
+```
+
+## LLM tools
+
+Convert a SLOP tree into LLM-compatible tool definitions:
+
+```rust
+use slop_ai::{affordances_to_tools, format_tree, encode_tool, decode_tool};
+
+// Convert tree affordances to OpenAI-style tool list
+let tools = affordances_to_tools(&tree, "");
+
+// Format tree as readable text for LLM context
+let context = format_tree(&tree, 0);
+
+// Encode/decode tool names
+let name = encode_tool("/todos", "create");  // "invoke__todos__create"
+let (path, action) = decode_tool(&name);     // ("/todos", "create")
+```

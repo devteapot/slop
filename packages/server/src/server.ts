@@ -35,6 +35,7 @@ export class SlopServer<S = unknown> {
   private version = 0;
   private subscriptions: Subscription[] = [];
   private connections = new Set<Connection>();
+  private changeListeners = new Set<() => void>();
 
   constructor(options: SlopServerOptions<S>) {
     this.options = options;
@@ -169,6 +170,12 @@ export class SlopServer<S = unknown> {
     this.subscriptions = this.subscriptions.filter((s) => s.connection !== conn);
   }
 
+  /** Register a listener that fires after every tree rebuild. */
+  onChange(fn: () => void): () => void {
+    this.changeListeners.add(fn);
+    return () => { this.changeListeners.delete(fn); };
+  }
+
   /** Graceful shutdown. */
   stop(): void {
     for (const conn of this.connections) {
@@ -204,6 +211,7 @@ export class SlopServer<S = unknown> {
       this.currentTree = tree;
       this.version++;
       this.broadcastPatches(ops);
+      for (const fn of this.changeListeners) fn();
     } else if (this.version === 0) {
       // First build — store tree even if no diff (there's nothing to diff against)
       this.currentTree = tree;

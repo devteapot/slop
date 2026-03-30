@@ -748,20 +748,54 @@ The SPA adapters (Layer 3) and the server/client transports (Layer 2) handle the
 
 Meta-framework adapters are a layer above the protocol. The protocol is completely agnostic to what uses it — it is the adapter's job to compose and keep state in sync using the framework's own patterns.
 
-#### The core model: server owns the tree, client reports UI state
+#### The core model: per-session trees, server owns state, client reports UI
 
-The server is the single source of truth for the SLOP tree. It manages two categories of state in one unified tree:
+In a multi-user web app, each user session sees different data — different permissions, different records, different UI context. The SLOP tree is therefore **per-session**, not shared. Each session gets its own `SlopServer` instance with its own tree, version, subscriptions, and UI state.
 
-1. **Data state** — domain data from the database, APIs, or in-memory stores. Registered on the server via `@slop-ai/server` descriptor functions.
-2. **UI state** — what the user is currently seeing and doing. Registered by the browser via a bidirectional connection, placed under a `ui/` prefix in the tree.
+The protocol is unchanged — it defines communication between one provider and one consumer. Session management is the backend's responsibility: authenticating the request, creating or retrieving a `SlopServer` for that session, and routing the WebSocket connection to the right instance. This is no different from how web apps already handle sessions.
 
 ```
-root (my-app)
-├── todos              ← data state (server)
+┌─ Backend ──────────────────────────────────────────────┐
+│                                                         │
+│  Session A (User Alice, admin)         Session B (User Bob, viewer)
+│  ┌───────────────────────────┐         ┌──────────────────────────┐
+│  │ SlopServer instance       │         │ SlopServer instance      │
+│  │ ├── projects (3 items)    │         │ ├── projects (1 item)    │
+│  │ │   actions: create,delete│         │ │   actions: (view only) │
+│  │ └── ui/                   │         │ └── ui/                  │
+│  │     ├── route: /projects  │         │     ├── route: /         │
+│  │     └── filters: active   │         │     └── filters: all     │
+│  └───────────────────────────┘         └──────────────────────────┘
+│              ↕ WebSocket                       ↕ WebSocket
+│         Alice's browser                    Bob's browser
+│         Alice's AI agent                   Bob's AI agent
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+The adapter handles session routing:
+
+```ts
+// WebSocket handler — app provides auth, adapter routes to the right instance
+message(peer, msg) {
+  const session = getSessionFromAuth(peer);   // app's auth logic
+  const slop = getOrCreateSlop(session);      // app manages SlopServer instances
+  slop.handleMessage(conn, msg);              // standard SLOP protocol from here
+}
+```
+
+Within each session, the tree manages two categories of state:
+
+1. **Data state** — domain data scoped to the user. Registered via descriptor functions that receive the session/user context.
+2. **UI state** — what this specific user is seeing and doing. Registered by their browser via the bidirectional connection, placed under a `ui/` prefix.
+
+```
+root (my-app)                          ← one tree per session
+├── todos              ← data state (server, user-scoped)
 │   ├── todo-1         ← actions: toggle, delete
 │   └── todo-2
 ├── categories         ← data state (server)
-└── ui                 ← UI state (from browser, pinned — never collapsed)
+└── ui                 ← UI state (from this user's browser, pinned)
     ├── route          ← auto: { path: "/dashboard" }
     ├── filters        ← { category: "work", status: "active" }
     │                    actions: ui_set_filter
@@ -770,7 +804,7 @@ root (my-app)
                          actions: ui_type, ui_submit, ui_close
 ```
 
-AI consumers connect to the server's WebSocket and see the complete picture: domain data AND the user's current context. The extension acts purely as a consumer or bridge — it has no role in composing the tree.
+AI consumers connect to the server's WebSocket and see the complete picture for **their** session: the user's data AND the user's current UI context. The extension acts purely as a consumer or bridge — it has no role in composing the tree.
 
 #### The bidirectional connection
 
@@ -838,7 +872,7 @@ If versions match, no re-fetch needed. The tree version is already tracked by `@
 
 #### Multiple browser tabs
 
-Multiple tabs each establish their own bidirectional connection. Each sends its own UI state. The server models them as children under the `ui/` node:
+Multiple tabs from the same user share the same session (and therefore the same `SlopServer` instance). Each tab establishes its own bidirectional connection and sends its own UI state. The server models them as children under the `ui/` node:
 
 ```
 ui/
@@ -1085,3 +1119,5 @@ The extension should prefer higher tiers — if a meta tag is present, don't als
 13. **Shared engine, separate transports.** `@slop-ai/core` is the engine — tree assembly, diffing, descriptor format. `@slop-ai/client` and `@slop-ai/server` are transport shells. Learn `register()` once, use it everywhere — browser, server, CLI, native app.
 
 14. **The protocol is framework-agnostic. Adapters are not.** The SLOP protocol handles state exposure and AI interaction. How the browser UI stays in sync, how server/client state is composed, and how the endpoint is configured — these are framework concerns, solved by framework-specific adapters (Layer 4), not by the protocol.
+
+15. **Trees are per-session, not shared.** In multi-user apps, each user session gets its own `SlopServer` instance with its own tree, version, and UI state. The protocol doesn't define sessions — the backend authenticates and routes connections to the correct instance, the same way it handles any session-scoped resource.

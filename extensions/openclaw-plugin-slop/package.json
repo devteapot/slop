@@ -13,7 +13,7 @@
     "extensions": ["./src/index.ts"]
   },
   "dependencies": {
-    "@slop-ai/consumer": "file:../../packages/consumer",
+    "@slop-ai/consumer": "file:../../packages/typescript/consumer",
     "@sinclair/typebox": "^0.34.49"
   },
   "peerDependencies": {

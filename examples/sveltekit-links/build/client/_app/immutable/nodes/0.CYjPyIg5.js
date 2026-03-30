@@ -1,1 +1,0 @@
-import{b as t,E as o,D as c,i as p,B as l,c as f,f as m,a as u}from"../chunks/C_sRh4u4.js";function d(s,e,...n){var i=new l(s);t(()=>{const a=e()??null;c&&a==null&&p(),i.ensure(a,a&&(r=>a(r,...n)))},o)}function h(s,e){var n=f(),i=m(n);d(i,()=>e.children),u(s,n)}export{h as component};

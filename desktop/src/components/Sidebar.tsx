@@ -7,7 +7,9 @@ import { useWorkspaceStore, type PinnedProvider } from "../hooks/use-workspace-s
 // ---------------------------------------------------------------------------
 
 function transportLabel(entry: ProviderEntry): string {
-  if (entry.source === "bridge") return "pm";
+  if (entry.source === "bridge") {
+    return entry.bridgeTransport === "ws" ? "ws" : "pm";
+  }
   return entry.transportType === "unix" ? "sock" : "ws";
 }
 

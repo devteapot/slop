@@ -92,11 +92,13 @@ function routeToolCall(toolName: string, singleProvider: boolean) {
   const workspace = useWorkspaceStore.getState().getActiveWorkspace();
   const allProviders = useProviderStore.getState().providers;
 
+  const isConnected = (p: any) => p && p.status === "connected" && p.consumer;
+
   // Single provider — no prefix, route directly
   if (singleProvider) {
     for (const pid of workspace.providerIds) {
       const provider = allProviders.get(pid);
-      if (!provider?.consumer || provider.status !== "connected") continue;
+      if (!isConnected(provider)) continue;
       const { path, action } = decodeTool(toolName);
       return { provider, path, action };
     }
@@ -106,7 +108,7 @@ function routeToolCall(toolName: string, singleProvider: boolean) {
   // Multi-provider — strip prefix to find target
   for (const pid of workspace.providerIds) {
     const provider = allProviders.get(pid);
-    if (!provider?.consumer || provider.status !== "connected") continue;
+    if (!provider || !isConnected(provider)) continue;
 
     const name = provider.providerName ?? provider.name;
     const prefix = `${name}__`;
@@ -177,14 +179,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
           currentMessages = [...currentMessages, progressMsg];
           useWorkspaceStore.getState().updateWorkspaceMessages(workspace.id, currentMessages, conversation);
 
-          const result = await provider.consumer!.invoke(path, action, params);
+          const result = await provider!.consumer!.invoke(path, action, params);
           await new Promise(r => setTimeout(r, 100));
 
-          // Auto-refresh: if this was a data action, trigger refresh on paired UI provider
-          if (result.status === "ok" && provider.bridgeTabId != null) {
+          // Auto-refresh: if this provider has a paired UI provider (same tab), trigger refresh
+          if (result.status === "ok" && provider!.bridgeTabId != null) {
             const allProviders = useProviderStore.getState().providers;
             for (const [, p] of allProviders) {
-              if (p.id !== provider.id && p.bridgeTabId === provider.bridgeTabId && p.consumer && p.status === "connected") {
+              if (p.id !== provider!.id && p.bridgeTabId === provider!.bridgeTabId
+                  && p.bridgeTransport === "postmessage" && p.consumer && p.status === "connected") {
                 try {
                   await p.consumer.invoke("/__adapter", "refresh");
                   await new Promise(r => setTimeout(r, 200));

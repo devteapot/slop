@@ -1,10 +1,9 @@
-import type { SlopNode, PatchOp, ResultMessage, ChatMessage } from "@slop-ai/consumer/browser";
+import type { SlopNode, ChatMessage } from "@slop-ai/consumer/browser";
 import {
-  SlopConsumer, SlopMultiConsumer,
-  WebSocketClientTransport, PostMessageClientTransport,
+  SlopConsumer, WebSocketClientTransport, PostMessageClientTransport,
   affordancesToTools, formatTree, decodeTool,
 } from "@slop-ai/consumer/browser";
-import type { BackgroundMessage, ContentMessage } from "../shared/messages";
+import type { BackgroundMessage } from "../shared/messages";
 import { chatCompletion } from "./llm";
 
 const SYSTEM_PROMPT = `You are an AI assistant connected to a web application via the SLOP protocol (State Layer for Observable Programs).
@@ -19,196 +18,98 @@ IMPORTANT: You can and SHOULD call MULTIPLE tools in a single response when the 
 
 You are running inside a browser extension chat panel. Keep responses concise.`;
 
-interface ProviderInfo {
+interface ProviderEntry {
+  name: string;                      // "data" for ws, "ui" for postmessage
   transport: "ws" | "postmessage";
   endpoint?: string;
-  name: string; // "data" for ws, "ui" for postmessage
+  consumer: SlopConsumer | null;
+  subscriptionId: string | null;
+  tree: SlopNode | null;
+  status: "disconnected" | "connecting" | "connected";
 }
 
 interface TabState {
-  multi: SlopMultiConsumer;
-  currentTree: SlopNode | null;
+  providers: ProviderEntry[];
   port: chrome.runtime.Port;
   conversation: ChatMessage[];
   providerName: string;
-  providers: ProviderInfo[];
   processing: boolean;
-  reconnecting: boolean;
 }
 
 const tabs = new Map<number, TabState>();
+const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function sendToPort(port: chrome.runtime.Port, msg: BackgroundMessage) {
   try { port.postMessage(msg); } catch {}
 }
 
-/**
- * Connect to all discovered providers for a tab.
- * If already connected, only adds new providers (doesn't tear down existing).
- */
+// --- Public API ---
+
 export async function connectTab(
   tabId: number,
   port: chrome.runtime.Port,
-  providers: Array<{ transport: "ws" | "postmessage"; endpoint?: string }>
+  discoveries: Array<{ transport: "ws" | "postmessage"; endpoint?: string }>
 ): Promise<void> {
-  let state = tabs.get(tabId);
+  // Clean up existing tab state
+  disconnectTab(tabId);
 
-  // If already connected, check if there are new providers to add
-  if (state) {
-    const existingNames = new Set(state.providers.map((p) => p.name));
-    const newProviders = providers.filter((p) => {
-      const name = p.transport === "ws" ? "data" : "ui";
-      return !existingNames.has(name);
-    });
+  const providerEntries: ProviderEntry[] = discoveries.map((d) => ({
+    name: d.transport === "ws" ? "data" : "ui",
+    transport: d.transport,
+    endpoint: d.endpoint,
+    consumer: null,
+    subscriptionId: null,
+    tree: null,
+    status: "disconnected" as const,
+  }));
 
-    if (newProviders.length === 0) return; // nothing new
-
-    // Add new providers to existing SlopMultiConsumer
-    for (const p of newProviders) {
-      const name = p.transport === "ws" ? "data" : "ui";
-      try {
-        const transport = p.transport === "ws"
-          ? new WebSocketClientTransport(p.endpoint!)
-          : new PostMessageClientTransport(port);
-        await state.multi.add(name, transport);
-        state.providers.push({ transport: p.transport, endpoint: p.endpoint, name });
-      } catch {}
-    }
-
-    state.currentTree = state.multi.tree();
-    pushStateUpdate(state);
-    return;
-  }
-
-  // First connection for this tab
-  sendToPort(port, { type: "connection-status", status: "connecting" });
-
-  const multi = new SlopMultiConsumer();
-  const providerInfos: ProviderInfo[] = [];
-
-  state = {
-    multi,
-    currentTree: null,
+  const state: TabState = {
+    providers: providerEntries,
     port,
     conversation: [{ role: "system", content: SYSTEM_PROMPT }],
     providerName: "",
-    providers: providerInfos,
     processing: false,
-    reconnecting: false,
   };
   tabs.set(tabId, state);
 
-  try {
-    for (const p of providers) {
-      const name = p.transport === "ws" ? "data" : "ui";
-      const transport = p.transport === "ws"
-        ? new WebSocketClientTransport(p.endpoint!)
-        : new PostMessageClientTransport(port);
+  sendToPort(port, { type: "connection-status", status: "connecting" });
 
-      await multi.add(name, transport);
-      providerInfos.push({ transport: p.transport, endpoint: p.endpoint, name });
-    }
-
-    const tree = multi.tree();
-    if (tree.children?.[0]) {
-      state.providerName = tree.children[0].properties?.label as string ?? tree.children[0].id;
-    }
-
-    state.currentTree = tree;
-
-    sendToPort(port, {
-      type: "connection-status",
-      status: "connected",
-      providerName: state.providerName,
-    });
-    pushStateUpdate(state);
-
-    multi.on("change", () => {
-      state!.currentTree = multi.tree();
-      pushStateUpdate(state!);
-    });
-
-    multi.on("disconnect", (providerName: string) => {
-      if (multi.providerNames().length === 0) {
-        sendToPort(port, { type: "connection-status", status: "disconnected" });
-        scheduleReconnect(tabId, port, providers);
-      }
-    });
-  } catch (err: any) {
-    sendToPort(port, { type: "connection-status", status: "disconnected" });
-    scheduleReconnect(tabId, port, providers);
+  // Connect each provider independently
+  for (const entry of providerEntries) {
+    connectProvider(tabId, entry);
   }
 }
 
 export function disconnectTab(tabId: number): void {
-  cancelReconnect(tabId);
   const state = tabs.get(tabId);
-  if (state) {
-    state.multi.disconnect();
-    tabs.delete(tabId);
+  if (!state) return;
+
+  for (const entry of state.providers) {
+    if (entry.consumer) {
+      entry.consumer.disconnect();
+      entry.consumer = null;
+    }
+    cancelReconnect(tabId, entry.name);
   }
-}
-
-// --- Reconnection with exponential backoff ---
-
-const reconnectTimers = new Map<number, ReturnType<typeof setTimeout>>();
-const reconnectAttempts = new Map<number, number>();
-const MAX_RECONNECT_DELAY = 30000;
-
-function scheduleReconnect(
-  tabId: number,
-  port: chrome.runtime.Port,
-  providers: Array<{ transport: "ws" | "postmessage"; endpoint?: string }>
-): void {
-  const existing = reconnectTimers.get(tabId);
-  if (existing) clearTimeout(existing);
-
-  const attempt = (reconnectAttempts.get(tabId) ?? 0) + 1;
-  reconnectAttempts.set(tabId, attempt);
-
-  const delay = Math.min(1000 * Math.pow(2, attempt - 1), MAX_RECONNECT_DELAY);
-
-  const timer = setTimeout(async () => {
-    reconnectTimers.delete(tabId);
-    try {
-      await connectTab(tabId, port, providers);
-      reconnectAttempts.delete(tabId);
-    } catch {}
-  }, delay);
-
-  reconnectTimers.set(tabId, timer);
-}
-
-function cancelReconnect(tabId: number): void {
-  const timer = reconnectTimers.get(tabId);
-  if (timer) clearTimeout(timer);
-  reconnectTimers.delete(tabId);
-  reconnectAttempts.delete(tabId);
-}
-
-function pushStateUpdate(state: TabState): void {
-  if (!state.currentTree) return;
-  sendToPort(state.port, {
-    type: "state-update",
-    formattedTree: formatTree(state.currentTree),
-    toolCount: affordancesToTools(state.currentTree).length,
-  });
+  tabs.delete(tabId);
 }
 
 export async function handleUserMessage(tabId: number, text: string): Promise<void> {
   const state = tabs.get(tabId);
-  if (!state || !state.currentTree) return;
-  if (state.processing) return;
+  if (!state || state.processing) return;
+
+  const mergedTree = getMergedTree(state);
+  if (!mergedTree) return;
+
   state.processing = true;
 
   try {
-    const stateContext = `\n\n[Current application state]\n${formatTree(state.currentTree)}`;
+    const stateContext = `\n\n[Current application state]\n${formatTree(mergedTree)}`;
     state.conversation.push({ role: "user", content: text + stateContext });
 
-    let tools = affordancesToTools(state.currentTree);
+    let tools = affordancesToTools(mergedTree);
     let response = await chatCompletion(state.conversation, tools);
 
-    // Tool call loop
     while (response.tool_calls && response.tool_calls.length > 0) {
       state.conversation.push(response);
 
@@ -222,34 +123,47 @@ export async function handleUserMessage(tabId: number, text: string): Promise<vo
           content: `Invoking ${action} on ${path}${Object.keys(params).length ? " " + JSON.stringify(params) : ""}`,
         });
 
-        // Route to correct provider via SlopMultiConsumer
-        const result = await state.multi.invoke(path, action, params);
-        await new Promise(r => setTimeout(r, 100)); // wait for patch
-
-        // Auto-refresh: if this was a data action, trigger refresh on UI provider
-        if (result.status !== "error" && state.providers.length > 1) {
-          try {
-            await state.multi.invoke("/ui/__adapter", "refresh");
-            await new Promise(r => setTimeout(r, 200)); // wait for UI to re-fetch
-          } catch {}
+        // Route to the correct provider
+        const { consumer, providerName } = routeInvoke(state, path);
+        if (!consumer) {
+          state.conversation.push({
+            role: "tool",
+            content: `Error: no connected provider for path ${path}`,
+            tool_call_id: tc.id,
+          });
+          continue;
         }
 
+        const result = await consumer.invoke(path, action, params);
+        await new Promise(r => setTimeout(r, 150));
+
+        // Auto-refresh: if data action succeeded, trigger refresh on UI provider
+        if (result.status === "ok" && providerName === "data") {
+          const uiProvider = state.providers.find(p => p.name === "ui" && p.consumer);
+          if (uiProvider?.consumer) {
+            try {
+              await uiProvider.consumer.invoke("/__adapter", "refresh");
+              await new Promise(r => setTimeout(r, 200));
+            } catch {}
+          }
+        }
+
+        // Update merged tree
+        const updatedTree = getMergedTree(state);
         const resultStr = result.status === "ok"
           ? `OK${result.data ? ": " + JSON.stringify(result.data) : ""}`
-          : `Error [${(result as any).error?.code}]: ${(result as any).error?.message}`;
-
-        state.currentTree = state.multi.tree();
+          : `Error [${result.error?.code}]: ${result.error?.message}`;
 
         state.conversation.push({
           role: "tool",
-          content: resultStr + "\n\n[Updated state]\n" + formatTree(state.currentTree!),
+          content: resultStr + "\n\n[Updated state]\n" + (updatedTree ? formatTree(updatedTree) : "(no tree)"),
           tool_call_id: tc.id,
         });
       }
 
-      // Refresh tools from updated tree
-      if (state.currentTree) {
-        tools = affordancesToTools(state.currentTree);
+      const refreshedTree = getMergedTree(state);
+      if (refreshedTree) {
+        tools = affordancesToTools(refreshedTree);
       }
       response = await chatCompletion(state.conversation, tools);
     }
@@ -266,4 +180,143 @@ export async function handleUserMessage(tabId: number, text: string): Promise<vo
 
 export function getTabState(tabId: number): TabState | undefined {
   return tabs.get(tabId);
+}
+
+// --- Internal: per-provider connection ---
+
+async function connectProvider(tabId: number, entry: ProviderEntry): Promise<void> {
+  const state = tabs.get(tabId);
+  if (!state) return;
+
+  entry.status = "connecting";
+
+  try {
+    const transport = entry.transport === "ws"
+      ? new WebSocketClientTransport(entry.endpoint!)
+      : new PostMessageClientTransport(state.port);
+
+    const consumer = new SlopConsumer(transport);
+    const hello = await consumer.connect();
+    const { id: subId, snapshot } = await consumer.subscribe("/", -1);
+
+    entry.consumer = consumer;
+    entry.subscriptionId = subId;
+    entry.tree = snapshot;
+    entry.status = "connected";
+
+    // Update tab name from first connected provider
+    if (!state.providerName) {
+      state.providerName = hello.provider.name;
+    }
+
+    // Notify UI
+    updateTabStatus(tabId, state);
+
+    consumer.on("patch", () => {
+      entry.tree = consumer.getTree(subId);
+      pushStateUpdate(tabId, state);
+    });
+
+    consumer.on("disconnect", () => {
+      entry.status = "disconnected";
+      entry.consumer = null;
+      entry.subscriptionId = null;
+      updateTabStatus(tabId, state);
+      scheduleReconnect(tabId, entry);
+    });
+  } catch (err) {
+    entry.status = "disconnected";
+    updateTabStatus(tabId, state);
+    scheduleReconnect(tabId, entry);
+  }
+}
+
+// --- Internal: tree merging ---
+
+function getMergedTree(state: TabState): SlopNode | null {
+  const connectedTrees = state.providers
+    .filter(p => p.tree && p.status === "connected")
+    .map(p => ({ ...p.tree!, id: p.name }));
+
+  if (connectedTrees.length === 0) return null;
+  if (connectedTrees.length === 1) return connectedTrees[0];
+
+  return {
+    id: "root",
+    type: "root",
+    children: connectedTrees,
+  };
+}
+
+function routeInvoke(state: TabState, path: string): { consumer: SlopConsumer | null; providerName: string } {
+  // If only one connected provider, route there
+  const connected = state.providers.filter(p => p.consumer && p.status === "connected");
+  if (connected.length === 1) {
+    return { consumer: connected[0].consumer, providerName: connected[0].name };
+  }
+
+  // Multi-provider: first path segment is the provider name ("data" or "ui")
+  const clean = path.startsWith("/") ? path.slice(1) : path;
+  const firstSeg = clean.split("/")[0];
+  const match = connected.find(p => p.name === firstSeg);
+  if (match) {
+    return { consumer: match.consumer, providerName: match.name };
+  }
+
+  // Fallback: try first connected
+  return { consumer: connected[0]?.consumer ?? null, providerName: connected[0]?.name ?? "" };
+}
+
+// --- Internal: status updates ---
+
+function updateTabStatus(tabId: number, state: TabState): void {
+  const anyConnected = state.providers.some(p => p.status === "connected");
+  const anyConnecting = state.providers.some(p => p.status === "connecting");
+  const status = anyConnected ? "connected" : anyConnecting ? "connecting" : "disconnected";
+
+  sendToPort(state.port, {
+    type: "connection-status",
+    status,
+    providerName: state.providerName,
+  });
+
+  if (anyConnected) {
+    pushStateUpdate(tabId, state);
+  }
+}
+
+function pushStateUpdate(tabId: number, state: TabState): void {
+  const tree = getMergedTree(state);
+  if (!tree) return;
+  sendToPort(state.port, {
+    type: "state-update",
+    formattedTree: formatTree(tree),
+    toolCount: affordancesToTools(tree).length,
+  });
+}
+
+// --- Internal: reconnection ---
+
+function scheduleReconnect(tabId: number, entry: ProviderEntry): void {
+  const key = `${tabId}-${entry.name}`;
+  cancelReconnect(tabId, entry.name);
+
+  const timer = setTimeout(() => {
+    reconnectTimers.delete(key);
+    const state = tabs.get(tabId);
+    if (state && entry.status === "disconnected") {
+      connectProvider(tabId, entry);
+    }
+  }, 2000);
+
+  reconnectTimers.set(key, timer);
+}
+
+function cancelReconnect(tabId: number, name: string): void {
+  const key = `${tabId}-${name}`;
+  const timer = reconnectTimers.get(key);
+  if (timer) {
+    clearTimeout(timer);
+    reconnectTimers.delete(key);
+  }
 }

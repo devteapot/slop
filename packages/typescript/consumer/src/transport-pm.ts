@@ -41,7 +41,10 @@ export class PostMessageClientTransport implements ClientTransport {
       },
       onMessage: (h: MessageHandler) => { messageHandlers.push(h); },
       onClose: (h: () => void) => { closeHandlers.push(h); },
-      close: () => { /* port lifecycle managed externally */ },
+      close: () => {
+        messageHandlers.length = 0;
+        closeHandlers.length = 0;
+      },
     };
   }
 }

@@ -145,12 +145,9 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
 
   protected broadcast(): void {
     for (const [, sub] of this.subscriptions) {
-      this.transport.send({
-        type: "snapshot",
-        subscription: sub.id,
-        version: this.version,
-        tree: this.getOutputTree({ path: sub.path, depth: sub.depth, filter: sub.filter }),
-      });
+      this.transport.send(
+        this.snapshotMessage(sub.id, { path: sub.path, depth: sub.depth, filter: sub.filter })
+      );
     }
   }
 

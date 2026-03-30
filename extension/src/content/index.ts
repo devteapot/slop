@@ -9,33 +9,25 @@ let chatUI: ReturnType<typeof createChatUI> | null = null;
 let currentDiscoveries: SlopDiscovery[] = [];
 let isActive = true;
 let axCleanup: (() => void) | null = null;
-let bridgeStarted = false;
+let reconnecting = false;
 
 async function init() {
-  // Check master toggle
   const result = await chrome.storage.local.get("prefs");
   isActive = result.prefs?.active ?? true;
 
-  const discoveries = discoverSlop();
-  if (discoveries.length > 0) {
-    currentDiscoveries = discoveries;
-    if (isActive) setup(discoveries);
-  }
+  // Initial discovery
+  currentDiscoveries = discoverSlop();
 
-  // Always watch for new meta tags — SPAs inject postMessage meta tag after hydration
+  // Watch for new meta tags (SPAs inject postMessage after hydration)
   observeDiscovery((ds) => {
-    const hadProviders = currentDiscoveries.length > 0;
+    const isNew = ds.length > currentDiscoveries.length;
     currentDiscoveries = ds;
     if (!isActive) return;
-    if (!hadProviders) {
-      setup(ds);
-    } else if (port) {
-      // Start bridge if a postMessage provider appeared after initial setup
-      if (!bridgeStarted && ds.some((d) => d.transport === "postmessage")) {
-        startBridge(port);
-        bridgeStarted = true;
-      }
-      // Re-announce with updated provider list (new provider appeared)
+
+    if (!port && ds.length > 0) {
+      connectPort();
+    } else if (port && isNew) {
+      // New provider appeared — re-announce all
       port.postMessage({
         type: "slop-discovered",
         providers: ds.map((d) => ({ transport: d.transport, endpoint: d.endpoint })),
@@ -43,18 +35,75 @@ async function init() {
     }
   });
 
+  if (currentDiscoveries.length > 0 && isActive) {
+    connectPort();
+  }
+
   // React to master toggle changes
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.prefs) {
       const newActive = changes.prefs.newValue?.active ?? true;
       if (newActive && !isActive && currentDiscoveries.length > 0) {
         isActive = true;
-        setup(currentDiscoveries);
+        connectPort();
       } else if (!newActive && isActive) {
         isActive = false;
         teardown();
       }
     }
+  });
+}
+
+// --- Port lifecycle with reconnection ---
+
+function connectPort() {
+  if (port) return;
+
+  port = chrome.runtime.connect({ name: "slop" });
+
+  // ALWAYS start bridge — ready for postMessage providers even if not discovered yet
+  startBridge(port);
+
+  // Listen for background messages
+  port.onMessage.addListener(handleBackgroundMessage);
+
+  // Port reconnection on disconnect (MV3 service worker restart)
+  port.onDisconnect.addListener(() => {
+    port = null;
+    chatUI?.setStatus("disconnected");
+
+    if (isActive && currentDiscoveries.length > 0 && !reconnecting) {
+      reconnecting = true;
+      setTimeout(() => {
+        reconnecting = false;
+        if (isActive && currentDiscoveries.length > 0) {
+          connectPort();
+        }
+      }, 500);
+    }
+  });
+
+  // Announce discovered providers
+  if (currentDiscoveries.length > 0) {
+    port.postMessage({
+      type: "slop-discovered",
+      providers: currentDiscoveries.map((d) => ({ transport: d.transport, endpoint: d.endpoint })),
+    } satisfies ContentMessage);
+  }
+
+  // Show chat UI if enabled
+  chrome.storage.local.get("prefs", (result) => {
+    const chatEnabled = result.prefs?.chatUIEnabled ?? true;
+    if (chatEnabled) showChatUI();
+  });
+
+  // React to chat overlay toggle
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.prefs) return;
+    const newPrefs = changes.prefs.newValue;
+    if (!(newPrefs?.active ?? true)) return;
+    if (newPrefs?.chatUIEnabled) showChatUI();
+    else hideChatUI();
   });
 }
 
@@ -67,82 +116,38 @@ function teardown() {
   }
 }
 
-function setup(discoveries: SlopDiscovery[]) {
-  if (port) return; // already set up
-
-  // Connect to background
-  port = chrome.runtime.connect({ name: "slop" });
-
-  // Set up postMessage bridge if any provider uses postMessage
-  if (discoveries.some((d) => d.transport === "postmessage")) {
-    startBridge(port);
-    bridgeStarted = true;
+function handleBackgroundMessage(msg: BackgroundMessage) {
+  if (!chatUI) return;
+  switch (msg.type) {
+    case "connection-status":
+      chatUI.setStatus(msg.status, msg.providerName);
+      break;
+    case "state-update":
+      chatUI.setTree(msg.formattedTree, msg.toolCount);
+      break;
+    case "chat-message":
+      chatUI.addMessage(msg.role, msg.content);
+      break;
+    case "chat-done":
+      chatUI.setInputEnabled(true);
+      break;
+    case "chat-error":
+      chatUI.addMessage("assistant", `Error: ${msg.message}`);
+      chatUI.setInputEnabled(true);
+      break;
+    case "profiles":
+      chatUI.setProfiles(msg.profiles, msg.activeProfileId);
+      break;
+    case "models":
+      chatUI.setModels(msg.models, msg.activeModel);
+      break;
   }
-
-  // Listen for background messages (always — chat UI checks for null)
-  port.onMessage.addListener((msg: BackgroundMessage) => {
-    if (!chatUI) return;
-    switch (msg.type) {
-      case "connection-status":
-        chatUI.setStatus(msg.status, msg.providerName);
-        break;
-      case "state-update":
-        chatUI.setTree(msg.formattedTree, msg.toolCount);
-        break;
-      case "chat-message":
-        chatUI.addMessage(msg.role, msg.content);
-        break;
-      case "chat-done":
-        chatUI.setInputEnabled(true);
-        break;
-      case "chat-error":
-        chatUI.addMessage("assistant", `Error: ${msg.message}`);
-        chatUI.setInputEnabled(true);
-        break;
-      case "profiles":
-        chatUI.setProfiles(msg.profiles, msg.activeProfileId);
-        break;
-      case "models":
-        chatUI.setModels(msg.models, msg.activeModel);
-        break;
-    }
-  });
-
-  port.onDisconnect.addListener(() => {
-    chatUI?.setStatus("disconnected");
-  });
-
-  // Notify background of all discovered providers
-  port.postMessage({
-    type: "slop-discovered",
-    providers: discoveries.map((d) => ({
-      transport: d.transport,
-      endpoint: d.endpoint,
-    })),
-  } satisfies ContentMessage);
-
-  // Create or hide chat UI based on prefs
-  chrome.storage.local.get("prefs", (result) => {
-    const chatEnabled = result.prefs?.chatUIEnabled ?? true;
-    if (chatEnabled) showChatUI();
-  });
-
-  // React to chat overlay toggle instantly (only when active)
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes.prefs) return;
-    const newPrefs = changes.prefs.newValue;
-    // Check active from the new prefs, not the variable (avoids race)
-    if (!(newPrefs?.active ?? true)) return;
-    if (newPrefs?.chatUIEnabled) {
-      showChatUI();
-    } else {
-      hideChatUI();
-    }
-  });
 }
 
+// --- Chat UI ---
+
 function showChatUI() {
-  if (chatUI) return; // already showing
+  if (chatUI) return;
 
   chatUI = createChatUI({
     onSendMessage: (text) => {
@@ -165,7 +170,6 @@ function showChatUI() {
     },
   });
 
-  // Request current status so the UI is up to date
   port?.postMessage({ type: "get-status" } satisfies ContentMessage);
   port?.postMessage({ type: "get-profiles" } satisfies ContentMessage);
   port?.postMessage({ type: "fetch-models" } satisfies ContentMessage);
@@ -181,17 +185,16 @@ function hideChatUI() {
 // --- Tier 3: Accessibility adapter (triggered from popup) ---
 
 function startAxAdapter() {
-  if (port) return; // already connected
+  if (port) return;
 
   port = chrome.runtime.connect({ name: "slop" });
+  startBridge(port);
 
-  // Announce to background (enables bridge to desktop)
   port.postMessage({
     type: "slop-discovered",
-    providers: [{ transport: "postmessage" }],
+    providers: [{ transport: "postmessage" as const }],
   } satisfies ContentMessage);
 
-  // Build initial tree and send as synthetic provider
   const tree = buildAxTree();
   let version = 1;
 
@@ -199,12 +202,7 @@ function startAxAdapter() {
     type: "slop-from-provider",
     message: {
       type: "hello",
-      provider: {
-        id: "ax-adapter",
-        name: document.title || "Page",
-        slop_version: "0.1",
-        capabilities: ["state", "affordances"],
-      },
+      provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] },
     },
   } satisfies ContentMessage);
 
@@ -213,7 +211,6 @@ function startAxAdapter() {
     message: { type: "snapshot", id: "sub-1", version, tree },
   } satisfies ContentMessage);
 
-  // Watch for DOM changes
   axCleanup = observeChanges((newTree) => {
     version++;
     port?.postMessage({
@@ -222,98 +219,50 @@ function startAxAdapter() {
     } satisfies ContentMessage);
   });
 
-  // Handle invoke messages (AI clicking buttons, filling forms, etc.)
   port.onMessage.addListener((msg: any) => {
     if (msg.type === "slop-to-provider" && msg.message?.type === "invoke") {
       const { id, path, action, params } = msg.message;
-      // Extract the element ID from the path (last segment)
       const nodeId = path.split("/").pop() ?? path.replace(/^\//, "");
       const result = executeAction(nodeId, action, params);
       port?.postMessage({
         type: "slop-from-provider",
         message: {
-          type: "result",
-          id,
+          type: "result", id,
           status: result.status === "ok" ? "ok" : "error",
           ...(result.status === "ok" ? {} : { error: { code: "internal", message: result.message ?? "Unknown error" } }),
         },
       } satisfies ContentMessage);
-
-      // After action, rebuild tree and send update
       setTimeout(() => {
         version++;
-        const updated = buildAxTree();
         port?.postMessage({
           type: "slop-from-provider",
-          message: { type: "snapshot", id: "sub-1", version, tree: updated },
+          message: { type: "snapshot", id: "sub-1", version, tree: buildAxTree() },
         } satisfies ContentMessage);
       }, 100);
     }
-
-    // Handle connect (from desktop via bridge)
     if (msg.type === "slop-to-provider" && msg.message?.type === "connect") {
       port?.postMessage({
         type: "slop-from-provider",
-        message: {
-          type: "hello",
-          provider: {
-            id: "ax-adapter",
-            name: document.title || "Page",
-            slop_version: "0.1",
-            capabilities: ["state", "affordances"],
-          },
-        },
+        message: { type: "hello", provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] } },
       } satisfies ContentMessage);
     }
-
-    // Handle subscribe (from background after connectTab or from desktop via bridge)
     if (msg.type === "slop-to-provider" && msg.message?.type === "subscribe") {
-      const subTree = buildAxTree();
       port?.postMessage({
         type: "slop-from-provider",
-        message: { type: "snapshot", id: msg.message.id, version, tree: subTree },
+        message: { type: "snapshot", id: msg.message.id, version, tree: buildAxTree() },
       } satisfies ContentMessage);
     }
   });
 
-  // Show chat UI
+  port.onMessage.addListener(handleBackgroundMessage);
+
   chrome.storage.local.get("prefs", (result) => {
-    const chatEnabled = result.prefs?.chatUIEnabled ?? true;
-    if (chatEnabled) showChatUI();
+    if (result.prefs?.chatUIEnabled ?? true) showChatUI();
   });
 
   port.onDisconnect.addListener(() => {
     chatUI?.setStatus("disconnected");
     stopAxAdapter();
-  });
-
-  // Listen for background messages (same as Tier 1)
-  port.onMessage.addListener((msg: BackgroundMessage) => {
-    if (!chatUI) return;
-    switch (msg.type) {
-      case "connection-status":
-        chatUI.setStatus(msg.status, msg.providerName);
-        break;
-      case "state-update":
-        chatUI.setTree(msg.formattedTree, msg.toolCount);
-        break;
-      case "chat-message":
-        chatUI.addMessage(msg.role, msg.content);
-        break;
-      case "chat-done":
-        chatUI.setInputEnabled(true);
-        break;
-      case "chat-error":
-        chatUI.addMessage("assistant", `Error: ${msg.message}`);
-        chatUI.setInputEnabled(true);
-        break;
-      case "profiles":
-        chatUI.setProfiles(msg.profiles, msg.activeProfileId);
-        break;
-      case "models":
-        chatUI.setModels(msg.models, msg.activeModel);
-        break;
-    }
   });
 }
 
@@ -323,7 +272,6 @@ function stopAxAdapter() {
   if (port) { port.disconnect(); port = null; }
 }
 
-// Listen for scan/stop messages from popup
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "scan-page") {
     if (!isActive) { sendResponse({ status: "inactive" }); return; }
@@ -338,11 +286,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ scanning: !!axCleanup, hasSlop: currentDiscoveries.length > 0 });
   }
   if (msg.type === "get-slop-status") {
-    sendResponse({
-      hasSlop: currentDiscoveries.length > 0,
-      providers: currentDiscoveries,
-      providerName: document.title,
-    });
+    sendResponse({ hasSlop: currentDiscoveries.length > 0, providers: currentDiscoveries, providerName: document.title });
   }
 });
 

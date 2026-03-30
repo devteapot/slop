@@ -291,8 +291,8 @@ describe("SlopClient scaling integration", () => {
     client.register("high", { type: "item", meta: { salience: 0.9 }, props: { v: 2 } });
     client.flush();
 
-    const allSnapshot = sent.find(m => m.subscription === "all");
-    const filteredSnapshot = sent.find(m => m.subscription === "filtered");
+    const allSnapshot = sent.find(m => m.type === "snapshot" && m.id === "all");
+    const filteredSnapshot = sent.find(m => m.type === "snapshot" && m.id === "filtered");
     expect(allSnapshot).toBeDefined();
     expect(filteredSnapshot).toBeDefined();
 

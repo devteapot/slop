@@ -2,14 +2,9 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { SlopNode } from "@slop-ai/consumer/browser";
-import { SlopConsumer, SlopMultiConsumer, WebSocketClientTransport } from "@slop-ai/consumer/browser";
+import { SlopConsumer, WebSocketClientTransport } from "@slop-ai/consumer/browser";
 import { UnixClientTransport } from "../slop/transport-unix";
 import { BridgeClientTransport } from "../slop/transport-bridge";
-
-export interface BridgeChannel {
-  transport: "ws" | "postmessage";
-  endpoint?: string;
-}
 
 export interface ProviderEntry {
   id: string;
@@ -23,9 +18,7 @@ export interface ProviderEntry {
   providerName: string | null;
   source: "manual" | "discovered" | "bridge";
   bridgeTabId?: number;
-  // For bridge tab groups — multiple channels merged via SlopMultiConsumer
-  channels?: BridgeChannel[];
-  multi?: SlopMultiConsumer;
+  bridgeTransport?: "ws" | "postmessage";  // original transport type from bridge
 }
 
 const MANUAL_PROVIDERS_KEY = "slopManualProviders";
@@ -161,52 +154,39 @@ export const useProviderStore = create<ProviderState>((set, get) => {
           // Don't overwrite if already connected
           if (providers.has(id) && providers.get(id)!.status === "connected") return state;
 
-          if (provider.transport === "ws" && provider.url) {
-            // Server-backed: desktop connects directly via WebSocket
-            providers.set(id, {
-              id,
-              name: provider.name ?? `Browser: ${provider.id}`,
-              transportType: "ws",
-              url: provider.url,
-              status: "disconnected",
-              consumer: null,
-              subscriptionId: null,
-              currentTree: null,
-              providerName: null,
-              source: "bridge",
-              bridgeTabId: tabId,
-            });
-          } else if (provider.transport === "postmessage") {
-            // SPA: needs relay through extension bridge
-            providers.set(id, {
-              id,
-              name: provider.name ?? `Browser SPA: ${provider.id}`,
-              transportType: "ws",  // will use bridge relay, not direct WS
-              url: "",              // no direct URL — uses bridge
-              status: "disconnected",
-              consumer: null,
-              subscriptionId: null,
-              currentTree: null,
-              providerName: null,
-              source: "bridge",
-              bridgeTabId: tabId,
-            });
-          }
+          providers.set(id, {
+            id,
+            name: provider.name ?? `Tab ${tabId}`,
+            transportType: "ws",
+            url: provider.transport === "ws" ? (provider.url ?? "") : "",
+            status: "disconnected",
+            consumer: null,
+            subscriptionId: null,
+            currentTree: null,
+            providerName: null,
+            source: "bridge",
+            bridgeTabId: tabId,
+            bridgeTransport: provider.transport,
+          });
           return { providers };
         });
       }
 
       if (msg.type === "provider-unavailable") {
-        // Remove all providers for this tab
         const tabId = msg.tabId;
         set(state => {
           const providers = new Map(state.providers);
           let activeProviderId = state.activeProviderId;
           for (const [id, entry] of providers) {
             if (entry.source === "bridge" && entry.bridgeTabId === tabId) {
-              if (entry.consumer) entry.consumer.disconnect();
-              providers.delete(id);
-              if (activeProviderId === id) activeProviderId = null;
+              // WS providers stay connected (direct WS, no bridge dependency)
+              // PM providers lose their relay — disconnect them
+              if (entry.bridgeTransport === "postmessage") {
+                if (entry.consumer) entry.consumer.disconnect();
+                providers.delete(id);
+                if (activeProviderId === id) activeProviderId = null;
+              }
+              // WS providers: keep connected, they're direct
             }
           }
           return { providers, activeProviderId };
@@ -260,19 +240,17 @@ export const useProviderStore = create<ProviderState>((set, get) => {
     const entry = providers.get(id);
     if (!entry) return;
 
-    if (entry.consumer) {
-      entry.consumer.disconnect();
-    }
+    // Disconnect existing
+    if (entry.consumer) entry.consumer.disconnect();
 
     set(state => {
       const providers = new Map(state.providers);
-      const e = { ...providers.get(id)!, status: "connecting" as const };
-      providers.set(id, e);
+      providers.set(id, { ...providers.get(id)!, status: "connecting" as const });
       return { providers };
     });
 
     try {
-      // Bridge providers: WS connects directly, postMessage uses bridge relay
+      // Select transport: bridge PM uses BridgeClientTransport, WS/Unix connect directly
       const transport = entry.bridgeTabId != null && !entry.url
         ? new BridgeClientTransport(entry.bridgeTabId)
         : entry.transportType === "unix"
@@ -305,20 +283,9 @@ export const useProviderStore = create<ProviderState>((set, get) => {
         }
       });
 
-      // Auto-connect paired providers from the same browser tab
-      if (entry.bridgeTabId != null) {
-        const { providers: allProviders } = get();
-        for (const [sibId, sib] of allProviders) {
-          if (sibId !== id && sib.bridgeTabId === entry.bridgeTabId && sib.status === "disconnected") {
-            get().connectProvider(sibId);
-          }
-        }
-      }
-
       consumer.on("disconnect", () => {
         const { providers } = get();
         const current = providers.get(id);
-        // Don't auto-reconnect if user explicitly disconnected
         const wasIntentional = current?.status === "disconnected";
         set(state => {
           const providers = new Map(state.providers);

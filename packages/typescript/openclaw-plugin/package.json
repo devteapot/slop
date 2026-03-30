@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-plugin-slop",
+  "name": "@slop-ai/openclaw-plugin",
   "version": "0.1.0",
   "type": "module",
   "description": "OpenClaw plugin for observing and controlling SLOP-enabled applications",
@@ -7,13 +7,13 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/devteapot/slop",
-    "directory": "extensions/openclaw-plugin-slop"
+    "directory": "packages/typescript/openclaw-plugin"
   },
   "openclaw": {
     "extensions": ["./src/index.ts"]
   },
   "dependencies": {
-    "@slop-ai/consumer": "file:../../packages/typescript/consumer",
+    "@slop-ai/consumer": "workspace:*",
     "@sinclair/typebox": "^0.34.49"
   },
   "peerDependencies": {

@@ -85,6 +85,29 @@ The AI sees:
     [item] Build the MVP (done=false)  {toggle, delete}
 ```
 
+## Server-backed apps
+
+For fullstack frameworks (TanStack Start, Next.js, Nuxt, SvelteKit), use `@slop-ai/server` on the server side. The server owns the SLOP tree and exposes it via WebSocket. Meta-framework adapters like `@slop-ai/tanstack-start` handle server setup, UI sync, and state composition automatically.
+
+```ts
+import { createSlopServer } from "@slop-ai/server";
+
+const slop = createSlopServer({ id: "my-app", name: "My App" });
+
+slop.register("todos", () => ({
+  type: "collection",
+  items: getTodos().map(t => ({
+    id: t.id,
+    props: { title: t.title, done: t.done },
+    actions: {
+      toggle: () => toggleTodo(t.id),
+    },
+  })),
+}));
+```
+
+See the [Server & Native Apps guide](/guides/server-apps) or [TanStack Start guide](/guides/tanstack-start) for full setup.
+
 ## Next steps
 
 - [Installation guide](/getting-started/installation) — all package options

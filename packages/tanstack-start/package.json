@@ -21,6 +21,7 @@
     "@tanstack/react-router": "^1.0.0"
   },
   "peerDependencies": {
+    "@tanstack/react-start": ">=1.0.0",
     "@tanstack/react-router": ">=1.0.0",
     "react": ">=18.0.0"
   },

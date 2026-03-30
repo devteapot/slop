@@ -29,6 +29,21 @@ Add the adapter for your framework:
 
 Svelte and vanilla JS don't need an adapter — `$effect` + `onDestroy` (Svelte) or `store.subscribe` (vanilla) map directly to `register`/`unregister`. Use `@slop-ai/client` directly.
 
+## Server packages
+
+For server-backed and native apps:
+
+| Package | Use case |
+|---|---|
+| `@slop-ai/server` | Server provider — WebSocket, Unix socket, stdio |
+| `@slop-ai/tanstack-start` | TanStack Start adapter — full integration |
+
+```bash
+bun add @slop-ai/server
+# or for TanStack Start:
+bun add @slop-ai/server @slop-ai/tanstack-start
+```
+
 ## Consumer package
 
 For building AI agents or tools that connect to SLOP providers:

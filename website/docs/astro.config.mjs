@@ -31,6 +31,8 @@ export default defineConfig({
 						{ label: 'Angular', slug: 'guides/angular' },
 						{ label: 'Svelte', slug: 'guides/svelte' },
 						{ label: 'Vanilla JS', slug: 'guides/vanilla' },
+						{ label: 'Server & Native Apps', slug: 'guides/server-apps' },
+						{ label: 'TanStack Start', slug: 'guides/tanstack-start' },
 					],
 				},
 				{
@@ -38,6 +40,7 @@ export default defineConfig({
 					items: [
 						{ label: '@slop-ai/core', slug: 'api/core' },
 						{ label: '@slop-ai/react', slug: 'api/react' },
+						{ label: '@slop-ai/server', slug: 'api/server' },
 						{ label: '@slop-ai/consumer', slug: 'api/consumer' },
 					],
 				},

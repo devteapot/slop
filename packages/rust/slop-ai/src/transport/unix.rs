@@ -32,23 +32,23 @@ impl Connection for NdjsonConnection {
         let mut line = serde_json::to_string(message)?;
         line.push('\n');
         let mut writer = self.writer.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        let rt = tokio::runtime::Handle::try_current()
-            .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            writer
-                .write_all(line.as_bytes())
-                .await
-                .map_err(|e| SlopError::Transport(e.to_string()))
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                writer
+                    .write_all(line.as_bytes())
+                    .await
+                    .map_err(|e| SlopError::Transport(e.to_string()))
+            })
         })
     }
 
     fn close(&self) -> Result<()> {
         let mut writer = self.writer.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        let rt = tokio::runtime::Handle::try_current()
-            .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            let _ = writer.shutdown().await;
-            Ok(())
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let _ = writer.shutdown().await;
+                Ok(())
+            })
         })
     }
 }

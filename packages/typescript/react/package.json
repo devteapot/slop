@@ -2,19 +2,26 @@
   "name": "@slop-ai/react",
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "files": ["src"],
+  "files": ["src", "dist"],
   "sideEffects": false,
   "license": "MIT",
   "description": "React hook for SLOP — useSlop() to expose component state to AI",
   "repository": {
     "type": "git",
     "url": "https://github.com/devteapot/slop",
-    "directory": "packages/react"
+    "directory": "packages/typescript/react"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --format esm --external '@slop-ai/core' --external react && bunx tsc --emitDeclarationOnly --outDir dist",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@slop-ai/core": "workspace:*"

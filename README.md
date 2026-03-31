@@ -35,6 +35,35 @@ SLOP fills the gap: a standard way for apps to **publish what they are** so AI c
 | Actions | Global tool registry | Limited (click, type) | Contextual affordances on nodes |
 | Designed for | LLM function calling | Sequential text navigation | AI state comprehension |
 
+## Quick start
+
+```bash
+bun add @slop-ai/core @slop-ai/react
+```
+
+```tsx
+import { useSlop } from "@slop-ai/react";
+
+function TaskList({ tasks }) {
+  const slop = useSlop("tasks", () => ({
+    type: "collection",
+    summary: `${tasks.length} tasks`,
+    items: tasks.map(t => ({
+      id: t.id,
+      props: { title: t.title, done: t.done },
+      actions: {
+        toggle: () => toggleTask(t.id),
+        delete: () => deleteTask(t.id),
+      },
+    })),
+  }));
+
+  return <ul>{tasks.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
+}
+```
+
+That's it. Your component is now observable by any SLOP consumer — the Chrome extension, a desktop agent, or a custom AI integration.
+
 ## Spec
 
 The full specification is in [`spec/`](./spec/):
@@ -54,54 +83,70 @@ The full specification is in [`spec/`](./spec/):
 13. [Content References](./spec/13-content-references.md)
 14. [Async Actions](./spec/14-async-actions.md)
 
+## SDKs
+
+| Language | Package | Install |
+|----------|---------|---------|
+| TypeScript | [`@slop-ai/core`](./packages/typescript/core) | `bun add @slop-ai/core` |
+| React | [`@slop-ai/react`](./packages/typescript/react) | `bun add @slop-ai/react` |
+| Vue | [`@slop-ai/vue`](./packages/typescript/vue) | `bun add @slop-ai/vue` |
+| Solid | [`@slop-ai/solid`](./packages/typescript/solid) | `bun add @slop-ai/solid` |
+| Angular | [`@slop-ai/angular`](./packages/typescript/angular) | `bun add @slop-ai/angular` |
+| Server (Node/Bun) | [`@slop-ai/server`](./packages/typescript/server) | `bun add @slop-ai/server` |
+| Browser | [`@slop-ai/client`](./packages/typescript/client) | `bun add @slop-ai/client` |
+| Consumer | [`@slop-ai/consumer`](./packages/typescript/consumer) | `bun add @slop-ai/consumer` |
+| TanStack Start | [`@slop-ai/tanstack-start`](./packages/typescript/tanstack-start) | `bun add @slop-ai/tanstack-start` |
+| Python | [`slop-ai`](./packages/python/slop-ai) | `pip install slop-ai` |
+| Rust | [`slop-ai`](./packages/rust/slop-ai) | `cargo add slop-ai` |
+| Go | [`slop-go`](./packages/go/slop-ai) | `go get github.com/slop-ai/slop-go` |
+
 ## Project structure
 
 ```
 slop/
-├── spec/                        ← the protocol specification (language-agnostic)
-│   ├── 01-overview.md
-│   └── ...11 docs
-│
-├── packages/                    ← publishable SDK packages
-│   ├── core/                    ← @slop-ai/core — types, tree assembly, diffing engine
-│   ├── client/                  ← @slop-ai/client — browser provider (postMessage transport)
-│   ├── server/                  ← @slop-ai/server — server provider (WebSocket, Unix, stdio)
-│   ├── consumer/                ← @slop-ai/consumer — connect to providers, subscribe, invoke
-│   ├── react/                   ← @slop-ai/react — useSlop hook
-│   ├── vue/                     ← @slop-ai/vue — useSlop composable
-│   ├── solid/                   ← @slop-ai/solid — useSlop primitive
-│   ├── angular/                 ← @slop-ai/angular — useSlop with signals
-│   ├── python/slop-ai/          ← slop-ai — Python SDK (WebSocket, Unix, stdio, ASGI)
-│   ├── rust/slop-ai/            ← slop-ai — Rust SDK (WebSocket, Unix, stdio, axum)
-│   └── go/slop-ai/              ← slop-ai — Go SDK (net/http, WebSocket, Unix, stdio)
-│
-├── extension/                   ← Chrome extension (SLOP consumer + LLM chat)
-│
-├── examples/                    ← runnable demos
-│   ├── kanban/                  ← server-backed web app with SLOP
-│   ├── notes-spa/               ← React SPA with in-browser SLOP provider
-│   ├── todo-cli/                ← CLI provider + consumer
-│   └── agent/                   ← LLM agent that observes and acts via SLOP
-│
-├── desktop/                     ← Tauri desktop app
-│
-└── mvp/                         ← prototyping sandbox
+├── spec/                           # Protocol specification (14 docs)
+├── packages/
+│   ├── typescript/
+│   │   ├── core/                   # @slop-ai/core — types, tree assembly, diffing
+│   │   ├── client/                 # @slop-ai/client — browser provider (postMessage)
+│   │   ├── server/                 # @slop-ai/server — server provider (WebSocket, Unix, stdio)
+│   │   ├── consumer/               # @slop-ai/consumer — connect to providers, subscribe, invoke
+│   │   ├── react/                  # @slop-ai/react — useSlop hook
+│   │   ├── vue/                    # @slop-ai/vue — useSlop composable
+│   │   ├── solid/                  # @slop-ai/solid — useSlop primitive
+│   │   ├── angular/                # @slop-ai/angular — useSlop with signals
+│   │   ├── tanstack-start/         # @slop-ai/tanstack-start — SSR adapter
+│   │   └── openclaw-plugin/        # @slop-ai/openclaw-plugin — OpenClaw integration
+│   ├── python/slop-ai/             # Python SDK
+│   ├── rust/slop-ai/               # Rust SDK
+│   └── go/slop-ai/                 # Go SDK
+├── extension/                      # Chrome extension (SLOP consumer + AI chat)
+├── desktop/                        # Tauri desktop app
+├── examples/
+│   ├── cli/                        # Task manager CLI in 4 languages (Bun, Python, Go, Rust)
+│   ├── notes-spa/                  # React SPA with in-browser SLOP
+│   └── tanstack-start/             # Full-stack SSR example
+└── website/
+    ├── landing/                    # slopai.dev landing page
+    └── docs/                       # docs.slopai.dev documentation
 ```
+
+## Examples
+
+Each example follows a **blueprint** — a language-agnostic spec defining the exact SLOP tree, affordances, and test scenarios. Multiple implementations of the same blueprint prove cross-language consistency.
+
+- **[CLI Task Manager](./examples/cli/)** — `tsk`, a task manager with a `--slop` flag. Implementations in Bun, Python, Go, and Rust.
+- **[Notes SPA](./examples/notes-spa/)** — React app with in-browser SLOP provider via postMessage.
+- **[TanStack Start](./examples/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
 
 ## Roadmap
 
-### Post-launch
 - Firefox extension
 - Safari extension
-- ~~Python SDK~~ — **shipped** (`slop-ai` on PyPI)
-- ~~Rust SDK~~ — **shipped** (`slop-ai` on crates.io)
-- ~~Go SDK~~ — **shipped** (`github.com/slop-ai/slop-go`)
 - OpenClaw integration
 - Agent CLI (`npx @slop-ai/init`)
-- Extension Tier 3: accessibility tree adapter (works on any website)
-- Extension per-site toggles (enable/disable SLOP per domain, like an ad blocker)
-- Desktop app (Tauri)
+- Extension per-site toggles
 
-## Status
+## License
 
-Early spec + working MVP. Everything is subject to change.
+MIT

@@ -8,6 +8,8 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "lib": ["ES2022", "DOM"],
+    "outDir": "dist",
+    "rootDir": "src",
     "skipLibCheck": true
   },
   "include": ["src"]

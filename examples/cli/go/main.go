@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ func main() {
 
 	// Parse global flags
 	dataFile := os.Getenv("TSK_FILE")
+	sockPath := os.Getenv("TSK_SOCK")
 	slopMode := false
 	var filtered []string
 
@@ -27,6 +29,11 @@ func main() {
 		case "--file":
 			if i+1 < len(args) {
 				dataFile = args[i+1]
+				i++
+			}
+		case "--sock":
+			if i+1 < len(args) {
+				sockPath = args[i+1]
 				i++
 			}
 		default:
@@ -49,17 +56,20 @@ func main() {
 	}
 
 	if slopMode {
-		runSLOP(store)
+		if sockPath == "" {
+			sockPath = "/tmp/slop/tsk.sock"
+		}
+		runSLOP(store, sockPath)
 	} else {
 		runCLI(store, filtered)
 	}
 }
 
-func runSLOP(store *Store) {
+func runSLOP(store *Store, sockPath string) {
 	server := setupProvider(store)
 
 	// Write discovery descriptor
-	writeDiscovery(store)
+	writeDiscovery(store, sockPath)
 	defer removeDiscovery()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,13 +85,83 @@ func runSLOP(store *Store) {
 		os.Exit(0)
 	}()
 
-	if err := slop.ListenStdio(ctx, server); err != nil {
+	// Print status to stdout
+	total, _, pending, overdue, _ := store.Stats()
+	fmt.Printf("tsk: listening on %s\n", sockPath)
+	fmt.Printf("tsk: %d tasks loaded (%d pending, %d overdue)\n", total, pending, overdue)
+
+	// Interactive stdin loop (only when stdin is a terminal)
+	if isTerminal() {
+		go runInteractiveLoop(store, server)
+	}
+
+	if err := slop.ListenUnix(ctx, server, sockPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func writeDiscovery(store *Store) {
+func isTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+func runInteractiveLoop(store *Store, server *slop.Server) {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Print("tsk> ")
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			fmt.Print("tsk> ")
+			continue
+		}
+		args := splitArgs(line)
+		if len(args) == 0 {
+			fmt.Print("tsk> ")
+			continue
+		}
+		runCLI(store, args)
+		server.Refresh()
+		fmt.Print("tsk> ")
+	}
+}
+
+func splitArgs(line string) []string {
+	var args []string
+	var current []byte
+	inQuote := false
+	var quoteChar byte
+
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if inQuote {
+			if ch == quoteChar {
+				inQuote = false
+			} else {
+				current = append(current, ch)
+			}
+		} else if ch == '"' || ch == '\'' {
+			inQuote = true
+			quoteChar = ch
+		} else if ch == ' ' || ch == '\t' {
+			if len(current) > 0 {
+				args = append(args, string(current))
+				current = current[:0]
+			}
+		} else {
+			current = append(current, ch)
+		}
+	}
+	if len(current) > 0 {
+		args = append(args, string(current))
+	}
+	return args
+}
+
+func writeDiscovery(store *Store, sockPath string) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return
@@ -100,8 +180,8 @@ func writeDiscovery(store *Store) {
 		"version":      "0.1.0",
 		"slop_version": "0.1",
 		"transport": map[string]any{
-			"type":    "stdio",
-			"command": []string{"tsk", "--slop"},
+			"type": "unix",
+			"path": sockPath,
 		},
 		"pid":          os.Getpid(),
 		"capabilities": []string{"state", "patches", "affordances", "attention"},

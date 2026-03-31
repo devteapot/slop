@@ -198,17 +198,21 @@ listenUnix(slop, "/tmp/slop/clipboard.sock", { register: true });
 
 When `register: true`, the provider writes a JSON descriptor to `~/.slop/providers/clipboard-manager.json`. The SLOP desktop app watches this directory and automatically discovers the provider.
 
-## Stdio (CLI tools)
+## Unix socket (CLI tools)
 
-Best for: CLI tools that want to expose state to AI agents.
+Best for: CLI tools that want to expose state to AI agents while keeping stdin/stdout free for human interaction.
 
 ```ts
 import { createSlopServer } from "@slop-ai/server";
-import { listenStdio } from "@slop-ai/server/stdio";
+import { listenUnix } from "@slop-ai/server/unix";
 
 const slop = createSlopServer({ id: "my-cli", name: "My CLI Tool" });
 slop.register("status", () => ({ type: "status", props: { ... } }));
-listenStdio(slop);
+
+const handle = listenUnix(slop, "/tmp/slop/my-cli.sock", { register: true });
+console.log("Listening on /tmp/slop/my-cli.sock");
+// stdout is free for human-readable output
+// AI consumers connect via the Unix socket
 ```
 
 ## Multiple transports
@@ -232,16 +236,16 @@ listenUnix(slop);               // local agents via Unix socket
 | Next.js / Nuxt / SvelteKit | `@slop-ai/server` + framework helper |
 | FastAPI / Starlette | `slop-ai` + `SlopMiddleware` |
 | Python backend service | `slop-ai` + WebSocket transport |
-| Python CLI tool | `slop-ai` + stdio transport |
+| Python CLI tool | `slop-ai` + Unix socket transport |
 | Python desktop app (tkinter, PyQt) | `slop-ai` + Unix socket |
 | Go HTTP service | `slop-ai` + `server.Mount(mux)` |
-| Go CLI tool | `slop-ai` + `ListenStdio` |
+| Go CLI tool | `slop-ai` + `ListenUnix` |
 | Go daemon | `slop-ai` + `ListenUnix` |
 | Rust axum web app | `slop-ai` + `slop_router` |
-| Rust CLI tool | `slop-ai` + stdio transport |
+| Rust CLI tool | `slop-ai` + Unix socket transport |
 | Electron app | `@slop-ai/server` + `listenUnix` |
 | Tauri app | `@slop-ai/server` + `listenUnix` |
-| JS CLI tool | `@slop-ai/server` + `listenStdio` |
+| JS CLI tool | `@slop-ai/server` + `listenUnix` |
 | Background daemon | `@slop-ai/server` + `listenUnix` |
 
 ## Examples

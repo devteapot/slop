@@ -2,8 +2,9 @@
 /**
  * Automated test harness for the tsk CLI example.
  *
- * Spawns `tsk --slop` as a subprocess, speaks SLOP over stdio,
- * and verifies the tree structure and action results match the blueprint.
+ * Spawns `tsk --slop` as a subprocess, connects to its Unix socket,
+ * speaks SLOP over the socket, and verifies the tree structure and
+ * action results match the blueprint.
  *
  * Usage:
  *   bun run test-harness.ts bun      # test Bun implementation
@@ -17,6 +18,7 @@ import { spawn, type Subprocess } from "bun";
 import { resolve, dirname } from "path";
 import { mkdirSync, writeFileSync, existsSync, rmSync, cpSync } from "fs";
 import { homedir, tmpdir } from "os";
+import { createConnection, type Socket } from "node:net";
 
 // --- Config ---
 
@@ -48,46 +50,77 @@ interface SlopMessage {
 
 class SlopTestClient {
   private proc: Subprocess;
+  private socket!: Socket;
   private buffer = "";
   private messages: SlopMessage[] = [];
   private waiting: ((msg: SlopMessage) => void)[] = [];
   private dataFile: string;
+  private sockPath: string;
 
-  constructor(cmd: string[], cwd: string, dataFile: string) {
+  private constructor(proc: Subprocess, dataFile: string, sockPath: string) {
+    this.proc = proc;
     this.dataFile = dataFile;
-    this.proc = spawn({
-      cmd: [...cmd, "--file", dataFile],
+    this.sockPath = sockPath;
+  }
+
+  static async create(cmd: string[], cwd: string, dataFile: string, sockPath: string): Promise<SlopTestClient> {
+    const proc = spawn({
+      cmd: [...cmd, "--file", dataFile, "--sock", sockPath],
       cwd,
-      stdin: "pipe",
+      stdin: "ignore",
       stdout: "pipe",
       stderr: "inherit",
     });
-    this.readLoop();
+
+    const client = new SlopTestClient(proc, dataFile, sockPath);
+
+    // Wait for socket to be ready by attempting to connect with retries
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline) {
+      try {
+        await client.connectToSocket(sockPath);
+        client.readLoop();
+        return client;
+      } catch {
+        await Bun.sleep(50);
+      }
+    }
+    throw new Error(`Socket ${sockPath} not ready within 8s`);
   }
 
-  private async readLoop() {
-    try {
-      for await (const chunk of this.proc.stdout) {
-        this.buffer += new TextDecoder().decode(chunk);
-        const lines = this.buffer.split("\n");
-        this.buffer = lines.pop()!;
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const msg = JSON.parse(line);
-            if (this.waiting.length > 0) {
-              this.waiting.shift()!(msg);
-            } else {
-              this.messages.push(msg);
-            }
-          } catch {
-            // skip non-JSON lines
+  private connectToSocket(path: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const sock = createConnection({ path }, () => {
+        this.socket = sock;
+        resolve();
+      });
+      sock.once("error", reject);
+    });
+  }
+
+  private readLoop() {
+    this.socket.on("data", (chunk: Buffer) => {
+      this.buffer += chunk.toString();
+      const lines = this.buffer.split("\n");
+      this.buffer = lines.pop()!;
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (this.waiting.length > 0) {
+            this.waiting.shift()!(msg);
+          } else {
+            this.messages.push(msg);
           }
+        } catch {
+          // skip non-JSON lines
         }
       }
-    } catch {
-      // process ended
-    }
+    });
+
+    this.socket.on("error", () => {
+      // connection ended
+    });
   }
 
   async nextMessage(timeoutMs = 5000): Promise<SlopMessage> {
@@ -122,17 +155,20 @@ class SlopTestClient {
   }
 
   send(msg: SlopMessage) {
-    this.proc.stdin.write(JSON.stringify(msg) + "\n");
-    this.proc.stdin.flush();
+    this.socket.write(JSON.stringify(msg) + "\n");
   }
 
   async close() {
     try {
+      if (this.socket) this.socket.end();
+    } catch {}
+    try {
       this.proc.kill();
       await this.proc.exited;
-    } catch {
-      // already dead
-    }
+    } catch {}
+    try {
+      rmSync(this.sockPath);
+    } catch {}
   }
 }
 
@@ -199,6 +235,7 @@ async function runTests(lang: string) {
   const testDir = resolve(tmpdir(), `tsk-test-${lang}-${Date.now()}`);
   mkdirSync(testDir, { recursive: true });
   const dataFile = resolve(testDir, "tasks.json");
+  const sockPath = resolve(testDir, "tsk.sock");
 
   // Copy seed data
   const seedPath = resolve(dirname(import.meta.path), `${lang}/seed.json`);
@@ -208,8 +245,9 @@ async function runTests(lang: string) {
 
   console.log(`\n\x1b[1m=== Testing ${lang.toUpperCase()} ===\x1b[0m`);
   console.log(`  data: ${dataFile}`);
+  console.log(`  sock: ${sockPath}`);
 
-  const client = new SlopTestClient(impl.cmd, impl.cwd, dataFile);
+  const client = await SlopTestClient.create(impl.cmd, impl.cwd, dataFile, sockPath);
 
   try {
     // --- Test 1: Hello message ---

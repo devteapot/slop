@@ -13,6 +13,7 @@ def main() -> None:
     )
     parser.add_argument("--slop", action="store_true", help="Enter SLOP provider mode")
     parser.add_argument("--file", "-f", default=None, help="Path to tasks JSON file")
+    parser.add_argument("--sock", default=None, help="Unix socket path for SLOP mode")
 
     subparsers = parser.add_subparsers(dest="command")
 
@@ -64,7 +65,7 @@ def main() -> None:
     # SLOP mode
     if args.slop:
         from tsk.slop_provider import run_slop
-        run_slop(args.file)
+        run_slop(args.file, sock=args.sock)
         return
 
     # CLI mode

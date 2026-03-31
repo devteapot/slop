@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from slop import SlopServer
-from slop.transports.stdio import listen
+from slop.transports.unix import listen as listen_unix
 
 from tsk.store import load_tasks, save_tasks, next_id, get_file_path
 
@@ -349,7 +349,7 @@ def _action_rename_tag(old: str, new: str) -> dict[str, Any]:
 
 # --- Discovery ---
 
-def _write_discovery(task_summary: str) -> None:
+def _write_discovery(task_summary: str, socket_path: str) -> None:
     providers_dir = Path.home() / ".slop" / "providers"
     providers_dir.mkdir(parents=True, exist_ok=True)
     desc = {
@@ -357,7 +357,7 @@ def _write_discovery(task_summary: str) -> None:
         "name": "tsk",
         "version": "0.1.0",
         "slop_version": "0.1",
-        "transport": {"type": "stdio", "command": ["tsk", "--slop"]},
+        "transport": {"type": "unix", "path": socket_path},
         "pid": os.getpid(),
         "capabilities": ["state", "patches", "affordances", "attention"],
         "description": task_summary,
@@ -375,12 +375,104 @@ def _cleanup_discovery() -> None:
 
 # --- Provider setup ---
 
-def run_slop(file_override: str | None = None) -> None:
+DEFAULT_SOCK = "/tmp/slop/tsk.sock"
+
+
+async def _interactive_loop(slop: SlopServer) -> None:
+    """Read CLI commands from stdin and dispatch them."""
+    from tsk.cli import (
+        cmd_list, cmd_add, cmd_done, cmd_undo, cmd_edit,
+        cmd_delete, cmd_notes, cmd_search, cmd_export,
+    )
+    import shlex
+
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            line = await loop.run_in_executor(None, lambda: input("tsk> "))
+        except (EOFError, KeyboardInterrupt):
+            break
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            parts = shlex.split(line)
+        except ValueError:
+            print("Error: invalid input")
+            continue
+
+        cmd = parts[0] if parts else ""
+        mutated = False
+        try:
+            if cmd in ("list", "ls"):
+                tag = None
+                show_all = "--all" in parts or "-a" in parts
+                for i, p in enumerate(parts):
+                    if p in ("--tag", "-t") and i + 1 < len(parts):
+                        tag = parts[i + 1]
+                cmd_list(_file, tag=tag, show_all=show_all)
+            elif cmd == "add" and len(parts) > 1:
+                title = parts[1]
+                due = tag = None
+                for i, p in enumerate(parts):
+                    if p in ("--due", "-d") and i + 1 < len(parts):
+                        due = parts[i + 1]
+                    if p in ("--tag", "-t") and i + 1 < len(parts):
+                        tag = parts[i + 1]
+                cmd_add(_file, title, due=due, tag=tag)
+                mutated = True
+            elif cmd == "done" and len(parts) > 1:
+                cmd_done(_file, parts[1])
+                mutated = True
+            elif cmd == "undo" and len(parts) > 1:
+                cmd_undo(_file, parts[1])
+                mutated = True
+            elif cmd == "edit" and len(parts) > 1:
+                title = due = tag = None
+                for i, p in enumerate(parts):
+                    if p == "--title" and i + 1 < len(parts):
+                        title = parts[i + 1]
+                    if p == "--due" and i + 1 < len(parts):
+                        due = parts[i + 1]
+                    if p == "--tag" and i + 1 < len(parts):
+                        tag = parts[i + 1]
+                cmd_edit(_file, parts[1], title=title, due=due, tag=tag)
+                mutated = True
+            elif cmd == "delete" and len(parts) > 1:
+                cmd_delete(_file, parts[1])
+                mutated = True
+            elif cmd == "notes" and len(parts) > 1:
+                set_text = None
+                for i, p in enumerate(parts):
+                    if p in ("--set", "-s") and i + 1 < len(parts):
+                        set_text = parts[i + 1]
+                cmd_notes(_file, parts[1], set_text=set_text)
+                if set_text is not None:
+                    mutated = True
+            elif cmd == "search" and len(parts) > 1:
+                cmd_search(_file, parts[1])
+            elif cmd == "export" and len(parts) > 1:
+                cmd_export(_file, parts[1])
+            elif cmd == "help":
+                print("Commands: list, add, done, undo, edit, delete, notes, search, export")
+            else:
+                print(f"Unknown command: {cmd}. Type 'help' for available commands.")
+        except Exception as e:
+            print(f"Error: {e}")
+
+        if mutated:
+            global _tasks
+            _tasks = load_tasks(_file)
+            slop.refresh()
+
+
+def run_slop(file_override: str | None = None, sock: str | None = None) -> None:
     """Enter SLOP provider mode."""
     global _tasks, _file, _slop
 
     _file = file_override
     _tasks = load_tasks(_file)
+    socket_path = sock or os.environ.get("TSK_SOCK", DEFAULT_SOCK)
 
     slop = SlopServer("tsk", "tsk")
     _slop = slop
@@ -505,10 +597,30 @@ def run_slop(file_override: str | None = None) -> None:
     total = len(_tasks)
     pending = len([t for t in _tasks if not t.get("done")])
     overdue = len([t for t in _tasks if not t.get("done") and t.get("due") and _is_overdue(t)])
-    _write_discovery(f"Task manager with {total} tasks ({pending} pending, {overdue} overdue)")
+    _write_discovery(
+        f"Task manager with {total} tasks ({pending} pending, {overdue} overdue)",
+        socket_path,
+    )
+
+    # Print status to stdout
+    print(f"tsk: listening on {socket_path}", flush=True)
+    print(f"tsk: {total} tasks loaded ({pending} pending, {overdue} overdue)", flush=True)
+
+    async def _run() -> None:
+        server = await listen_unix(slop, socket_path)
+        try:
+            # Interactive stdin loop (only when stdin is a TTY)
+            if sys.stdin.isatty():
+                await _interactive_loop(slop)
+            else:
+                # Stay alive for socket connections (test harness, non-interactive)
+                await asyncio.Event().wait()
+        finally:
+            server.close()
+            await server.wait_closed()
 
     try:
-        asyncio.run(listen(slop))
+        asyncio.run(_run())
     finally:
         _cleanup_discovery()
         slop.stop()

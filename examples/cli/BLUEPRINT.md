@@ -7,7 +7,8 @@ A task manager CLI that works normally for humans, and becomes a SLOP provider w
 | SLOP feature | How it's used |
 |---|---|
 | **`--slop` flag pattern** (spec 07) | Normal CLI output vs SLOP provider mode |
-| **Stdio transport** (spec 03) | NDJSON over stdout/stdin |
+| **Unix socket transport** (spec 03) | NDJSON over Unix domain socket |
+| **Multi-modal** | Simultaneous AI (socket) + human (stdin/stdout) interaction |
 | **State tree** (spec 02) | Task list as a collection with item children |
 | **Affordances** (spec 05) | CRUD actions on tasks, bulk operations on collection |
 | **Attention & salience** (spec 06) | Overdue tasks = high salience, completed = low |
@@ -38,14 +39,22 @@ $ tsk list --tag work
   5. [ ] Review PR             due: tomorrow   #work
 ```
 
-### SLOP mode (AI-observable)
+### SLOP mode (AI-observable + human-interactive)
 
 ```
 $ tsk --slop
-{"type":"hello","id":"tsk","name":"tsk","version":"0.1.0","slop_version":"0.1"}
+tsk: listening on /tmp/slop/tsk.sock
+tsk: 10 tasks loaded (7 pending, 2 overdue)
+tsk> add "Deploy v2.0" --due tomorrow --tag work
+Created task #11
+tsk> done 4
+Completed: Call dentist
+tsk> list
+  1. [ ] Buy groceries         due: today      #errands
+  ...
 ```
 
-Then the consumer subscribes and receives the state tree. The process stays alive, reading SLOP messages from stdin and writing responses to stdout (NDJSON).
+AI consumers connect to the Unix socket and receive the SLOP state tree via NDJSON. Meanwhile, the human uses stdin/stdout to interact with the same task list — mutations from either side are visible to both. This is the multi-modal value prop: **one process, two interfaces**.
 
 ## Data model
 
@@ -342,6 +351,19 @@ Provider sends patch: export-1 node appears with status "running"
 Provider sends patch: export-1 status → "complete", result includes file path
 ```
 
+### 7. Human and AI interact simultaneously (multi-modal)
+
+```
+Human types: add "Buy birthday present" --due 2026-04-05 --tag personal
+Provider: creates task, writes to disk, calls refresh()
+AI consumer receives: patch adding new child to tasks collection
+AI sees: new task appears in tree without needing to invoke anything
+
+AI invokes: done() on task t-4
+Provider: marks done, writes to disk, calls refresh()
+Human sees: (next time they run "list") task is completed
+```
+
 ## CLI interface (normal mode)
 
 All implementations must support these commands:
@@ -360,9 +382,12 @@ tsk notes <id>               # show notes
 tsk notes <id> --set <text>  # set notes
 tsk search <query>           # search by title/tag
 tsk export <format>          # export to stdout
-tsk --slop                   # enter SLOP provider mode
+tsk --slop                   # enter SLOP provider mode (socket + interactive CLI)
+tsk --slop --sock <path>     # use alternate socket path
 tsk --file <path>            # use alternate data file
 ```
+
+Default socket path: `/tmp/slop/tsk.sock`. Override with `--sock` flag or `TSK_SOCK` env var.
 
 The binary/script name is `tsk` in all languages.
 
@@ -370,18 +395,19 @@ The binary/script name is `tsk` in all languages.
 
 When invoked with `--slop`:
 
-1. **Print hello** — immediately write the hello message to stdout
-2. **Wait for subscribe** — read from stdin, respond to subscribe with snapshot
-3. **Stay alive** — keep reading stdin for messages (subscribe, query, invoke, unsubscribe)
-4. **Watch for changes** — if the data file changes on disk (external edit), rebuild tree and send patches
-5. **Discovery** — write a provider descriptor to `~/.slop/providers/tsk.json` on start, remove on exit:
+1. **Start socket listener** — bind a Unix domain socket at the configured path
+2. **Print status to stdout** — announce the socket path and task summary so a human can see what's happening
+3. **Enter interactive CLI loop** — read CLI commands from stdin (same commands as normal mode: `list`, `add`, `done`, etc.) and print results to stdout. After each mutation, call `refresh()` so AI consumers receive patches.
+4. **Handle AI consumers on socket** — accept SLOP connections on the Unix socket, respond to subscribe/query/invoke messages via NDJSON
+5. **Watch for changes** — if the data file changes on disk (external edit), rebuild tree and send patches
+6. **Discovery** — write a provider descriptor to `~/.slop/providers/tsk.json` on start, remove on exit:
    ```json
    {
      "id": "tsk",
      "name": "tsk",
      "version": "0.1.0",
      "slop_version": "0.1",
-     "transport": { "type": "stdio", "command": ["tsk", "--slop"] },
+     "transport": { "type": "unix", "path": "/tmp/slop/tsk.sock" },
      "pid": 12345,
      "capabilities": ["state", "patches", "affordances", "attention"],
      "description": "Task manager with 47 tasks (15 pending, 2 overdue)"
@@ -411,7 +437,7 @@ These rules ensure all implementations produce identical SLOP trees. They follow
 - **Use the language's SLOP SDK** — `@slop-ai/server` for Bun, `slop` for Python, `slop` for Go, `slop_ai` for Rust
 - **No external dependencies beyond the SDK** and the language's stdlib/standard ecosystem
 - **Data file**: JSON, at `~/.tsk/tasks.json` by default
-- **Transport**: stdio (NDJSON on stdout/stdin)
+- **Transport**: Unix domain socket (NDJSON over Unix socket)
 - **Binary name**: `tsk`
 - **Seed data**: ship with a `seed.json` containing 10 sample tasks (mix of pending, done, overdue, with and without notes)
 

@@ -643,7 +643,7 @@ fn resolve_date(input: &str) -> String {
 }
 
 /// Write the provider discovery file to ~/.slop/providers/tsk.json.
-pub fn write_discovery(store: &Arc<Mutex<Store>>) {
+pub fn write_discovery(store: &Arc<Mutex<Store>>, socket_path: &str) {
     let home = match dirs::home_dir() {
         Some(h) => h,
         None => return,
@@ -669,7 +669,7 @@ pub fn write_discovery(store: &Arc<Mutex<Store>>) {
         "name": "tsk",
         "version": "0.1.0",
         "slop_version": "0.1",
-        "transport": { "type": "stdio", "command": ["tsk", "--slop"] },
+        "transport": { "type": "unix", "path": socket_path },
         "pid": std::process::id(),
         "capabilities": ["state", "patches", "affordances", "attention"],
         "description": format!("Task manager with {total} tasks ({pending} pending, {overdue} overdue)")

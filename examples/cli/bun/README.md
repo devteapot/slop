@@ -32,8 +32,11 @@ bun run src/index.ts export markdown
 ### SLOP mode
 
 ```bash
-bun run src/index.ts --slop
+bun run src/index.ts --slop                          # Unix socket on /tmp/slop/tsk.sock
+bun run src/index.ts --slop --sock /tmp/my-app.sock  # custom socket path
 ```
+
+Starts a Unix socket provider and an interactive CLI prompt. AI consumers connect via the socket; you interact via stdin/stdout.
 
 ### Seed data
 

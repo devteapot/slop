@@ -32,15 +32,18 @@ tsk export markdown
 ### SLOP mode
 
 ```bash
-tsk --slop
+tsk --slop                                # Unix socket on /tmp/slop/tsk.sock
+tsk --slop --sock /tmp/my-app.sock        # custom socket path
 ```
 
-Enters SLOP provider mode: prints a hello message, then listens on stdin for NDJSON messages.
+Starts a Unix socket provider and an interactive CLI prompt. AI consumers connect via the socket (NDJSON); you interact via stdin/stdout.
 
 ### Options
 
 - `--file <path>` — use an alternate data file (default: `~/.tsk/tasks.json`)
+- `--sock <path>` — use an alternate socket path (default: `/tmp/slop/tsk.sock`)
 - `TSK_FILE` env var — same as `--file`
+- `TSK_SOCK` env var — same as `--sock`
 
 ## Seed data
 

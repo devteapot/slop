@@ -1,15 +1,19 @@
 import { SlopServer } from "@slop-ai/server";
-import { listenStdio } from "@slop-ai/server/stdio";
+import { listenUnix } from "@slop-ai/server/unix";
 import { load, save, nextId, parseDate, today, computeSalience, sortBySalience, getFilePath, type Task } from "./store";
+import { listTasks, addTask, doneTask, undoTask, editTask, deleteTask, showNotes, searchTasks, exportTasks } from "./cli";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdirSync, rmSync } from "node:fs";
+import { createInterface } from "node:readline";
 
 const WINDOW_SIZE = 25;
 const DISCOVERY_DIR = join(homedir(), ".slop", "providers");
 const DISCOVERY_FILE = join(DISCOVERY_DIR, "tsk.json");
+const DEFAULT_SOCK = "/tmp/slop/tsk.sock";
 
-export async function startSlopMode(): Promise<void> {
+export async function startSlopMode(socketPath?: string): Promise<void> {
+  const sockPath = socketPath ?? process.env.TSK_SOCK ?? DEFAULT_SOCK;
   let tasks = await load();
 
   const slop = new SlopServer({ id: "tsk", name: "tsk" });
@@ -197,7 +201,7 @@ export async function startSlopMode(): Promise<void> {
   });
 
   // --- Discovery: write provider descriptor ---
-  writeDiscovery(tasks);
+  writeDiscovery(tasks, sockPath);
 
   // --- Cleanup on exit ---
   const cleanup = () => {
@@ -207,22 +211,177 @@ export async function startSlopMode(): Promise<void> {
   process.on("SIGTERM", () => { cleanup(); process.exit(0); });
   process.on("exit", cleanup);
 
-  // --- Start stdio transport ---
-  listenStdio(slop);
+  // --- Start Unix socket transport ---
+  const handle = listenUnix(slop, sockPath);
+
+  // --- Print status to stdout ---
+  const pending = tasks.filter(t => !t.done);
+  const todayStr = today();
+  const overdue = pending.filter(t => t.due && t.due < todayStr);
+  console.log(`tsk: listening on ${sockPath}`);
+  console.log(`tsk: ${tasks.length} tasks loaded (${pending.length} pending, ${overdue.length} overdue)`);
+
+  // --- Interactive stdin loop ---
+  // When stdin is a TTY (interactive human), show a prompt and accept commands.
+  // When stdin is closed/unavailable (spawned by test harness), skip gracefully.
+  // The process stays alive via the Unix socket listener regardless.
+  if (process.stdin.isTTY) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "tsk> " });
+    rl.prompt();
+    rl.on("line", async (line) => {
+      const parts = parseCliLine(line.trim());
+      if (parts.length === 0) {
+        rl.prompt();
+        return;
+      }
+      await dispatchCliCommand(parts, slop);
+      rl.prompt();
+    });
+    rl.on("close", () => {
+      handle.close();
+      process.exit(0);
+    });
+  }
 
   // --- Watch for file changes ---
   try {
-    const watcher = Bun.file(getFilePath());
-    // Use fs.watch for file change detection
     const { watch } = await import("node:fs");
     const fsWatcher = watch(getFilePath(), async () => {
       tasks = await load();
       slop.refresh();
-      writeDiscovery(tasks);
+      writeDiscovery(tasks, sockPath);
     });
     process.on("exit", () => fsWatcher.close());
   } catch {
     // File watching is optional; ignore errors
+  }
+}
+
+// --- Parse a CLI input line into args (respecting quotes) ---
+
+function parseCliLine(line: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let inQuote = false;
+  let quoteChar = "";
+
+  for (const ch of line) {
+    if (inQuote) {
+      if (ch === quoteChar) {
+        inQuote = false;
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"' || ch === "'") {
+      inQuote = true;
+      quoteChar = ch;
+    } else if (ch === " " || ch === "\t") {
+      if (current) {
+        args.push(current);
+        current = "";
+      }
+    } else {
+      current += ch;
+    }
+  }
+  if (current) args.push(current);
+  return args;
+}
+
+// --- Dispatch a CLI command, then refresh SLOP state ---
+
+async function dispatchCliCommand(args: string[], slop: SlopServer): Promise<void> {
+  const command = args[0];
+  try {
+    switch (command) {
+      case "list": {
+        const opts: { all?: boolean; tag?: string } = {};
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === "--all") opts.all = true;
+          else if (args[i] === "--tag" && i + 1 < args.length) opts.tag = args[++i];
+        }
+        await listTasks(opts);
+        break;
+      }
+      case "add": {
+        const title = args[1];
+        if (!title) {
+          console.log("Usage: add <title> [--due <date>] [--tag <tags>]");
+          return;
+        }
+        const opts: { due?: string; tag?: string } = {};
+        for (let i = 2; i < args.length; i++) {
+          if (args[i] === "--due" && i + 1 < args.length) opts.due = args[++i];
+          else if (args[i] === "--tag" && i + 1 < args.length) opts.tag = args[++i];
+        }
+        await addTask(title, opts);
+        slop.refresh();
+        break;
+      }
+      case "done": {
+        const id = args[1];
+        if (!id) { console.log("Usage: done <id>"); return; }
+        await doneTask(id);
+        slop.refresh();
+        break;
+      }
+      case "undo": {
+        const id = args[1];
+        if (!id) { console.log("Usage: undo <id>"); return; }
+        await undoTask(id);
+        slop.refresh();
+        break;
+      }
+      case "edit": {
+        const id = args[1];
+        if (!id) { console.log("Usage: edit <id> [--title <t>] [--due <d>] [--tag <t>]"); return; }
+        const opts: { title?: string; due?: string; tag?: string } = {};
+        for (let i = 2; i < args.length; i++) {
+          if (args[i] === "--title" && i + 1 < args.length) opts.title = args[++i];
+          else if (args[i] === "--due" && i + 1 < args.length) opts.due = args[++i];
+          else if (args[i] === "--tag" && i + 1 < args.length) opts.tag = args[++i];
+        }
+        await editTask(id, opts);
+        slop.refresh();
+        break;
+      }
+      case "delete": {
+        const id = args[1];
+        if (!id) { console.log("Usage: delete <id>"); return; }
+        await deleteTask(id);
+        slop.refresh();
+        break;
+      }
+      case "notes": {
+        const id = args[1];
+        if (!id) { console.log("Usage: notes <id> [--set <text>]"); return; }
+        const opts: { set?: string } = {};
+        for (let i = 2; i < args.length; i++) {
+          if (args[i] === "--set" && i + 1 < args.length) opts.set = args[++i];
+        }
+        await showNotes(id, opts);
+        if (opts.set !== undefined) slop.refresh();
+        break;
+      }
+      case "search": {
+        const query = args[1];
+        if (!query) { console.log("Usage: search <query>"); return; }
+        await searchTasks(query);
+        break;
+      }
+      case "export": {
+        const format = args[1] ?? "json";
+        await exportTasks(format);
+        break;
+      }
+      case "help":
+        console.log("Commands: list, add, done, undo, edit, delete, notes, search, export");
+        break;
+      default:
+        console.log(`Unknown command: ${command}. Type "help" for available commands.`);
+    }
+  } catch (err: any) {
+    console.error(`Error: ${err.message}`);
   }
 }
 
@@ -361,7 +520,7 @@ function buildTaskItem(task: Task): {
 
 // --- Discovery file ---
 
-function writeDiscovery(tasks: Task[]) {
+function writeDiscovery(tasks: Task[], sockPath: string) {
   const pending = tasks.filter(t => !t.done);
   const todayStr = today();
   const overdue = pending.filter(t => t.due && t.due < todayStr);
@@ -371,7 +530,7 @@ function writeDiscovery(tasks: Task[]) {
     name: "tsk",
     version: "0.1.0",
     slop_version: "0.1",
-    transport: { type: "stdio", command: ["tsk", "--slop"] },
+    transport: { type: "unix", path: sockPath },
     pid: process.pid,
     capabilities: ["state", "patches", "affordances", "attention"],
     description: `Task manager with ${tasks.length} tasks (${pending.length} pending, ${overdue.length} overdue)`,

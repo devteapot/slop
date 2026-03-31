@@ -101,20 +101,26 @@ asyncio.run(main())
 
 When `register=True`, the provider writes a discovery descriptor to `~/.slop/providers/my-daemon.json` so the SLOP desktop app and other consumers can find it automatically.
 
-## Stdio (CLI tools)
+## Unix socket (CLI tools)
 
 ```python
 import asyncio
 from slop import SlopServer
-from slop.transports.stdio import listen
+from slop.transports.unix import listen
 
 slop = SlopServer("my-cli", "My CLI Tool")
 slop.register("status", {"type": "status", "props": {"running": True}})
 
-asyncio.run(listen(slop))
+async def main():
+    server = await listen(slop, "/tmp/slop/my-cli.sock", register=True)
+    print("Listening on /tmp/slop/my-cli.sock")
+    # stdout is free for human-readable output
+    await asyncio.Event().wait()
+
+asyncio.run(main())
 ```
 
-The consumer communicates via stdin/stdout using NDJSON (one JSON message per line).
+AI consumers connect to the Unix socket using NDJSON (one JSON message per line). Stdout stays free for human interaction.
 
 ## Descriptors
 

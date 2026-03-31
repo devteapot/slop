@@ -39,6 +39,7 @@ fn main() {
     // Parse --file and --slop flags
     let mut file_path: Option<PathBuf> = None;
     let mut slop_mode = false;
+    let mut sock_path: Option<String> = None;
     let mut positional: Vec<String> = Vec::new();
     let mut i = 1;
 
@@ -51,6 +52,12 @@ fn main() {
                 i += 1;
                 if i < args.len() {
                     file_path = Some(PathBuf::from(&args[i]));
+                }
+            }
+            "--sock" => {
+                i += 1;
+                if i < args.len() {
+                    sock_path = Some(args[i].clone());
                 }
             }
             _ => {
@@ -70,7 +77,10 @@ fn main() {
     store.lock().unwrap().seed_if_needed(&seed_path());
 
     if slop_mode {
-        run_slop(store);
+        let sock = sock_path
+            .or_else(|| std::env::var("TSK_SOCK").ok())
+            .unwrap_or_else(|| "/tmp/slop/tsk.sock".to_string());
+        run_slop(store, &sock);
     } else {
         run_cli(store, &positional);
     }
@@ -187,19 +197,35 @@ fn run_cli(store: Arc<Mutex<Store>>, args: &[String]) {
     }
 }
 
-fn run_slop(store: Arc<Mutex<Store>>) {
+fn run_slop(store: Arc<Mutex<Store>>, sock_path: &str) {
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+    let sock = sock_path.to_string();
     rt.block_on(async {
         let slop = provider::setup_provider(store.clone());
 
         // Write discovery file
-        provider::write_discovery(&store);
+        provider::write_discovery(&store, &sock);
 
         // Clean up discovery on exit
         let _guard = DiscoveryGuard;
 
-        // Listen on stdio
-        slop_ai::transport::stdio::listen(&slop).await.unwrap();
+        // Print status to stdout
+        {
+            let st = store.lock().unwrap();
+            let tasks = st.load();
+            let total = tasks.len();
+            let pending = tasks.iter().filter(|t| !t.done).count();
+            let overdue = tasks.iter().filter(|t| {
+                let (s, _, _) = crate::store::compute_salience(t);
+                s >= 1.0 && !t.done
+            }).count();
+            println!("tsk: listening on {}", sock);
+            println!("tsk: {} tasks loaded ({} pending, {} overdue)", total, pending, overdue);
+        }
+
+        // Listen on Unix socket
+        let handle = slop_ai::transport::unix::listen(&slop, &sock).await.unwrap();
+        handle.await.unwrap();
     });
 }
 

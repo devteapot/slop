@@ -127,18 +127,21 @@ async fn main() {
 }
 ```
 
-## Stdio (CLI tools)
+## Unix socket (CLI tools)
 
 ```rust
 use slop_ai::SlopServer;
-use slop_ai::transport::stdio;
+use slop_ai::transport::unix;
 
 #[tokio::main]
 async fn main() {
     let slop = SlopServer::new("my-cli", "My CLI Tool");
     slop.register("status", serde_json::json!({"type": "status", "props": {"running": true}}));
 
-    stdio::listen(&slop).await.unwrap();
+    println!("Listening on /tmp/slop/my-cli.sock");
+    // stdout is free for human-readable output
+    let handle = unix::listen(&slop, "/tmp/slop/my-cli.sock").await.unwrap();
+    handle.await.unwrap();
 }
 ```
 

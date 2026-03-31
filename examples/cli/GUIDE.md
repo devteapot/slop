@@ -91,23 +91,25 @@ Run the same tool with `--slop`:
 tsk --slop
 ```
 
-The tool prints one line and waits:
+The tool starts a Unix socket and enters interactive mode:
 
-```json
-{"type":"hello","id":"tsk","name":"tsk","version":"0.1.0","slop_version":"0.1"}
+```
+tsk: listening on /tmp/slop/tsk.sock
+tsk: 10 tasks loaded (7 pending, 1 overdue)
+tsk>
 ```
 
-This is the SLOP handshake. The tool is now a **provider** — it's alive, listening on stdin, and ready to describe its state to any AI consumer.
+This is the multi-modal experience. The tool is now a **provider** — it's listening on a Unix domain socket for AI consumers, while you can still type commands at the `tsk>` prompt. The SLOP protocol flows over the socket, keeping stdout free for human-readable output.
 
 ### Subscribe to the state tree
 
-In another terminal (or by piping), send a subscribe message:
+In another terminal, connect to the socket and send a subscribe message. Here's an example using `socat`:
 
 ```bash
-echo '{"type":"subscribe","id":"s1","path":"/","depth":-1}' | tsk --slop
+echo '{"type":"subscribe","id":"s1","path":"/","depth":-1}' | socat - UNIX-CONNECT:/tmp/slop/tsk.sock
 ```
 
-Or interactively — type the JSON into stdin after the hello message. The provider responds with a **snapshot**: the entire state tree as structured JSON.
+Or programmatically — any SLOP consumer can connect to the Unix socket. The provider sends a **hello** message on connection, then responds to subscribe with a **snapshot**: the entire state tree as structured JSON.
 
 ```json
 {
@@ -190,7 +192,7 @@ The AI doesn't scrape text. It doesn't guess what commands exist. It reads struc
 
 ### Invoke an action
 
-With the SLOP session running, send an invoke message on stdin:
+With the SLOP session running, an AI consumer sends an invoke message over the Unix socket:
 
 ```json
 {"type":"invoke","id":"inv-1","path":"/tasks","action":"add","params":{"title":"Test from AI","due":"tomorrow","tags":"test"}}
@@ -210,7 +212,7 @@ And immediately sends a **patch** to all subscribers — the new task appears in
 ]}
 ```
 
-Open a normal terminal and run `tsk` — the task is there. The SLOP action wrote to the same data file. The AI and the human see the same state.
+Meanwhile, at the `tsk>` prompt, you can run `list` and see the AI's task right there. The AI and the human see the same state.
 
 ### Content references: lazy-loading notes
 
@@ -270,37 +272,50 @@ cat ~/.slop/providers/tsk.json
   "name": "tsk",
   "version": "0.1.0",
   "slop_version": "0.1",
-  "transport": { "type": "stdio", "command": ["tsk", "--slop"] },
+  "transport": { "type": "unix", "path": "/tmp/slop/tsk.sock" },
   "pid": 48291,
   "capabilities": ["state", "patches", "affordances", "attention"],
   "description": "Task manager with 10 tasks (7 pending, 1 overdue)"
 }
 ```
 
-Any AI agent scanning `~/.slop/providers/` can find `tsk`, know what it does, and spawn it. When `tsk --slop` exits, this file is cleaned up.
+Any AI agent scanning `~/.slop/providers/` can find `tsk`, connect to its Unix socket, and start observing. When `tsk --slop` exits, this file is cleaned up.
 
-## Part 3: Side by side
+## Part 3: Multi-modal — human + AI, side by side
 
-Run both modes at once to see the connection:
+This is the key value proposition. Run SLOP mode and interact with it as a human while an AI observes via the socket:
 
-**Terminal 1** — SLOP mode:
+**Terminal 1** — SLOP mode (human + AI interface):
 ```bash
 tsk --slop
 ```
 
-**Terminal 2** — normal mode, make changes:
+You see:
+```
+tsk: listening on /tmp/slop/tsk.sock
+tsk: 10 tasks loaded (7 pending, 1 overdue)
+tsk>
+```
+
+Now type commands directly at the prompt:
+```
+tsk> add "New task from human" --due tomorrow
+Created task #11
+tsk> done t-4
+Completed: Call dentist for checkup
+tsk> list
+  ...
+```
+
+Every mutation you make sends patches over the socket to any connected AI consumer. The AI sees your changes in real time.
+
+Meanwhile, the AI can invoke actions through the socket — adding tasks, completing them, searching. When the AI acts, you see the results the next time you run `list`.
+
+**Terminal 2** — connect as an AI consumer:
 ```bash
-tsk add "New task from human"
-tsk done t-4
+socat - UNIX-CONNECT:/tmp/slop/tsk.sock
 ```
 
-Watch Terminal 1 — patches stream out as the data file changes. The AI sees every mutation in real time.
+You'll receive the hello message, and can send subscribe/invoke messages. Patches from your Terminal 1 commands stream through.
 
-Now invoke an action via SLOP (paste into Terminal 1's stdin):
-```json
-{"type":"invoke","id":"i1","path":"/tasks","action":"add","params":{"title":"New task from AI"}}
-```
-
-Switch to Terminal 2 and run `tsk` — the AI's task is there, mixed in with yours.
-
-**This is the point.** There is no "AI version" of your app. There's one app, one data file, one set of tasks. SLOP is just a structured window into the same state.
+**This is the point.** There is no "AI version" of your app. There's one process, one data file, one set of tasks. The human uses stdin/stdout. The AI uses the Unix socket. Both interfaces operate on the same state. SLOP is just a structured window into what's already there.

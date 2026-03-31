@@ -10,7 +10,7 @@ Examples are organized by integration pattern:
 
 | Category | When to use | Transport | SDK side |
 |---|---|---|---|
-| `cli/` | Terminal tools, daemons, background services | stdio, unix socket | Server SDK |
+| `cli/` | Terminal tools, daemons, background services | unix socket | Server SDK |
 | `spa/` | Client-only browser apps, local-first apps | postMessage | Client SDK + framework hooks |
 | `full-stack/` | Server-rendered apps, APIs with UI | WebSocket, HTTP | Server SDK + client SDK + framework adapter |
 
@@ -25,7 +25,7 @@ Reference the spec docs at `spec/` by number:
 | Feature | Spec | Good fit for |
 |---|---|---|
 | State tree basics | 02 | All examples (required) |
-| Stdio transport | 03 | CLI tools |
+| Unix socket transport | 03 | CLI tools |
 | WebSocket transport | 03 | Full-stack, services |
 | postMessage transport | 03 | SPAs |
 | Discovery | 03 | CLI tools, desktop apps |
@@ -142,7 +142,7 @@ Key rules to include (these are now spec-level requirements, not workarounds):
 
 #### Test harness
 
-Every multi-language example should include a `test-harness.ts` that spawns each implementation as a subprocess, speaks SLOP over stdio, and asserts on the tree structure and action results. This is the automated enforcement of the blueprint contract.
+Every multi-language example should include a `test-harness.ts` that spawns each implementation as a subprocess, connects to its Unix socket, speaks SLOP over the socket, and asserts on the tree structure and action results. This is the automated enforcement of the blueprint contract.
 
 The harness should test:
 - Handshake (hello message format)

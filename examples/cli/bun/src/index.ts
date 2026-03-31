@@ -9,6 +9,7 @@ const args = process.argv.slice(2);
 // --- Parse global flags ---
 
 let slopMode = false;
+let sockPath: string | undefined;
 const filtered: string[] = [];
 
 for (let i = 0; i < args.length; i++) {
@@ -16,6 +17,8 @@ for (let i = 0; i < args.length; i++) {
     slopMode = true;
   } else if (args[i] === "--file" && i + 1 < args.length) {
     setFilePath(args[++i]);
+  } else if (args[i] === "--sock" && i + 1 < args.length) {
+    sockPath = args[++i];
   } else {
     filtered.push(args[i]);
   }
@@ -24,7 +27,7 @@ for (let i = 0; i < args.length; i++) {
 // --- SLOP mode ---
 
 if (slopMode) {
-  await startSlopMode();
+  await startSlopMode(sockPath);
 } else {
   // --- Normal CLI mode ---
   await runCli(filtered);

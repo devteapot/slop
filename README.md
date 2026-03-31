@@ -4,6 +4,10 @@ SLOP is a protocol that lets AI observe and interact with application state dire
 
 Applications expose a **semantic state tree** that AI can subscribe to, query at variable depth, and act on through **contextual affordances**. It is the missing perception layer between AI and the software it operates.
 
+<video src="assets/demo.mp4" autoplay loop muted playsinline width="100%"></video>
+
+> An AI agent browsing an e-commerce store through the SLOP protocol — observing state, invoking actions, and updating the UI in real time. Run it yourself: `bun demo`
+
 ## Why
 
 Today, AI interacts with applications through two extremes:

@@ -144,8 +144,8 @@ Should show status `loaded` with tools `connected_apps` and `app_action`.
 
 ```bash
 # Start one of the example apps:
-cd examples/notes-spa && bun dev
-cd examples/tanstack-start && bun dev
+cd examples/spa/notes && bun dev
+cd examples/full-stack/tanstack-start && bun dev
 ```
 
 Then chat with OpenClaw from any channel:

@@ -224,6 +224,9 @@ fn normalize_params(params: &Value) -> Value {
                 if let Some(e) = def_obj.get("enum") {
                     prop.insert("enum".into(), e.clone());
                 }
+                if let Some(i) = def_obj.get("items") {
+                    prop.insert("items".into(), i.clone());
+                }
                 properties.insert(key.clone(), Value::Object(prop));
             }
             required.push(Value::String(key.clone()));
@@ -406,6 +409,41 @@ mod tests {
         let ids: Vec<&str> = children.iter().map(|c| c.id.as_str()).collect();
         assert!(ids.contains(&"sidebar"));
         assert!(ids.contains(&"main"));
+    }
+
+    #[test]
+    fn test_item_content_ref() {
+        let desc = json!({
+            "type": "collection",
+            "items": [
+                {
+                    "id": "readme",
+                    "props": {"title": "README.md"},
+                    "content_ref": {
+                        "type": "text",
+                        "mime": "text/markdown",
+                        "summary": "Project readme"
+                    }
+                }
+            ]
+        });
+        let (node, _) = normalize_descriptor("docs", "docs", &desc);
+        let item = &node.children.unwrap()[0];
+        let cr = item.content_ref.as_ref().expect("item should have content_ref");
+        assert_eq!(cr.content_type, crate::types::ContentType::Text);
+        assert_eq!(cr.mime, "text/markdown");
+        assert_eq!(cr.uri.as_deref(), Some("slop://content/docs/readme"));
+    }
+
+    #[test]
+    fn test_array_params_preserve_items() {
+        let params = json!({
+            "tags": {"type": "array", "items": {"type": "string"}}
+        });
+        let schema = normalize_params(&params);
+        let tags = &schema["properties"]["tags"];
+        assert_eq!(tags["type"], "array");
+        assert_eq!(tags["items"]["type"], "string");
     }
 
     #[test]

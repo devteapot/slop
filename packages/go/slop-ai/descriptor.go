@@ -102,10 +102,29 @@ func normalizeItem(path string, item Item) (WireNode, map[string]Handler) {
 	affordances := normalizeActions(path, item.Actions, handlers)
 	meta := extractMeta(item.Summary, item.Meta)
 
+	// Content ref (same logic as normalizeDescriptor)
+	var wireContentRef *WireContentRef
+	if item.ContentRef != nil {
+		uri := item.ContentRef.URI
+		if uri == "" {
+			uri = fmt.Sprintf("slop://content/%s", path)
+		}
+		wireContentRef = &WireContentRef{
+			Type:     item.ContentRef.Type,
+			MIME:     item.ContentRef.MIME,
+			Summary:  item.ContentRef.Summary,
+			Size:     item.ContentRef.Size,
+			URI:      uri,
+			Preview:  item.ContentRef.Preview,
+			Encoding: item.ContentRef.Encoding,
+		}
+	}
+
 	wn := WireNode{
 		ID:         item.ID,
 		Type:       "item",
 		Properties: item.Props,
+		ContentRef: wireContentRef,
 	}
 	if len(children) > 0 {
 		wn.Children = children
@@ -153,11 +172,24 @@ func normalizeActions(path string, actions Actions, handlers map[string]Handler)
 	return affordances
 }
 
-func normalizeParams(params map[string]string) map[string]any {
+func normalizeParams(params map[string]any) map[string]any {
 	properties := map[string]any{}
 	var required []string
-	for key, typeName := range params {
-		properties[key] = map[string]any{"type": typeName}
+	for key, defn := range params {
+		switch v := defn.(type) {
+		case string:
+			properties[key] = map[string]any{"type": v}
+		case map[string]any:
+			prop := map[string]any{"type": v["type"]}
+			for _, extra := range []string{"description", "enum", "items"} {
+				if val, ok := v[extra]; ok {
+					prop[extra] = val
+				}
+			}
+			properties[key] = prop
+		default:
+			properties[key] = map[string]any{"type": "string"}
+		}
 		required = append(required, key)
 	}
 	return map[string]any{

@@ -4,7 +4,7 @@
   "description": "State Layer for Observable Programs — a protocol for AI to observe and interact with application state",
   "license": "MIT",
   "repository": "https://github.com/devteapot/slop",
-  "workspaces": ["packages/typescript/*", "examples/*", "examples/cli/*", "extension", "desktop"],
+  "workspaces": ["packages/typescript/*", "examples/demo", "examples/cli/*", "examples/spa/*", "examples/full-stack/*", "examples/full-stack/*/frontend", "extension", "desktop"],
   "scripts": {
     "build": "(cd packages/typescript/core && bun run build) && (cd packages/typescript/consumer && bun run build) && for d in client server react vue solid angular tanstack-start openclaw-plugin; do (cd packages/typescript/$d && bun run build) || exit 1; done",
     "test": "for d in packages/typescript/*/; do if ls \"$d\"__tests__/*.test.* >/dev/null 2>&1; then echo \"Testing $d\" && (cd \"$d\" && bun test); fi; done",

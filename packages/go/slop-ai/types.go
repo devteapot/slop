@@ -35,12 +35,13 @@ type Node struct {
 
 // Item is an element in a collection.
 type Item struct {
-	ID       string
-	Props    Props
-	Summary  string
-	Actions  Actions
-	Children map[string]Node
-	Meta     *Meta
+	ID         string
+	Props      Props
+	Summary    string
+	Actions    Actions
+	Children   map[string]Node
+	Meta       *Meta
+	ContentRef *ContentRef
 }
 
 // Handler handles a SLOP action invocation.
@@ -114,7 +115,7 @@ type ActionOpts struct {
 	Dangerous   bool
 	Idempotent  bool
 	Estimate    string            // "instant", "fast", "slow", "async"
-	Params      map[string]string // simplified param schema: {"title": "string"}
+	Params      map[string]any // simplified param schema: {"title": "string"} or {"tags": ParamDef{...}}
 }
 
 // WithOpts wraps a Handler with action metadata, returning a Handler

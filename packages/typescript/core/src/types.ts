@@ -54,7 +54,7 @@ export interface PatchOp {
 
 export type ActionHandler = (params: Record<string, unknown>) => unknown | Promise<unknown>;
 
-export type ParamDef = string | { type: string; description?: string; enum?: unknown[] };
+export type ParamDef = string | { type: string; description?: string; enum?: unknown[]; items?: JsonSchema };
 
 export type Action = ActionHandler | {
   handler: ActionHandler;
@@ -89,6 +89,7 @@ export interface ItemDescriptor {
   actions?: Record<string, Action>;
   meta?: Partial<NodeMeta>;
   children?: Record<string, NodeDescriptor>;
+  contentRef?: ContentRef;
 }
 
 export interface NodeDescriptor {

@@ -253,5 +253,6 @@ listenUnix(slop);               // local agents via Unix socket
 See the `examples/` directory for complete working apps:
 
 - `examples/demo/` — Interactive three-panel demo: e-commerce store + AI agent + live state tree (`bun demo`)
-- `examples/notes-spa/` — React SPA + postMessage
-- `examples/tanstack-start/` — TanStack Start fullstack + WebSocket
+- `examples/spa/notes/` — React SPA + postMessage
+- `examples/full-stack/tanstack-start/` — TanStack Start fullstack + WebSocket
+- `examples/full-stack/python-react/` — Python FastAPI + React SPA, cross-SDK integration

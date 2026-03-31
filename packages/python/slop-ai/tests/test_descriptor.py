@@ -143,6 +143,45 @@ def test_item_with_actions():
     assert "todos/t1/delete" in handlers
 
 
+def test_item_content_ref():
+    node, _ = normalize_descriptor("docs", "docs", {
+        "type": "collection",
+        "items": [
+            {
+                "id": "readme",
+                "props": {"title": "README.md"},
+                "content_ref": {
+                    "type": "text",
+                    "mime": "text/markdown",
+                    "summary": "Project readme",
+                },
+            },
+        ],
+    })
+    item = node.children[0]
+    assert item.content_ref is not None
+    assert item.content_ref.type == "text"
+    assert item.content_ref.mime == "text/markdown"
+    assert item.content_ref.uri == "slop://content/docs/readme"
+
+
+def test_array_params_preserve_items():
+    node, _ = normalize_descriptor("x", "x", {
+        "type": "group",
+        "actions": {
+            "tag": {
+                "handler": lambda params: None,
+                "params": {
+                    "tags": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        },
+    })
+    params = node.affordances[0].params
+    assert params["properties"]["tags"]["type"] == "array"
+    assert params["properties"]["tags"]["items"] == {"type": "string"}
+
+
 def test_meta_passthrough():
     node, _ = normalize_descriptor("x", "x", {
         "type": "status",

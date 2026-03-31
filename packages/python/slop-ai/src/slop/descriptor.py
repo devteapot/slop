@@ -109,6 +109,15 @@ def _normalize_item(
         meta_dict["summary"] = item["summary"]
     meta = NodeMeta.from_dict(meta_dict) if meta_dict else None
 
+    # Content ref (same logic as normalize_descriptor)
+    cr: ContentRef | None = None
+    cr_raw = item.get("content_ref") or item.get("contentRef")
+    if cr_raw:
+        ref = dict(cr_raw)
+        if "uri" not in ref:
+            ref["uri"] = f"slop://content/{path}"
+        cr = ContentRef.from_dict(ref)
+
     node = SlopNode(
         id=item["id"],
         type="item",
@@ -116,6 +125,7 @@ def _normalize_item(
         children=children or None,
         affordances=affordances or None,
         meta=meta,
+        content_ref=cr,
     )
     return node, handlers
 
@@ -162,10 +172,9 @@ def _normalize_params(params: dict[str, Any]) -> dict[str, Any]:
             properties[key] = {"type": defn}
         else:
             prop: dict[str, Any] = {"type": defn["type"]}
-            if "description" in defn:
-                prop["description"] = defn["description"]
-            if "enum" in defn:
-                prop["enum"] = defn["enum"]
+            for extra_key in ("description", "enum", "items"):
+                if extra_key in defn:
+                    prop[extra_key] = defn[extra_key]
             properties[key] = prop
         required.append(key)
 

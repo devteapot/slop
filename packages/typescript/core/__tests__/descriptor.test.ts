@@ -194,6 +194,45 @@ describe("normalizeDescriptor", () => {
     expect(node.content_ref!.uri).toBe("https://cdn.example.com/photo.png");
   });
 
+  test("item contentRef maps to content_ref field", () => {
+    const { node } = normalizeDescriptor("docs", "docs", {
+      type: "collection",
+      items: [{
+        id: "readme",
+        props: { title: "README.md" },
+        contentRef: {
+          type: "text",
+          mime: "text/markdown",
+          summary: "Project readme",
+        },
+      }],
+    });
+    const item = node.children![0];
+    expect(item.content_ref).toBeDefined();
+    expect(item.content_ref!.type).toBe("text");
+    expect(item.content_ref!.mime).toBe("text/markdown");
+    expect(item.content_ref!.uri).toBe("slop://content/docs/readme");
+    expect(item.properties?.content_ref).toBeUndefined();
+  });
+
+  test("array params preserve items schema", () => {
+    const fn = () => {};
+    const { node } = normalizeDescriptor("x", "x", {
+      type: "group",
+      actions: {
+        tag: {
+          handler: fn,
+          params: {
+            tags: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    });
+    const params = node.affordances![0].params!;
+    expect(params.properties!.tags.type).toBe("array");
+    expect(params.properties!.tags.items).toEqual({ type: "string" });
+  });
+
   test("item summary maps to meta.summary", () => {
     const { node } = normalizeDescriptor("notes", "notes", {
       type: "collection",

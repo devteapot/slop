@@ -190,11 +190,15 @@ function convertSchemaForGemini(schema: Record<string, unknown>): Record<string,
   if (schema.properties) {
     const props: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(schema.properties as Record<string, any>)) {
-      props[key] = { type: val.type ?? "string", description: val.description };
-      if (val.enum) props[key] = { ...props[key] as any, enum: val.enum };
+      const prop: Record<string, unknown> = { type: val.type ?? "string" };
+      if (val.description) prop.description = val.description;
+      if (val.enum) prop.enum = val.enum;
+      if (val.items) prop.items = convertSchemaForGemini(val.items);
+      props[key] = prop;
     }
     result.properties = props;
   }
+  if (schema.items) result.items = convertSchemaForGemini(schema.items as Record<string, unknown>);
   if (schema.required) result.required = schema.required;
   return result;
 }

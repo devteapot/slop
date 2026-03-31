@@ -150,13 +150,13 @@ For **each** package, run these checks:
 - [ ] All four implementations expose the **same** SLOP tree structure (verify node types, IDs)
 - [ ] Consumer can connect to each and see state + invoke affordances
 
-### Notes SPA (examples/notes-spa/)
+### Notes SPA (examples/spa/notes/)
 - [ ] `bun install && bun run dev` starts the app
 - [ ] SLOP provider is active (check meta tag or postMessage)
 - [ ] Extension connects and shows state tree
 - [ ] Creating/editing notes shows up as patches in the extension
 
-### TanStack Start App (examples/tanstack-start/)
+### TanStack Start App (examples/full-stack/tanstack-start/)
 - [ ] `bun install && bun run dev` starts the app
 - [ ] Both server-side and client-side SLOP work
 - [ ] Extension connects and shows full state

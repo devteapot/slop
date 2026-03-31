@@ -83,6 +83,7 @@ The full specification is in [`spec/`](./spec/):
 4. [Message Protocol](./spec/core/messages.md)
 5. [Affordances](./spec/core/affordances.md)
 6. [Attention & Salience](./spec/core/attention.md)
+7. [Development & Debugging](./spec/core/development.md)
 
 ### Extensions
 
@@ -140,8 +141,11 @@ slop/
 ├── examples/
 │   ├── demo/                       # Interactive three-panel demo (bun demo)
 │   ├── cli/                        # Task manager CLI in 4 languages (Bun, Python, Go, Rust)
-│   ├── notes-spa/                  # React SPA with in-browser SLOP
-│   └── tanstack-start/             # Full-stack SSR example
+│   ├── spa/
+│   │   └── notes/                  # React SPA with in-browser SLOP
+│   └── full-stack/
+│       ├── tanstack-start/         # TanStack Start — server + UI mount
+│       └── python-react/           # Python FastAPI + React — cross-SDK
 └── website/
     ├── landing/                    # slopai.dev landing page
     └── docs/                       # docs.slopai.dev documentation
@@ -153,8 +157,9 @@ Each example follows a **blueprint** — a language-agnostic spec defining the e
 
 - **[Interactive Demo](./examples/demo/)** — Three-panel demo: e-commerce store + AI agent + live state tree. Run with `bun demo`. Replay mode works without an API key; connect one for interactive mode.
 - **[CLI Task Manager](./examples/cli/)** — `tsk`, a task manager with a `--slop` flag. Implementations in Bun, Python, Go, and Rust.
-- **[Notes SPA](./examples/notes-spa/)** — React app with in-browser SLOP provider via postMessage.
-- **[TanStack Start](./examples/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
+- **[Notes SPA](./examples/spa/notes/)** — React app with in-browser SLOP provider via postMessage.
+- **[TanStack Start](./examples/full-stack/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
+- **[Python + React](./examples/full-stack/python-react/)** — Python FastAPI backend + React SPA frontend. Cross-SDK integration with two independent providers.
 
 ## Roadmap
 

@@ -18,7 +18,7 @@ bun install
 bun test packages/
 
 # Run the Notes SPA example
-cd examples/notes-spa && bun run serve.ts
+cd examples/spa/notes && bun run serve.ts
 
 # Run the Kanban board example
 cd mvp && bun run demo:web

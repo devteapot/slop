@@ -105,6 +105,15 @@ function normalizeItem(
   const meta: Partial<NodeMeta> = { ...item.meta };
   if (item.summary) meta.summary = item.summary;
 
+  // Content ref (same logic as normalizeDescriptor)
+  let content_ref: ContentRef | undefined;
+  if (item.contentRef) {
+    content_ref = {
+      ...item.contentRef,
+      uri: item.contentRef.uri ?? `slop://content/${path}`,
+    };
+  }
+
   const node: SlopNode = {
     id: item.id,
     type: "item",
@@ -112,6 +121,7 @@ function normalizeItem(
     ...(children.length > 0 && { children }),
     ...(affordances.length > 0 && { affordances }),
     ...(Object.keys(meta).length > 0 && { meta }),
+    ...(content_ref && { content_ref }),
   };
 
   return { node, handlers };
@@ -163,6 +173,7 @@ function normalizeParams(params: Record<string, ParamDef>): JsonSchema {
         type: def.type,
         ...(def.description && { description: def.description }),
         ...(def.enum && { enum: def.enum }),
+        ...(def.items && { items: def.items }),
       };
     }
     required.push(key);

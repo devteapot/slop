@@ -7,7 +7,7 @@ TanStack Start is a full-stack React meta-framework with SSR, server functions, 
 
 In this guide, `/ui` is a **fullstack adapter convention**, not a reserved protocol keyword. SLOP allows any normal subtree there; using `ui` just makes the shape predictable for consumers.
 
-See the full working example in [`examples/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/tanstack-start).
+See the full working example in [`examples/full-stack/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/full-stack/tanstack-start).
 
 ## Installation
 
@@ -313,6 +313,6 @@ The architecture has three participants: the **server** (public provider), the *
 
 ## Next steps
 
-- Browse the full example at [`examples/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/tanstack-start)
+- Browse the full example at [`examples/full-stack/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/full-stack/tanstack-start)
 - See the [API Reference](/reference/core/) for the full node descriptor format
 - Read the [React guide](/guides/react/) for client-only SLOP usage without a meta-framework

@@ -1,10 +1,11 @@
 import { discoverSlop, observeDiscovery, type SlopDiscovery } from "./discovery";
-import { startBridge } from "./bridge";
+import { createBridgeController } from "./bridge";
 import { createChatUI } from "../ui/chat";
 import { buildAxTree, observeChanges, executeAction } from "./ax-adapter";
 import type { BackgroundMessage, ContentMessage } from "../shared/messages";
 
 let port: chrome.runtime.Port | null = null;
+let bridgeController: ReturnType<typeof createBridgeController> | null = null;
 let chatUI: ReturnType<typeof createChatUI> | null = null;
 let currentDiscoveries: SlopDiscovery[] = [];
 let isActive = true;
@@ -60,15 +61,15 @@ function connectPort() {
   if (port) return;
 
   port = chrome.runtime.connect({ name: "slop" });
-
-  // ALWAYS start bridge — ready for postMessage providers even if not discovered yet
-  startBridge(port);
+  bridgeController = createBridgeController(port);
 
   // Listen for background messages
   port.onMessage.addListener(handleBackgroundMessage);
 
   // Port reconnection on disconnect (MV3 service worker restart)
   port.onDisconnect.addListener(() => {
+    bridgeController?.dispose();
+    bridgeController = null;
     port = null;
     chatUI?.setStatus("disconnected");
 
@@ -114,6 +115,8 @@ function teardown() {
     port.disconnect();
     port = null;
   }
+  bridgeController?.dispose();
+  bridgeController = null;
 }
 
 function handleBackgroundMessage(msg: BackgroundMessage) {
@@ -188,7 +191,6 @@ function startAxAdapter() {
   if (port) return;
 
   port = chrome.runtime.connect({ name: "slop" });
-  startBridge(port);
 
   port.postMessage({
     type: "slop-discovered",
@@ -269,6 +271,8 @@ function startAxAdapter() {
 function stopAxAdapter() {
   if (axCleanup) { axCleanup(); axCleanup = null; }
   hideChatUI();
+  bridgeController?.dispose();
+  bridgeController = null;
   if (port) { port.disconnect(); port = null; }
 }
 

@@ -137,7 +137,7 @@ function ProjectsPage() {
         )}
 
         <p className="mt-8 text-center text-xs text-[var(--sea-ink-soft)] opacity-50">
-          {projects.length} projects · SLOP data at /slop · UI via postMessage
+          {projects.length} projects · SLOP data at /slop · UI mounted under /ui
         </p>
       </div>
     </main>

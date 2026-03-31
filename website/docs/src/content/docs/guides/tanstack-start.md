@@ -3,7 +3,9 @@ title: "TanStack Start"
 description: How to use SLOP with TanStack Start to expose server and UI state to AI agents.
 ---
 
-TanStack Start is a full-stack React meta-framework with SSR, server functions, and file-based routing. The `@slop-ai/tanstack-start` adapter is a **Layer 4** integration that wires everything together: the server runs a data provider (WebSocket), the browser runs a UI provider (postMessage), and AI consumers subscribe to both.
+TanStack Start is a full-stack React meta-framework with SSR, server functions, and file-based routing. The `@slop-ai/tanstack-start` adapter is a **Layer 4** integration that wires everything together: the server owns the public WebSocket provider, the browser runs a UI provider that connects back to the server, and the server mounts that browser tree under `ui`.
+
+In this guide, `/ui` is a **fullstack adapter convention**, not a reserved protocol keyword. SLOP allows any normal subtree there; using `ui` just makes the shape predictable for consumers.
 
 See the full working example in [`examples/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/tanstack-start).
 
@@ -131,6 +133,7 @@ export default defineConfig({
                     if (wsConn.readyState === 1) wsConn.send(data);
                   },
                   close: () => wsConn.close(),
+                  __slopRequest: req,
                   __slop: null as any,
                 };
                 handler.open(peer);
@@ -161,11 +164,14 @@ The plugin uses `server.ssrLoadModule` to import the SLOP instance from within V
 
 Call `useSlopUI()` once in your root layout (`__root.tsx`). It:
 
-- Creates a browser-side SLOP provider (postMessage) for UI state
+- Creates a browser-side SLOP provider for UI state
+- Connects that browser provider back to the app's `/slop` endpoint with a hidden WebSocket channel
+- Lets the server mount the current UI tree under the conventional `ui` subtree
 - Registers the current route (path, params, available routes) automatically
 - Provides `navigate` and `back` actions so AI can navigate the user
 - Registers a `refresh` affordance the consumer invokes for data invalidation
 - Auto-updates on every navigation
+- Falls back to standalone postMessage mode if no server endpoint is discoverable
 
 ```tsx
 // src/routes/__root.tsx
@@ -233,11 +239,11 @@ function ProjectsPage() {
 }
 ```
 
-When the user navigates to a different page, the old `useSlop` registrations unregister automatically and the new page's registrations take their place — the browser provider's tree updates to reflect the current page.
+When the user navigates to a different page, the old `useSlop` registrations unregister automatically and the new page's registrations take their place — the mounted `ui` subtree updates to reflect the current page.
 
 ## Discovery
 
-Add a `<meta name="slop">` tag so AI agents can find the server's WebSocket endpoint. The browser-side UI provider's meta tag (`postmessage`) is injected automatically by `useSlopUI()`.
+Add a `<meta name="slop">` tag so AI agents can find the server's WebSocket endpoint. `useSlopUI()` reuses that endpoint for its hidden browser-to-server UI socket; it does not publish a second discoverable provider tag in the normal fullstack path.
 
 ```tsx
 // src/routes/__root.tsx
@@ -246,7 +252,6 @@ export const Route = createRootRoute({
     meta: [
       // ... other meta tags
       { name: "slop", content: "ws://localhost:3000/slop" },
-      // Note: useSlopUI() auto-injects a second meta tag for the postMessage UI provider
     ],
   }),
   shellComponent: RootDocument,
@@ -254,26 +259,25 @@ export const Route = createRootRoute({
 });
 ```
 
-AI consumers discover both providers: the WebSocket endpoint (data) from the meta tag, and the postMessage provider (UI) from the auto-injected tag.
+AI consumers discover the server provider from the meta tag. The browser UI connection stays internal to the adapter, and the server exposes it back out under the conventional `ui` subtree. The extension bridge is still relevant for pure SPAs and accessibility adapters, but not for this fullstack path.
 
 ## What the AI sees
 
-The consumer (extension or desktop app) subscribes to both providers and merges them into one tree:
+The consumer sees one provider tree from the server:
 
 ```
-[root] merged                            # merged by the consumer
-  [data] My App                          # from server provider (WebSocket)
-    projects/
-      props: { total: 3, active: 2 }
-      actions: [create_project]
-      p1/
-        props: { name: "SLOP Protocol", status: "active", taskCount: 3, done: 1 }
-        actions: [archive, rename, add_task]
-        tasks/
-          t1/ props: { title: "Write spec", done: true }  actions: [toggle, delete]
-          t2/ ...
-      p2/ ...
-  [ui] UI                                # from browser provider (postMessage)
+[root] My App                            # served directly by /slop
+  projects/
+    props: { total: 3, active: 2 }
+    actions: [create_project]
+    p1/
+      props: { name: "SLOP Protocol", status: "active", taskCount: 3, done: 1 }
+      actions: [archive, rename, add_task]
+      tasks/
+        t1/ props: { title: "Write spec", done: true }  actions: [toggle, delete]
+        t2/ ...
+    p2/ ...
+  ui/
     route/                               # auto-registered by useSlopUI()
       props: { path: "/", availableRoutes: ["/", "/about", "/projects/$id"] }
       actions: [navigate, back]
@@ -291,21 +295,21 @@ The AI can navigate with `navigate`, invoke server actions like `rename`, intera
 
 ## How it works
 
-The architecture has three participants: the **server** (data provider), the **browser** (UI provider), and the **consumer** (extension/desktop app). Both providers speak standard SLOP — no custom protocol extensions.
+The architecture has three participants: the **server** (public provider), the **browser** (UI provider mounted into the server), and the **consumer surface** (extension chat or desktop app). Everything still speaks standard SLOP — no custom protocol extensions.
 
-**Server is the data provider.** Descriptor functions registered with `slop.register()` produce the data tree. Connected via WebSocket.
+**Server is the public provider.** Descriptor functions registered with `slop.register()` produce the data tree. The same server also hosts the browser UI mount channel and exposes the combined tree over `/slop`.
 
-**Browser runs a UI provider.** When `useSlopUI()` mounts, the browser's `@slop-ai/client` instance exposes UI state (route, filters, compose form) via postMessage. The adapter also registers a `refresh` affordance that calls `router.invalidate()` when invoked.
+**Browser runs a UI provider.** When `useSlopUI()` mounts, the browser's `@slop-ai/client` instance exposes UI state (route, filters, compose form) over a hidden outbound WebSocket to the app server. The adapter also registers a `refresh` affordance that calls `router.invalidate()` when invoked.
 
-**AI consumers subscribe to both providers.** The consumer (extension or desktop app) connects to the server's WebSocket for data state and to the browser's postMessage for UI state. It merges them into one tree and routes invokes to the correct provider.
+**AI consumers subscribe to one provider.** The extension chat and desktop app both connect to the server's WebSocket provider. That one provider already includes the mounted `ui` subtree, so there is no separate `pm` entry for the TanStack Start app.
 
 ### Data flow
 
-1. **Data actions:** An AI consumer invokes a data action (e.g. `create_project`). The consumer routes this to the server provider. The server executes the handler, refreshes the tree, and the consumer sees the updated data via patches.
+1. **Data actions:** An AI consumer invokes a data action (e.g. `create_project`). The server executes the handler, refreshes the tree, and the consumer sees the updated data via patches.
 
-2. **Data invalidation:** After a data action completes, the consumer invokes `refresh` on the browser's UI provider. The adapter's refresh handler calls `router.invalidate()`, triggering TanStack Router to re-run loaders and re-render with fresh data.
+2. **Data invalidation:** After a data action completes, the consumer invokes `refresh` on `ui/__adapter`. The adapter's refresh handler calls `router.invalidate()`, triggering TanStack Router to re-run loaders and re-render with fresh data.
 
-3. **UI actions:** An AI consumer invokes a UI action (e.g. `set_filter`). The consumer routes this to the browser's UI provider. The browser executes the handler locally (a React state setter), which updates the component and the UI provider's tree.
+3. **UI actions:** An AI consumer invokes a UI action (e.g. `set_filter`) on the mounted `ui` subtree. The server forwards that invoke to the browser UI provider, which executes the handler locally (a React state setter) and streams the updated UI subtree back.
 
 ## Next steps
 

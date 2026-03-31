@@ -42,13 +42,14 @@ export function slopVitePlugin(
       });
 
       // Bridge ws WebSocket connections to the peer-based handler
-      wss.on("connection", (ws: WebSocket) => {
+      wss.on("connection", (ws: WebSocket, req: any) => {
         // Create a peer-like object that the handler expects
         const peer = {
           send(data: string) {
             if (ws.readyState === WebSocket.OPEN) ws.send(data);
           },
           close() { ws.close(); },
+          __slopRequest: req,
           __slop: null as any,
         };
 

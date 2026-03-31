@@ -22,6 +22,7 @@ export type BackgroundMessage =
   | { type: "chat-error"; message: string }
   | { type: "profiles"; profiles: LlmProfile[]; activeProfileId: string }
   | { type: "models"; models: string[]; activeModel: string }
+  | { type: "bridge-control"; active: boolean }
   | { type: "slop-to-provider"; message: SlopMessage };
 
 // Settings

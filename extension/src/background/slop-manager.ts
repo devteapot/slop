@@ -182,6 +182,70 @@ export function getTabState(tabId: number): TabState | undefined {
   return tabs.get(tabId);
 }
 
+export function hasTabSession(tabId: number): boolean {
+  return tabs.has(tabId);
+}
+
+export function getTabMergedTree(tabId: number): SlopNode | null {
+  const state = tabs.get(tabId);
+  return state ? getMergedTree(state) : null;
+}
+
+export async function syncTabDiscoveries(
+  tabId: number,
+  discoveries: Array<{ transport: "ws" | "postmessage"; endpoint?: string }>
+): Promise<void> {
+  const state = tabs.get(tabId);
+  if (!state) return;
+
+  const keyForDiscovery = (discovery: { transport: "ws" | "postmessage"; endpoint?: string }) =>
+    `${discovery.transport}:${discovery.endpoint ?? ""}`;
+  const keyForEntry = (entry: ProviderEntry) =>
+    `${entry.transport}:${entry.endpoint ?? ""}`;
+
+  const nextKeys = new Set(discoveries.map(keyForDiscovery));
+
+  for (const entry of [...state.providers]) {
+    if (nextKeys.has(keyForEntry(entry))) continue;
+
+    if (entry.consumer) {
+      entry.consumer.disconnect();
+      entry.consumer = null;
+    }
+    cancelReconnect(tabId, entry.name);
+    state.providers = state.providers.filter((candidate) => candidate !== entry);
+  }
+
+  for (const discovery of discoveries) {
+    const existing = state.providers.find((entry) => keyForEntry(entry) === keyForDiscovery(discovery));
+    if (existing) continue;
+
+    const entry: ProviderEntry = {
+      name: discovery.transport === "ws" ? "data" : "ui",
+      transport: discovery.transport,
+      endpoint: discovery.endpoint,
+      consumer: null,
+      subscriptionId: null,
+      tree: null,
+      status: "disconnected",
+    };
+
+    state.providers.push(entry);
+    void connectProvider(tabId, entry);
+  }
+
+  updateTabStatus(tabId, state);
+}
+
+export function getTabConnectionStatus(tabId: number): "disconnected" | "connecting" | "connected" {
+  const state = tabs.get(tabId);
+  if (!state) return "disconnected";
+
+  const anyConnected = state.providers.some((provider) => provider.status === "connected");
+  const anyConnecting = state.providers.some((provider) => provider.status === "connecting");
+  return anyConnected ? "connected" : anyConnecting ? "connecting" : "disconnected";
+}
+
 // --- Internal: per-provider connection ---
 
 async function connectProvider(tabId: number, entry: ProviderEntry): Promise<void> {

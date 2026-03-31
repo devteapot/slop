@@ -92,7 +92,7 @@ function routeToolCall(toolName: string, singleProvider: boolean) {
   const workspace = useWorkspaceStore.getState().getActiveWorkspace();
   const allProviders = useProviderStore.getState().providers;
 
-  const isConnected = (p: any) => p && p.status === "connected" && p.consumer;
+  const isConnected = (p: any) => p && p.status === "connected";
 
   // Single provider — no prefix, route directly
   if (singleProvider) {
@@ -144,6 +144,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       const profile = useLlmStore.getState().getActiveProfile();
+      const invokeProvider = useProviderStore.getState().invokeProvider;
 
       conversation.push({
         role: "user",
@@ -179,7 +180,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           currentMessages = [...currentMessages, progressMsg];
           useWorkspaceStore.getState().updateWorkspaceMessages(workspace.id, currentMessages, conversation);
 
-          const result = await provider!.consumer!.invoke(path, action, params);
+          const result = await invokeProvider(provider!.id, path, action, params);
           await new Promise(r => setTimeout(r, 100));
 
           // Auto-refresh: if this provider has a paired UI provider (same tab), trigger refresh
@@ -187,9 +188,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const allProviders = useProviderStore.getState().providers;
             for (const [, p] of allProviders) {
               if (p.id !== provider!.id && p.bridgeTabId === provider!.bridgeTabId
-                  && p.bridgeTransport === "postmessage" && p.consumer && p.status === "connected") {
+                  && p.bridgeTransport === "postmessage" && p.status === "connected") {
                 try {
-                  await p.consumer.invoke("/__adapter", "refresh");
+                  await invokeProvider(p.id, "/__adapter", "refresh");
                   await new Promise(r => setTimeout(r, 200));
                 } catch {}
               }

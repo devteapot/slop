@@ -5,7 +5,7 @@ export interface PinnedProvider {
   id: string;
   name: string;
   url: string;
-  transportType: "ws" | "unix";
+  transportType: "ws" | "unix" | "relay";
 }
 
 export interface Workspace {

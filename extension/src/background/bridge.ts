@@ -2,22 +2,28 @@
  * Bridge client — connects to the desktop app's local WebSocket bridge
  * at ws://localhost:9339/slop-bridge.
  *
- * Announces discovered browser providers so the desktop can see them.
- * Relays SLOP messages for SPA providers.
+ * The bridge only carries provider discovery plus provider-scoped relay
+ * messages for desktop-owned postMessage sessions.
  */
 
 import { getPrefs } from "../shared/messages";
 
 const BRIDGE_URL = "ws://127.0.0.1:9339/slop-bridge";
-const RETRY_INTERVAL = 5000; // 5 seconds — fast enough to catch desktop app startup
+const RETRY_INTERVAL = 5000;
 
 let ws: WebSocket | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let connected = false;
 let enabled = true;
 
-interface ProviderAnnouncement {
+export interface BridgeDiscoveryProvider {
+  transport: "ws" | "postmessage";
+  endpoint?: string;
+}
+
+export interface ProviderAnnouncement {
   tabId: number;
+  providerKey: string;
   provider: {
     id: string;
     name: string;
@@ -26,15 +32,31 @@ interface ProviderAnnouncement {
   };
 }
 
-// Track announced providers so we can re-announce on reconnect (keyed by provider.id)
+type BridgeMessageHandler = (message: any) => void;
+
+const bridgeMessageHandlers: BridgeMessageHandler[] = [];
 const announcedProviders = new Map<string, ProviderAnnouncement>();
+
+function encodeKeyPart(value: string): string {
+  return encodeURIComponent(value).replace(/%/g, "_");
+}
+
+export function makeProviderKey(
+  tabId: number,
+  provider: BridgeDiscoveryProvider,
+  index: number
+): string {
+  if (provider.transport === "ws") {
+    return `tab-${tabId}-ws-${encodeKeyPart(provider.endpoint ?? `provider-${index}`)}`;
+  }
+  return `tab-${tabId}-postmessage-${index}`;
+}
 
 export async function startBridgeClient(): Promise<void> {
   const prefs = await getPrefs();
   enabled = prefs.active && prefs.bridgeEnabled;
   if (enabled) tryConnect();
 
-  // Listen for pref changes (both master toggle and bridge toggle)
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.prefs) {
       const newPrefs = changes.prefs.newValue;
@@ -51,8 +73,14 @@ export async function startBridgeClient(): Promise<void> {
 }
 
 export function stopBridge(): void {
-  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-  if (ws) { ws.close(); ws = null; }
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
   connected = false;
   console.log("Bridge: disabled");
 }
@@ -67,20 +95,22 @@ function tryConnect(): void {
       connected = true;
       console.log("Bridge: connected to desktop app");
 
-      // Re-announce from in-memory map (survives if service worker stayed alive)
       for (const announcement of announcedProviders.values()) {
-        send({ type: "provider-available", ...announcement });
+        send({
+          type: "provider-available",
+          tabId: announcement.tabId,
+          providerKey: announcement.providerKey,
+          provider: announcement.provider,
+        });
       }
 
-      // Also actively query all tabs for SLOP status
-      // (handles MV3 service worker restart where announcedProviders is empty)
       queryAllTabsForSlop();
     };
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        handleBridgeMessage(msg);
+        bridgeMessageHandlers.forEach((handler) => handler(msg));
       } catch {}
     };
 
@@ -91,7 +121,6 @@ function tryConnect(): void {
     };
 
     ws.onerror = () => {
-      // onclose will fire after this
       ws?.close();
     };
   } catch {
@@ -114,92 +143,66 @@ function send(message: any): void {
   }
 }
 
-// --- Public API ---
-
-/** Announce a provider discovered on a browser tab */
-export function announceProvider(
-  tabId: number,
-  provider: { id: string; name: string; transport: "ws" | "postmessage"; url?: string }
-): void {
-  const announcement: ProviderAnnouncement = { tabId, provider };
-  announcedProviders.set(provider.id, announcement);
+export function announceProvider(announcement: ProviderAnnouncement): void {
+  announcedProviders.set(announcement.providerKey, announcement);
 
   if (connected) {
-    send({ type: "provider-available", ...announcement });
+    send({
+      type: "provider-available",
+      tabId: announcement.tabId,
+      providerKey: announcement.providerKey,
+      provider: announcement.provider,
+    });
   }
 }
 
-/** Announce all providers for a tab are no longer available */
-export function announceProviderGone(tabId: number): void {
-  for (const [id, ann] of announcedProviders) {
-    if (ann.tabId === tabId) announcedProviders.delete(id);
-  }
+export function announceProviderGone(tabId: number, providerKey: string): void {
+  announcedProviders.delete(providerKey);
 
   if (connected) {
-    send({ type: "provider-unavailable", tabId });
+    send({ type: "provider-unavailable", tabId, providerKey });
   }
 }
 
-/** Send a SLOP relay message to the extension (from desktop via bridge) */
-function handleBridgeMessage(msg: any): void {
-  if (msg.type === "slop-relay" && msg.tabId) {
-    // Desktop wants to send a SLOP message to a tab's provider
-    // Route it through the appropriate port
-    bridgeRelayHandlers.forEach(handler => handler(msg.tabId, msg.message));
+export function onBridgeMessage(handler: BridgeMessageHandler): void {
+  bridgeMessageHandlers.push(handler);
+}
+
+export function relayToDesktop(providerKey: string, message: any): void {
+  if (connected) {
+    send({ type: "slop-relay", providerKey, message });
   }
 }
 
-// Handlers for relay messages from desktop
-const bridgeRelayHandlers: ((tabId: number, message: any) => void)[] = [];
-
-/** Register a handler for relay messages from the desktop */
-export function onBridgeRelay(handler: (tabId: number, message: any) => void): void {
-  bridgeRelayHandlers.push(handler);
-}
-
-/**
- * Query all open tabs for their SLOP status.
- * Handles MV3 service worker restart: announcedProviders is empty
- * but tabs still have SLOP providers. Re-populates the map.
- */
 async function queryAllTabsForSlop(): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
       if (!tab.id || !tab.url) continue;
-      // Skip chrome:// and extension pages
       if (tab.url.startsWith("chrome") || tab.url.startsWith("about")) continue;
 
       try {
         chrome.tabs.sendMessage(tab.id, { type: "get-slop-status" }, (response) => {
           if (chrome.runtime.lastError || !response) return;
-          if (response.hasSlop && response.providers?.length > 0) {
-            const tabId = tab.id!;
-            for (const p of response.providers) {
-              const providerId = `tab-${tabId}-${p.transport}`;
-              if (!announcedProviders.has(providerId)) {
-                announceProvider(tabId, {
-                  id: providerId,
-                  name: response.providerName ?? tab.title ?? `Tab ${tabId}`,
-                  transport: p.transport,
-                  url: p.endpoint,
-                });
-              }
-            }
-          }
-        });
-      } catch {
-        // Tab might not have content script loaded
-      }
-    }
-  } catch {
-    // Query failed
-  }
-}
+          if (!response.hasSlop || !response.providers?.length) return;
 
-/** Relay a SLOP message from a tab back to the desktop */
-export function relayToDesktop(tabId: number, message: any): void {
-  if (connected) {
-    send({ type: "slop-relay", tabId, message });
-  }
+          response.providers.forEach((provider: BridgeDiscoveryProvider, index: number) => {
+            const providerKey = makeProviderKey(tab.id!, provider, index);
+            if (announcedProviders.has(providerKey)) return;
+
+            announceProvider({
+              tabId: tab.id!,
+              providerKey,
+              provider: {
+                id: providerKey,
+                name: response.providerName ?? tab.title ?? `Tab ${tab.id}`,
+                transport: provider.transport,
+                url: provider.endpoint,
+              },
+            });
+          });
+        });
+      } catch {}
+    }
+  } catch {}
 }

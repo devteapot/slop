@@ -3,18 +3,21 @@ import type { Transport } from "@slop-ai/core";
 const DEFAULT_DESKTOP_URL = "ws://localhost:9339/slop";
 
 /**
- * WebSocket transport for connecting a browser SLOP provider directly to a
- * desktop consumer (or any WebSocket-based consumer).
+ * Experimental WebSocket transport for exposing a browser SLOP provider over
+ * an outbound WebSocket connection to an external consumer or app server.
  *
  * The SPA acts as the SLOP **provider** on this connection — it sends `hello`,
  * responds to `subscribe`, and pushes `snapshot`/`patch` messages.  The remote
  * end sends `connect`, `subscribe`, `query`, and `invoke`.
  *
- * Auto-reconnects with exponential backoff.  Falls back gracefully when the
- * desktop is not running (postMessage transport still works for the extension).
+ * Auto-reconnects with exponential backoff. This is useful for server-mounted
+ * browser UI trees in fullstack apps, or as an optional extra path for
+ * advanced integrations. Browser-only desktop discovery still typically uses
+ * the extension relay.
  */
 export function createWebSocketTransport(
-  url: string = DEFAULT_DESKTOP_URL
+  url: string = DEFAULT_DESKTOP_URL,
+  options: { discover?: boolean } = {}
 ): Transport {
   const messageHandlers: ((msg: any) => void)[] = [];
   let ws: WebSocket | null = null;
@@ -82,8 +85,8 @@ export function createWebSocketTransport(
       stopped = false;
       connect();
 
-      // Inject meta tag for discovery (extension can announce the WS endpoint)
-      if (typeof document !== "undefined") {
+      // Inject meta tag for discovery when enabled.
+      if (options.discover !== false && typeof document !== "undefined") {
         const selector = `meta[name="slop"][content="${url}"]`;
         if (!document.querySelector(selector)) {
           metaTag = document.createElement("meta");

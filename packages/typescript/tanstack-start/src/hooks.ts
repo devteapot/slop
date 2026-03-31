@@ -9,9 +9,14 @@ let slopClient: SlopClient | null = null;
 /**
  * Initialize the browser-side SLOP provider. Call once per page (in the page component).
  *
- * Creates a postMessage provider that exposes UI state to AI consumers.
- * Automatically registers a `refresh` affordance that calls `router.invalidate()`
- * so the consumer can trigger data re-fetches after server mutations.
+ * For TanStack Start apps with a server SLOP endpoint, this opens a hidden
+ * browser-to-server WebSocket provider and lets the server mount the current UI
+ * under `ui`. If no server endpoint is discoverable, it falls back to the
+ * standalone postMessage provider model.
+ *
+ * Automatically registers a `refresh` affordance that calls
+ * `router.invalidate()` so the consumer can trigger data re-fetches after
+ * server mutations.
  *
  * Also auto-registers the current route as a `route` node with navigate/back actions.
  *
@@ -23,7 +28,16 @@ export function useSlopUI(appId = "ui", appName = "UI"): void {
 
   useEffect(() => {
     if (!slopClient) {
-      const client = createSlop({ id: appId, name: appName });
+      const serverUrl = resolveServerSlopUrl();
+      const client = serverUrl
+        ? createSlop({
+            id: appId,
+            name: appName,
+            transports: ["websocket"],
+            websocketUrl: resolveUiSocketUrl(serverUrl),
+            websocketDiscover: false,
+          })
+        : createSlop({ id: appId, name: appName });
       slopClient = client;
 
       // Register the refresh affordance — the consumer invokes this
@@ -45,7 +59,7 @@ export function useSlopUI(appId = "ui", appName = "UI"): void {
     }
 
     return () => {};
-  }, [appId]);
+  }, [appId, appName, router]);
 
   // Auto-register route node — updates on every navigation
   const pathname = router.state.location.pathname;
@@ -96,6 +110,29 @@ export function useSlopUI(appId = "ui", appName = "UI"): void {
   }, [pathname]);
 }
 
+function resolveServerSlopUrl(): string | null {
+  if (typeof document === "undefined") return null;
+
+  const metaTags = document.querySelectorAll<HTMLMetaElement>('meta[name="slop"]');
+  for (const meta of metaTags) {
+    const content = meta.content?.trim();
+    if (!content) continue;
+    if (content === "postmessage") continue;
+    if (content.startsWith("ws://") || content.startsWith("wss://")) {
+      return content;
+    }
+  }
+
+  return null;
+}
+
+function resolveUiSocketUrl(serverUrl: string): string {
+  const url = new URL(serverUrl);
+  url.searchParams.set("slop_role", "provider");
+  url.searchParams.set("mount", "ui");
+  return url.toString();
+}
+
 // Track pending registrations from useSlop calls that happen before useSlopUI
 let pendingRegistrations: Array<{ path: string; descriptor: NodeDescriptor }> = [];
 
@@ -103,7 +140,9 @@ let pendingRegistrations: Array<{ path: string; descriptor: NodeDescriptor }> = 
  * Register UI state on the browser-side SLOP provider.
  *
  * The descriptor (including action handlers) runs entirely in the browser.
- * AI consumers connect to this provider via postMessage through the extension.
+ * In TanStack Start, the UI provider is normally mounted into the app's server
+ * provider under `ui`, with a postMessage fallback when no server endpoint is
+ * available.
  *
  * ```tsx
  * useSlop("filters", {

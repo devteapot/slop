@@ -74,7 +74,7 @@ When this component renders:
 
 1. `@slop-ai/core` assembles a SLOP state tree from all registered nodes
 2. It injects a `<meta name="slop" content="postmessage">` tag into the page
-3. The SLOP browser extension (or desktop app) discovers it and connects
+3. The SLOP browser extension discovers it and connects. Desktop clients reach in-browser providers through the extension relay.
 4. The AI can see the todo list and invoke actions (create, toggle, delete)
 
 The AI sees:
@@ -87,7 +87,7 @@ The AI sees:
 
 ## Server-backed apps
 
-For fullstack frameworks (TanStack Start, Next.js, Nuxt, SvelteKit), use `@slop-ai/server` on the server side. The server owns the SLOP tree and exposes it via WebSocket. Meta-framework adapters like `@slop-ai/tanstack-start` handle server setup, UI sync, and state composition automatically.
+For fullstack frameworks (TanStack Start, Next.js, Nuxt, SvelteKit), use `@slop-ai/server` on the server side. The server owns the public SLOP tree and exposes it via WebSocket. Meta-framework adapters like `@slop-ai/tanstack-start` can also connect the browser UI back to that server and mount it under the conventional `ui` subtree, so AI consumers still subscribe to one provider.
 
 ```ts
 import { createSlopServer } from "@slop-ai/server";

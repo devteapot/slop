@@ -3,14 +3,28 @@ import type { SlopClient, SlopClientOptions, Transport } from "@slop-ai/core";
 import { createPostMessageTransport } from "./postmessage-transport";
 import { createWebSocketTransport } from "./websocket-transport";
 
+export interface CreateSlopOptions<S = unknown> extends SlopClientOptions<S> {
+  schema?: S;
+  desktopUrl?: string | boolean;
+  websocketUrl?: string | boolean;
+  transports?: Array<"postmessage" | "websocket">;
+  postmessageDiscover?: boolean;
+  websocketDiscover?: boolean;
+}
+
 /**
  * Create a SLOP browser provider. This is the main entry point for adding SLOP to a client-side SPA.
  *
- * Uses postMessage transport and automatically injects a `<meta name="slop">` discovery tag.
+ * Uses postMessage transport by default and automatically injects a
+ * `<meta name="slop">` discovery tag for enabled discoverable transports.
  *
- * Optionally connects directly to a desktop consumer via WebSocket when
- * `desktopUrl` is provided (`true` for the default `ws://localhost:9339/slop`,
- * or a custom URL string).
+ * Experimental: optionally exposes the browser provider over an outbound
+ * WebSocket when `desktopUrl` or `websocketUrl` is provided (`true` for the
+ * default `ws://localhost:9339/slop`, or a custom URL string).
+ *
+ * The supported desktop integration for in-page providers still uses the
+ * browser extension relay; WebSocket transport is opt-in unless you pass
+ * `transports: ["websocket"]` or add a `websocketUrl`.
  *
  * ```ts
  * const slop = createSlop({ id: "my-app", name: "My App" });
@@ -25,15 +39,26 @@ import { createWebSocketTransport } from "./websocket-transport";
  * ```
  */
 export function createSlop<S = unknown>(
-  options: SlopClientOptions<S> & { schema?: S; desktopUrl?: string | boolean }
+  options: CreateSlopOptions<S>
 ): SlopClient<S> {
-  const transports: Transport[] = [createPostMessageTransport()];
+  const transports: Transport[] = [];
+  const enabledTransports = options.transports ?? [
+    "postmessage",
+    ...((options.websocketUrl ?? options.desktopUrl) ? ["websocket" as const] : []),
+  ];
+  const websocketUrl = options.websocketUrl ?? options.desktopUrl;
 
-  if (options.desktopUrl) {
-    const url = typeof options.desktopUrl === "string"
-      ? options.desktopUrl
-      : undefined; // use default
-    transports.push(createWebSocketTransport(url));
+  if (enabledTransports.includes("postmessage")) {
+    transports.push(
+      createPostMessageTransport({ discover: options.postmessageDiscover })
+    );
+  }
+
+  if (enabledTransports.includes("websocket")) {
+    const url = typeof websocketUrl === "string" ? websocketUrl : undefined;
+    transports.push(
+      createWebSocketTransport(url, { discover: options.websocketDiscover })
+    );
   }
 
   const client = new SlopClientImpl<S>(options, transports);

@@ -4,7 +4,9 @@ import type { Transport } from "@slop-ai/core";
  * postMessage transport for in-browser SLOP providers.
  * Wraps all messages in { slop: true, message } envelope.
  */
-export function createPostMessageTransport(): Transport {
+export function createPostMessageTransport(
+  options: { discover?: boolean } = {}
+): Transport {
   const messageHandlers: ((msg: any) => void)[] = [];
   let listener: ((event: MessageEvent) => void) | null = null;
   let metaTag: HTMLMetaElement | null = null;
@@ -28,8 +30,12 @@ export function createPostMessageTransport(): Transport {
       };
       window.addEventListener("message", listener);
 
-      // Inject meta tag for discovery (always — a page can have multiple SLOP providers)
-      if (typeof document !== "undefined" && !document.querySelector('meta[name="slop"][content="postmessage"]')) {
+      // Inject meta tag for discovery when enabled.
+      if (
+        options.discover !== false &&
+        typeof document !== "undefined" &&
+        !document.querySelector('meta[name="slop"][content="postmessage"]')
+      ) {
         metaTag = document.createElement("meta");
         metaTag.name = "slop";
         metaTag.content = "postmessage";

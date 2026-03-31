@@ -194,7 +194,12 @@ Discovered via `~/.slop/providers/` and `/tmp/slop/providers/`. These appear aut
 
 Populated from the extension bridge. Each browser tab with SLOP providers appears here, grouped under a collapsible "Browser Tabs" header. Tabs come and go as the user navigates — the extension announces arrivals and departures over the bridge.
 
-A single browser tab can have **multiple providers** — fullstack apps (TanStack Start, Next.js, Nuxt) have a server provider (WebSocket, direct) and a client UI provider (postMessage, via bridge relay). Each provider appears as a separate entry grouped by tab:
+A single browser tab can expose **multiple providers**, but the common cases are now split:
+
+- **Fullstack apps** (TanStack Start, Next.js, Nuxt) usually expose **one** server WebSocket provider. The browser UI connects back to the server and is mounted under a conventional `ui` subtree there.
+- **Browser-only apps** and accessibility adapters expose a page-local `postMessage` provider, which the extension relays for desktop use.
+
+That means the browser tabs list typically looks like this:
 
 ```
 Workspace: "Project Alpha"
@@ -205,14 +210,13 @@ Workspace: "Project Alpha"
     ├── my-cli-tool (sock)
     └── background-service (sock)
   BROWSER TABS
-    ├── Project Tracker          ws    ← server data (direct WebSocket)
-    ├── Project Tracker          pm    ← client UI (postMessage relay)
+    ├── Project Tracker          ws    ← fullstack app: data + ui subtree on server
     ├── Notes App                pm    ← SPA (postMessage relay)
     └── Gmail                    pm    ← accessibility tree (relay)
 ```
 
 **Connection behavior on tab close:**
-- **WebSocket providers** stay connected — the desktop connected directly, no bridge dependency. The entry persists until manually disconnected.
+- **WebSocket providers** stay connected — the desktop connected directly, no bridge dependency. For fullstack apps, the server may remove its mounted `ui` subtree when the tab disconnects, but the server provider itself remains available.
 - **postMessage providers** lose their bridge relay when the tab closes. The connection drops and the entry is removed (unless pinned, in which case it persists for later reconnect).
 
 ## Recommended architecture: local WebSocket bridge
@@ -237,7 +241,9 @@ The desktop app starts a WebSocket server at `ws://localhost:9339/slop-bridge`. 
 The bridge serves **two purposes**:
 
 1. **Discovery** — the extension announces ALL web providers it finds to the desktop
-2. **Relay** — only for SPAs, where the desktop can't reach the in-page provider directly
+2. **Relay** — only for browser-local providers (SPAs, accessibility adapters), where the desktop can't reach the in-page provider directly
+
+The extension's injected chat continues to use its own consumer session. Discovery alone does not create a postMessage consumer for the desktop path — the desktop remains the consumer, and the extension only forwards raw SLOP messages when a relay session is opened.
 
 ### Bridge protocol
 
@@ -245,12 +251,13 @@ Extension → Desktop:
 
 ```jsonc
 // Provider discovered on a page (one message per provider)
-// Fullstack apps send TWO announcements — one for server (ws), one for client (pm)
+// Fullstack apps usually announce only the server WebSocket provider.
 {
   "type": "provider-available",
   "tabId": 42,
+  "providerKey": "tab-42-ws-ws_3A_2F_2Flocalhost_3A3000_2Fslop",
   "provider": {
-    "id": "tab-42-ws",                           // unique per provider, not per tab
+    "id": "tab-42-ws-ws_3A_2F_2Flocalhost_3A3000_2Fslop",
     "name": "Project Tracker",
     "transport": "ws",
     "url": "ws://localhost:3000/slop"
@@ -259,26 +266,29 @@ Extension → Desktop:
 {
   "type": "provider-available",
   "tabId": 42,
+  "providerKey": "tab-42-postmessage-0",
   "provider": {
-    "id": "tab-42-postmessage",
+    "id": "tab-42-postmessage-0",
     "name": "Project Tracker",
     "transport": "postmessage"                   // no url — uses bridge relay
   }
 }
 
-// Provider gone (tab closed, navigated away) — removes ALL providers for the tab
-{ "type": "provider-unavailable", "tabId": 42 }
+// Provider gone (tab closed, navigated away)
+{ "type": "provider-unavailable", "tabId": 42, "providerKey": "tab-42-postmessage-0" }
 
 // SLOP message relayed from a postMessage provider
-{ "type": "slop-relay", "tabId": 42, "message": { "type": "snapshot", ... } }
+{ "type": "slop-relay", "providerKey": "tab-42-postmessage-0", "message": { "type": "snapshot", ... } }
 ```
 
 Desktop → Extension:
 
 ```jsonc
 // SLOP message to relay to an SPA page
-{ "type": "slop-relay", "tabId": 42, "message": { "type": "subscribe", ... } }
+{ "type": "slop-relay", "providerKey": "tab-42-postmessage-0", "message": { "type": "subscribe", ... } }
 ```
+
+The bridge may also use internal `relay-open` / `relay-close` control messages so the extension only attaches page-level postMessage listeners while a desktop relay session is active.
 
 ### Connection strategy per provider type
 
@@ -289,7 +299,7 @@ When the desktop receives a `provider-available` announcement, it decides how to
 | `"ws"` | Desktop connects **directly** to the WebSocket URL | Discovery only — not in the data path |
 | `"postmessage"` | Desktop sends SLOP messages **through the bridge relay** | Discovery + relay — extension pipes messages to/from the page |
 
-For server-backed web apps, the extension's only job is telling the desktop "this WebSocket URL exists." The desktop opens its own WebSocket connection — faster, more reliable, no middleman.
+For server-backed web apps, the extension's only job is telling the desktop "this WebSocket URL exists." The desktop opens its own WebSocket connection — faster, more reliable, no middleman. If the framework mounts browser UI under the conventional `ui` subtree on that server provider, the desktop gets both data and UI state over that one direct connection.
 
 For SPAs, the extension is the relay — it receives SLOP messages from the desktop over the bridge, forwards them to the page via postMessage, and relays responses back.
 

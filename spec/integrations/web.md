@@ -102,7 +102,7 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 
 ```
 @slop-ai/core           — Shared engine: tree assembly, diffing, descriptor format, types, helpers
-@slop-ai/client         — Browser provider: createSlop() + postMessage transport
+@slop-ai/client         — Browser provider: createSlop() + postMessage transport (default), optional WebSocket
 @slop-ai/server         — Server/native provider: createSlopServer() + WebSocket, Unix socket, stdio transports
 @slop-ai/react          — useSlop() hook (~15 lines)
 @slop-ai/vue            — useSlop() composable (~10 lines)
@@ -131,11 +131,11 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 | | `@slop-ai/core` | `@slop-ai/client` | `@slop-ai/server` |
 |---|---|---|---|
 | Runs in | Any JS environment | Browser | Node, Bun, Deno |
-| Transport | None | postMessage | WebSocket, Unix socket, stdio |
+| Transport | None | postMessage (default), WebSocket (opt-in) | WebSocket, Unix socket, stdio |
 | Descriptor format | Defines it | Uses it | Uses it |
 | Tree assembly & diffing | Owns it | Delegates to core | Delegates to core |
 | Reactivity | None — pure logic | Framework re-renders | Descriptor functions + `refresh()` |
-| Discovery | None | `<meta>` tag injection | `/.well-known/slop`, `~/.slop/providers/` |
+| Discovery | None | `<meta>` tag injection (configurable) | `/.well-known/slop`, `~/.slop/providers/` |
 
 | App type | Install | Layer |
 |---|---|---|
@@ -161,7 +161,8 @@ import { createSlop } from "@slop-ai/client";
 export const slop = createSlop({
   id: "my-app",
   name: "My App",
-  // automatically uses postMessage transport, injects <meta name="slop"> tag
+  // defaults to postMessage transport + <meta name="slop"> tag injection
+  // opt into WebSocket with: transports: ["websocket"], websocketUrl: "ws://..."
 });
 ```
 
@@ -744,51 +745,56 @@ slop.register("settings", () => ({ type: "view", ... }))
 
 ### Meta-framework adapters (Layer 4)
 
-Fullstack frameworks (Next.js, Nuxt, SvelteKit) run code on both the server and in the browser. A fullstack web app naturally has **two SLOP providers**: one on the server (data state) and one in the browser (UI state). Both speak standard SLOP — no protocol extensions needed.
+Fullstack frameworks (Next.js, Nuxt, SvelteKit, TanStack Start) run code on both the server and in the browser. The cleanest SLOP model for these apps is:
 
-Meta-framework adapters handle the framework-specific wiring: setting up both providers, configuring discovery, and managing data invalidation when the AI mutates server state. The protocol is completely agnostic — adapters work *above* it.
+- the **server** remains the public WebSocket provider
+- the **browser UI** runs `@slop-ai/client`, but connects outbound to the app server
+- the server **mounts that browser tree under `ui`**
 
-#### The two-provider model
+Meta-framework adapters handle the framework-specific wiring: standing up the server provider, attaching the browser UI channel, and managing data invalidation when the AI mutates server state. The protocol stays standard SLOP throughout.
+
+`ui` is a **convention for fullstack apps**, not a reserved protocol node. The core protocol allows any stable node IDs and subtree shapes. Using `/ui` simply gives adapters and consumers a predictable place for browser-owned state.
+
+#### The server-mounted UI model
 
 ```
 ┌─ Browser ──────────────────┐
 │                             │
-│  UI provider (postMessage)  │──── SLOP ────┐
-│  ├── route: /todos          │              │
-│  ├── filters: {active: true}│              ▼
-│  └── compose: {expanded}    │     ┌──────────────────┐
-│     {set_filter, submit}    │     │                  │
-│                             │     │  Consumer         │
-└─────────────────────────────┘     │  (extension /     │
-                                    │   desktop app)    │
-┌─ Server ───────────────────┐     │                  │
-│                             │     │  Subscribes to   │
-│  Data provider (WebSocket)  │──── SLOP ──── both, merges  │
-│  ├── todos (3 items)        │     │  into one tree   │
-│  │   {toggle, delete, add}  │     │  for the LLM     │
-│  └── categories             │     │                  │
-│                             │     └──────────────────┘
-└─────────────────────────────┘
+│  UI provider (`@slop-ai/client`)
+│  ├── route: /todos          │
+│  ├── filters: {active: true}│
+│  └── compose: {expanded}    │
+│     {set_filter, submit}    │
+│                             │
+└───────────────┬─────────────┘
+                │ outbound WebSocket
+                ▼
+┌─ Server ──────────────────────────────────────┐
+│                                               │
+│  Public provider (`@slop-ai/server`)          │──── SLOP ────► consumer
+│  ├── todos (3 items)                          │
+│  ├── categories                               │
+│  └── ui                                       │
+│      ├── route                                │
+│      ├── filters                              │
+│      └── compose                              │
+│                                               │
+└───────────────────────────────────────────────┘
 ```
 
-Both providers are standard SLOP providers using existing transports:
-- **Server provider**: `@slop-ai/server` with WebSocket transport — exposes domain data and data actions
-- **Browser provider**: `@slop-ai/client` with postMessage transport — exposes UI state and UI actions
+Consumers subscribe to **one provider** and still see both data and UI state. That removes the need for paired `ws` + `postMessage` entries for a single fullstack app. The extension bridge remains important for true browser-only providers, but it is no longer in the desktop data path for SLOP-native fullstack apps.
 
-The AI consumer (browser extension, desktop app) connects to both and sees the full picture. No custom protocol messages, no bidirectional server-client connection, no `ui/` prefix convention.
+#### What the consumer sees
 
-#### The consumer merges the view
-
-The consumer subscribes to both providers and presents **one unified tree** to the LLM:
+The public server provider exposes one coherent tree:
 
 ```
-[root] My App                            ← merged by consumer
-  [data] Server state                    ← from data provider
-    [collection] todos (count=3)
-      [item] todo-1 {toggle, delete}
-      [item] todo-2 {toggle, delete}
-    [group] categories
-  [ui] Browser state                     ← from UI provider
+[root] My App
+  [collection] todos (count=3)
+    [item] todo-1 {toggle, delete}
+    [item] todo-2 {toggle, delete}
+  [group] categories
+  [ui]
     [status] route (path="/todos")
     [status] filters (category="work")
       {set_filter}
@@ -796,9 +802,9 @@ The consumer subscribes to both providers and presents **one unified tree** to t
       {type, submit, close}
 ```
 
-The LLM sees one coherent tree. It doesn't know or care that the data came from two different providers. When it invokes `toggle` on `todo-1`, the consumer routes it to the data provider. When it invokes `set_filter`, the consumer routes it to the UI provider.
+The LLM sees one coherent tree. When it invokes `toggle` on `todo-1`, the server runs the data handler locally. When it invokes `set_filter`, the server forwards that invoke back to the connected browser UI provider for the active tab.
 
-This merge logic lives in the consumer application (extension, desktop app), not in the protocol or the provider libraries. The consumer connects to each provider with a standard `SlopConsumer`, concatenates their trees, and routes invokes to the correct provider based on path.
+Using `/ui` here is recommended for consistency across fullstack adapters, but it is still just ordinary SLOP tree structure.
 
 #### Per-session data providers
 
@@ -820,7 +826,7 @@ In a multi-user web app, each user session sees different data — different per
 
 Session management is the backend's responsibility — authenticating the WebSocket connection, creating or retrieving a `SlopServer` for that session, and routing messages to the right instance. This is no different from how web apps already handle sessions.
 
-The browser UI provider is naturally per-tab — each browser tab runs its own `@slop-ai/client` instance with its own postMessage transport.
+The browser UI provider is naturally per-tab — each browser tab runs its own `@slop-ai/client` instance and opens its own outbound browser-to-server connection. The server decides how to map those connections onto mounted `ui` subtrees (for example, one active tab, or one subtree per tab).
 
 #### Data invalidation
 
@@ -831,8 +837,8 @@ The pattern:
 1. AI invokes `add_todo` on the data provider
 2. Data provider executes the handler, auto-refreshes, sends updated tree to consumer
 3. Consumer sees the data changed (via patch)
-4. Consumer invokes `refresh` on the UI provider — a standard SLOP affordance
-5. UI provider's `refresh` handler triggers the framework's native re-fetch
+4. Consumer invokes `refresh` on `ui/__adapter` — a standard SLOP affordance exposed through the mounted browser subtree
+5. The browser UI provider's `refresh` handler triggers the framework's native re-fetch
 
 The `refresh` affordance is registered by the meta-framework adapter on the UI provider:
 
@@ -858,9 +864,9 @@ This is a standard `invoke` message — no protocol extension. The consumer just
 | Concern | What it does |
 |---|---|
 | Server setup | Creates per-session `SlopServer`, attaches WebSocket transport, configures discovery |
-| Client setup | Creates `@slop-ai/client` with postMessage, registers UI state from components |
+| Client setup | Creates `@slop-ai/client`, registers UI state from components, connects browser UI back to the server |
 | Refresh affordance | Registers a `refresh` action on the UI provider that triggers framework re-fetch |
-| Discovery | Injects `<meta name="slop">` tags for both providers (WebSocket URL + postMessage) |
+| Discovery | Publishes the server WebSocket provider; browser UI connections stay internal to the adapter |
 | Configuration | Framework-specific module/plugin setup (one line in config) |
 
 Each framework implements these differently:
@@ -914,7 +920,7 @@ useSlop("filters", () => ({
 </script>
 ```
 
-No bidirectional connection. No `ui_` prefix convention. No custom protocol messages. Each side is a standard SLOP provider. The adapter sets them up and the consumer merges them.
+No custom protocol messages. No `ui_` prefix convention. Each side is a standard SLOP provider. The adapter wires the browser UI back to the server automatically — the developer just writes `useSlop()` registrations and descriptor functions.
 
 #### Separation of concerns
 
@@ -924,12 +930,12 @@ The protocol (Layers 0–2) handles:
 - Discovery (meta tags, well-known URLs, provider files)
 
 The consumer handles:
-- Subscribing to multiple providers
-- Merging trees into one view for the LLM
-- Routing invokes to the correct provider
+- Subscribing to the providers an app exposes
+- Presenting the resulting tree to the LLM
+- Routing invokes when a surface truly spans multiple providers
 
 The meta-framework adapter (Layer 4) handles:
-- Setting up both providers with framework conventions
+- Setting up the public server provider and browser UI mount channel with framework conventions
 - Registering the `refresh` affordance for data invalidation
 - Discovery configuration
 - Framework-specific module/plugin wiring

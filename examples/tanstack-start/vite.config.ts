@@ -32,6 +32,7 @@ const config = defineConfig({
                 const peer = {
                   send: (data: string) => { if (wsConn.readyState === 1) wsConn.send(data) },
                   close: () => wsConn.close(),
+                  __slopRequest: req,
                   __slop: null as any,
                 }
                 handler.open(peer)

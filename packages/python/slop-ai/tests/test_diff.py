@@ -46,7 +46,7 @@ def test_child_added():
     ops = diff_nodes(old, new)
     assert len(ops) == 1
     assert ops[0].op == "add"
-    assert ops[0].path == "/children/c1"
+    assert ops[0].path == "/c1"
 
 
 def test_child_removed():
@@ -56,7 +56,7 @@ def test_child_removed():
     ops = diff_nodes(old, new)
     assert len(ops) == 1
     assert ops[0].op == "remove"
-    assert ops[0].path == "/children/c1"
+    assert ops[0].path == "/c1"
 
 
 def test_child_property_changed():
@@ -67,7 +67,7 @@ def test_child_property_changed():
     ops = diff_nodes(old, new)
     assert len(ops) == 1
     assert ops[0].op == "replace"
-    assert ops[0].path == "/children/c1/properties/v"
+    assert ops[0].path == "/c1/properties/v"
 
 
 def test_affordances_changed():
@@ -116,7 +116,7 @@ def test_nested_diff():
     ])
     ops = diff_nodes(old, new)
     assert len(ops) == 1
-    assert ops[0].path == "/children/a/children/b/properties/x"
+    assert ops[0].path == "/a/b/properties/x"
     assert ops[0].value == 2
 
 
@@ -132,4 +132,4 @@ def test_multiple_changes():
     op_summaries = [(o.op, o.path) for o in ops]
     assert ("replace", "/properties/a") in op_summaries
     assert ("remove", "/properties/b") in op_summaries
-    assert ("add", "/children/c2") in op_summaries
+    assert ("add", "/c2") in op_summaries

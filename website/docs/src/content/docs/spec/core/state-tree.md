@@ -1,6 +1,4 @@
----
-title: "State Tree"
----
+# State Tree
 
 The state tree is the core data structure of SLOP. It is a rooted tree of **nodes**, where each node represents a semantic unit of application state.
 
@@ -21,9 +19,9 @@ The state tree is the core data structure of SLOP. It is a rooted tree of **node
     "timestamp": "2026-03-27T10:30:00Z"
   },
   "children": [ ... ],     // Ordered list of child nodes
-  "affordances": [ ... ],  // Actions available on this node (see 05-affordances.md)
+  "affordances": [ ... ],  // Actions available on this node (see affordances.md)
   "meta": { ... },         // Attention hints and tree metadata (see below)
-  "content_ref": { ... }   // Reference to large content (see 13-content-references.md)
+  "content_ref": { ... }   // Reference to large content (see extensions/content-references.md)
 }
 ```
 
@@ -97,9 +95,10 @@ Metadata about the node itself (not the domain data). See [Attention & Salience]
   "meta": {
     "summary": "12 unread messages, 3 flagged",  // NL summary for truncated subtrees
     "salience": 0.8,          // 0–1, how relevant this node is right now
+    "pinned": false,          // If true, never collapse this node or its children during auto-compaction
     "changed": true,          // This node was modified in the last patch
     "total_children": 142,    // Total children (when not all are inline)
-    "window": [0, 25],        // Which slice of children is inline [offset, limit]
+    "window": [0, 25],        // Which slice of children is inline [offset, count]
     "created": "2026-03-27T10:30:00Z",
     "updated": "2026-03-27T10:35:00Z"
   }
@@ -118,6 +117,19 @@ The state tree supports **depth-controlled resolution**. When a consumer request
 Nodes beyond the requested depth are **stubs** — they include `id`, `type`, and `meta` (especially `summary` and `total_children`) but not `properties` or `children`.
 
 This lets the AI start with a high-level view and drill into what's relevant, managing its own token budget.
+
+A stub node includes only `id`, `type`, and `meta` — no `properties`, `children`, or `affordances`:
+
+```jsonc
+{
+  "id": "msg-42",
+  "type": "item",
+  "meta": {
+    "summary": "Launch plan from alice (unread)",
+    "total_children": 2
+  }
+}
+```
 
 ```
 Depth 0:

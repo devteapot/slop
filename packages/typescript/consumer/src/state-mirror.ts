@@ -1,5 +1,7 @@
 import type { SlopNode, PatchOp, SnapshotMessage, PatchMessage } from "./types";
 
+const NODE_FIELDS = new Set(["properties", "meta", "affordances", "content_ref"]);
+
 export class StateMirror {
   private tree: SlopNode;
   private version: number;
@@ -29,30 +31,31 @@ export class StateMirror {
     }
   }
 
+  /**
+   * Navigate to { parent, key } for the last segment.
+   * Non-field segments are treated as child IDs.
+   */
   private navigate(segments: string[]): { parent: any; key: string } | null {
     let current: any = this.tree;
     for (let i = 0; i < segments.length - 1; i++) {
       const seg = segments[i];
-      if (seg === "children") {
-        const childId = segments[i + 1];
-        const child = (current.children as SlopNode[])?.find(c => c.id === childId);
-        if (!child) return null;
-        current = child;
-        i++;
-      } else if (seg === "properties" || seg === "meta" || seg === "affordances") {
+      if (NODE_FIELDS.has(seg)) {
         current = current[seg];
         if (current === undefined) return null;
       } else {
-        current = current[seg];
-        if (current === undefined) return null;
+        // Child ID lookup
+        const child = (current.children as SlopNode[])?.find(c => c.id === seg);
+        if (!child) return null;
+        current = child;
       }
     }
     return { parent: current, key: segments[segments.length - 1] };
   }
 
   private applyAdd(segments: string[], value: unknown): void {
-    if (segments.length >= 2 && segments[segments.length - 2] === "children") {
-      const parent = this.resolveNode(segments.slice(0, -2));
+    // Adding a child node: last segment is a child ID, parent is a node
+    if (!this.isFieldSegment(segments)) {
+      const parent = this.resolveNode(segments.slice(0, -1));
       if (parent) {
         if (!parent.children) parent.children = [];
         parent.children.push(value as SlopNode);
@@ -64,9 +67,10 @@ export class StateMirror {
   }
 
   private applyRemove(segments: string[]): void {
-    if (segments.length >= 2 && segments[segments.length - 2] === "children") {
+    // Removing a child node by ID
+    if (!this.isFieldSegment(segments)) {
       const childId = segments[segments.length - 1];
-      const parent = this.resolveNode(segments.slice(0, -2));
+      const parent = this.resolveNode(segments.slice(0, -1));
       if (parent?.children) {
         parent.children = parent.children.filter((c: SlopNode) => c.id !== childId);
       }
@@ -81,16 +85,31 @@ export class StateMirror {
     if (target) target.parent[target.key] = value;
   }
 
+  /** Check if the last segment targets a known node field (not a child ID). */
+  private isFieldSegment(segments: string[]): boolean {
+    // Walk backwards: the last segment is the target. If any ancestor segment
+    // is a node field, then we're inside that field, not at child level.
+    // If the last segment itself is a field, or the second-to-last is a field,
+    // then it's a field access.
+    if (segments.length === 1) return NODE_FIELDS.has(segments[0]);
+    // If the penultimate segment is a known field, this is a key within that field
+    const penultimate = segments[segments.length - 2];
+    if (NODE_FIELDS.has(penultimate)) return true;
+    // If we're deeper inside properties (e.g. /child/properties/nested/key)
+    for (let i = segments.length - 2; i >= 0; i--) {
+      if (NODE_FIELDS.has(segments[i])) return true;
+    }
+    return false;
+  }
+
   private resolveNode(segments: string[]): SlopNode | null {
     if (segments.length === 0) return this.tree;
     let current: SlopNode = this.tree;
-    for (let i = 0; i < segments.length; i++) {
-      if (segments[i] === "children") {
-        const child = current.children?.find(c => c.id === segments[i + 1]);
-        if (!child) return null;
-        current = child;
-        i++;
-      }
+    for (const seg of segments) {
+      if (NODE_FIELDS.has(seg)) continue; // skip field keywords
+      const child = current.children?.find(c => c.id === seg);
+      if (!child) return null;
+      current = child;
     }
     return current;
   }

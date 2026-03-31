@@ -58,7 +58,7 @@ One-shot read of a subtree. Like `subscribe` but returns a single `snapshot` wit
   "id": "q-1",
   "path": "/inbox/msg-42",
   "depth": -1,              // Full detail for this message
-  "window": [0, 50]         // For collections: which slice to return
+  "window": [0, 50]         // [offset, count] — start at item 0, return 50 items
 }
 ```
 
@@ -105,7 +105,7 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
   "type": "snapshot",
   "id": "sub-1",            // Correlation: which subscribe/query this answers
   "version": 1,             // Monotonically increasing state version
-  "tree": {                 // The state tree (see 02-state-tree.md)
+  "tree": {                 // The state tree (see state-tree.md)
     "id": "root",
     "type": "root",
     "children": [ ... ]
@@ -115,7 +115,7 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
 
 ### `patch`
 
-Incremental update to a subscribed subtree. Uses [JSON Patch (RFC 6902)](https://datatracker.ietf.org/doc/html/rfc6902) operations.
+Incremental update to a subscribed subtree. Uses operations modeled on [JSON Patch (RFC 6902)](https://datatracker.ietf.org/doc/html/rfc6902) with **SLOP path syntax** instead of JSON Pointer (RFC 6901).
 
 ```jsonc
 {
@@ -130,7 +130,21 @@ Incremental update to a subscribed subtree. Uses [JSON Patch (RFC 6902)](https:/
 }
 ```
 
-**Patch paths** are JSON Pointer (RFC 6901) paths into the tree. They reference the tree structure as delivered in the snapshot — paths follow the node hierarchy using node IDs.
+### Patch path syntax
+
+SLOP patch paths use **node-ID segments**, not array indices. This differs from standard JSON Pointer (RFC 6901), which addresses array elements by numeric index.
+
+A path like `/inbox/msg-42/properties/unread` means:
+
+1. Start at the subscription root
+2. Find child with `id` "inbox"
+3. Find its child with `id` "msg-42"
+4. Enter its `properties` object
+5. Address the `unread` key
+
+Within `properties`, paths follow standard JSON Pointer key-based addressing. The operations (`add`, `remove`, `replace`) have the same semantics as RFC 6902.
+
+This design means patches are **stable across reordering** — moving a message from position 0 to position 5 does not invalidate paths that reference it by ID.
 
 **Version semantics:**
 - Versions are monotonically increasing integers, scoped to a subscription
@@ -145,7 +159,7 @@ Response to an `invoke`.
 {
   "type": "result",
   "id": "inv-1",            // Correlation: which invoke this answers
-  "status": "ok",           // "ok" or "error"
+  "status": "ok",           // "ok", "error", or "accepted"
   "data": {                 // Optional: action-specific return data
     "message_id": "sent-123"
   }
@@ -176,6 +190,12 @@ On error:
 | `conflict` | Action can't be performed in current state |
 | `internal` | Provider-side error |
 
+### Extended result statuses
+
+Extensions may define additional `status` values. The `accepted` status (defined in [Async Actions](../extensions/async-actions.md)) indicates the action has started asynchronously — analogous to HTTP 202. The `data` field will contain a `taskId` referencing a progress node in the state tree.
+
+Consumers that do not support async actions should treat `accepted` as `ok`.
+
 ### `event`
 
 An out-of-band event that doesn't map to a state change. Used for transient signals.
@@ -192,6 +212,30 @@ An out-of-band event that doesn't map to a state change. Used for transient sign
 ```
 
 Events are informational. The consumer should not rely on events for state — state changes come through patches.
+
+### `error`
+
+Sent when the provider cannot process a consumer message (other than `invoke`, which uses `result`).
+
+```jsonc
+{
+  "type": "error",
+  "id": "sub-1",            // Correlation: which message caused the error (if known)
+  "error": {
+    "code": "not_found",
+    "message": "Path /nonexistent does not exist in the state tree"
+  }
+}
+```
+
+Error codes are the same as for `result` errors, plus:
+
+| Code | Meaning |
+|---|---|
+| `bad_request` | Message is malformed or has an unknown type |
+| `not_supported` | Requested capability is not supported by this provider |
+
+If the error is not associated with a specific consumer message (e.g., internal provider failure), `id` may be omitted.
 
 ## Message ordering
 

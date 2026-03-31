@@ -70,25 +70,10 @@ fn apply_one(node: &mut SlopNode, segments: &[String], op: &PatchOpKind, value: 
 
     match first.as_str() {
         "properties" => apply_in_properties(node, rest, op, value),
-        "children" => apply_in_children(node, rest, op, value),
         "meta" => apply_in_meta(node, rest, op, value),
         "affordances" => apply_in_affordances(node, rest, op, value),
-        // Top-level scalar fields (id, type).
-        "id" => {
-            if let PatchOpKind::Replace = op {
-                if let Some(Value::String(s)) = value {
-                    node.id = s.clone();
-                }
-            }
-        }
-        "type" => {
-            if let PatchOpKind::Replace = op {
-                if let Some(Value::String(s)) = value {
-                    node.node_type = s.clone();
-                }
-            }
-        }
-        _ => {}
+        // Any other segment is a child ID
+        child_id => apply_in_children(node, child_id, rest, op, value),
     }
 }
 
@@ -143,30 +128,14 @@ fn apply_in_properties(
 
 fn apply_in_children(
     node: &mut SlopNode,
-    segments: &[String],
+    child_id: &str,
+    rest: &[String],
     op: &PatchOpKind,
     value: Option<&Value>,
 ) {
-    if segments.is_empty() {
-        match op {
-            PatchOpKind::Replace | PatchOpKind::Add => {
-                if let Some(val) = value {
-                    if let Ok(children) = serde_json::from_value::<Vec<SlopNode>>(val.clone()) {
-                        node.children = Some(children);
-                    }
-                }
-            }
-            PatchOpKind::Remove => {
-                node.children = None;
-            }
-        }
-        return;
-    }
-
-    let child_id = &segments[0];
     let children = node.children.get_or_insert_with(Vec::new);
 
-    if segments.len() == 1 {
+    if rest.is_empty() {
         match op {
             PatchOpKind::Add => {
                 if let Some(val) = value {
@@ -178,7 +147,7 @@ fn apply_in_children(
             PatchOpKind::Replace => {
                 if let Some(val) = value {
                     if let Ok(child) = serde_json::from_value::<SlopNode>(val.clone()) {
-                        if let Some(pos) = children.iter().position(|c| c.id == *child_id) {
+                        if let Some(pos) = children.iter().position(|c| c.id == child_id) {
                             children[pos] = child;
                         } else {
                             children.push(child);
@@ -187,13 +156,13 @@ fn apply_in_children(
                 }
             }
             PatchOpKind::Remove => {
-                children.retain(|c| c.id != *child_id);
+                children.retain(|c| c.id != child_id);
             }
         }
     } else {
         // Recurse into the child node.
-        if let Some(child) = children.iter_mut().find(|c| c.id == *child_id) {
-            apply_one(child, &segments[1..], op, value);
+        if let Some(child) = children.iter_mut().find(|c| c.id == child_id) {
+            apply_one(child, rest, op, value);
         }
     }
 }
@@ -447,7 +416,7 @@ mod tests {
         mirror.apply_patch(
             &[PatchOp {
                 op: PatchOpKind::Replace,
-                path: "/children/counter/properties/count".into(),
+                path: "/counter/properties/count".into(),
                 value: Some(json!(42)),
             }],
             2,
@@ -463,7 +432,7 @@ mod tests {
         mirror.apply_patch(
             &[PatchOp {
                 op: PatchOpKind::Add,
-                path: "/children/counter/properties/label".into(),
+                path: "/counter/properties/label".into(),
                 value: Some(json!("Counter")),
             }],
             2,
@@ -478,7 +447,7 @@ mod tests {
         mirror.apply_patch(
             &[PatchOp {
                 op: PatchOpKind::Remove,
-                path: "/children/counter".into(),
+                path: "/counter".into(),
                 value: None,
             }],
             2,
@@ -492,7 +461,7 @@ mod tests {
         mirror.apply_patch(
             &[PatchOp {
                 op: PatchOpKind::Add,
-                path: "/children/settings".into(),
+                path: "/settings".into(),
                 value: Some(json!({"id": "settings", "type": "group"})),
             }],
             2,
@@ -508,7 +477,7 @@ mod tests {
         mirror.apply_patch(
             &[PatchOp {
                 op: PatchOpKind::Add,
-                path: "/children/counter/meta/salience".into(),
+                path: "/counter/meta/salience".into(),
                 value: Some(json!(0.9)),
             }],
             2,
@@ -543,7 +512,7 @@ mod tests {
             &[
                 PatchOp {
                     op: PatchOpKind::Replace,
-                    path: "/children/counter/properties/count".into(),
+                    path: "/counter/properties/count".into(),
                     value: Some(json!(10)),
                 },
                 PatchOp {

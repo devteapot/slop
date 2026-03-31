@@ -52,7 +52,7 @@ func TestDiffChildAdded(t *testing.T) {
 		{ID: "c1", Type: "item"},
 	}}
 	ops := diffNodes(&old, &new, "")
-	if len(ops) != 1 || ops[0].Op != "add" || ops[0].Path != "/children/c1" {
+	if len(ops) != 1 || ops[0].Op != "add" || ops[0].Path != "/c1" {
 		t.Fatalf("unexpected ops: %+v", ops)
 	}
 }
@@ -63,7 +63,7 @@ func TestDiffChildRemoved(t *testing.T) {
 	}}
 	new := WireNode{ID: "x", Type: "group", Children: []WireNode{}}
 	ops := diffNodes(&old, &new, "")
-	if len(ops) != 1 || ops[0].Op != "remove" || ops[0].Path != "/children/c1" {
+	if len(ops) != 1 || ops[0].Op != "remove" || ops[0].Path != "/c1" {
 		t.Fatalf("unexpected ops: %+v", ops)
 	}
 }
@@ -83,7 +83,7 @@ func TestDiffNestedChange(t *testing.T) {
 	if len(ops) != 1 {
 		t.Fatalf("expected 1 op, got %d", len(ops))
 	}
-	if ops[0].Path != "/children/a/children/b/properties/x" {
+	if ops[0].Path != "/a/b/properties/x" {
 		t.Fatalf("unexpected path: %s", ops[0].Path)
 	}
 }

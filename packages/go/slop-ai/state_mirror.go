@@ -55,49 +55,54 @@ func (sm *StateMirror) applyAdd(segments []string, value any) {
 		return
 	}
 
+	lastSeg := segments[len(segments)-1]
+
+	// Check if target is a known field
+	if isFieldPath(segments) {
+		node, remaining := sm.navigateTo(segments[:len(segments)-1])
+		if node == nil || len(remaining) > 0 {
+			return
+		}
+
+		// Adding a property
+		if len(remaining) == 0 && len(segments) >= 2 && segments[len(segments)-2] == "properties" {
+			if node.Properties == nil {
+				node.Properties = Props{}
+			}
+			node.Properties[lastSeg] = value
+			return
+		}
+
+		// Adding affordances list
+		if lastSeg == "affordances" {
+			var affs []Affordance
+			data, _ := json.Marshal(value)
+			_ = json.Unmarshal(data, &affs)
+			node.Affordances = affs
+			return
+		}
+
+		// Adding meta
+		if lastSeg == "meta" {
+			var meta WireMeta
+			data, _ := json.Marshal(value)
+			_ = json.Unmarshal(data, &meta)
+			node.Meta = &meta
+			return
+		}
+		return
+	}
+
+	// Adding a child node — navigate to parent
 	node, remaining := sm.navigateTo(segments[:len(segments)-1])
 	if node == nil || len(remaining) > 0 {
 		return
 	}
-
-	lastSeg := segments[len(segments)-1]
-
-	// Adding to children
-	if len(segments) >= 2 && segments[len(segments)-2] == "children" {
-		child := unmarshalWireNode(value)
-		if child.ID == "" {
-			child.ID = lastSeg
-		}
-		node.Children = append(node.Children, child)
-		return
+	child := unmarshalWireNode(value)
+	if child.ID == "" {
+		child.ID = lastSeg
 	}
-
-	// Adding a property
-	if len(segments) >= 2 && segments[len(segments)-2] == "properties" {
-		if node.Properties == nil {
-			node.Properties = Props{}
-		}
-		node.Properties[lastSeg] = value
-		return
-	}
-
-	// Adding affordances list
-	if lastSeg == "affordances" {
-		var affs []Affordance
-		data, _ := json.Marshal(value)
-		_ = json.Unmarshal(data, &affs)
-		node.Affordances = affs
-		return
-	}
-
-	// Adding meta
-	if lastSeg == "meta" {
-		var meta WireMeta
-		data, _ := json.Marshal(value)
-		_ = json.Unmarshal(data, &meta)
-		node.Meta = &meta
-		return
-	}
+	node.Children = append(node.Children, child)
 }
 
 func (sm *StateMirror) applyRemove(segments []string) {
@@ -105,42 +110,42 @@ func (sm *StateMirror) applyRemove(segments []string) {
 		return
 	}
 
+	lastSeg := segments[len(segments)-1]
+
+	// Check if target is a known field
+	if isFieldPath(segments) {
+		node, remaining := sm.navigateTo(segments[:len(segments)-1])
+		if node == nil || len(remaining) > 0 {
+			return
+		}
+
+		if len(segments) >= 2 && segments[len(segments)-2] == "properties" {
+			delete(node.Properties, lastSeg)
+			return
+		}
+		if lastSeg == "affordances" {
+			node.Affordances = nil
+			return
+		}
+		if lastSeg == "meta" {
+			node.Meta = nil
+			return
+		}
+		return
+	}
+
+	// Removing a child by ID
 	node, remaining := sm.navigateTo(segments[:len(segments)-1])
 	if node == nil || len(remaining) > 0 {
 		return
 	}
-
-	lastSeg := segments[len(segments)-1]
-
-	// Removing a child by ID
-	if len(segments) >= 2 && segments[len(segments)-2] == "children" {
-		filtered := node.Children[:0]
-		for _, c := range node.Children {
-			if c.ID != lastSeg {
-				filtered = append(filtered, c)
-			}
+	filtered := node.Children[:0]
+	for _, c := range node.Children {
+		if c.ID != lastSeg {
+			filtered = append(filtered, c)
 		}
-		node.Children = filtered
-		return
 	}
-
-	// Removing a property
-	if len(segments) >= 2 && segments[len(segments)-2] == "properties" {
-		delete(node.Properties, lastSeg)
-		return
-	}
-
-	// Removing affordances
-	if lastSeg == "affordances" {
-		node.Affordances = nil
-		return
-	}
-
-	// Removing meta
-	if lastSeg == "meta" {
-		node.Meta = nil
-		return
-	}
+	node.Children = filtered
 }
 
 func (sm *StateMirror) applyReplace(segments []string, value any) {
@@ -183,24 +188,34 @@ func (sm *StateMirror) applyReplace(segments []string, value any) {
 	}
 }
 
+// isFieldPath checks if the path targets a known node field rather than a child ID.
+func isFieldPath(segments []string) bool {
+	for _, seg := range segments {
+		switch seg {
+		case "properties", "meta", "affordances", "content_ref":
+			return true
+		}
+	}
+	return false
+}
+
 // navigateTo walks the tree following the given path segments.
-// Children are navigated by ID (the segment after "children").
-// Returns the target node and any remaining unprocessed segments.
+// Known field segments (properties, meta, affordances, content_ref) stop
+// navigation. All other segments are treated as child IDs.
 func (sm *StateMirror) navigateTo(segments []string) (*WireNode, []string) {
 	current := &sm.tree
 	i := 0
 	for i < len(segments) {
 		seg := segments[i]
 		switch seg {
-		case "children":
-			// Next segment is the child ID
-			if i+1 >= len(segments) {
-				return current, segments[i:]
-			}
-			childID := segments[i+1]
+		case "properties", "affordances", "meta", "content_ref":
+			// These are field navigations; return the current node
+			return current, segments[i:]
+		default:
+			// Treat as child ID
 			found := false
 			for j := range current.Children {
-				if current.Children[j].ID == childID {
+				if current.Children[j].ID == seg {
 					current = &current.Children[j]
 					found = true
 					break
@@ -209,12 +224,7 @@ func (sm *StateMirror) navigateTo(segments []string) (*WireNode, []string) {
 			if !found {
 				return nil, segments[i:]
 			}
-			i += 2
-		case "properties", "affordances", "meta":
-			// These are leaf navigations; return the current node
-			return current, segments[i:]
-		default:
-			return nil, segments[i:]
+			i++
 		}
 	}
 	return current, nil

@@ -63,18 +63,18 @@ def diff_nodes(
     # Removed
     for child in old_children:
         if child.id not in new_map:
-            ops.append(PatchOp(op="remove", path=f"{base_path}/children/{child.id}"))
+            ops.append(PatchOp(op="remove", path=f"{base_path}/{child.id}"))
 
     # Added
     for child in new_children:
         if child.id not in old_map:
-            ops.append(PatchOp(op="add", path=f"{base_path}/children/{child.id}", value=child.to_dict()))
+            ops.append(PatchOp(op="add", path=f"{base_path}/{child.id}", value=child.to_dict()))
 
     # Recursively diff shared children
     for child in new_children:
         old_child = old_map.get(child.id)
         if old_child is not None:
-            ops.extend(diff_nodes(old_child, child, f"{base_path}/children/{child.id}"))
+            ops.extend(diff_nodes(old_child, child, f"{base_path}/{child.id}"))
 
     return ops
 

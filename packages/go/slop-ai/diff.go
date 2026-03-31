@@ -85,7 +85,7 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 		if _, ok := newMap[child.ID]; !ok {
 			ops = append(ops, PatchOp{
 				Op:   "remove",
-				Path: fmt.Sprintf("%s/children/%s", basePath, child.ID),
+				Path: fmt.Sprintf("%s/%s", basePath, child.ID),
 			})
 		}
 	}
@@ -95,7 +95,7 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 		if _, ok := oldMap[child.ID]; !ok {
 			ops = append(ops, PatchOp{
 				Op:    "add",
-				Path:  fmt.Sprintf("%s/children/%s", basePath, child.ID),
+				Path:  fmt.Sprintf("%s/%s", basePath, child.ID),
 				Value: child,
 			})
 		}
@@ -104,7 +104,7 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 	// Recursively diff shared children
 	for _, child := range new.Children {
 		if oldChild, ok := oldMap[child.ID]; ok {
-			childPath := fmt.Sprintf("%s/children/%s", basePath, child.ID)
+			childPath := fmt.Sprintf("%s/%s", basePath, child.ID)
 			ops = append(ops, diffNodes(oldChild, &child, childPath)...)
 		}
 	}

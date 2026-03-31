@@ -77,20 +77,20 @@ export function diffNodes(
 
   for (const child of oldChildren) {
     if (!newMap.has(child.id)) {
-      ops.push({ op: "remove", path: `${basePath}/children/${child.id}` });
+      ops.push({ op: "remove", path: `${basePath}/${child.id}` });
     }
   }
 
   for (const child of newChildren) {
     if (!oldMap.has(child.id)) {
-      ops.push({ op: "add", path: `${basePath}/children/${child.id}`, value: child });
+      ops.push({ op: "add", path: `${basePath}/${child.id}`, value: child });
     }
   }
 
   for (const child of newChildren) {
     const oldChild = oldMap.get(child.id);
     if (oldChild) {
-      ops.push(...diffNodes(oldChild, child, `${basePath}/children/${child.id}`));
+      ops.push(...diffNodes(oldChild, child, `${basePath}/${child.id}`));
     }
   }
 

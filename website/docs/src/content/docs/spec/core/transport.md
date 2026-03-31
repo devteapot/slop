@@ -1,6 +1,4 @@
----
-title: "Transport & Discovery"
----
+# Transport & Discovery
 
 SLOP is transport-agnostic. The protocol defines message semantics (see [Messages](./messages.md)); this document defines how consumers find providers and establish connections.
 
@@ -239,6 +237,8 @@ Capabilities declare which features a provider supports. Consumers must not rely
 | `affordances` | Nodes may include affordances |
 | `attention` | Nodes may include salience/attention metadata |
 | `windowing` | Collections support windowed queries |
+| `async` | Provider may return `accepted` status on invoke results |
+| `content_refs` | Nodes may include `content_ref` fields |
 
 `state` is the only required capability. Everything else is opt-in.
 

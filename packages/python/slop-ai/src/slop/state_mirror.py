@@ -7,6 +7,8 @@ from typing import Any
 
 from .types import SlopNode, PatchOp
 
+_NODE_FIELDS = frozenset({"properties", "meta", "affordances", "content_ref"})
+
 
 class StateMirror:
     """Mirrors a remote SLOP tree, applying snapshot and patch messages."""
@@ -46,51 +48,47 @@ class StateMirror:
     def _navigate(self, segments: list[str]) -> tuple[Any, str] | None:
         """Walk *segments* down the tree, returning (parent, final_key).
 
-        ``children`` segments resolve by child ID, not array index.
-        ``meta`` navigates into a dataclass (attribute access).
-        ``properties`` navigates into a dict (key access).
+        Known field segments (properties, meta, etc.) navigate into those
+        fields. All other segments are treated as child IDs.
         """
         current: Any = self._tree
         i = 0
         while i < len(segments) - 1:
             seg = segments[i]
-            if seg == "children":
-                child_id = segments[i + 1]
-                child = _find_child(current, child_id)
-                if child is None:
-                    return None
-                current = child
-                i += 2
-            elif seg == "meta":
-                current = getattr(current, "meta", None)
-                if current is None:
-                    return None
-                i += 1
-            elif seg == "properties":
-                current = getattr(current, "properties", None) if hasattr(current, "properties") else None
-                if current is None:
-                    return None
-                i += 1
-            elif seg == "affordances":
-                current = getattr(current, "affordances", None) if hasattr(current, "affordances") else None
-                if current is None:
-                    return None
-                i += 1
-            else:
-                # generic attribute / key access
-                if isinstance(current, dict):
-                    current = current.get(seg)
+            if seg in _NODE_FIELDS:
+                if seg == "meta":
+                    current = getattr(current, "meta", None)
+                elif seg == "properties":
+                    current = getattr(current, "properties", None) if hasattr(current, "properties") else None
+                elif seg == "affordances":
+                    current = getattr(current, "affordances", None) if hasattr(current, "affordances") else None
                 else:
                     current = getattr(current, seg, None)
                 if current is None:
                     return None
                 i += 1
+            else:
+                # Child ID lookup
+                child = _find_child(current, seg)
+                if child is None:
+                    return None
+                current = child
+                i += 1
         return (current, segments[-1])
+
+    def _is_field_segment(self, segments: list[str]) -> bool:
+        """Check if the path targets a node field (not a child ID)."""
+        if len(segments) == 1:
+            return segments[0] in _NODE_FIELDS
+        for seg in segments[:-1]:
+            if seg in _NODE_FIELDS:
+                return True
+        return False
 
     def _apply_add(self, segments: list[str], value: Any) -> None:
         # Adding a child node
-        if len(segments) >= 2 and segments[-2] == "children":
-            parent = self._resolve_node(segments[:-2])
+        if not self._is_field_segment(segments):
+            parent = self._resolve_node(segments[:-1])
             if parent is not None:
                 if parent.children is None:
                     parent.children = []
@@ -108,9 +106,9 @@ class StateMirror:
 
     def _apply_remove(self, segments: list[str]) -> None:
         # Removing a child node by ID
-        if len(segments) >= 2 and segments[-2] == "children":
+        if not self._is_field_segment(segments):
             child_id = segments[-1]
-            parent = self._resolve_node(segments[:-2])
+            parent = self._resolve_node(segments[:-1])
             if parent is not None and parent.children is not None:
                 parent.children = [c for c in parent.children if c.id != child_id]
             return
@@ -133,22 +131,17 @@ class StateMirror:
                 setattr(parent, key, value)
 
     def _resolve_node(self, segments: list[str]) -> SlopNode | None:
-        """Walk segments to find a SlopNode (only ``children`` hops)."""
+        """Walk segments to find a SlopNode (non-field segments are child IDs)."""
         if not segments:
             return self._tree
         current = self._tree
-        i = 0
-        while i < len(segments):
-            if segments[i] == "children":
-                if i + 1 >= len(segments):
-                    return None
-                child = _find_child(current, segments[i + 1])
-                if child is None:
-                    return None
-                current = child
-                i += 2
-            else:
-                i += 1
+        for seg in segments:
+            if seg in _NODE_FIELDS:
+                continue
+            child = _find_child(current, seg)
+            if child is None:
+                return None
+            current = child
         return current
 
 

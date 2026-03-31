@@ -64,7 +64,7 @@ pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchO
         if !new_ids.contains_key(child.id.as_str()) {
             ops.push(PatchOp {
                 op: PatchOpKind::Remove,
-                path: format!("{base_path}/children/{}", child.id),
+                path: format!("{base_path}/{}", child.id),
                 value: None,
             });
         }
@@ -75,7 +75,7 @@ pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchO
         if !old_ids.contains_key(child.id.as_str()) {
             ops.push(PatchOp {
                 op: PatchOpKind::Add,
-                path: format!("{base_path}/children/{}", child.id),
+                path: format!("{base_path}/{}", child.id),
                 value: Some(serde_json::to_value(child).unwrap()),
             });
         }
@@ -84,7 +84,7 @@ pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchO
     // Recursively diff shared children
     for child in new_children {
         if let Some(old_child) = old_ids.get(child.id.as_str()) {
-            let child_path = format!("{base_path}/children/{}", child.id);
+            let child_path = format!("{base_path}/{}", child.id);
             ops.extend(diff_nodes(old_child, child, &child_path));
         }
     }
@@ -194,7 +194,7 @@ mod tests {
         let ops = diff_nodes(&old, &new, "");
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].op, PatchOpKind::Add);
-        assert_eq!(ops[0].path, "/children/c1");
+        assert_eq!(ops[0].path, "/c1");
     }
 
     #[test]
@@ -205,7 +205,7 @@ mod tests {
         let ops = diff_nodes(&old, &new, "");
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].op, PatchOpKind::Remove);
-        assert_eq!(ops[0].path, "/children/c1");
+        assert_eq!(ops[0].path, "/c1");
     }
 
     #[test]
@@ -226,7 +226,7 @@ mod tests {
         };
         let ops = diff_nodes(&old, &new, "");
         assert_eq!(ops.len(), 1);
-        assert_eq!(ops[0].path, "/children/a/children/b/properties/x");
+        assert_eq!(ops[0].path, "/a/b/properties/x");
         assert_eq!(ops[0].value, Some(json!(2)));
     }
 

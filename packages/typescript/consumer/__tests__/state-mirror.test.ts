@@ -35,7 +35,7 @@ describe("StateMirror", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
       type: "patch", subscription: "sub-1", version: 2,
-      ops: [{ op: "replace", path: "/children/todos/children/t1/properties/done", value: true }],
+      ops: [{ op: "replace", path: "/todos/t1/properties/done", value: true }],
     });
     expect(mirror.getTree().children![0].children![0].properties?.done).toBe(true);
     expect(mirror.getVersion()).toBe(2);
@@ -45,7 +45,7 @@ describe("StateMirror", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
       type: "patch", subscription: "sub-1", version: 2,
-      ops: [{ op: "add", path: "/children/todos/children/t3", value: { id: "t3", type: "item", properties: { title: "Third" } } }],
+      ops: [{ op: "add", path: "/todos/t3", value: { id: "t3", type: "item", properties: { title: "Third" } } }],
     });
     expect(mirror.getTree().children![0].children).toHaveLength(3);
   });
@@ -54,7 +54,7 @@ describe("StateMirror", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
       type: "patch", subscription: "sub-1", version: 2,
-      ops: [{ op: "remove", path: "/children/todos/children/t1" }],
+      ops: [{ op: "remove", path: "/todos/t1" }],
     });
     expect(mirror.getTree().children![0].children).toHaveLength(1);
     expect(mirror.getTree().children![0].children![0].id).toBe("t2");
@@ -65,9 +65,9 @@ describe("StateMirror", () => {
     mirror.applyPatch({
       type: "patch", subscription: "sub-1", version: 2,
       ops: [
-        { op: "replace", path: "/children/todos/children/t1/properties/done", value: true },
-        { op: "replace", path: "/children/todos/properties/count", value: 3 },
-        { op: "add", path: "/children/todos/children/t3", value: { id: "t3", type: "item", properties: { title: "Third" } } },
+        { op: "replace", path: "/todos/t1/properties/done", value: true },
+        { op: "replace", path: "/todos/properties/count", value: 3 },
+        { op: "add", path: "/todos/t3", value: { id: "t3", type: "item", properties: { title: "Third" } } },
       ],
     });
     const tree = mirror.getTree();

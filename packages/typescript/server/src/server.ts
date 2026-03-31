@@ -1,4 +1,4 @@
-import { ProviderBase, diffNodes } from "@slop-ai/core";
+import { ProviderBase, diffNodes, getSubtree } from "@slop-ai/core";
 import type {
   SlopNode, PatchOp, ActionHandler, NodeDescriptor,
   SlopClientOptions, SubscriptionFilter,
@@ -110,14 +110,24 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   async handleMessage(conn: Connection, msg: any): Promise<void> {
     switch (msg.type) {
       case "subscribe": {
+        const path = msg.path ?? "/";
+        // Check if path exists before creating subscription
+        if (path !== "/" && !getSubtree(this.getTree(), path)) {
+          conn.send({
+            type: "error",
+            id: msg.id,
+            error: { code: "not_found", message: `Path ${path} not found` },
+          });
+          return;
+        }
         const outputTree = this.getOutputTree({
-          path: msg.path ?? "/",
+          path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
         });
         const sub: Subscription = {
           id: msg.id,
-          path: msg.path ?? "/",
+          path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
           connection: conn,
@@ -146,6 +156,7 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
           path: msg.path,
           depth: msg.depth,
           filter: msg.filter,
+          window: msg.window,
         }));
         break;
       }
@@ -153,6 +164,15 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
       case "invoke": {
         const result = await this.executeInvoke(msg);
         conn.send(result);
+        break;
+      }
+
+      default: {
+        conn.send({
+          type: "error",
+          id: msg.id,
+          error: { code: "bad_request", message: `Unknown message type: ${msg.type}` },
+        });
         break;
       }
     }
@@ -177,6 +197,14 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
     }
     this.connections.clear();
     this.subscriptions = [];
+  }
+
+  /** Emit an event to all connected consumers. */
+  emitEvent(name: string, data?: unknown): void {
+    const msg = { type: "event" as const, name, data };
+    for (const conn of this.connections) {
+      try { conn.send(msg); } catch {}
+    }
   }
 
   // --- ProviderBase hooks ---

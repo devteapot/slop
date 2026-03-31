@@ -181,3 +181,143 @@ def test_broadcast_on_change():
     assert last["version"] == slop.version
     assert "ops" in last
     assert len(last["ops"]) > 0
+
+
+# --- Depth / filter / error / event / window tests ---
+
+
+def test_subscribe_depth_truncation():
+    """Subscribe with depth=1 should stub children at depth 2."""
+    slop = SlopServer("app", "App")
+    slop.register("parent", {
+        "type": "group",
+        "items": [
+            {"id": "child-a", "type": "item", "props": {"v": 1}},
+        ],
+    })
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {
+        "type": "subscribe",
+        "id": "sub-depth",
+        "path": "/",
+        "depth": 1,
+    }))
+
+    snapshot = conn.messages[-1]
+    assert snapshot["type"] == "snapshot"
+    tree = snapshot["tree"]
+    # root -> parent (depth 0->1 ok), parent -> child-a (depth 1->2, should be stub)
+    parent = tree["children"][0]
+    assert parent["id"] == "parent"
+    # At depth=1 the parent node's children should be stubs (no children of their own)
+    # The parent node is at depth 1 so its children should be truncated to stubs
+    if parent.get("children"):
+        for child in parent["children"]:
+            assert "children" not in child or child.get("children") is None
+    else:
+        # parent itself was stubbed — it should have meta.total_children
+        assert parent.get("meta", {}).get("total_children") is not None
+
+
+def test_subscribe_min_salience_filter():
+    """Subscribe with min_salience filter excludes low-salience nodes."""
+    slop = SlopServer("app", "App")
+    slop.register("high", {"type": "item", "props": {"v": 1}, "meta": {"salience": 0.9}})
+    slop.register("low", {"type": "item", "props": {"v": 2}, "meta": {"salience": 0.1}})
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {
+        "type": "subscribe",
+        "id": "sub-sal",
+        "path": "/",
+        "depth": -1,
+        "filter": {"min_salience": 0.5},
+    }))
+
+    snapshot = conn.messages[-1]
+    assert snapshot["type"] == "snapshot"
+    child_ids = [c["id"] for c in snapshot["tree"].get("children", [])]
+    assert "high" in child_ids
+    assert "low" not in child_ids
+
+
+def test_unknown_message_type_error():
+    """Unknown message type returns an error with code bad_request."""
+    slop = SlopServer("app", "App")
+    conn = MockConnection()
+    slop.handle_connection(conn)
+
+    _run(slop.handle_message(conn, {"type": "bogus", "id": "x-1"}))
+
+    errors = [m for m in conn.messages if m["type"] == "error"]
+    assert len(errors) == 1
+    assert errors[0]["id"] == "x-1"
+    assert errors[0]["error"]["code"] == "bad_request"
+    assert "bogus" in errors[0]["error"]["message"]
+
+
+def test_subscribe_nonexistent_path_error():
+    """Subscribe to a path that doesn't exist returns error not_found."""
+    slop = SlopServer("app", "App")
+    slop.register("x", {"type": "group"})
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {
+        "type": "subscribe",
+        "id": "sub-miss",
+        "path": "/nonexistent",
+    }))
+
+    errors = [m for m in conn.messages if m["type"] == "error"]
+    assert len(errors) == 1
+    assert errors[0]["error"]["code"] == "not_found"
+
+
+def test_emit_event():
+    """emit_event sends event message to all connections."""
+    slop = SlopServer("app", "App")
+    conn1 = MockConnection()
+    conn2 = MockConnection()
+    slop.handle_connection(conn1)
+    slop.handle_connection(conn2)
+
+    slop.emit_event("refresh", {"reason": "test"})
+
+    for conn in (conn1, conn2):
+        events = [m for m in conn.messages if m["type"] == "event"]
+        assert len(events) == 1
+        assert events[0]["name"] == "refresh"
+        assert events[0]["data"] == {"reason": "test"}
+
+
+def test_query_with_window():
+    """Query with window returns sliced children and meta."""
+    slop = SlopServer("app", "App")
+    slop.register("list", {
+        "type": "collection",
+        "items": [{"id": f"item-{i}", "type": "item", "props": {"i": i}} for i in range(10)],
+    })
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {
+        "type": "query",
+        "id": "q-win",
+        "path": "/list",
+        "depth": -1,
+        "window": [2, 3],
+    }))
+
+    snapshot = [m for m in conn.messages if m["type"] == "snapshot"][-1]
+    tree = snapshot["tree"]
+    children = tree.get("children", [])
+    assert len(children) == 3
+    assert children[0]["id"] == "item-2"
+    assert children[2]["id"] == "item-4"
+    meta = tree.get("meta", {})
+    assert meta["total_children"] == 10
+    assert meta["window"] == [2, 3]

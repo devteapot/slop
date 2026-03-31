@@ -17,7 +17,11 @@ A code editor's state tree might include an open file:
   "properties": {
     "title": "main.ts",
     "language": "typescript",
-    "content": "import { createSlop } from '@slop-ai/client';\n\nexport const slop = createSlop({\n  id: 'my-app',\n  ... (500 more lines)"
+    "content": "import { createSlop } from '@slop-ai/core';
+
+export const slop = createSlop({
+  id: 'my-app',
+  ... (500 more lines)"
   }
 }
 ```
@@ -202,7 +206,8 @@ When the AI receives a state tree with content references, it sees:
 [document] main.ts (language="typescript", line_count=500, dirty=false)
   content: text/typescript, 12.4 KB
   summary: "TypeScript module. Exports SLOP client, defines app routes."
-  preview: "import { createSlop } from '@slop-ai/client';\n..."
+  preview: "import { createSlop } from '@slop-ai/core';
+..."
   actions: {read_content, write_content(content)}
 ```
 

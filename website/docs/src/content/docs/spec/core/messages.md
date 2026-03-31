@@ -1,4 +1,6 @@
-# Message Protocol
+---
+title: "Message Protocol"
+---
 
 All SLOP communication consists of JSON messages exchanged between a consumer and a provider. Messages are categorized by direction.
 

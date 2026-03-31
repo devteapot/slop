@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use crate::descriptor::ActionHandler;
 use crate::diff::diff_nodes;
 use crate::error::Result;
+use crate::scaling::{get_subtree, prepare_tree, OutputTreeOptions};
 use crate::tree::assemble_tree;
 use crate::types::SlopNode;
 
@@ -19,10 +20,10 @@ pub trait Connection: Send + Sync {
 
 struct Subscription {
     id: String,
-    #[allow(dead_code)]
     path: String,
-    #[allow(dead_code)]
-    depth: i32,
+    depth: Option<usize>,
+    filter_types: Option<Vec<String>>,
+    filter_min_salience: Option<f64>,
     connection: Arc<dyn Connection>,
     last_tree: Option<SlopNode>,
 }
@@ -301,48 +302,146 @@ impl SlopServer {
         self.inner.write().unwrap().connections.push(conn);
     }
 
+    /// Emit an event to all connected consumers.
+    pub fn emit_event(&self, name: &str, data: Option<Value>) {
+        let inner = self.inner.read().unwrap();
+        let mut msg = json!({ "type": "event", "name": name });
+        if let Some(d) = data {
+            msg["data"] = d;
+        }
+        for conn in &inner.connections {
+            let _ = conn.send(&msg);
+        }
+    }
+
     /// Process an incoming message from a consumer.
     pub fn handle_message(&self, conn: &Arc<dyn Connection>, msg: &Value) {
         let msg_type = msg["type"].as_str().unwrap_or("");
+        let msg_id = msg["id"].as_str().unwrap_or("").to_string();
         match msg_type {
             "subscribe" => {
-                let sub_id = msg["id"].as_str().unwrap_or("").to_string();
+                let sub_id = msg_id;
                 let path = msg["path"].as_str().unwrap_or("/").to_string();
-                let depth = msg["depth"].as_i64().unwrap_or(-1) as i32;
+                let depth = parse_depth(msg);
+                let filter_types = parse_filter_types(msg);
+                let filter_min_salience = msg.get("filter")
+                    .and_then(|f| f.get("min_salience"))
+                    .and_then(|v| v.as_f64());
+
                 let inner = self.inner.read().unwrap();
-                let _ = conn.send(&json!({
-                    "type": "snapshot",
-                    "id": sub_id,
-                    "version": inner.version,
-                    "tree": serde_json::to_value(&inner.current_tree).unwrap()
-                }));
-                let last_tree = Some(inner.current_tree.clone());
-                drop(inner);
-                self.inner.write().unwrap().subscriptions.push(Subscription {
-                    id: sub_id,
-                    path,
-                    depth,
-                    connection: Arc::clone(conn),
-                    last_tree,
-                });
+
+                // Resolve subtree; send error if path not found
+                let output = get_output_tree(
+                    &inner.current_tree, &path, depth,
+                    filter_min_salience, filter_types.as_deref(),
+                );
+
+                match output {
+                    None => {
+                        let _ = conn.send(&json!({
+                            "type": "error",
+                            "id": sub_id,
+                            "error": {
+                                "code": "not_found",
+                                "message": format!("Path {} does not exist in the state tree", path)
+                            }
+                        }));
+                    }
+                    Some(tree) => {
+                        let _ = conn.send(&json!({
+                            "type": "snapshot",
+                            "id": sub_id,
+                            "version": inner.version,
+                            "tree": serde_json::to_value(&tree).unwrap()
+                        }));
+                        let last_tree = Some(tree);
+                        drop(inner);
+                        self.inner.write().unwrap().subscriptions.push(Subscription {
+                            id: sub_id,
+                            path,
+                            depth,
+                            filter_types,
+                            filter_min_salience,
+                            connection: Arc::clone(conn),
+                            last_tree,
+                        });
+                    }
+                }
             }
             "unsubscribe" => {
                 let sub_id = msg["id"].as_str().unwrap_or("");
                 self.inner.write().unwrap().subscriptions.retain(|s| s.id != sub_id);
             }
             "query" => {
+                let path = msg["path"].as_str().unwrap_or("/").to_string();
+                let depth = parse_depth(msg);
+                let filter_types = parse_filter_types(msg);
+                let filter_min_salience = msg.get("filter")
+                    .and_then(|f| f.get("min_salience"))
+                    .and_then(|v| v.as_f64());
+                let window = msg.get("window").and_then(|w| {
+                    let arr = w.as_array()?;
+                    if arr.len() == 2 {
+                        Some((arr[0].as_u64()? as usize, arr[1].as_u64()? as usize))
+                    } else {
+                        None
+                    }
+                });
+
                 let inner = self.inner.read().unwrap();
-                let _ = conn.send(&json!({
-                    "type": "snapshot",
-                    "id": msg["id"],
-                    "version": inner.version,
-                    "tree": serde_json::to_value(&inner.current_tree).unwrap()
-                }));
+                let output = get_output_tree(
+                    &inner.current_tree, &path, depth,
+                    filter_min_salience, filter_types.as_deref(),
+                );
+
+                match output {
+                    None => {
+                        let _ = conn.send(&json!({
+                            "type": "error",
+                            "id": msg_id,
+                            "error": {
+                                "code": "not_found",
+                                "message": format!("Path {} does not exist in the state tree", path)
+                            }
+                        }));
+                    }
+                    Some(mut tree) => {
+                        // Apply window to children
+                        if let Some((offset, count)) = window {
+                            if let Some(children) = &tree.children {
+                                let total = children.len();
+                                let start = offset.min(total);
+                                let end = (offset + count).min(total);
+                                let windowed: Vec<SlopNode> = children[start..end].to_vec();
+                                tree.children = if windowed.is_empty() { None } else { Some(windowed) };
+                                // Record window metadata
+                                let meta = tree.meta.get_or_insert_with(Default::default);
+                                meta.total_children = Some(total);
+                                meta.window = Some((offset, count));
+                            }
+                        }
+                        let _ = conn.send(&json!({
+                            "type": "snapshot",
+                            "id": msg_id,
+                            "version": inner.version,
+                            "tree": serde_json::to_value(&tree).unwrap()
+                        }));
+                    }
+                }
             }
             "invoke" => {
                 self.handle_invoke(conn, msg);
             }
-            _ => {}
+            _ => {
+                let _ = conn.send(&json!({
+                    "type": "error",
+                    "id": msg_id,
+                    "error": {
+                        "code": "bad_request",
+                        "message": "Unknown message type"
+                    }
+                }));
+            }
         }
     }
 
@@ -517,11 +616,25 @@ fn rebuild(inner: &mut Inner) {
 
 fn broadcast_patches(inner: &mut Inner) {
     for sub in &mut inner.subscriptions {
+        // Compute per-subscription output tree using stored path/depth/filter
+        let new_tree = get_output_tree(
+            &inner.current_tree,
+            &sub.path,
+            sub.depth,
+            sub.filter_min_salience,
+            sub.filter_types.as_deref(),
+        );
+
+        let new_tree = match new_tree {
+            Some(t) => t,
+            None => continue, // path no longer exists — skip
+        };
+
         let ops = match &sub.last_tree {
-            Some(old) => diff_nodes(old, &inner.current_tree, ""),
+            Some(old) => diff_nodes(old, &new_tree, ""),
             None => diff_nodes(
                 &SlopNode::new(&inner.id, "root"),
-                &inner.current_tree,
+                &new_tree,
                 "",
             ),
         };
@@ -534,7 +647,7 @@ fn broadcast_patches(inner: &mut Inner) {
                 "ops": ops_val
             }));
         }
-        sub.last_tree = Some(inner.current_tree.clone());
+        sub.last_tree = Some(new_tree);
     }
 }
 
@@ -553,6 +666,51 @@ fn resolve_handler_key(inner: &Inner, path: &str, action: &str) -> String {
     } else {
         format!("{clean}/{action}")
     }
+}
+
+/// Resolve a subtree at `path`, then apply depth/filter via `prepare_tree`.
+/// Returns `None` if the path does not exist.
+fn get_output_tree(
+    full_tree: &SlopNode,
+    path: &str,
+    depth: Option<usize>,
+    min_salience: Option<f64>,
+    types: Option<&[String]>,
+) -> Option<SlopNode> {
+    let subtree = if path.is_empty() || path == "/" {
+        full_tree
+    } else {
+        get_subtree(full_tree, path)?
+    };
+
+    let opts = OutputTreeOptions {
+        max_depth: depth,
+        min_salience,
+        types: types.map(|t| t.to_vec()),
+        ..Default::default()
+    };
+    Some(prepare_tree(subtree, &opts))
+}
+
+/// Parse the `depth` field from a subscribe/query message.
+/// Returns `None` for unlimited (-1 or absent).
+fn parse_depth(msg: &Value) -> Option<usize> {
+    match msg.get("depth").and_then(|v| v.as_i64()) {
+        Some(d) if d >= 0 => Some(d as usize),
+        _ => None,
+    }
+}
+
+/// Parse the `filter.types` array from a subscribe/query message.
+fn parse_filter_types(msg: &Value) -> Option<Vec<String>> {
+    msg.get("filter")
+        .and_then(|f| f.get("types"))
+        .and_then(|t| t.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
 }
 
 fn merge_action_metadata(
@@ -755,5 +913,187 @@ mod tests {
 
         slop.register("x", json!({"type": "group", "props": {"v": 2}}));
         assert!(conn.messages().len() > initial_count);
+    }
+
+    #[test]
+    fn test_subscribe_with_depth_limit() {
+        let slop = SlopServer::new("app", "App");
+        // Register a nested structure using flat path registrations
+        slop.register("parent", json!({"type": "group"}));
+        slop.register("parent/child", json!({"type": "group"}));
+        slop.register("parent/child/grandchild", json!({"type": "item"}));
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        // Subscribe with depth 1 — at depth=1, root shows children, but parent's
+        // children (child) are collapsed to stubs.
+        slop.handle_message(&dyn_conn, &json!({
+            "type": "subscribe",
+            "id": "sub-depth",
+            "path": "/",
+            "depth": 1
+        }));
+
+        let messages = conn.messages();
+        let snapshot = messages.iter().find(|m| m["type"] == "snapshot").unwrap();
+        assert_eq!(snapshot["id"], "sub-depth");
+
+        let tree_val = &snapshot["tree"];
+        let parent = tree_val["children"]
+            .as_array().unwrap()
+            .iter()
+            .find(|c| c["id"] == "parent")
+            .unwrap();
+        // At depth=1 from root: parent is at depth 0, its children are at depth 1
+        // which triggers truncation (depth <= 0 on the children pass).
+        // parent should be a stub with no children and meta.total_children set
+        assert!(parent.get("children").is_none() || parent["children"].is_null());
+        assert_eq!(parent["meta"]["total_children"], 1);
+    }
+
+    #[test]
+    fn test_subscribe_with_salience_filter() {
+        let slop = SlopServer::new("app", "App");
+        // Register two nodes with different salience
+        slop.register("high", json!({
+            "type": "item",
+            "meta": {"salience": 0.9}
+        }));
+        slop.register("low", json!({
+            "type": "item",
+            "meta": {"salience": 0.1}
+        }));
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        slop.handle_message(&dyn_conn, &json!({
+            "type": "subscribe",
+            "id": "sub-filter",
+            "path": "/",
+            "filter": {"min_salience": 0.5}
+        }));
+
+        let messages = conn.messages();
+        let snapshot = messages.iter().find(|m| m["type"] == "snapshot").unwrap();
+        let children = snapshot["tree"]["children"].as_array().unwrap();
+
+        // Only high-salience node should be present
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0]["id"], "high");
+    }
+
+    #[test]
+    fn test_unknown_message_returns_error() {
+        let slop = SlopServer::new("app", "App");
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        slop.handle_message(&dyn_conn, &json!({
+            "type": "bogus",
+            "id": "req-99"
+        }));
+
+        let messages = conn.messages();
+        let error = messages.iter().find(|m| m["type"] == "error").unwrap();
+        assert_eq!(error["id"], "req-99");
+        assert_eq!(error["error"]["code"], "bad_request");
+    }
+
+    #[test]
+    fn test_subscribe_bad_path_returns_error() {
+        let slop = SlopServer::new("app", "App");
+        slop.register("x", json!({"type": "group"}));
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        slop.handle_message(&dyn_conn, &json!({
+            "type": "subscribe",
+            "id": "sub-bad",
+            "path": "/nonexistent/deep"
+        }));
+
+        let messages = conn.messages();
+        let error = messages.iter().find(|m| m["type"] == "error").unwrap();
+        assert_eq!(error["id"], "sub-bad");
+        assert_eq!(error["error"]["code"], "not_found");
+    }
+
+    #[test]
+    fn test_emit_event() {
+        let slop = SlopServer::new("app", "App");
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        slop.emit_event("user-navigation", Some(json!({"from": "/a", "to": "/b"})));
+
+        let messages = conn.messages();
+        let event = messages.iter().find(|m| m["type"] == "event").unwrap();
+        assert_eq!(event["name"], "user-navigation");
+        assert_eq!(event["data"]["from"], "/a");
+        assert_eq!(event["data"]["to"], "/b");
+    }
+
+    #[test]
+    fn test_emit_event_no_data() {
+        let slop = SlopServer::new("app", "App");
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        slop.emit_event("heartbeat", None);
+
+        let messages = conn.messages();
+        let event = messages.iter().find(|m| m["type"] == "event").unwrap();
+        assert_eq!(event["name"], "heartbeat");
+        assert!(event.get("data").is_none());
+    }
+
+    #[test]
+    fn test_query_with_window() {
+        let slop = SlopServer::new("app", "App");
+        // Register a collection with items (array children)
+        slop.register("items", json!({
+            "type": "collection",
+            "items": [
+                {"id": "a", "type": "item"},
+                {"id": "b", "type": "item"},
+                {"id": "c", "type": "item"},
+                {"id": "d", "type": "item"},
+                {"id": "e", "type": "item"}
+            ]
+        }));
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+
+        // Query with window [1, 2] — should get items b and c
+        // Path is /items (child of root)
+        slop.handle_message(&dyn_conn, &json!({
+            "type": "query",
+            "id": "q-win",
+            "path": "/items",
+            "depth": -1,
+            "window": [1, 2]
+        }));
+
+        let messages = conn.messages();
+        let snapshot = messages.iter().find(|m| m["id"] == "q-win").unwrap();
+        let children = snapshot["tree"]["children"].as_array().unwrap();
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0]["id"], "b");
+        assert_eq!(children[1]["id"], "c");
+        // Metadata should record the window
+        assert_eq!(snapshot["tree"]["meta"]["total_children"], 5);
     }
 }

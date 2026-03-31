@@ -58,6 +58,8 @@ struct ConsumerInner {
     req_counter: u32,
     patch_callbacks: Vec<Arc<dyn Fn(&str, &[PatchOp], u64) + Send + Sync>>,
     disconnect_callbacks: Vec<Arc<dyn Fn() + Send + Sync>>,
+    error_callbacks: Vec<Arc<dyn Fn(&str, &str, &str) + Send + Sync>>,
+    event_callbacks: Vec<Arc<dyn Fn(&str, Option<&Value>) + Send + Sync>>,
 }
 
 impl SlopConsumer {
@@ -72,6 +74,8 @@ impl SlopConsumer {
                 req_counter: 0,
                 patch_callbacks: Vec::new(),
                 disconnect_callbacks: Vec::new(),
+                error_callbacks: Vec::new(),
+                event_callbacks: Vec::new(),
             })),
         }
     }
@@ -257,6 +261,28 @@ impl SlopConsumer {
         inner.disconnect_callbacks.push(Arc::new(callback));
     }
 
+    /// Register a callback for error messages.
+    ///
+    /// The callback receives `(id, error_code, error_message)`.
+    pub async fn on_error<F>(&self, callback: F)
+    where
+        F: Fn(&str, &str, &str) + Send + Sync + 'static,
+    {
+        let mut inner = self.inner.lock().await;
+        inner.error_callbacks.push(Arc::new(callback));
+    }
+
+    /// Register a callback for event messages.
+    ///
+    /// The callback receives `(event_name, optional_data)`.
+    pub async fn on_event<F>(&self, callback: F)
+    where
+        F: Fn(&str, Option<&Value>) + Send + Sync + 'static,
+    {
+        let mut inner = self.inner.lock().await;
+        inner.event_callbacks.push(Arc::new(callback));
+    }
+
     // -- internals --
 
     fn send_inner(
@@ -319,6 +345,41 @@ impl SlopConsumer {
                 let mut locked = inner.lock().await;
                 if let Some(tx) = locked.pending.remove(&msg_id) {
                     let _ = tx.send(msg);
+                }
+            }
+            "error" => {
+                let mut locked = inner.lock().await;
+                let code = msg["error"]["code"].as_str().unwrap_or("unknown");
+                let message = msg["error"]["message"].as_str().unwrap_or("");
+
+                // If this error correlates with a pending request, resolve it
+                if !msg_id.is_empty() {
+                    if let Some(tx) = locked.pending.remove(&msg_id) {
+                        let _ = tx.send(msg.clone());
+                    }
+                }
+
+                let callbacks: Vec<_> = locked.error_callbacks.clone();
+                drop(locked);
+                for cb in &callbacks {
+                    cb(&msg_id, code, message);
+                }
+            }
+            "event" => {
+                let locked = inner.lock().await;
+                let name = msg["name"].as_str().unwrap_or("");
+                let data = msg.get("data");
+                let callbacks: Vec<_> = locked.event_callbacks.clone();
+                drop(locked);
+                for cb in &callbacks {
+                    cb(name, data);
+                }
+            }
+            "batch" => {
+                if let Some(messages) = msg["messages"].as_array() {
+                    for sub_msg in messages {
+                        Box::pin(Self::dispatch(Arc::clone(&inner), sub_msg.clone())).await;
+                    }
                 }
             }
             _ => {}

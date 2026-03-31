@@ -32,6 +32,8 @@ type Consumer struct {
 
 	onPatch      []func(subID string, ops []PatchOp, version int)
 	onDisconnect []func()
+	onError      []func(code, message string)
+	onEvent      []func(name string, data any)
 }
 
 // NewConsumer creates a Consumer that will use the given transport to connect.
@@ -134,6 +136,56 @@ func (c *Consumer) handleMessage(msg map[string]any, helloCh chan map[string]any
 		c.mu.Unlock()
 		if ok {
 			ch <- msg
+		}
+
+	case "error":
+		id, _ := msg["id"].(string)
+
+		// If there's a pending channel for this id, deliver the error through it
+		if id != "" {
+			c.mu.Lock()
+			ch, ok := c.pending[id]
+			if ok {
+				delete(c.pending, id)
+			}
+			c.mu.Unlock()
+			if ok {
+				ch <- msg
+			}
+		}
+
+		// Fire error callbacks
+		errData, _ := msg["error"].(map[string]any)
+		code, _ := errData["code"].(string)
+		errMsg, _ := errData["message"].(string)
+		c.mu.Lock()
+		handlers := make([]func(string, string), len(c.onError))
+		copy(handlers, c.onError)
+		c.mu.Unlock()
+		for _, fn := range handlers {
+			fn(code, errMsg)
+		}
+
+	case "batch":
+		messages, ok := msg["messages"].([]any)
+		if !ok {
+			return
+		}
+		for _, inner := range messages {
+			if m, ok := inner.(map[string]any); ok {
+				c.handleMessage(m, helloCh)
+			}
+		}
+
+	case "event":
+		name, _ := msg["name"].(string)
+		data := msg["data"]
+		c.mu.Lock()
+		evtHandlers := make([]func(string, any), len(c.onEvent))
+		copy(evtHandlers, c.onEvent)
+		c.mu.Unlock()
+		for _, fn := range evtHandlers {
+			fn(name, data)
 		}
 	}
 }
@@ -298,6 +350,20 @@ func (c *Consumer) OnDisconnect(fn func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.onDisconnect = append(c.onDisconnect, fn)
+}
+
+// OnError registers a callback invoked when an error message is received.
+func (c *Consumer) OnError(fn func(code, message string)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onError = append(c.onError, fn)
+}
+
+// OnEvent registers a callback invoked when an event message is received.
+func (c *Consumer) OnEvent(fn func(name string, data any)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onEvent = append(c.onEvent, fn)
 }
 
 // --- helpers ---

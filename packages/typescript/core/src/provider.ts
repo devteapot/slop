@@ -26,6 +26,7 @@ export interface OutputRequest {
   path?: string;
   depth?: number;
   filter?: SubscriptionFilter;
+  window?: [number, number];
 }
 
 export abstract class ProviderBase<S = unknown> {
@@ -166,13 +167,13 @@ export abstract class ProviderBase<S = unknown> {
     };
   }
 
-  /** Prepare the tree for output, applying path, depth, filter, and global options. */
+  /** Prepare the tree for output, applying path, depth, filter, window, and global options. */
   getOutputTree(request?: OutputRequest): SlopNode {
     let tree = request?.path
       ? getSubtree(this.currentTree, request.path) ?? this.currentTree
       : this.currentTree;
 
-    return prepareTree(tree, {
+    tree = prepareTree(tree, {
       maxDepth: request?.depth != null && request.depth >= 0
         ? request.depth
         : this.options.maxDepth,
@@ -180,6 +181,24 @@ export abstract class ProviderBase<S = unknown> {
       minSalience: request?.filter?.min_salience,
       types: request?.filter?.types,
     });
+
+    // Apply windowing if requested
+    if (request?.window && tree.children) {
+      const [offset, count] = request.window;
+      const totalChildren = tree.children.length;
+      const sliced = tree.children.slice(offset, offset + count);
+      tree = {
+        ...tree,
+        children: sliced,
+        meta: {
+          ...tree.meta,
+          window: [offset, count],
+          total_children: totalChildren,
+        },
+      };
+    }
+
+    return tree;
   }
 
   /** Build a snapshot message for a given request. */

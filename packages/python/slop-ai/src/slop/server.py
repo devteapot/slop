@@ -30,9 +30,10 @@ import copy
 import inspect
 from typing import Any, Callable, Protocol, runtime_checkable
 
-from .types import SlopNode, PatchOp
+from .types import SlopNode, NodeMeta, PatchOp
 from .tree import assemble_tree
 from .diff import diff_nodes
+from .scaling import prepare_tree, get_subtree, OutputTreeOptions
 
 
 @runtime_checkable
@@ -191,23 +192,49 @@ class SlopServer:
             },
         })
 
+    def emit_event(self, name: str, data: Any = None) -> None:
+        """Send an event message to all connected consumers."""
+        msg: dict[str, Any] = {"type": "event", "name": name}
+        if data is not None:
+            msg["data"] = data
+        for conn in self._connections:
+            try:
+                conn.send(msg)
+            except Exception:
+                pass
+
     async def handle_message(self, conn: Connection, msg: dict[str, Any]) -> None:
         """Process an incoming message from a consumer."""
         msg_type = msg.get("type")
 
         if msg_type == "subscribe":
+            path = msg.get("path", "/")
+            depth = msg.get("depth", -1)
+            filter_ = msg.get("filter")
+            output = self._get_output_tree(path=path, depth=depth, filter_=filter_)
+            if output is None:
+                conn.send({
+                    "type": "error",
+                    "id": msg.get("id"),
+                    "error": {
+                        "code": "not_found",
+                        "message": f"Path {path} does not exist in the state tree",
+                    },
+                })
+                return
             self._subscriptions.append(_Subscription(
                 id=msg["id"],
-                path=msg.get("path", "/"),
-                depth=msg.get("depth", -1),
+                path=path,
+                depth=depth,
                 connection=conn,
-                last_tree=copy.deepcopy(self._current_tree),
+                last_tree=copy.deepcopy(output),
+                filter_=filter_,
             ))
             conn.send({
                 "type": "snapshot",
                 "id": msg["id"],
                 "version": self._version,
-                "tree": self._current_tree.to_dict(),
+                "tree": output.to_dict(),
             })
 
         elif msg_type == "unsubscribe":
@@ -217,15 +244,55 @@ class SlopServer:
             ]
 
         elif msg_type == "query":
+            path = msg.get("path", "/")
+            depth = msg.get("depth", -1)
+            filter_ = msg.get("filter")
+            window = msg.get("window")
+            output = self._get_output_tree(path=path, depth=depth, filter_=filter_)
+            if output is None:
+                conn.send({
+                    "type": "error",
+                    "id": msg.get("id"),
+                    "error": {
+                        "code": "not_found",
+                        "message": f"Path {path} does not exist in the state tree",
+                    },
+                })
+                return
+            if window and output.children:
+                offset, count = window[0], window[1]
+                total = len(output.children)
+                sliced = output.children[offset:offset + count]
+                meta = copy.copy(output.meta) if output.meta else NodeMeta()
+                meta.total_children = total
+                meta.window = (offset, len(sliced))
+                output = SlopNode(
+                    id=output.id,
+                    type=output.type,
+                    properties=output.properties,
+                    children=sliced,
+                    affordances=output.affordances,
+                    meta=meta,
+                )
             conn.send({
                 "type": "snapshot",
                 "id": msg["id"],
                 "version": self._version,
-                "tree": self._current_tree.to_dict(),
+                "tree": output.to_dict(),
             })
 
         elif msg_type == "invoke":
             await self._handle_invoke(conn, msg)
+
+        else:
+            conn.send({
+                "type": "error",
+                "id": msg.get("id"),
+                "error": {
+                    "code": "bad_request",
+                    "message": f"Unknown message type: {msg.get('type')}",
+                },
+            })
 
     def handle_disconnect(self, conn: Connection) -> None:
         """Called by a transport when a consumer disconnects."""
@@ -349,10 +416,42 @@ class SlopServer:
         key = f"{clean}/{action}" if clean else action
         return self._current_handlers.get(key)
 
+    def _get_output_tree(
+        self,
+        path: str = "/",
+        depth: int | None = None,
+        filter_: dict[str, Any] | None = None,
+    ) -> SlopNode | None:
+        """Resolve a subtree and apply depth/filter options."""
+        tree = self._current_tree
+        if path != "/":
+            subtree = get_subtree(tree, path)
+            if subtree is None:
+                return None
+            tree = subtree
+
+        needs_prepare = (
+            (depth is not None and depth >= 0)
+            or (filter_ is not None)
+        )
+        if needs_prepare:
+            opts = OutputTreeOptions(
+                max_depth=depth if (depth is not None and depth >= 0) else None,
+                min_salience=filter_.get("min_salience") if filter_ else None,
+                types=filter_.get("types") if filter_ else None,
+            )
+            tree = prepare_tree(tree, opts)
+
+        return tree
+
     def _broadcast_patches(self, ops: list[PatchOp]) -> None:
         for sub in self._subscriptions:
             try:
-                new_tree = self._current_tree
+                new_tree = self._get_output_tree(
+                    path=sub.path, depth=sub.depth, filter_=sub.filter_,
+                )
+                if new_tree is None:
+                    continue
                 sub_ops = diff_nodes(sub.last_tree, new_tree)
                 if sub_ops:
                     sub.connection.send({
@@ -367,12 +466,21 @@ class SlopServer:
 
 
 class _Subscription:
-    __slots__ = ("id", "path", "depth", "connection", "last_tree")
+    __slots__ = ("id", "path", "depth", "filter_", "connection", "last_tree")
 
-    def __init__(self, id: str, path: str, depth: int, connection: Connection, last_tree: SlopNode) -> None:
+    def __init__(
+        self,
+        id: str,
+        path: str,
+        depth: int,
+        connection: Connection,
+        last_tree: SlopNode,
+        filter_: dict[str, Any] | None = None,
+    ) -> None:
         self.id = id
         self.path = path
         self.depth = depth
+        self.filter_ = filter_
         self.connection = connection
         self.last_tree = last_tree
 

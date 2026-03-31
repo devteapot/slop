@@ -9,7 +9,6 @@
       "name": "slop-desktop",
       "version": "0.1.0",
       "dependencies": {
-        "@slop-ai/consumer": "workspace:*",
         "@tauri-apps/api": "^2.0.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",

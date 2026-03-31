@@ -34,6 +34,8 @@ class ClientTransport(Protocol):
 
 PatchHandler = Callable[[str, list[dict[str, Any]], int], None]
 DisconnectHandler = Callable[[], None]
+ErrorHandler = Callable[[dict[str, Any]], None]
+EventHandler = Callable[[str, Any], None]
 
 
 # ---------------------------------------------------------------
@@ -62,6 +64,8 @@ class SlopConsumer:
         # Event callbacks
         self._on_patch: list[PatchHandler] = []
         self._on_disconnect: list[DisconnectHandler] = []
+        self._on_error: list[ErrorHandler] = []
+        self._on_event: list[EventHandler] = []
 
     # -- public event registration ----------------------------------
 
@@ -72,6 +76,14 @@ class SlopConsumer:
     def on_disconnect(self, handler: DisconnectHandler) -> None:
         """Register a handler called when the connection closes."""
         self._on_disconnect.append(handler)
+
+    def on_error(self, handler: ErrorHandler) -> None:
+        """Register a handler called on ``error`` messages: ``handler(msg)``."""
+        self._on_error.append(handler)
+
+    def on_event(self, handler: EventHandler) -> None:
+        """Register a handler called on ``event`` messages: ``handler(name, data)``."""
+        self._on_event.append(handler)
 
     # -- lifecycle ---------------------------------------------------
 
@@ -193,6 +205,23 @@ class SlopConsumer:
             future = self._pending.pop(msg.get("id", ""), None)
             if future is not None and not future.done():
                 future.set_result(msg)
+
+        elif msg_type == "error":
+            error_id = msg.get("id", "")
+            future = self._pending.pop(error_id, None)
+            if future is not None and not future.done():
+                exc = RuntimeError(msg.get("error", {}).get("message", "Unknown error"))
+                future.set_exception(exc)
+            for handler in self._on_error:
+                handler(msg)
+
+        elif msg_type == "batch":
+            for inner in msg.get("messages", []):
+                self._handle_message(inner)
+
+        elif msg_type == "event":
+            for handler in self._on_event:
+                handler(msg.get("name", ""), msg.get("data"))
 
     def _handle_close(self) -> None:
         for handler in self._on_disconnect:

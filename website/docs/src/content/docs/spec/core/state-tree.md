@@ -1,4 +1,6 @@
-# State Tree
+---
+title: "State Tree"
+---
 
 The state tree is the core data structure of SLOP. It is a rooted tree of **nodes**, where each node represents a semantic unit of application state.
 

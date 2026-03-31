@@ -361,4 +361,3 @@ Consumers that don't need progress tracking can ignore task nodes and just treat
 | Database migration | Variable | **Async** |
 
 **Rule of thumb:** if the user might want to do something else while waiting, make it async.
-

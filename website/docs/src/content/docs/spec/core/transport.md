@@ -1,4 +1,6 @@
-# Transport & Discovery
+---
+title: "Transport & Discovery"
+---
 
 SLOP is transport-agnostic. The protocol defines message semantics (see [Messages](./messages.md)); this document defines how consumers find providers and establish connections.
 

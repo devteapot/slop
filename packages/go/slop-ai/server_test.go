@@ -232,3 +232,232 @@ func TestBroadcastOnChange(t *testing.T) {
 		t.Fatal("expected broadcast after change")
 	}
 }
+
+func TestSubscribeWithDepthLimit(t *testing.T) {
+	s := NewServer("app", "App")
+	s.Register("parent", Node{
+		Type: "group",
+		Children: map[string]Node{
+			"child": {
+				Type: "group",
+				Children: map[string]Node{
+					"grandchild": {Type: "item", Props: Props{"deep": true}},
+				},
+			},
+		},
+	})
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+
+	// Subscribe with depth 2 — should see parent and child, but grandchild truncated
+	s.HandleMessage(conn, map[string]any{
+		"type":  "subscribe",
+		"id":    "sub-depth",
+		"path":  "/",
+		"depth": float64(2),
+	})
+
+	msgs := conn.Messages()
+	var snapshot map[string]any
+	for _, m := range msgs {
+		if m["type"] == "snapshot" && m["id"] == "sub-depth" {
+			snapshot = m
+			break
+		}
+	}
+	if snapshot == nil {
+		t.Fatal("no snapshot received")
+	}
+
+	tree := unmarshalWireNode(snapshot["tree"])
+	if len(tree.Children) == 0 {
+		t.Fatal("expected root to have children")
+	}
+	parent := tree.Children[0]
+	if len(parent.Children) == 0 {
+		t.Fatal("expected parent to have children at depth 2")
+	}
+	child := parent.Children[0]
+	// At depth 2, child is at depth 2, so grandchild should be truncated
+	if len(child.Children) != 0 {
+		t.Fatal("expected grandchild to be truncated at depth 2")
+	}
+}
+
+func TestSubscribeWithSalienceFilter(t *testing.T) {
+	lowSal := 0.2
+	highSal := 0.9
+	s := NewServer("app", "App")
+	s.Register("important", Node{
+		Type: "item",
+		Meta: &Meta{Salience: &highSal},
+	})
+	s.Register("boring", Node{
+		Type: "item",
+		Meta: &Meta{Salience: &lowSal},
+	})
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+
+	s.HandleMessage(conn, map[string]any{
+		"type": "subscribe",
+		"id":   "sub-sal",
+		"path": "/",
+		"filter": map[string]any{
+			"min_salience": 0.5,
+		},
+	})
+
+	msgs := conn.Messages()
+	var snapshot map[string]any
+	for _, m := range msgs {
+		if m["type"] == "snapshot" && m["id"] == "sub-sal" {
+			snapshot = m
+			break
+		}
+	}
+	if snapshot == nil {
+		t.Fatal("no snapshot received")
+	}
+
+	tree := unmarshalWireNode(snapshot["tree"])
+	if len(tree.Children) != 1 {
+		t.Fatalf("expected 1 child (filtered), got %d", len(tree.Children))
+	}
+	if tree.Children[0].ID != "important" {
+		t.Fatalf("expected 'important' child, got %q", tree.Children[0].ID)
+	}
+}
+
+func TestUnknownMessageError(t *testing.T) {
+	s := NewServer("app", "App")
+	conn := newMockConn()
+	s.HandleConnection(conn)
+
+	s.HandleMessage(conn, map[string]any{
+		"type": "frobnicate",
+		"id":   "bad-1",
+	})
+
+	msgs := conn.Messages()
+	var errMsg map[string]any
+	for _, m := range msgs {
+		if m["type"] == "error" {
+			errMsg = m
+			break
+		}
+	}
+	if errMsg == nil {
+		t.Fatal("expected error message for unknown type")
+	}
+	if errMsg["id"] != "bad-1" {
+		t.Fatalf("expected error id 'bad-1', got %v", errMsg["id"])
+	}
+	errObj := errMsg["error"].(map[string]any)
+	if errObj["code"] != "bad_request" {
+		t.Fatalf("expected bad_request, got %v", errObj["code"])
+	}
+}
+
+func TestSubscribeBadPathError(t *testing.T) {
+	s := NewServer("app", "App")
+	s.Register("x", Node{Type: "group"})
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+
+	s.HandleMessage(conn, map[string]any{
+		"type": "subscribe",
+		"id":   "sub-bad",
+		"path": "/nonexistent/deep",
+	})
+
+	msgs := conn.Messages()
+	var errMsg map[string]any
+	for _, m := range msgs {
+		if m["type"] == "error" {
+			errMsg = m
+			break
+		}
+	}
+	if errMsg == nil {
+		t.Fatal("expected error message for bad path")
+	}
+	if errMsg["id"] != "sub-bad" {
+		t.Fatalf("expected error id 'sub-bad', got %v", errMsg["id"])
+	}
+	errObj := errMsg["error"].(map[string]any)
+	if errObj["code"] != "not_found" {
+		t.Fatalf("expected not_found, got %v", errObj["code"])
+	}
+}
+
+func TestEmitEvent(t *testing.T) {
+	s := NewServer("app", "App")
+	conn := newMockConn()
+	s.HandleConnection(conn)
+
+	s.EmitEvent("user-navigation", map[string]any{"from": "/a", "to": "/b"})
+
+	msgs := conn.Messages()
+	var event map[string]any
+	for _, m := range msgs {
+		if m["type"] == "event" {
+			event = m
+			break
+		}
+	}
+	if event == nil {
+		t.Fatal("expected event message")
+	}
+	if event["name"] != "user-navigation" {
+		t.Fatalf("expected event name 'user-navigation', got %v", event["name"])
+	}
+	data := event["data"].(map[string]any)
+	if data["from"] != "/a" || data["to"] != "/b" {
+		t.Fatalf("unexpected event data: %v", data)
+	}
+}
+
+func TestQueryWithWindow(t *testing.T) {
+	s := NewServer("app", "App")
+	children := map[string]Node{}
+	for _, name := range []string{"a", "b", "c", "d", "e"} {
+		children[name] = Node{Type: "item"}
+	}
+	s.Register("list", Node{
+		Type:     "collection",
+		Children: children,
+	})
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+
+	// Query with window [1, 2] on the list subtree — skip first, take 2
+	s.HandleMessage(conn, map[string]any{
+		"type":   "query",
+		"id":     "q-win",
+		"path":   "/list",
+		"depth":  float64(-1),
+		"window": []any{float64(1), float64(2)},
+	})
+
+	msgs := conn.Messages()
+	var snapshot map[string]any
+	for _, m := range msgs {
+		if m["type"] == "snapshot" && m["id"] == "q-win" {
+			snapshot = m
+			break
+		}
+	}
+	if snapshot == nil {
+		t.Fatal("no snapshot received for windowed query")
+	}
+
+	tree := unmarshalWireNode(snapshot["tree"])
+	if len(tree.Children) != 2 {
+		t.Fatalf("expected 2 children in window, got %d", len(tree.Children))
+	}
+}

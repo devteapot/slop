@@ -98,8 +98,8 @@ Layer 2: Transport (@slop-ai/client,     — postMessage, WebSocket, Unix socket
          @slop-ai/server)
 Layer 3: SPA adapters (@slop-ai/react,   — useSlop() hooks for component lifecycle
          vue, solid, angular)
-Layer 4: Meta-framework adapters         — Full integration for Next.js, Nuxt, SvelteKit
-         (@slop-ai/next, nuxt, sveltekit)  (server setup, UI sync, state composition)
+Layer 4: Meta-framework adapters         — Consumer-side tree merge, data invalidation,
+         (@slop-ai/next, nuxt, sveltekit)  framework-specific refresh, session routing
 ```
 
 ```
@@ -746,75 +746,141 @@ slop.register("settings", () => ({ type: "view", ... }))
 
 ### Meta-framework adapters (Layer 4)
 
-The SPA adapters (Layer 3) and the server/client transports (Layer 2) handle the protocol — but they don't handle the **full developer experience** in fullstack meta-frameworks like Next.js, Nuxt, and SvelteKit. These frameworks have their own conventions for data fetching, server/client boundaries, state management, and cache invalidation. A clean SLOP integration must work *with* those conventions, not around them.
+Fullstack frameworks (Next.js, Nuxt, SvelteKit) run code on both the server and in the browser. A fullstack web app naturally has **two SLOP providers**: one on the server (data state) and one in the browser (UI state). Both speak standard SLOP — no protocol extensions needed.
 
-Meta-framework adapters are a layer above the protocol. The protocol is completely agnostic to what uses it — it is the adapter's job to compose and keep state in sync using the framework's own patterns.
+Meta-framework adapters handle the framework-specific wiring: setting up both providers, configuring discovery, and managing data invalidation when the AI mutates server state. The protocol is completely agnostic — adapters work *above* it.
 
-#### The problem they solve
-
-In a fullstack app, SLOP integration involves three concerns that Layers 1–3 don't address:
-
-1. **Server setup** — wiring the SLOP WebSocket endpoint into the framework's server (Nitro, adapter-node, custom server). Currently manual.
-2. **UI sync** — when AI mutates state via the SLOP protocol, the browser UI must update. The SLOP WebSocket already broadcasts changes, but the framework needs to know *how* to react (Next.js: `revalidatePath`; Nuxt: `refreshNuxtData`; SvelteKit: `invalidateAll`).
-3. **State composition** — fullstack apps have both server state (database, in-memory) and client state (component state, form inputs, UI toggles). A complete SLOP tree should compose both.
-
-Each of these is framework-specific. The protocol doesn't dictate how to solve them — the adapter does.
-
-#### Architecture
-
-A meta-framework adapter wraps `@slop-ai/server` (for the SLOP endpoint) and `@slop-ai/client` (for client-side state), then adds framework-specific glue:
+#### The two-provider model
 
 ```
-┌─ @slop-ai/next ──────────────────────────────────────┐
-│                                                       │
-│  Server side:                                         │
-│  ┌─────────────────────────────────────┐              │
-│  │ @slop-ai/server                     │              │
-│  │ • Descriptor functions for DB state │              │
-│  │ • WebSocket endpoint                │              │
-│  │ • Auto-refresh after invoke         │              │
-│  └─────────────────────────────────────┘              │
-│                                                       │
-│  Client side:                                         │
-│  ┌─────────────────────────────────────┐              │
-│  │ @slop-ai/client                     │              │
-│  │ • useSlop() for component state     │              │
-│  │ • Subscribes to server WebSocket    │              │
-│  │   for change notifications          │              │
-│  └─────────────────────────────────────┘              │
-│                                                       │
-│  Framework glue:                                      │
-│  • Wires server WebSocket automatically               │
-│  • Invalidates data cache on SLOP state change        │
-│  • Merges server tree + client tree into one provider │
-│  • Injects <meta name="slop"> discovery tag           │
-│                                                       │
-└───────────────────────────────────────────────────────┘
+┌─ Browser ──────────────────┐
+│                             │
+│  UI provider (postMessage)  │──── SLOP ────┐
+│  ├── route: /todos          │              │
+│  ├── filters: {active: true}│              ▼
+│  └── compose: {expanded}    │     ┌──────────────────┐
+│     {set_filter, submit}    │     │                  │
+│                             │     │  Consumer         │
+└─────────────────────────────┘     │  (extension /     │
+                                    │   desktop app)    │
+┌─ Server ───────────────────┐     │                  │
+│                             │     │  Subscribes to   │
+│  Data provider (WebSocket)  │──── SLOP ──── both, merges  │
+│  ├── todos (3 items)        │     │  into one tree   │
+│  │   {toggle, delete, add}  │     │  for the LLM     │
+│  └── categories             │     │                  │
+│                             │     └──────────────────┘
+└─────────────────────────────┘
 ```
 
-#### What each adapter handles
+Both providers are standard SLOP providers using existing transports:
+- **Server provider**: `@slop-ai/server` with WebSocket transport — exposes domain data and data actions
+- **Browser provider**: `@slop-ai/client` with postMessage transport — exposes UI state and UI actions
 
-| Concern | Next.js (`@slop-ai/next`) | Nuxt (`@slop-ai/nuxt`) | SvelteKit (`@slop-ai/sveltekit`) |
-|---|---|---|---|
-| Server endpoint | Custom server + `attachSlop` | Nitro WebSocket handler (module auto-configures) | Vite plugin + adapter-node |
-| UI sync trigger | `router.refresh()` or `revalidatePath` | `refreshNuxtData()` | `invalidateAll()` |
-| Client state | `useSlop()` via `@slop-ai/react` | `useSlop()` via `@slop-ai/vue` | `$effect` + `@slop-ai/client` directly |
-| Configuration | `withSlop()` in next.config | `modules: ["@slop-ai/nuxt"]` | `slopPlugin()` in vite.config |
-| Discovery | `<meta>` injected by layout component | `<meta>` injected by module | `<meta>` in app.html |
+The AI consumer (browser extension, desktop app) connects to both and sees the full picture. No custom protocol messages, no bidirectional server-client connection, no `ui/` prefix convention.
 
-#### Developer experience goals
+#### The consumer merges the view
 
-The ideal experience for a Nuxt developer:
+The consumer subscribes to both providers and presents **one unified tree** to the LLM:
+
+```
+[root] My App                            ← merged by consumer
+  [data] Server state                    ← from data provider
+    [collection] todos (count=3)
+      [item] todo-1 {toggle, delete}
+      [item] todo-2 {toggle, delete}
+    [group] categories
+  [ui] Browser state                     ← from UI provider
+    [status] route (path="/todos")
+    [status] filters (category="work")
+      {set_filter}
+    [view] compose (expanded=true)
+      {type, submit, close}
+```
+
+The LLM sees one coherent tree. It doesn't know or care that the data came from two different providers. When it invokes `toggle` on `todo-1`, the consumer routes it to the data provider. When it invokes `set_filter`, the consumer routes it to the UI provider.
+
+This merge logic lives in the consumer application (extension, desktop app), not in the protocol or the provider libraries. The consumer connects to each provider with a standard `SlopConsumer`, concatenates their trees, and routes invokes to the correct provider based on path.
+
+#### Per-session data providers
+
+In a multi-user web app, each user session sees different data — different permissions, different records. The data provider is therefore **per-session**, not shared. Each session gets its own `SlopServer` instance.
+
+```
+┌─ Backend ──────────────────────────────────────────────┐
+│                                                         │
+│  Session A (User Alice, admin)         Session B (User Bob, viewer)
+│  ┌───────────────────────────┐         ┌──────────────────────────┐
+│  │ SlopServer instance       │         │ SlopServer instance      │
+│  │ ├── todos (3 items)       │         │ ├── todos (1 item)       │
+│  │ │   actions: add, delete  │         │ │   actions: (view only) │
+│  │ └── categories            │         │ └── categories           │
+│  └───────────────────────────┘         └──────────────────────────┘
+│              ↕ WebSocket                       ↕ WebSocket
+└─────────────────────────────────────────────────────────┘
+```
+
+Session management is the backend's responsibility — authenticating the WebSocket connection, creating or retrieving a `SlopServer` for that session, and routing messages to the right instance. This is no different from how web apps already handle sessions.
+
+The browser UI provider is naturally per-tab — each browser tab runs its own `@slop-ai/client` instance with its own postMessage transport.
+
+#### Data invalidation
+
+When the AI invokes a data action (e.g., `add_todo`), the server's tree updates. But the browser UI may be showing stale data from its last fetch. The protocol doesn't solve this — it's the adapter's job.
+
+The pattern:
+
+1. AI invokes `add_todo` on the data provider
+2. Data provider executes the handler, auto-refreshes, sends updated tree to consumer
+3. Consumer sees the data changed (via patch)
+4. Consumer invokes `refresh` on the UI provider — a standard SLOP affordance
+5. UI provider's `refresh` handler triggers the framework's native re-fetch
+
+The `refresh` affordance is registered by the meta-framework adapter on the UI provider:
 
 ```ts
-// nuxt.config.ts
-export default defineNuxtConfig({
-  modules: ["@slop-ai/nuxt"],
+// The adapter registers this automatically — developer doesn't write it
+slop.register("__adapter", {
+  type: "context",
+  actions: {
+    refresh: () => {
+      // Framework-specific invalidation
+      router.refresh();           // Next.js
+      // or: refreshNuxtData();   // Nuxt
+      // or: invalidateAll();     // SvelteKit
+    },
+  },
 });
 ```
 
+This is a standard `invoke` message — no protocol extension. The consumer just calls it when it detects the data provider changed after an action it routed.
+
+#### What each adapter handles
+
+| Concern | What it does |
+|---|---|
+| Server setup | Creates per-session `SlopServer`, attaches WebSocket transport, configures discovery |
+| Client setup | Creates `@slop-ai/client` with postMessage, registers UI state from components |
+| Refresh affordance | Registers a `refresh` action on the UI provider that triggers framework re-fetch |
+| Discovery | Injects `<meta name="slop">` tags for both providers (WebSocket URL + postMessage) |
+| Configuration | Framework-specific module/plugin setup (one line in config) |
+
+Each framework implements these differently:
+
+| Framework | Server transport | Client refresh | Config |
+|---|---|---|---|
+| Next.js | Custom server + `attachSlop` | `router.refresh()` | `withSlop()` in next.config |
+| Nuxt | Nitro WebSocket handler | `refreshNuxtData()` | `modules: ["@slop-ai/nuxt"]` |
+| SvelteKit | Vite plugin + adapter-node | `invalidateAll()` | `slopPlugin()` in vite.config |
+
+#### Developer experience
+
+The developer writes two things: server state registrations and UI state registrations. The adapter handles everything else.
+
+**Server state** (data provider):
+
 ```ts
-// server/slop/todos.ts — register server state
+// server/slop/todos.ts — registers on the per-session SlopServer
 export default defineSlopNode("todos", () => ({
   type: "collection",
   props: { count: getTodos().length },
@@ -829,44 +895,28 @@ export default defineSlopNode("todos", () => ({
 }));
 ```
 
+**UI state** (browser provider):
+
 ```vue
-<!-- pages/index.vue — UI auto-syncs when AI changes state -->
+<!-- pages/index.vue -->
 <script setup>
 const { data: todos } = useFetch("/api/todos");
-// No manual WebSocket code. The module handles sync.
+
+const filter = ref("all");
+useSlop("filters", () => ({
+  type: "status",
+  props: { category: filter.value },
+  actions: {
+    set_filter: {
+      params: { category: "string" },
+      handler: (params) => { filter.value = params.category; },
+    },
+  },
+}));
 </script>
 ```
 
-The Nuxt module auto-configures the Nitro WebSocket handler, subscribes to SLOP changes on the client, and calls `refreshNuxtData` when the AI invokes an action. The developer writes zero protocol code.
-
-For Next.js, the equivalent:
-
-```ts
-// next.config.ts
-import { withSlop } from "@slop-ai/next";
-
-export default withSlop({
-  slop: { id: "my-app", name: "My App" },
-});
-```
-
-```ts
-// lib/slop/todos.ts — register server state
-import { slop } from "@slop-ai/next/server";
-
-slop.register("todos", () => ({ ... }));
-```
-
-```tsx
-// app/page.tsx — client component, auto-syncs
-"use client";
-import { useSlopAwareQuery } from "@slop-ai/next";
-
-export default function Page() {
-  const todos = useSlopAwareQuery("/api/todos");
-  // Auto re-fetches when AI mutates state. No manual WebSocket code.
-}
-```
+No bidirectional connection. No `ui_` prefix convention. No custom protocol messages. Each side is a standard SLOP provider. The adapter sets them up and the consumer merges them.
 
 #### Separation of concerns
 
@@ -875,17 +925,23 @@ The protocol (Layers 0–2) handles:
 - Transport (WebSocket, postMessage, Unix, stdio)
 - Discovery (meta tags, well-known URLs, provider files)
 
+The consumer handles:
+- Subscribing to multiple providers
+- Merging trees into one view for the LLM
+- Routing invokes to the correct provider
+
 The meta-framework adapter (Layer 4) handles:
-- How to set up the SLOP endpoint in this framework
-- How to notify the browser UI when state changes
-- How to compose server state and client state
-- How to make it feel native to the framework's conventions
+- Setting up both providers with framework conventions
+- Registering the `refresh` affordance for data invalidation
+- Discovery configuration
+- Framework-specific module/plugin wiring
 
 This separation means:
-- The protocol never needs to know about `revalidatePath` or `invalidateAll`
+- The protocol needs no extensions for fullstack apps — standard SLOP on both sides
+- The same protocol works for any language combination (React frontend + Go backend, etc.)
 - Framework adapters can evolve independently of the protocol
 - New frameworks can be supported without protocol changes
-- The protocol remains testable and portable across any JavaScript environment
+- The consumer merge logic is reusable across all frameworks
 
 ## Tier 2: Framework adapter
 
@@ -1033,3 +1089,5 @@ The extension should prefer higher tiers — if a meta tag is present, don't als
 13. **Shared engine, separate transports.** `@slop-ai/core` is the engine — tree assembly, diffing, descriptor format. `@slop-ai/client` and `@slop-ai/server` are transport shells. Learn `register()` once, use it everywhere — browser, server, CLI, native app.
 
 14. **The protocol is framework-agnostic. Adapters are not.** The SLOP protocol handles state exposure and AI interaction. How the browser UI stays in sync, how server/client state is composed, and how the endpoint is configured — these are framework concerns, solved by framework-specific adapters (Layer 4), not by the protocol.
+
+15. **Trees are per-session, not shared.** In multi-user apps, each user session gets its own `SlopServer` instance with its own tree, version, and UI state. The protocol doesn't define sessions — the backend authenticates and routes connections to the correct instance, the same way it handles any session-scoped resource.

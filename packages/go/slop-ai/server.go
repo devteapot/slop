@@ -9,11 +9,13 @@ import (
 )
 
 type subscription struct {
-	id         string
-	path       string
-	depth      int
-	connection Connection
-	lastTree   *WireNode
+	id              string
+	path            string
+	depth           int
+	filterTypes     []string
+	filterMinSal    *float64
+	connection      Connection
+	lastTree        *WireNode
 }
 
 // Server is a SLOP provider that manages state registrations, connections,
@@ -33,6 +35,7 @@ type Server struct {
 	subscriptions   []subscription
 	connections     []Connection
 	changeListeners []func()
+	eventListeners  []Connection // all connections that receive events
 }
 
 // NewServer creates a new SLOP server with the given provider ID and name.
@@ -197,21 +200,53 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 			depth = int(d)
 		}
 
+		// Parse filter
+		var filterTypes []string
+		var filterMinSal *float64
+		if filterMap, ok := msg["filter"].(map[string]any); ok {
+			if types, ok := filterMap["types"].([]any); ok {
+				for _, t := range types {
+					if s, ok := t.(string); ok {
+						filterTypes = append(filterTypes, s)
+					}
+				}
+			}
+			if ms, ok := filterMap["min_salience"].(float64); ok {
+				filterMinSal = &ms
+			}
+		}
+
 		s.mu.RLock()
-		snapshot := map[string]any{
+		outTree := s.getOutputTree(path, depth, filterTypes, filterMinSal)
+		ver := s.version
+		s.mu.RUnlock()
+
+		if outTree == nil {
+			_ = conn.Send(map[string]any{
+				"type": "error",
+				"id":   subID,
+				"error": map[string]any{
+					"code":    "not_found",
+					"message": "Path " + path + " does not exist in the state tree",
+				},
+			})
+			return
+		}
+
+		_ = conn.Send(map[string]any{
 			"type":    "snapshot",
 			"id":      subID,
-			"version": s.version,
-			"tree":    wireNodeToMap(s.currentTree),
-		}
-		s.mu.RUnlock()
-		_ = conn.Send(snapshot)
+			"version": ver,
+			"tree":    wireNodeToMap(*outTree),
+		})
 
 		s.mu.Lock()
-		initTree := cloneWireNode(s.currentTree)
+		initTree := cloneWireNode(*outTree)
 		s.subscriptions = append(s.subscriptions, subscription{
 			id: subID, path: path, depth: depth, connection: conn,
-			lastTree: &initTree,
+			filterTypes:  filterTypes,
+			filterMinSal: filterMinSal,
+			lastTree:     &initTree,
 		})
 		s.mu.Unlock()
 
@@ -228,18 +263,71 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		s.mu.Unlock()
 
 	case "query":
-		s.mu.RLock()
-		snapshot := map[string]any{
-			"type":    "snapshot",
-			"id":      msg["id"],
-			"version": s.version,
-			"tree":    wireNodeToMap(s.currentTree),
+		qID, _ := msg["id"].(string)
+		qPath, _ := msg["path"].(string)
+		if qPath == "" {
+			qPath = "/"
 		}
+		qDepth := -1
+		if d, ok := msg["depth"].(float64); ok {
+			qDepth = int(d)
+		}
+
+		s.mu.RLock()
+		outTree := s.getOutputTree(qPath, qDepth, nil, nil)
+		ver := s.version
 		s.mu.RUnlock()
-		_ = conn.Send(snapshot)
+
+		if outTree == nil {
+			_ = conn.Send(map[string]any{
+				"type": "error",
+				"id":   qID,
+				"error": map[string]any{
+					"code":    "not_found",
+					"message": "Path " + qPath + " does not exist in the state tree",
+				},
+			})
+			return
+		}
+
+		// Apply window [offset, count] to children
+		if w, ok := msg["window"].([]any); ok && len(w) == 2 {
+			offset := jsonIntFromAny(w[0])
+			count := jsonIntFromAny(w[1])
+			if offset < len(outTree.Children) {
+				end := offset + count
+				if end > len(outTree.Children) {
+					end = len(outTree.Children)
+				}
+				outTree.Children = outTree.Children[offset:end]
+			} else {
+				outTree.Children = nil
+			}
+		}
+
+		_ = conn.Send(map[string]any{
+			"type":    "snapshot",
+			"id":      qID,
+			"version": ver,
+			"tree":    wireNodeToMap(*outTree),
+		})
 
 	case "invoke":
 		s.handleInvoke(conn, msg)
+
+	default:
+		msgID, _ := msg["id"].(string)
+		errMsg := map[string]any{
+			"type": "error",
+			"error": map[string]any{
+				"code":    "bad_request",
+				"message": "Unknown message type: " + msgType,
+			},
+		}
+		if msgID != "" {
+			errMsg["id"] = msgID
+		}
+		_ = conn.Send(errMsg)
 	}
 }
 
@@ -265,6 +353,51 @@ func (s *Server) HandleDisconnect(conn Connection) {
 		}
 	}
 	s.subscriptions = filteredSubs
+}
+
+// EmitEvent sends an event message to all connected consumers.
+func (s *Server) EmitEvent(name string, data any) {
+	s.mu.RLock()
+	conns := make([]Connection, len(s.connections))
+	copy(conns, s.connections)
+	s.mu.RUnlock()
+
+	msg := map[string]any{
+		"type": "event",
+		"name": name,
+		"data": data,
+	}
+	for _, conn := range conns {
+		_ = conn.Send(msg)
+	}
+}
+
+// getOutputTree returns a filtered/depth-limited subtree for output.
+// Returns nil if the path doesn't exist in the tree.
+func (s *Server) getOutputTree(path string, depth int, filterTypes []string, filterMinSalience *float64) *WireNode {
+	tree := cloneWireNode(s.currentTree)
+	var target *WireNode
+	if path == "/" || path == "" {
+		target = &tree
+	} else {
+		target = GetSubtree(&tree, path)
+		if target == nil {
+			return nil
+		}
+		// Clone the subtree out so we own it
+		clone := cloneWireNode(*target)
+		target = &clone
+	}
+
+	opts := OutputTreeOptions{
+		MinSalience: filterMinSalience,
+		Types:       filterTypes,
+	}
+	if depth >= 0 {
+		opts.MaxDepth = &depth
+	}
+	result := PrepareTree(*target, opts)
+	return &result
 }
 
 // --- Internal ---
@@ -395,7 +528,11 @@ func (s *Server) rebuild() {
 func (s *Server) broadcastPatches() {
 	for i := range s.subscriptions {
 		sub := &s.subscriptions[i]
-		ops := diffNodes(sub.lastTree, &s.currentTree, "")
+		outTree := s.getOutputTree(sub.path, sub.depth, sub.filterTypes, sub.filterMinSal)
+		if outTree == nil {
+			continue
+		}
+		ops := diffNodes(sub.lastTree, outTree, "")
 		if len(ops) == 0 {
 			continue
 		}
@@ -405,7 +542,7 @@ func (s *Server) broadcastPatches() {
 			"version":      s.version,
 			"ops":          ops,
 		})
-		updated := cloneWireNode(s.currentTree)
+		updated := cloneWireNode(*outTree)
 		sub.lastTree = &updated
 	}
 }
@@ -436,6 +573,19 @@ func (s *Server) mergeActionMeta(path string, node Node) Node {
 		}
 	}
 	return node
+}
+
+// jsonIntFromAny extracts an int from float64/int/json.Number.
+func jsonIntFromAny(v any) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	}
+	return 0
 }
 
 // wireNodeToMap converts a WireNode to a map for JSON serialization

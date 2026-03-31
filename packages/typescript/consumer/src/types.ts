@@ -68,8 +68,11 @@ export interface SnapshotMessage { type: "snapshot"; id: string; version: number
 export interface PatchOp { op: "add" | "remove" | "replace"; path: string; value?: unknown; }
 export interface PatchMessage { type: "patch"; subscription: string; version: number; ops: PatchOp[]; }
 export interface ResultMessage { type: "result"; id: string; status: "ok" | "error" | "accepted"; data?: unknown; error?: { code: string; message: string }; }
+export interface ErrorMessage { type: "error"; id?: string; error: { code: string; message: string }; }
+export interface EventMessage { type: "event"; name: string; data?: unknown; }
+export interface BatchMessage { type: "batch"; messages: ProviderMessage[]; }
 
-export type ProviderMessage = HelloMessage | SnapshotMessage | PatchMessage | ResultMessage;
+export type ProviderMessage = HelloMessage | SnapshotMessage | PatchMessage | ResultMessage | ErrorMessage | EventMessage | BatchMessage;
 export type SlopMessage = ConsumerMessage | ProviderMessage;
 
 // Transport

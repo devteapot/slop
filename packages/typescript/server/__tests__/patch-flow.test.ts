@@ -183,6 +183,66 @@ describe("Patch message flow", () => {
     expect(p2.subscription).toBe("s2");
   });
 
+  test("unknown message type returns error with bad_request code", async () => {
+    const { slop, conn } = setup();
+    await slop.handleMessage(conn, { type: "bogus", id: "req-1" });
+
+    const error = conn.messages.find(m => m.type === "error");
+    expect(error).toBeDefined();
+    expect(error.id).toBe("req-1");
+    expect(error.error.code).toBe("bad_request");
+    expect(error.error.message).toContain("bogus");
+  });
+
+  test("subscribe to nonexistent path returns not_found error", async () => {
+    const { slop, conn } = setup();
+    slop.register("inbox", { type: "collection", props: {} });
+    await slop.handleMessage(conn, { type: "subscribe", id: "sub-bad", path: "/nonexistent" });
+
+    const error = conn.messages.find(m => m.type === "error" && m.id === "sub-bad");
+    expect(error).toBeDefined();
+    expect(error.error.code).toBe("not_found");
+    // Should not have created a subscription (no snapshot sent)
+    const snapshot = conn.messages.find(m => m.type === "snapshot" && m.id === "sub-bad");
+    expect(snapshot).toBeUndefined();
+  });
+
+  test("emitEvent sends event to all connections", () => {
+    const slop = new SlopServer({ id: "app", name: "App" });
+    const conn1 = new MockConnection();
+    const conn2 = new MockConnection();
+    slop.handleConnection(conn1);
+    slop.handleConnection(conn2);
+
+    slop.emitEvent("user-navigation", { from: "/a", to: "/b" });
+
+    for (const conn of [conn1, conn2]) {
+      const evt = conn.messages.find(m => m.type === "event");
+      expect(evt).toBeDefined();
+      expect(evt.name).toBe("user-navigation");
+      expect(evt.data).toEqual({ from: "/a", to: "/b" });
+    }
+  });
+
+  test("query with window returns sliced children and meta", () => {
+    const { slop, conn } = setup();
+    // Register 5 items under a collection
+    slop.register("items", { type: "collection", props: {} });
+    for (let i = 0; i < 5; i++) {
+      slop.register(`items/i${i}`, { type: "item", props: { index: i } });
+    }
+
+    slop.handleMessage(conn, { type: "query", id: "q-1", path: "/items", depth: 1, window: [1, 2] });
+
+    const snapshot = conn.messages.find(m => m.type === "snapshot" && m.id === "q-1");
+    expect(snapshot).toBeDefined();
+    expect(snapshot.tree.children).toHaveLength(2);
+    expect(snapshot.tree.children[0].id).toBe("i1");
+    expect(snapshot.tree.children[1].id).toBe("i2");
+    expect(snapshot.tree.meta.window).toEqual([1, 2]);
+    expect(snapshot.tree.meta.total_children).toBe(5);
+  });
+
   test("nested property change produces correct deep path", () => {
     const { slop, conn } = setup();
     slop.register("editor", { type: "view", props: {} });

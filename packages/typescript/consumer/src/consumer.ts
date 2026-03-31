@@ -1,6 +1,7 @@
 import type {
   ClientTransport, Connection, HelloMessage, SlopNode,
   ResultMessage, PatchOp, SlopMessage, ProviderMessage,
+  ErrorMessage, EventMessage, BatchMessage,
 } from "./types";
 import { StateMirror } from "./state-mirror";
 import { Emitter } from "./emitter";
@@ -12,6 +13,8 @@ export class SlopConsumer extends Emitter {
   private transport: ClientTransport;
   private subCounter = 0;
   private reqCounter = 0;
+  private errorCallbacks = new Set<(error: ErrorMessage["error"], id?: string) => void>();
+  private eventCallbacks = new Set<(name: string, data: unknown) => void>();
 
   constructor(transport: ClientTransport) {
     super();
@@ -36,10 +39,10 @@ export class SlopConsumer extends Emitter {
 
   async subscribe(path = "/", depth = 1): Promise<{ id: string; snapshot: SlopNode }> {
     const id = `sub-${++this.subCounter}`;
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this.pending.set(id, {
         resolve: (snapshot: SlopNode) => resolve({ id, snapshot }),
-        reject: () => {},
+        reject,
       });
       this.connection!.send({ type: "subscribe", id, path, depth });
     });
@@ -68,6 +71,16 @@ export class SlopConsumer extends Emitter {
 
   getTree(subscriptionId: string): SlopNode | null {
     return this.mirrors.get(subscriptionId)?.getTree() ?? null;
+  }
+
+  onError(fn: (error: ErrorMessage["error"], id?: string) => void): () => void {
+    this.errorCallbacks.add(fn);
+    return () => { this.errorCallbacks.delete(fn); };
+  }
+
+  onEvent(fn: (name: string, data: unknown) => void): () => void {
+    this.eventCallbacks.add(fn);
+    return () => { this.eventCallbacks.delete(fn); };
   }
 
   disconnect(): void {
@@ -102,6 +115,30 @@ export class SlopConsumer extends Emitter {
       case "result": {
         const p = this.pending.get(msg.id);
         if (p) { this.pending.delete(msg.id); p.resolve(msg); }
+        break;
+      }
+      case "error": {
+        const errMsg = msg as ErrorMessage;
+        if (errMsg.id) {
+          const p = this.pending.get(errMsg.id);
+          if (p) {
+            this.pending.delete(errMsg.id);
+            p.reject(errMsg.error);
+          }
+        }
+        for (const fn of this.errorCallbacks) fn(errMsg.error, errMsg.id);
+        break;
+      }
+      case "event": {
+        const evtMsg = msg as EventMessage;
+        for (const fn of this.eventCallbacks) fn(evtMsg.name, evtMsg.data);
+        break;
+      }
+      case "batch": {
+        const batchMsg = msg as BatchMessage;
+        for (const inner of batchMsg.messages) {
+          this.handleMessage(inner);
+        }
         break;
       }
     }

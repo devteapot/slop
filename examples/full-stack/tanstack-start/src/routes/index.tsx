@@ -73,17 +73,17 @@ function ProjectsPage() {
   return (
     <main className="page-wrap px-4 pb-8 pt-14">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[var(--sea-ink)]">Projects</h1>
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="display-title text-2xl font-bold text-[var(--on-surface)]">Projects</h1>
           <div className="flex gap-2">
             {(['all', 'active', 'archived'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                className={`filter-chip px-4 py-1.5 transition ${
                   filter === f
-                    ? 'bg-[rgba(79,184,178,0.24)] text-[var(--lagoon-deep)]'
-                    : 'text-[var(--sea-ink-soft)] hover:bg-[rgba(79,184,178,0.08)]'
+                    ? 'filter-chip--active'
+                    : 'filter-chip--inactive'
                 }`}
               >
                 {f}
@@ -92,17 +92,17 @@ function ProjectsPage() {
           </div>
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-8 flex gap-3">
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             placeholder="New project name..."
-            className="island-shell flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
+            className="slop-input flex-1 px-4 py-2.5 text-sm"
           />
           <button
             onClick={handleCreate}
-            className="rounded-xl bg-[rgba(79,184,178,0.24)] px-5 py-2.5 text-sm font-semibold text-[var(--lagoon-deep)] transition hover:bg-[rgba(79,184,178,0.36)]"
+            className="btn-primary px-5 py-2.5 text-sm"
           >
             Create
           </button>
@@ -114,29 +114,29 @@ function ProjectsPage() {
               key={p.id}
               to="/projects/$id"
               params={{ id: p.id }}
-              className="island-shell flex items-center justify-between rounded-xl p-4 no-underline transition hover:shadow-md"
+              className="island-shell flex items-center justify-between rounded-[4px] p-5 no-underline"
             >
               <div>
-                <div className="font-semibold text-[var(--sea-ink)]">{p.name}</div>
-                <div className="text-sm text-[var(--sea-ink-soft)]">
+                <div className="font-semibold text-[var(--on-surface)]">{p.name}</div>
+                <div className="mt-1 font-mono text-xs tracking-[0.05em] text-[var(--on-surface-variant)]">
                   {p.taskCount} tasks · {p.doneCount} done
                   {p.status === 'archived' && (
-                    <span className="ml-2 opacity-50">archived</span>
+                    <span className="ml-2 text-[var(--secondary)] opacity-60">ARCHIVED</span>
                   )}
                 </div>
               </div>
-              <span className="text-[var(--sea-ink-soft)]">→</span>
+              <span className="text-[var(--on-surface-variant)]">&rarr;</span>
             </Link>
           ))}
         </div>
 
         {filtered.length === 0 && (
-          <p className="py-10 text-center text-[var(--sea-ink-soft)]">
+          <p className="py-10 text-center text-[var(--on-surface-variant)]">
             No {filter === 'all' ? '' : filter} projects.
           </p>
         )}
 
-        <p className="mt-8 text-center text-xs text-[var(--sea-ink-soft)] opacity-50">
+        <p className="mt-10 text-center font-mono text-xs tracking-[0.05em] text-[var(--on-surface-variant)] opacity-40">
           {projects.length} projects · SLOP data at /slop · UI mounted under /ui
         </p>
       </div>

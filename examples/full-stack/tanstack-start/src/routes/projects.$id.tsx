@@ -94,11 +94,11 @@ function ProjectDetailPage() {
   return (
     <main className="page-wrap px-4 pb-8 pt-14">
       <div className="mx-auto max-w-2xl">
-        <Link to="/" className="mb-4 inline-block text-sm text-[var(--sea-ink-soft)]">
-          ← Back to projects
+        <Link to="/" className="btn-ghost mb-6 inline-block text-sm">
+          &larr; Back to projects
         </Link>
 
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-8 flex items-center gap-3">
           {editing ? (
             <>
               <input
@@ -108,28 +108,28 @@ function ProjectDetailPage() {
                   if (e.key === 'Enter') { renameProjectFn({ data: { id: project.id, name: editName } }); setEditing(false) }
                   if (e.key === 'Escape') setEditing(false)
                 }}
-                className="island-shell flex-1 rounded-xl px-4 py-2 text-xl font-bold outline-none"
+                className="slop-input flex-1 px-4 py-2 text-xl font-bold"
                 autoFocus
               />
               <button
                 onClick={() => { renameProjectFn({ data: { id: project.id, name: editName } }); setEditing(false) }}
-                className="rounded-xl bg-[rgba(79,184,178,0.24)] px-4 py-2 text-sm font-semibold text-[var(--lagoon-deep)]"
+                className="btn-primary px-4 py-2 text-sm"
               >
                 Save
               </button>
               <button
                 onClick={() => setEditing(false)}
-                className="rounded-xl px-4 py-2 text-sm text-[var(--sea-ink-soft)]"
+                className="btn-ghost px-4 py-2 text-sm"
               >
                 Cancel
               </button>
             </>
           ) : (
             <>
-              <h1 className="text-2xl font-bold text-[var(--sea-ink)]">{project.name}</h1>
+              <h1 className="display-title text-2xl font-bold text-[var(--on-surface)]">{project.name}</h1>
               <button
                 onClick={() => { setEditing(true); setEditName(project.name) }}
-                className="rounded-lg px-3 py-1 text-xs text-[var(--sea-ink-soft)] transition hover:bg-[rgba(79,184,178,0.08)]"
+                className="btn-ghost rounded-[4px] px-3 py-1 text-xs transition hover:bg-[var(--surface-container)]"
               >
                 Edit
               </button>
@@ -137,17 +137,17 @@ function ProjectDetailPage() {
           )}
         </div>
 
-        <div className="mb-6 flex gap-2">
+        <div className="mb-8 flex gap-3">
           <input
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
             placeholder="Add a task..."
-            className="island-shell flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
+            className="slop-input flex-1 px-4 py-2.5 text-sm"
           />
           <button
             onClick={handleAddTask}
-            className="rounded-xl bg-[rgba(79,184,178,0.24)] px-5 py-2.5 text-sm font-semibold text-[var(--lagoon-deep)] transition hover:bg-[rgba(79,184,178,0.36)]"
+            className="btn-primary px-5 py-2.5 text-sm"
           >
             Add
           </button>
@@ -155,31 +155,31 @@ function ProjectDetailPage() {
 
         <div className="flex flex-col gap-2">
           {tasks.map((t) => (
-            <div key={t.id} className="island-shell flex items-center gap-3 rounded-xl p-3">
+            <div key={t.id} className="island-shell flex items-center gap-3 rounded-[4px] p-4">
               <input
                 type="checkbox"
                 checked={t.done}
                 onChange={() => toggleTaskFn({ data: t.id })}
-                className="h-4 w-4 accent-[rgb(79,184,178)]"
+                className="h-4 w-4"
               />
-              <span className={`flex-1 text-sm ${t.done ? 'text-[var(--sea-ink-soft)] line-through' : 'text-[var(--sea-ink)]'}`}>
+              <span className={`flex-1 text-sm ${t.done ? 'text-[var(--on-surface-variant)] line-through opacity-50' : 'text-[var(--on-surface)]'}`}>
                 {t.title}
               </span>
               <button
                 onClick={() => deleteTaskFn({ data: t.id })}
-                className="text-red-400 text-sm hover:text-red-300"
+                className="btn-ghost text-sm text-[var(--error)] hover:text-[var(--error)]"
               >
-                ×
+                &times;
               </button>
             </div>
           ))}
         </div>
 
         {tasks.length === 0 && (
-          <p className="py-10 text-center text-[var(--sea-ink-soft)]">No tasks yet. Add one above!</p>
+          <p className="py-10 text-center text-[var(--on-surface-variant)]">No tasks yet. Add one above!</p>
         )}
 
-        <p className="mt-8 text-center text-xs text-[var(--sea-ink-soft)] opacity-50">
+        <p className="mt-10 text-center font-mono text-xs tracking-[0.05em] text-[var(--on-surface-variant)] opacity-40">
           {tasks.filter((t) => t.done).length}/{tasks.length} done · Project {project.id}
         </p>
       </div>

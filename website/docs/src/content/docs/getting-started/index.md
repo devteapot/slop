@@ -3,18 +3,31 @@ title: Quick Start
 description: Add SLOP to your app in 5 minutes
 ---
 
-SLOP lets AI observe and interact with your application's state. This guide shows you how to add it to a React app. The same pattern works with Vue, Solid, Angular, Svelte, or vanilla JS.
+SLOP lets AI see your app's state as a semantic tree and act on it through contextual affordances. Here's what that looks like — this is what an AI consumer sees when connected to a SLOP-enabled todo app:
 
-## Install
+```
+[root] My App
+  [collection] todos (count=2, done=1)
+    [item] todo-1
+      props: { title: "Read the SLOP spec", done: true }
+      actions: [toggle, delete]
+    [item] todo-2
+      props: { title: "Build the MVP", done: false }
+      actions: [toggle, delete]
+    actions: [create]
+```
+
+The AI doesn't parse screenshots or call blind tools. It subscribes to this tree, receives patches as state changes, and invokes actions directly on the nodes they belong to.
+
+## 1. Install
 
 ```bash
 bun add @slop-ai/client @slop-ai/react
-# or: npm install @slop-ai/client @slop-ai/react
 ```
 
-## Create the SLOP client
+## 2. Create the client
 
-Create a file that initializes the client. You'll import this from any component that needs to expose state.
+One instance per app. Import it from any component.
 
 ```ts
 // slop.ts
@@ -23,16 +36,15 @@ import { createSlop } from "@slop-ai/client";
 export const slop = createSlop({ id: "my-app", name: "My App" });
 ```
 
-That's it — 3 lines. The client handles transport, diffing, and invocation routing internally.
+This starts a SLOP provider in the browser. It handles transport, tree assembly, diffing, and patch delivery automatically.
 
-## Register state in a component
+## 3. Register state
 
-Use the `useSlop` hook to expose a component's state to AI. Place it near your state declarations, not in the JSX.
+Use the `useSlop` hook to expose component state. Place it next to your `useState`, not in JSX.
 
 ```tsx
 import { useState } from "react";
 import { useSlop } from "@slop-ai/react";
-import { pick, action } from "@slop-ai/core";
 import { slop } from "./slop";
 
 function TodoList() {
@@ -41,147 +53,100 @@ function TodoList() {
     { id: "2", title: "Build the MVP", done: false },
   ]);
 
-  // Expose state to AI — JSX stays SLOP-free
   useSlop(slop, "todos", {
     type: "collection",
-    props: { count: todos.length },
+    props: { count: todos.length, done: todos.filter(t => t.done).length },
     actions: {
-      create: action({ title: "string" }, ({ title }) => {
-        setTodos(prev => [...prev, { id: Date.now().toString(), title, done: false }]);
-      }),
+      create: {
+        params: { title: "string" },
+        handler: ({ title }) => {
+          setTodos(prev => [...prev, {
+            id: Date.now().toString(), title, done: false,
+          }]);
+        },
+      },
     },
     items: todos.map(todo => ({
       id: todo.id,
-      props: pick(todo, ["title", "done"]),
+      props: { title: todo.title, done: todo.done },
       actions: {
-        toggle: () => setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, done: !t.done } : t)),
-        delete: action(() => setTodos(prev => prev.filter(t => t.id !== todo.id)), { dangerous: true }),
+        toggle: () => setTodos(prev =>
+          prev.map(t => t.id === todo.id ? { ...t, done: !t.done } : t)
+        ),
+        delete: {
+          handler: () => setTodos(prev => prev.filter(t => t.id !== todo.id)),
+          dangerous: true,
+        },
       },
     })),
   });
 
   return (
     <ul>
-      {todos.map(t => <li key={t.id}>{t.title} {t.done ? "✓" : ""}</li>)}
+      {todos.map(t => (
+        <li key={t.id}>
+          {t.done ? "✓" : "○"} {t.title}
+        </li>
+      ))}
     </ul>
   );
 }
 ```
 
-## What happens next
+When this component renders, SLOP assembles the tree shown at the top of this page. When state changes, it diffs and pushes patches. When the AI invokes `toggle`, the handler runs your React state setter. Your UI stays completely SLOP-free — no special components, no wrappers.
 
-When this component renders:
+## 4. See it working
 
-1. `@slop-ai/core` assembles a SLOP state tree from all registered nodes
-2. It injects a `<meta name="slop" content="postmessage">` tag into the page
-3. The SLOP browser extension discovers it and connects. Desktop clients reach in-browser providers through the extension relay.
-4. The AI can see the todo list and invoke actions (create, toggle, delete)
+Your app is now a SLOP provider. To verify, connect a consumer.
 
-The AI sees:
-```
-[root] My App
-  [collection] todos (count=2)
-    [item] Read the SLOP spec (done=true)  {toggle, delete}
-    [item] Build the MVP (done=false)  {toggle, delete}
-```
+**Option A: Browser extension** — Install the [SLOP extension](/extension/install). It discovers the provider automatically via a `<meta name="slop">` tag that the client injects. Open the extension sidebar to see the live tree and chat with it.
 
-## Server-backed apps
-
-For fullstack frameworks (TanStack Start, Next.js, Nuxt, SvelteKit), use `@slop-ai/server` on the server side. The server owns the public SLOP tree and exposes it via WebSocket. Meta-framework adapters like `@slop-ai/tanstack-start` can also connect the browser UI back to that server and mount it under the conventional `ui` subtree, so AI consumers still subscribe to one provider.
+**Option B: CLI consumer** — Connect programmatically:
 
 ```ts
-import { createSlopServer } from "@slop-ai/server";
+import { SlopConsumer, WebSocketClientTransport } from "@slop-ai/consumer";
 
-const slop = createSlopServer({ id: "my-app", name: "My App" });
+const consumer = new SlopConsumer(
+  new WebSocketClientTransport("ws://localhost:3000/slop")
+);
 
-slop.register("todos", () => ({
-  type: "collection",
-  items: getTodos().map(t => ({
-    id: t.id,
-    props: { title: t.title, done: t.done },
-    actions: {
-      toggle: () => toggleTodo(t.id),
-    },
-  })),
-}));
+await consumer.connect();
+const tree = await consumer.query("/");
+console.log(tree);
 ```
 
-See the [Server & Native Apps guide](/guides/server-apps) or [TanStack Start guide](/guides/tanstack-start) for full setup.
+**Option C: Run the demo** — `bun run demo` from the repo root starts a SLOP-enabled app with a pre-configured consumer that shows the full observe-and-act loop.
 
-## Python
+## How it works
 
-SLOP also ships a Python SDK for backend services, CLI tools, and desktop apps:
-
-```python
-from slop import SlopServer
-from slop.transports.asgi import SlopMiddleware
-
-slop = SlopServer("my-api", "My API")
-
-@slop.node("todos")
-def todos_node():
-    return {
-        "type": "collection",
-        "items": [{"id": t.id, "props": {"title": t.title, "done": t.done}} for t in get_todos()],
-    }
-
-# FastAPI integration
-app.add_middleware(SlopMiddleware, slop=slop)
+```
+Component A: slop.register("todos", { ... })
+Component B: slop.register("settings", { ... })
+                    ↓
+        @slop-ai/core assembles hierarchical tree
+                    ↓
+        @slop-ai/client diffs and pushes patches
+                    ↓
+        AI consumer subscribes → sees tree → invokes actions
+                    ↓
+        Handler runs → state changes → new patches
 ```
 
-See the [Python guide](/guides/python) for full setup including ASGI, WebSocket, Unix socket, and stdio transports.
+Each component registers its own slice of the tree. Components don't know about each other's nodes. When a component unmounts, its nodes disappear automatically.
 
-## Go
+## Pick your path
 
-```go
-import slop "github.com/slop-ai/slop-go"
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
 
-server := slop.NewServer("my-api", "My API")
+| Path | Guide |
+|---|---|
+| **React / Vue / Solid / Angular** | [React](/guides/react), [Vue](/guides/vue), [Solid](/guides/solid), [Angular](/guides/angular) |
+| **Vanilla JS / Svelte** | Use `@slop-ai/client` directly — [Vanilla](/guides/vanilla), [Svelte](/guides/svelte) |
+| **Server-backed web app** | [Server & Native Apps](/guides/server-apps) |
+| **TanStack Start (fullstack)** | [TanStack Start](/guides/tanstack-start) |
+| **Python** | [Python guide](/guides/python) — FastAPI, CLI, desktop |
+| **Go** | [Go guide](/guides/go) — net/http, CLI, daemons |
+| **Rust** | [Rust guide](/guides/rust) — axum, CLI, embedded |
+| **Build an AI consumer** | [Consumer guide](/guides/consumer) |
 
-server.Register("todos", slop.Node{
-    Type:  "collection",
-    Props: slop.Props{"count": len(todos)},
-    Items: todosToItems(todos),
-})
-
-// Works with any net/http router
-server.Mount(mux) // adds /slop (ws) + /.well-known/slop
-```
-
-See the [Go guide](/guides/go) for full setup including `net/http`, WebSocket, Unix socket, and stdio transports.
-
-## Rust
-
-```rust
-use slop_ai::SlopServer;
-use serde_json::json;
-
-let slop = SlopServer::new("my-app", "My App");
-
-slop.register("todos", json!({
-    "type": "collection",
-    "props": {"count": todos.len()},
-}));
-```
-
-See the [Rust guide](/guides/rust) for full setup including WebSocket, Unix socket, stdio, and axum transports.
-
-## Try it live
-
-Run the interactive demo to see SLOP in action — an e-commerce store with an AI agent and live state tree, all in the browser:
-
-```bash
-bun demo
-```
-
-The demo plays a scripted AI session by default. Connect an API key (OpenRouter, OpenAI, Anthropic, or Google) to interact live. See the [`examples/demo/`](https://github.com/slop-ai/slop/tree/main/examples/demo) README for details.
-
-## Next steps
-
-- [Installation guide](/getting-started/installation) — all package options
-- [React guide](/guides/react) — full React integration patterns
-- [Other frameworks](/guides/vue) — Vue, Solid, Angular, Svelte, vanilla JS
-- [Python guide](/guides/python) — FastAPI, CLI tools, desktop apps
-- [Go guide](/guides/go) — net/http, CLI tools, infrastructure
-- [Rust guide](/guides/rust) — systems, CLI, axum, WASM-ready
-- [API Reference](/api/core) — `createSlop`, `register`, `scope`, typed schemas
+</div>

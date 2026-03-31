@@ -35,7 +35,7 @@ const PROVIDER_MODELS: Record<string, { label: string; value: string | null }[]>
 
 export function ChatPanel() {
   const ctx = useDemo();
-  const { messages, mode, setMode, apiKey, setApiKey, apiProvider, setApiProvider, apiModel, setApiModel, addMessage } = ctx;
+  const { messages, mode, setMode, apiKey, setApiKey, apiProvider, setApiProvider, apiModel, setApiModel, addMessage, replayComplete, skipReplay } = ctx;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
@@ -70,12 +70,17 @@ export function ChatPanel() {
     setSending(false);
   };
 
-  const handleConnect = () => {
-    if (apiKey.trim()) {
-      setMode("interactive");
-      setConfigOpen(false);
+  const handleConnect = async () => {
+    if (!apiKey.trim()) return;
+    // If replay is still running, skip to end state first
+    if (mode === "replay" && !replayComplete) {
+      await skipReplay();
     }
+    setMode("interactive");
+    setConfigOpen(false);
   };
+
+  const showConnectGlow = replayComplete && mode === "replay" && !configOpen;
 
   return (
     <div className="flex flex-col h-full bg-surface overflow-hidden">
@@ -87,11 +92,24 @@ export function ChatPanel() {
           </span>
           <button
             onClick={() => setConfigOpen(!configOpen)}
-            className="text-[10px] font-mono text-secondary hover:text-on-surface transition-colors"
+            className={`text-[10px] font-mono transition-all ${
+              showConnectGlow
+                ? "text-primary animate-pulse shadow-[0_0_12px_var(--color-primary)] px-2 py-0.5 rounded bg-primary/15"
+                : "text-secondary hover:text-on-surface"
+            }`}
           >
             {configOpen ? "Close" : mode === "interactive" ? "Connected" : "Connect API"}
           </button>
         </div>
+
+        {/* Post-replay hint */}
+        {showConnectGlow && !configOpen && (
+          <div className="px-3 pb-2">
+            <p className="text-[10px] text-on-surface-variant text-center">
+              Connect an API key to interact with the store yourself
+            </p>
+          </div>
+        )}
 
         {/* API config */}
         {configOpen && (

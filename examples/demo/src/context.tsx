@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import { slop } from "./slop";
 import { useAppState } from "./state";
+import { replayScript } from "./replay/script";
 
 // --- Status types ---
 
@@ -38,6 +39,10 @@ interface DemoContextValue {
   setMode: (mode: "replay" | "interactive") => void;
   replayKey: number;
   restartReplay: () => void;
+  skipReplay: () => Promise<void>;
+  replayComplete: boolean;
+  replayAbortRef: React.RefObject<AbortController | null>;
+  setReplayComplete: (v: boolean) => void;
   status: DemoStatus;
   setStatus: (status: DemoStatus) => void;
   messages: ChatMessage[];
@@ -77,14 +82,69 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [apiKey, setApiKey] = useState("");
   const [apiProvider, setApiProvider] = useState("openrouter");
   const [apiModel, setApiModel] = useState("");
+  const [replayComplete, setReplayComplete] = useState(false);
   const invokeCounter = useRef(0);
+  const replayAbortRef = useRef<AbortController | null>(null);
 
   const restartReplay = useCallback(() => {
     msgCounter = 0;
     appState.resetState();
     setMessages([]);
     setStatus({ state: "idle", label: "Ready" });
+    setReplayComplete(false);
     setReplayKey((k) => k + 1);
+  }, [appState]);
+
+  const skipReplay = useCallback(async () => {
+    // Abort the animated replay
+    replayAbortRef.current?.abort();
+
+    // Execute all steps instantly — no delays, no typewriter
+    const allMessages: ChatMessage[] = [];
+    for (const step of replayScript) {
+      switch (step.type) {
+        case "system":
+          allMessages.push({ id: createMessageId(), role: "system", content: step.content });
+          break;
+        case "user_message":
+          allMessages.push({ id: createMessageId(), role: "user", content: step.content });
+          break;
+        case "ai_message":
+          allMessages.push({ id: createMessageId(), role: "assistant", content: step.content });
+          break;
+        case "tool_call": {
+          allMessages.push({
+            id: createMessageId(),
+            role: "assistant",
+            content: "",
+            toolCalls: [{ path: step.path, action: step.action, params: step.params }],
+          });
+          slop.flush();
+          await slop.executeInvoke({
+            id: `skip-inv-${++invokeCounter.current}`,
+            path: step.path,
+            action: step.action,
+            params: step.params,
+          });
+          await new Promise((r) => setTimeout(r, 5));
+          slop.flush();
+          break;
+        }
+        case "ui_action": {
+          const fn = (appState as any)[step.mutation];
+          if (typeof fn === "function") fn(...(step.args ?? []));
+          break;
+        }
+      }
+    }
+
+    // Wait for React to settle, then flush
+    await new Promise((r) => setTimeout(r, 20));
+    slop.flush();
+
+    setMessages(allMessages);
+    setStatus({ state: "idle", label: "Replay complete" });
+    setReplayComplete(true);
   }, [appState]);
 
   const addMessage = useCallback((msg: ChatMessage) => {
@@ -135,6 +195,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         setMode,
         replayKey,
         restartReplay,
+        skipReplay,
+        replayComplete,
+        replayAbortRef,
+        setReplayComplete,
         status,
         setStatus,
         messages,

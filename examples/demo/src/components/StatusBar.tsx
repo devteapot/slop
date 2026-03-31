@@ -17,7 +17,8 @@ const STATUS_LABELS: Record<StatusState, string> = {
 };
 
 export function StatusBar() {
-  const { status, mode, restartReplay } = useDemo();
+  const { status, mode, restartReplay, skipReplay } = useDemo();
+  const isPlaying = mode === "replay" && status.state !== "idle";
   const colors = STATUS_COLORS[status.state];
 
   return (
@@ -40,6 +41,16 @@ export function StatusBar() {
         <span className={`font-mono text-xs font-medium ${colors.text} opacity-70`}>
           Step {status.step[0]}/{status.step[1]}
         </span>
+      )}
+
+      {/* Skip button — visible during animated replay */}
+      {isPlaying && (
+        <button
+          onClick={() => skipReplay()}
+          className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-surface-highest text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+        >
+          Skip ▸▸
+        </button>
       )}
 
       {/* Mode badge — clickable to restart replay */}

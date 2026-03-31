@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useDemo, createMessageId, type ToolCallData } from "../context";
 import { replayScript, TOTAL_STEPS } from "./script";
 
@@ -12,6 +12,8 @@ export function ReplayController() {
   const {
     mode,
     replayKey,
+    replayAbortRef,
+    setReplayComplete,
     addMessage,
     updateMessage,
     setStatus,
@@ -20,20 +22,18 @@ export function ReplayController() {
     simulateClick,
     appState,
   } = useDemo();
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (mode !== "replay") return;
 
     // Abort previous run if any
-    abortRef.current?.abort();
+    replayAbortRef.current?.abort();
     const abort = new AbortController();
-    abortRef.current = abort;
+    replayAbortRef.current = abort;
 
     runReplay(abort.signal);
 
     async function runReplay(signal: AbortSignal) {
-      // Small initial delay
       await sleep(500);
       if (signal.aborted) return;
 
@@ -87,7 +87,6 @@ export function ReplayController() {
             const msgId = createMessageId();
             lastAssistantId = msgId;
 
-            // Typewriter effect
             const words = step.content.split(" ");
             let revealed = "";
             addMessage({ id: msgId, role: "assistant", content: "", isTyping: true });
@@ -151,21 +150,17 @@ export function ReplayController() {
               step: [stepNum, TOTAL_STEPS],
             });
 
-            // Show click indicator on the target element
             if (step.clickTarget) {
               await simulateClick(step.clickTarget);
             }
 
-            // Call the mutation on appState
             const fn = (appState as any)[step.mutation];
             if (typeof fn === "function") {
               fn(...(step.args ?? []));
             }
 
-            // Give React a tick to re-render, then flush SLOP tree
             await sleep(50);
             bumpTreeVersion();
-
             await sleep(400);
             break;
           }
@@ -174,11 +169,12 @@ export function ReplayController() {
 
       if (!signal.aborted) {
         setStatus({ state: "idle", label: "Replay complete" });
+        setReplayComplete(true);
       }
     }
 
     return () => abort.abort();
-  }, [mode, replayKey]); // replayKey triggers restart
+  }, [mode, replayKey]);
 
   return null;
 }

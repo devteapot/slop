@@ -50,7 +50,7 @@
 
 <style>
   .sloppy-hero {
-    width: 180px;
+    width: 110px;
     height: auto;
     filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.4))
             drop-shadow(0 0 60px rgba(59, 130, 246, 0.2));
@@ -74,6 +74,12 @@
 
   .sloppy-hero.angry .sloppy-iris {
     fill: #f87171;
+  }
+
+  @media (min-width: 1600px) {
+    .sloppy-hero {
+      width: 180px;
+    }
   }
 
   .sloppy-hero .sloppy-pupil-group {

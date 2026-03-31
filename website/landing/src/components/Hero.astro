@@ -18,11 +18,30 @@ import SloppyRoaming from './SloppyRoaming.astro';
       <a href="https://github.com/devteapot/slop" class="btn btn-secondary">View on GitHub</a>
     </div>
     <div class="hero-visual">
-      <div class="code-block">
-        <pre set:html={`<span class="comment">// 3 lines to add SLOP to any app</span>
-<span class="keyword">import</span> { createSlop } <span class="keyword">from</span> <span class="string">"@slop-ai/client"</span>;
+      <div class="code-pair">
+        <div class="code-block">
+          <span class="code-label">Provider</span>
+          <pre set:html={`<span class="keyword">const</span> slop = <span class="fn">createSlop</span>({ id: <span class="string">"my-app"</span> });
 
-<span class="keyword">export const</span> slop = <span class="fn">createSlop</span>({ id: <span class="string">"my-app"</span>, name: <span class="string">"My App"</span> });`} />
+slop.<span class="fn">register</span>(<span class="string">"notes"</span>, () => ({
+  type: <span class="string">"collection"</span>,
+  items: notes.<span class="fn">map</span>(n => ({
+    id: n.id,
+    props: { title: n.title },
+    actions: { delete: () => <span class="fn">remove</span>(n.id) },
+  })),
+}));`} />
+        </div>
+        <div class="code-block">
+          <span class="code-label">Consumer</span>
+          <pre set:html={`<span class="keyword">const</span> consumer = <span class="keyword">new</span> <span class="fn">SlopConsumer</span>(transport);
+<span class="keyword">await</span> consumer.<span class="fn">connect</span>();
+
+<span class="keyword">const</span> { snapshot } = <span class="keyword">await</span> consumer.<span class="fn">subscribe</span>(<span class="string">"/"</span>);
+<span class="comment">// { notes: { type: "collection", items: [...] } }</span>
+
+<span class="keyword">await</span> consumer.<span class="fn">invoke</span>(<span class="string">"notes/note-1"</span>, <span class="string">"delete"</span>);`} />
+        </div>
       </div>
     </div>
   </div>
@@ -35,9 +54,14 @@ import SloppyRoaming from './SloppyRoaming.astro';
 
 <style>
   .hero {
-    padding-top: 8rem;
+    padding-top: 4rem;
     padding-bottom: var(--space-10);
     text-align: left;
+  }
+  @media (min-width: 1600px) {
+    .hero {
+      padding-top: 8rem;
+    }
   }
   .hero-center {
     display: flex;
@@ -72,10 +96,29 @@ import SloppyRoaming from './SloppyRoaming.astro';
     flex-wrap: wrap;
   }
   .hero-visual {
-    max-width: 700px;
+    max-width: 1100px;
+    width: 100%;
+  }
+  .code-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+  @media (max-width: 768px) {
+    .code-pair { grid-template-columns: 1fr; }
   }
   .hero-visual .code-block {
-    font-size: 1rem;
-    line-height: 1.8;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    text-align: left;
+  }
+  .code-label {
+    display: block;
+    font-family: var(--font-machine);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-3);
   }
 </style>

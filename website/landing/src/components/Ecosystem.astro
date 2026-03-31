@@ -1,24 +1,60 @@
 ---
-const frameworks = [
-  { name: "React", pkg: "@slop-ai/react" },
-  { name: "Vue", pkg: "@slop-ai/vue" },
-  { name: "Solid", pkg: "@slop-ai/solid" },
-  { name: "Angular", pkg: "@slop-ai/angular" },
-  { name: "Svelte", pkg: "@slop-ai/client" },
-  { name: "Vanilla JS", pkg: "@slop-ai/client" },
-  { name: "Next.js", pkg: "@slop-ai/server" },
-  { name: "Nuxt", pkg: "@slop-ai/server" },
-  { name: "SvelteKit", pkg: "@slop-ai/server" },
-  { name: "Electron", pkg: "@slop-ai/server" },
+const docs = "https://docs.slopai.dev";
+
+const languages = [
+  {
+    name: "TypeScript",
+    icon: "TS",
+    href: `${docs}/getting-started`,
+    packages: [
+      { name: "@slop-ai/core", desc: "Shared engine — tree assembly, diffing, types" },
+      { name: "@slop-ai/client", desc: "Browser provider — createSlop() + postMessage" },
+      { name: "@slop-ai/server", desc: "Server/native provider — WebSocket, Unix, stdio" },
+    ],
+    adapters: [
+      { name: "React", pkg: "@slop-ai/react", href: `${docs}/guides/react` },
+      { name: "Vue", pkg: "@slop-ai/vue", href: `${docs}/guides/vue` },
+      { name: "Solid", pkg: "@slop-ai/solid", href: `${docs}/guides/solid` },
+      { name: "Angular", pkg: "@slop-ai/angular", href: `${docs}/guides/angular` },
+      { name: "Svelte", pkg: "@slop-ai/client", href: `${docs}/guides/svelte` },
+      { name: "Vanilla JS", pkg: "@slop-ai/client", href: `${docs}/guides/vanilla` },
+      { name: "TanStack Start", pkg: "@slop-ai/server", href: `${docs}/guides/tanstack-start` },
+      { name: "Server Apps", pkg: "@slop-ai/server", href: `${docs}/guides/server-apps` },
+    ],
+  },
+  {
+    name: "Python",
+    icon: "PY",
+    href: `${docs}/guides/python`,
+    packages: [
+      { name: "slop-ai", desc: "Full SDK — provider, consumer, state tree, transports" },
+    ],
+    adapters: [],
+  },
+  {
+    name: "Rust",
+    icon: "RS",
+    href: `${docs}/guides/rust`,
+    packages: [
+      { name: "slop-ai", desc: "Full SDK — provider, consumer, state tree, transports" },
+    ],
+    adapters: [],
+  },
+  {
+    name: "Go",
+    icon: "GO",
+    href: `${docs}/guides/go`,
+    packages: [
+      { name: "slop-go", desc: "Full SDK — provider, consumer, state tree, transports" },
+    ],
+    adapters: [],
+  },
 ];
 
-const ecosystem = [
-  { title: "@slop-ai/core", desc: "Shared engine. Tree assembly, diffing, descriptors, types.", icon: "&#9881;" },
-  { title: "@slop-ai/client", desc: "Browser provider. createSlop() + postMessage transport.", icon: "&#127760;" },
-  { title: "@slop-ai/server", desc: "Server/native provider. WebSocket, Unix socket, stdio.", icon: "&#9889;" },
-  { title: "Chrome Extension", desc: "AI chat overlay on any SLOP-enabled web app.", icon: "&#128269;" },
-  { title: "Desktop App", desc: "Unified dashboard for all your SLOP providers.", icon: "&#128187;" },
-  { title: "Protocol Spec", desc: "Open, language-agnostic standard. 14 documents.", icon: "&#128220;" },
+const tools = [
+  { title: "Chrome Extension", desc: "AI chat overlay on any SLOP-enabled web app.", href: `${docs}/extension/install` },
+  { title: "Desktop App", desc: "Unified dashboard for all your SLOP providers.", href: `${docs}/desktop/install` },
+  { title: "Protocol Spec", desc: "Open, language-agnostic standard. 14 documents.", href: `${docs}/spec/core/overview` },
 ];
 ---
 <section class="ecosystem">
@@ -26,78 +62,218 @@ const ecosystem = [
     <span class="label">Ecosystem</span>
     <h2>Works with your stack</h2>
 
-    <div class="framework-grid">
-      {frameworks.map(f => (
-        <div class="framework-item">
-          <span class="framework-name">{f.name}</span>
-          <code>{f.pkg}</code>
+    <div class="lang-layout">
+      <div class="lang-group lang-group--primary">
+        <a class="lang-header" href={languages[0].href}>
+          <span class="lang-badge">{languages[0].icon}</span>
+          <h3>{languages[0].name}</h3>
+        </a>
+        <div class="lang-packages">
+          {languages[0].packages.map(pkg => (
+            <div class="pkg-item">
+              <code class="pkg-name">{pkg.name}</code>
+              <span class="pkg-desc">{pkg.desc}</span>
+            </div>
+          ))}
         </div>
-      ))}
+        <div class="lang-adapters">
+          <span class="adapters-label">Adapters</span>
+          <div class="adapter-tags">
+            {languages[0].adapters.map(a => (
+              <a class="adapter-tag" href={a.href} title={a.pkg}>{a.name}</a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div class="lang-others">
+        {languages.slice(1).map(lang => (
+          <div class="lang-group">
+            <a class="lang-header" href={lang.href}>
+              <span class="lang-badge">{lang.icon}</span>
+              <h3>{lang.name}</h3>
+            </a>
+            <div class="lang-packages">
+              {lang.packages.map(pkg => (
+                <div class="pkg-item">
+                  <code class="pkg-name">{pkg.name}</code>
+                  <span class="pkg-desc">{pkg.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
 
-    <div class="ecosystem-grid">
-      {ecosystem.map(item => (
-        <div class="card ecosystem-card">
-          <span class="eco-icon">{item.icon}</span>
-          <h3>{item.title}</h3>
-          <p>{item.desc}</p>
-        </div>
-      ))}
+    <div class="tools-section">
+      <span class="label">Tools</span>
+      <div class="tools-grid">
+        {tools.map(tool => (
+          <a class="card tool-card" href={tool.href}>
+            <h3>{tool.title}</h3>
+            <p>{tool.desc}</p>
+          </a>
+        ))}
+      </div>
     </div>
   </div>
 </section>
 
-<style>
+<style is:global>
   .ecosystem h2 {
     font-size: 2.25rem;
     margin-top: var(--space-4);
     margin-bottom: var(--space-8);
   }
-  .framework-grid {
+
+  /* ---- Language layout ---- */
+  .lang-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
     margin-bottom: var(--space-10);
   }
-  .framework-item {
-    background: var(--surface-container);
-    border-radius: var(--radius);
-    padding: var(--space-4);
+
+  .lang-others {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    transition: background 0.15s;
-  }
-  .framework-item:hover {
-    background: var(--surface-container-high);
-  }
-  .framework-name {
-    font-weight: 600;
-    font-size: 0.9375rem;
-  }
-  .framework-item code {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-  }
-  .ecosystem-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: var(--space-5);
   }
-  .ecosystem-card {
-    padding: var(--space-6);
+
+  @media (max-width: 768px) {
+    .lang-layout { grid-template-columns: 1fr; }
   }
-  .eco-icon {
-    font-size: 1.5rem;
-    display: block;
-    margin-bottom: var(--space-3);
+
+  .lang-group {
+    background: var(--surface-container);
+    border-radius: var(--radius);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
   }
-  .ecosystem-card h3 {
+
+  .lang-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .lang-badge {
+    font-family: var(--font-machine);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--primary);
+    background: var(--primary-dim);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.05em;
+  }
+
+  .lang-header h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* ---- Packages within a language ---- */
+  .lang-packages {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .pkg-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .pkg-name {
+    font-family: var(--font-machine);
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+  }
+
+  .pkg-desc {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+  }
+
+  /* ---- Adapters ---- */
+  .lang-adapters {
+    border-top: 1px solid var(--outline-variant);
+    padding-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .adapters-label {
+    font-family: var(--font-machine);
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .adapter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .adapter-tag {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    background: var(--surface-container-high);
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none;
+  }
+
+  .adapter-tag:hover {
+    background: var(--primary-dim);
+    color: var(--primary);
+  }
+
+  /* ---- Tools ---- */
+  .tools-section {
+    margin-top: var(--space-5);
+  }
+
+  .tools-section .label {
+    margin-bottom: var(--space-5);
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+    margin-top: var(--space-5);
+  }
+
+  @media (max-width: 768px) {
+    .tools-grid { grid-template-columns: 1fr; }
+  }
+
+  .tool-card {
+    padding: var(--space-5);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .tool-card h3 {
     font-family: var(--font-machine);
     font-size: 0.9375rem;
     margin-bottom: var(--space-2);
   }
-  .ecosystem-card p {
+
+  .tool-card p {
     color: var(--text-secondary);
     font-size: 0.875rem;
   }

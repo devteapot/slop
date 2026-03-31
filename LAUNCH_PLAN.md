@@ -220,6 +220,7 @@ The current README is already in good shape. Launch polish checklist:
 
 ### Pre-launch checklist
 
+- [ ] Squash git history to a single clean initial commit (`git checkout --orphan launch && git add -A && git commit -m "Initial release" && git branch -M main`)
 - [ ] Demo GIF/video recorded and embedded in README
 - [ ] `bun run demo` works from repo root (add script to root package.json)
 - [ ] All npm packages published and installable

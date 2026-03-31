@@ -191,6 +191,8 @@ The provider only includes nodes with salience ≥ 0.3. As salience changes (e.g
 
 This turns the AI's token budget into a dynamic filter — the AI sees what matters right now, and the boundary adjusts in real time.
 
+**Ancestor retention:** Salience filtering is applied per-node without ancestor retention. If a parent node falls below the threshold, its entire subtree is excluded — even if some descendants have high salience. Providers should ensure that structurally important parent nodes (navigation groups, collection roots) carry salience at least as high as their most important children. This keeps the filtering logic simple and predictable; future protocol versions may introduce an ancestor-retention mode for trees where inherited salience matters.
+
 ### Provider salience guidelines for large apps
 
 | Node state | Suggested salience |

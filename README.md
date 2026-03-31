@@ -38,16 +38,19 @@ SLOP fills the gap: a standard way for apps to **publish what they are** so AI c
 ## Quick start
 
 ```bash
-bun add @slop-ai/core @slop-ai/react
+bun add @slop-ai/client @slop-ai/react
 ```
 
 ```tsx
+import { createSlop } from "@slop-ai/client";
 import { useSlop } from "@slop-ai/react";
 
+const slop = createSlop({ id: "my-app", name: "My App" });
+
 function TaskList({ tasks }) {
-  const slop = useSlop("tasks", () => ({
+  useSlop(slop, "tasks", {
     type: "collection",
-    summary: `${tasks.length} tasks`,
+    props: { count: tasks.length },
     items: tasks.map(t => ({
       id: t.id,
       props: { title: t.title, done: t.done },
@@ -56,7 +59,7 @@ function TaskList({ tasks }) {
         delete: () => deleteTask(t.id),
       },
     })),
-  }));
+  });
 
   return <ul>{tasks.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
 }

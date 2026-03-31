@@ -25,7 +25,7 @@ Begin observing a subtree. The provider responds with a `snapshot` and then stre
   "type": "subscribe",
   "id": "sub-1",
   "path": "/",              // Path to the subtree root (default: "/")
-  "depth": 2,               // How deep to resolve (default: 1, -1 = unlimited)
+  "depth": 2,               // How deep to resolve (default: -1 = unlimited)
   "filter": {               // Optional filters
     "types": ["item", "notification"],  // Only include these node types
     "min_salience": 0.5     // Only include nodes above this salience

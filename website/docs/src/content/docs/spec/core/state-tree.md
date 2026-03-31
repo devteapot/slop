@@ -32,7 +32,7 @@ The state tree is the core data structure of SLOP. It is a rooted tree of **node
 A string that uniquely identifies a node within the tree. Must be stable across patches — if a node's `id` changes, it's a different node. IDs are opaque to consumers; providers choose the format.
 
 **Requirements:**
-- Unique within the tree (no two nodes share an ID)
+- Unique among siblings (no two children of the same parent share an ID)
 - Stable across updates (the same logical entity keeps its ID)
 - Must not change when properties change
 

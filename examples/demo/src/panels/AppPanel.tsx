@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDemo } from "../context";
 import { ProductCard } from "../components/ProductCard";
 import { CartItemRow } from "../components/CartItem";
@@ -6,6 +7,8 @@ import { RatingStars } from "../components/RatingStars";
 
 export function AppPanel() {
   const { appState, mode } = useDemo();
+  const [promptUntil, setPromptUntil] = useState(0);
+  const showPrompt = Date.now() < promptUntil;
   const {
     filteredProducts,
     cart,
@@ -21,8 +24,38 @@ export function AppPanel() {
 
   const isInteractive = mode === "interactive";
 
+  const handleReplayClick = () => {
+    if (mode !== "interactive") {
+      setPromptUntil(Date.now() + 3000);
+      // Force a re-render after timeout to hide the toast
+      setTimeout(() => setPromptUntil((v) => v), 3100);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-surface-low overflow-hidden">
+    <div className="flex flex-col h-full bg-surface-low overflow-hidden relative">
+      {/* Click interceptor in replay mode */}
+      {mode !== "interactive" && (
+        <div
+          className="absolute inset-0 z-10 cursor-pointer"
+          onClick={handleReplayClick}
+        />
+      )}
+
+      {/* Prompt toast */}
+      {showPrompt && (
+        <div className="absolute inset-x-0 top-12 z-20 flex justify-center pointer-events-none">
+          <div className="glass rounded px-4 py-3 shadow-lg shadow-black/30 pointer-events-auto max-w-[280px] text-center">
+            <p className="text-xs text-on-surface font-medium">
+              Connect an API key to interact live
+            </p>
+            <p className="text-[10px] text-on-surface-variant mt-1">
+              Click <span className="text-primary font-medium">Connect API</span> in the chat panel
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Nav tabs */}
       <div className="flex items-center gap-4 px-4 h-10 bg-surface-container">
         <button

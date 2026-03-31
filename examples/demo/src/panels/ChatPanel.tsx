@@ -105,7 +105,7 @@ export function ChatPanel() {
         {/* Post-replay hint */}
         {showConnectGlow && !configOpen && (
           <div className="px-3 pb-2">
-            <p className="text-[10px] text-on-surface-variant text-center">
+            <p className="text-xs text-primary text-center animate-pulse drop-shadow-[0_0_6px_var(--color-primary)]">
               Connect an API key to interact with the store yourself
             </p>
           </div>

@@ -134,6 +134,7 @@ slop/
 ├── extension/                      # Chrome extension (SLOP consumer + AI chat)
 ├── desktop/                        # Tauri desktop app
 ├── examples/
+│   ├── demo/                       # Interactive three-panel demo (bun demo)
 │   ├── cli/                        # Task manager CLI in 4 languages (Bun, Python, Go, Rust)
 │   ├── notes-spa/                  # React SPA with in-browser SLOP
 │   └── tanstack-start/             # Full-stack SSR example
@@ -146,6 +147,7 @@ slop/
 
 Each example follows a **blueprint** — a language-agnostic spec defining the exact SLOP tree, affordances, and test scenarios. Multiple implementations of the same blueprint prove cross-language consistency.
 
+- **[Interactive Demo](./examples/demo/)** — Three-panel demo: e-commerce store + AI agent + live state tree. Run with `bun demo`. Replay mode works without an API key; connect one for interactive mode.
 - **[CLI Task Manager](./examples/cli/)** — `tsk`, a task manager with a `--slop` flag. Implementations in Bun, Python, Go, and Rust.
 - **[Notes SPA](./examples/notes-spa/)** — React app with in-browser SLOP provider via postMessage.
 - **[TanStack Start](./examples/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.

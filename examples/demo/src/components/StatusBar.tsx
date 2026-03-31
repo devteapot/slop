@@ -62,7 +62,7 @@ export function StatusBar() {
             : "bg-primary/20 text-primary cursor-default"
         }`}
       >
-        {mode === "replay" ? "▸▸ replay" : "● live"}
+        {mode === "replay" ? "▸▸ replay" : mode === "interactive" ? "● live" : "○ disconnected"}
       </button>
     </div>
   );

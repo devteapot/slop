@@ -166,6 +166,16 @@ slop.register("todos", json!({
 
 See the [Rust guide](/guides/rust) for full setup including WebSocket, Unix socket, stdio, and axum transports.
 
+## Try it live
+
+Run the interactive demo to see SLOP in action — an e-commerce store with an AI agent and live state tree, all in the browser:
+
+```bash
+bun demo
+```
+
+The demo plays a scripted AI session by default. Connect an API key (OpenRouter, OpenAI, Anthropic, or Google) to interact live. See the [`examples/demo/`](https://github.com/slop-ai/slop/tree/main/examples/demo) README for details.
+
 ## Next steps
 
 - [Installation guide](/getting-started/installation) — all package options

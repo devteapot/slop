@@ -11,6 +11,7 @@ function sleep(ms: number): Promise<void> {
 export function ReplayController() {
   const {
     mode,
+    setMode,
     replayKey,
     replayAbortRef,
     setReplayComplete,
@@ -170,6 +171,7 @@ export function ReplayController() {
       if (!signal.aborted) {
         setStatus({ state: "idle", label: "Replay complete" });
         setReplayComplete(true);
+        setMode("disconnected");
       }
     }
 

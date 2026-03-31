@@ -35,8 +35,8 @@ export interface ChatMessage {
 type AppStateReturn = ReturnType<typeof useAppState>;
 
 interface DemoContextValue {
-  mode: "replay" | "interactive";
-  setMode: (mode: "replay" | "interactive") => void;
+  mode: "replay" | "interactive" | "disconnected";
+  setMode: (mode: "replay" | "interactive" | "disconnected") => void;
   replayKey: number;
   restartReplay: () => void;
   skipReplay: () => Promise<void>;
@@ -75,7 +75,7 @@ export function createMessageId(): string {
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const appState = useAppState();
-  const [mode, setMode] = useState<"replay" | "interactive">("replay");
+  const [mode, setMode] = useState<"replay" | "interactive" | "disconnected">("replay");
   const [status, setStatus] = useState<DemoStatus>({ state: "idle", label: "Ready" });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [replayKey, setReplayKey] = useState(0);
@@ -145,6 +145,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setMessages(allMessages);
     setStatus({ state: "idle", label: "Replay complete" });
     setReplayComplete(true);
+    setMode("disconnected");
   }, [appState]);
 
   const addMessage = useCallback((msg: ChatMessage) => {

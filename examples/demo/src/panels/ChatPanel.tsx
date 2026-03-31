@@ -61,11 +61,23 @@ export function ChatPanel() {
     try {
       await runAgentTurn(msg, ctx);
     } catch (err: any) {
+      const message = err.message ?? String(err);
+      let userMessage = message;
+      if (message.includes("401") || message.includes("403")) {
+        userMessage = "Invalid API key. Check your key and try again.";
+      } else if (message.includes("429")) {
+        userMessage = "Rate limited. Wait a moment and try again.";
+      } else if (message.includes("404")) {
+        userMessage = "Model not found. Try a different model.";
+      } else if (message.includes("Failed to fetch") || message.includes("NetworkError")) {
+        userMessage = "Network error. Check your connection and try again.";
+      }
       addMessage({
         id: createMessageId(),
         role: "system",
-        content: `Error: ${err.message}`,
+        content: userMessage,
       });
+      ctx.setStatus({ state: "idle", label: "Ready" });
     }
     setSending(false);
   };
@@ -80,7 +92,7 @@ export function ChatPanel() {
     setConfigOpen(false);
   };
 
-  const showConnectGlow = replayComplete && mode === "replay" && !configOpen;
+  const showConnectGlow = mode === "disconnected" && !configOpen;
 
   return (
     <div className="flex flex-col h-full bg-surface overflow-hidden">
@@ -90,16 +102,31 @@ export function ChatPanel() {
           <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">
             AI Agent
           </span>
-          <button
-            onClick={() => setConfigOpen(!configOpen)}
-            className={`text-[10px] font-mono transition-all ${
-              showConnectGlow
-                ? "text-primary animate-pulse shadow-[0_0_12px_var(--color-primary)] px-2 py-0.5 rounded bg-primary/15"
-                : "text-secondary hover:text-on-surface"
-            }`}
-          >
-            {configOpen ? "Close" : mode === "interactive" ? "Connected" : "Connect API"}
-          </button>
+          <div className="flex items-center gap-2">
+            {mode === "interactive" && (
+              <button
+                onClick={() => {
+                  setMode("disconnected");
+                  setApiKey("");
+                  setApiModel("");
+                  ctx.setStatus({ state: "idle", label: "Disconnected" });
+                }}
+                className="text-[10px] font-mono text-error/60 hover:text-error transition-colors"
+              >
+                Disconnect
+              </button>
+            )}
+            <button
+              onClick={() => setConfigOpen(!configOpen)}
+              className={`text-[10px] font-mono transition-all ${
+                showConnectGlow
+                  ? "text-primary animate-pulse shadow-[0_0_12px_var(--color-primary)] px-2 py-0.5 rounded bg-primary/15"
+                  : "text-secondary hover:text-on-surface"
+              }`}
+            >
+              {configOpen ? "Close" : mode === "interactive" ? "Connected" : "Connect API"}
+            </button>
+          </div>
         </div>
 
         {/* Post-replay hint */}

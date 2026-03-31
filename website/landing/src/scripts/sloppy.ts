@@ -164,23 +164,29 @@ angryTriggers.forEach((el) => {
   el.addEventListener("mouseleave", () => setAngryHover(false));
 });
 
-// ---- Happy jump on friend hover ----
+// ---- Happy jump on friend hover (with cooldown) ----
 
 const friendTriggers = document.querySelectorAll(".friend");
+let jumpCooldown = false;
 
-function setHappyHover(happy: boolean) {
+function triggerJump() {
+  if (jumpCooldown) return;
+  jumpCooldown = true;
+
   [heroSloppy, roamingSloppy].forEach((el) => {
-    if (happy) {
-      el.classList.add("happy");
-    } else {
-      el.classList.remove("happy");
-    }
+    el.classList.remove("happy");
+    // Force reflow so the animation restarts cleanly
+    void el.offsetWidth;
+    el.classList.add("happy");
   });
+
+  setTimeout(() => {
+    jumpCooldown = false;
+  }, 2000);
 }
 
 friendTriggers.forEach((el) => {
-  el.addEventListener("mouseenter", () => setHappyHover(true));
-  el.addEventListener("mouseleave", () => setHappyHover(false));
+  el.addEventListener("mouseenter", () => triggerJump());
 });
 
 // ---- Click roaming sloppy to dismiss ----

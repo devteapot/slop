@@ -1,7 +1,12 @@
 ---
+import Sloppy from './Sloppy.astro';
+import SloppyRoaming from './SloppyRoaming.astro';
 ---
 <section class="hero">
-  <div class="container">
+  <div class="container hero-center">
+    <div class="hero-logo">
+      <Sloppy />
+    </div>
     <span class="label">State Layer for Observable Programs</span>
     <h1>The perception layer<br />for AI agents</h1>
     <p class="subline">
@@ -23,14 +28,28 @@
   </div>
 </section>
 
+<SloppyRoaming />
+<script>
+  import '../scripts/sloppy.ts';
+</script>
+
 <style>
   .hero {
-    padding-top: 10rem;
-    padding-bottom: var(--space-16);
+    padding-top: 8rem;
+    padding-bottom: var(--space-10);
     text-align: left;
   }
+  .hero-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .hero-logo {
+    margin-bottom: var(--space-3);
+  }
   .hero .label {
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
     display: inline-block;
   }
   h1 {
@@ -49,7 +68,7 @@
   .actions {
     display: flex;
     gap: var(--space-4);
-    margin-bottom: var(--space-10);
+    margin-bottom: var(--space-8);
     flex-wrap: wrap;
   }
   .hero-visual {

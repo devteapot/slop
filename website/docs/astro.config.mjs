@@ -8,9 +8,9 @@ export default defineConfig({
 		starlight({
 			title: 'SLOP',
 			logo: {
-				src: './src/assets/logo.png',
+				src: './src/assets/logo.svg',
 			},
-			favicon: '/favicon.png',
+			favicon: '/favicon.svg',
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/devteapot/slop' },
 			],

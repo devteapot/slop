@@ -53,17 +53,24 @@ export function StatusBar() {
         </button>
       )}
 
-      {/* Mode badge — clickable to restart replay */}
-      <button
-        onClick={() => mode === "replay" && restartReplay()}
-        className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded transition-colors ${
-          mode === "replay"
-            ? "bg-surface-variant text-on-surface-variant hover:bg-surface-highest hover:text-on-surface cursor-pointer"
-            : "bg-primary/20 text-primary cursor-default"
-        }`}
-      >
-        {mode === "replay" ? "▸▸ replay" : mode === "interactive" ? "● live" : "○ disconnected"}
-      </button>
+      {/* Replay button — visible in replay and disconnected states */}
+      {mode !== "interactive" && (
+        <button
+          onClick={() => restartReplay()}
+          className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-surface-variant text-on-surface-variant hover:bg-surface-highest hover:text-on-surface transition-colors cursor-pointer"
+        >
+          ▸▸ replay
+        </button>
+      )}
+
+      {/* Mode badge */}
+      <span className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${
+        mode === "interactive"
+          ? "bg-primary/20 text-primary"
+          : "bg-surface-variant text-on-surface-variant"
+      }`}>
+        {mode === "interactive" ? "● live" : mode === "disconnected" ? "○ disconnected" : ""}
+      </span>
     </div>
   );
 }

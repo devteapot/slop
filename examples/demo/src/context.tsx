@@ -90,6 +90,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     msgCounter = 0;
     appState.resetState();
     setMessages([]);
+    setMode("replay");
     setStatus({ state: "idle", label: "Ready" });
     setReplayComplete(false);
     setReplayKey((k) => k + 1);

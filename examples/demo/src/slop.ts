@@ -62,6 +62,5 @@ export const slop = new SlopClientImpl(
 );
 slop.start();
 
-// Tree panel subscription — connects and subscribes immediately
+// Send connect so the provider is ready to accept subscriptions
 transport.sendToProvider({ type: "connect" });
-transport.sendToProvider({ type: "subscribe", id: "demo-sub", path: "/", depth: -1 });

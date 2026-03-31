@@ -76,6 +76,9 @@ export function TreePanel() {
       }
     });
 
+    // Subscribe — listener is already registered, so the snapshot will be received
+    transport.sendToProvider({ type: "subscribe", id: "demo-sub", path: "/", depth: -1 });
+
     return unsub;
   }, [fingerprint]);
 

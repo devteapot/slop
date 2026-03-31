@@ -141,17 +141,10 @@ export const replayScript: ReplayStep[] = [
       "All done! I searched the catalog, found the best headphones under $100, added them to your cart, and left a review. Anything else?",
   },
 
-  // 14. User browses on their own — state tree updates from UI interaction
-  {
-    type: "user_message",
-    delay: 2000,
-    content: "Let me also grab that desk lamp.",
-  },
-
-  // User navigates to catalog
+  // User browses on their own — state tree updates from UI interaction
   {
     type: "ui_action",
-    delay: 1000,
+    delay: 2000,
     label: "User navigated to catalog",
     mutation: "navigate",
     args: ["catalog"],
@@ -195,14 +188,6 @@ export const replayScript: ReplayStep[] = [
     mutation: "addToCart",
     args: ["desk-lamp-led", 1],
     clickTarget: "add-to-cart",
-  },
-
-  // AI notices
-  {
-    type: "ai_message",
-    delay: 1500,
-    content:
-      "Nice pick! The LED Desk Lamp is $44.99 with a 4.6 rating — great for late-night sessions. Your cart total is now $124.98.",
   },
 ];
 

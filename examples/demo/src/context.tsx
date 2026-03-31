@@ -63,8 +63,9 @@ interface DemoContextValue {
 const DemoContext = createContext<DemoContextValue | null>(null);
 
 let msgCounter = 0;
+const sessionId = Math.random().toString(36).slice(2, 6);
 export function createMessageId(): string {
-  return `msg-${++msgCounter}`;
+  return `msg-${sessionId}-${++msgCounter}`;
 }
 
 export function DemoProvider({ children }: { children: ReactNode }) {
@@ -79,6 +80,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const invokeCounter = useRef(0);
 
   const restartReplay = useCallback(() => {
+    msgCounter = 0;
     appState.resetState();
     setMessages([]);
     setStatus({ state: "idle", label: "Ready" });

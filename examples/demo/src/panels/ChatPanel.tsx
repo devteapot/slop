@@ -81,7 +81,7 @@ export function ChatPanel() {
     <div className="flex flex-col h-full bg-surface overflow-hidden">
       {/* Header */}
       <div className="bg-surface-container">
-        <div className="flex items-center justify-between px-3 py-2">
+        <div className="flex items-center justify-between px-3 h-10">
           <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">
             AI Agent
           </span>

@@ -89,7 +89,7 @@ export function TreePanel() {
   return (
     <div className="flex flex-col h-full bg-surface-lowest overflow-hidden">
       {/* Header */}
-      <div className="px-3 py-2 bg-surface-container">
+      <div className="px-3 flex items-center h-10 bg-surface-container">
         <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">
           State Tree
         </span>

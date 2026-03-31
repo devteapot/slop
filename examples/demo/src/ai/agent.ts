@@ -31,6 +31,8 @@ When the user asks you to do something, look at the current state, figure out wh
 
 IMPORTANT: You can and SHOULD call MULTIPLE tools in a single response when the user's request requires acting on multiple items.
 
+Tools marked [DANGEROUS] are destructive or irreversible (e.g. clearing the cart, deleting items). ALWAYS ask the user for confirmation before calling a dangerous tool. Never call a dangerous tool without explicit user approval.
+
 Keep responses concise.`;
 
 const MAX_TOOL_ROUNDS = 5;

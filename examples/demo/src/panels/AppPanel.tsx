@@ -24,7 +24,7 @@ export function AppPanel() {
   return (
     <div className="flex flex-col h-full bg-surface-low overflow-hidden">
       {/* Nav tabs */}
-      <div className="flex items-center gap-4 px-4 py-2 bg-surface-container">
+      <div className="flex items-center gap-4 px-4 h-10 bg-surface-container">
         <button
           data-click-target="nav-catalog"
           onClick={() => isInteractive && appState.navigate("catalog")}

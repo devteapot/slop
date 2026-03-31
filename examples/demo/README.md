@@ -39,10 +39,9 @@ A scripted AI conversation plays automatically:
 1. User asks for wireless headphones under $100
 2. AI searches the catalog, views product details, adds to cart
 3. AI writes a review based on product specs
-4. User browses the store directly (click indicators show interactions)
-5. AI observes the user's changes
+4. User browses the store directly — click indicators show UI interactions updating the state tree
 
-Click **Skip** in the status bar to jump to the end state.
+Click **Skip** in the status bar to jump to the end state. After replay, click **Connect API** to switch to interactive mode. Click **▸▸ replay** to restart.
 
 ### Interactive (with API key)
 

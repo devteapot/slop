@@ -49,8 +49,16 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Protocol Spec',
-					autogenerate: { directory: 'spec' },
+					label: 'Core Protocol',
+					autogenerate: { directory: 'spec/core' },
+				},
+				{
+					label: 'Extensions',
+					autogenerate: { directory: 'spec/extensions' },
+				},
+				{
+					label: 'Integration Guides',
+					autogenerate: { directory: 'spec/integrations' },
 				},
 				{
 					label: 'Extension',

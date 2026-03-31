@@ -1,343 +1,252 @@
-# SLOP 1.0 — Open Source Launch Plan
+# SLOP 1.0 — Launch Media Plan
 
-## Context
+## Deliverables
 
-SLOP has a solid spec (10 docs), a working MVP (9 packages), and a browser extension. The goal is to open-source the project and drive maximum adoption in 2-4 weeks, positioning for acquisition by a major AI player (Anthropic, OpenAI, Google, etc.).
+1. [Hacker News article](#1-hacker-news)
+2. [Twitter/X post](#2-twitterx)
+3. [LinkedIn post](#3-linkedin)
+4. [Reddit post](#4-reddit)
+5. [GitHub README](#5-github-readme)
+6. [Launch day coordination](#6-launch-day-coordination)
 
-The strategy: ship a compelling 1.0 with clear value over MCP, get featured by tech influencers, build community fast.
+---
 
-## What makes SLOP acquistion-worthy
+## Messaging
 
-The pitch to a big player: **SLOP is the missing perception layer for AI agents.** MCP lets AI act. SLOP lets AI see. Whoever owns SLOP owns the standard for how AI understands applications. It's the accessibility tree for the AI era.
+SLOP (State Layer for Observable Programs) is a protocol for applications to expose their semantic state to AI. The spec defines four layers: transport & discovery, state tree & sync, affordances, and attention & salience.
 
-Acquisition value comes from:
-1. **Protocol adoption** — if apps implement SLOP, the acquirer controls the interface between AI and software
-2. **Network effects** — more SLOP apps → more useful AI agents → more SLOP apps
-3. **Strategic position** — complements (not competes with) existing tool-calling standards
+**Core pitch:** "SLOP is a protocol that gives AI structured, real-time awareness of application state — and contextual actions to match."
 
-## 1.0 Feature scope
+**The problem it solves:** AI interacts with apps through two extremes today. Screenshots are expensive, lossy, and fragile — the AI parses pixels to recover information the app already had in structured form. Tool calls (MCP, function calling) let AI act, but it acts blind — no awareness of what the user sees or what state the app is in.
 
-### Extension (Chrome)
-- [x] SLOP-native apps: WebSocket transport (server-backed)
-- [x] SLOP-native apps: postMessage transport (SPAs)
-- [ ] Compatibility mode: accessibility tree adapter (Tier 3) for non-SLOP apps
-- [ ] Bridge mode: expose in-page providers to desktop app via native messaging
-- [x] Multi-provider profiles (Ollama, OpenAI, OpenRouter, Gemini)
-- [x] Dynamic model selection
-- [ ] Stable connection handling (fix disconnect issues)
+**How SLOP differs from MCP:** MCP is action-first — a flat registry of tools the AI can call, disconnected from state. SLOP is state-first — apps publish a semantic state tree that AI subscribes to, and actions live on the nodes they affect (not in a global registry). They appear and disappear as state changes. A "merge" affordance only exists on a PR node when the PR is actually mergeable. MCP and SLOP solve different problems and can coexist.
 
-### Desktop app
-- [ ] List and connect to local SLOP providers (Unix socket discovery)
-- [ ] Connect to web apps via WebSocket
-- [ ] Connect to in-page SPAs via extension bridge (native messaging)
-- [ ] Chat UI with model selection
-- [ ] System tray / menu bar presence
+**How SLOP differs from accessibility APIs:** Accessibility trees describe UI structure (buttons, text fields, labels). SLOP describes meaning — an email inbox exposes messages with subjects and senders, not a grid of `<div>` elements. SLOP is semantic, not structural.
 
-### OpenClaw integration
-- [ ] SLOP provider plugin for OpenClaw — lets OpenClaw observe any SLOP app's state instead of screen scraping
-- [ ] OpenClaw skill that connects to SLOP providers and exposes affordances as OpenClaw actions
-- [ ] Document how SLOP + OpenClaw work together (OpenClaw = agent, SLOP = perception)
+**What ships:** 14-doc spec. 13 SDK packages across 4 languages (TypeScript: core, client, server, consumer, react, vue, solid, angular, tanstack-start, openclaw-plugin; Python; Rust; Go). A Chrome extension. Working examples (multi-language CLI task manager, React notes SPA, TanStack Start full-stack app). All MIT licensed.
 
-### SDKs (for app developers to adopt SLOP)
-- [x] TypeScript/Bun: @slop-ai/types, @slop-ai/provider, @slop-ai/consumer
-- [ ] Python: slop-py (provider + consumer)
-- [ ] Browser: @slop-ai/provider-browser (postMessage transport, useSlop hook)
-- [ ] Documentation site with integration guides
+---
 
-### Spec
-- [x] 10 documents covering the full protocol
-- [ ] Final review pass for consistency and completeness
-- [ ] Version number: 0.1 → 1.0-rc1
-
-## Repo structure for launch
-
-```
-slop/                              ← rename from slop-slop-slop
-├── README.md                      ← landing page with demo GIF, quick start
-├── LICENSE                        ← MIT
-├── CONTRIBUTING.md
-├── CODE_OF_CONDUCT.md
-├── .gitignore
-├── spec/                          ← the protocol spec (language-agnostic)
-│   ├── 01-overview.md
-│   ├── ...
-│   └── 10-desktop-integration.md
-├── sdks/
-│   ├── typescript/                ← current mvp/packages/{types,provider,consumer}
-│   │   ├── packages/
-│   │   │   ├── types/
-│   │   │   ├── provider/
-│   │   │   ├── consumer/
-│   │   │   └── provider-browser/  ← NEW: browser build with postMessage + useSlop
-│   │   └── package.json
-│   └── python/                    ← NEW: Python SDK
-│       ├── slop_types/
-│       ├── slop_provider/
-│       └── slop_consumer/
-├── extension/                     ← Chrome extension
-├── desktop/                       ← Desktop app (future)
-├── examples/
-│   ├── kanban-board/              ← current demo-web
-│   ├── notes-spa/                 ← current demo-spa
-│   ├── todo-cli/                  ← current demo-app + demo-consumer
-│   └── agent/                     ← current demo-agent
-└── website/                       ← docs site (future, can use GitHub Pages initially)
-```
-
-## Implementation plan (2-4 weeks)
-
-### Week 1: Polish + open-source foundation
-
-**Day 1-2: Repo cleanup**
-- Restructure repo to the layout above
-- Add LICENSE (MIT), CONTRIBUTING.md, CODE_OF_CONDUCT.md, .gitignore
-- Add proper metadata to all package.json files (description, license, repository)
-- Update README with: hero demo GIF/video, quick start code, installation instructions, architecture diagram
-- Final spec review pass — version to 1.0-rc1
-
-**Day 3-4: Fix known issues**
-- Fix extension disconnect/reconnect stability
-- Fix state sync issue (snapshot vs patch handling)
-- Add accessibility tree adapter to extension (Tier 3 compatibility mode) — this is the killer feature for launch since it works on ANY website
-- Test extension end-to-end with demo-web and demo-spa
-
-**Day 5: Browser SDK**
-- Extract `BrowserSlopProvider` + `useSlop` hook from demo-spa into `@slop-ai/provider-browser` package
-- Add Vue composable (`useSlop`) and vanilla JS API (`createSlop`)
-- Write integration guide: "Add SLOP to your React app in 5 minutes"
-
-### Week 2: SDKs + OpenClaw + content
-
-**Day 6-7: Python SDK**
-- `slop-py` package: types, provider, consumer
-- Transport: Unix socket + WebSocket
-- Test with a simple Python provider + the extension as consumer
-- Publish to PyPI
-
-**Day 8-9: OpenClaw integration**
-- Build an OpenClaw skill/plugin that connects to SLOP providers
-- OpenClaw can observe any SLOP app's state tree and invoke affordances
-- Write a tutorial: "Connect OpenClaw to any SLOP app"
-- Submit to ClawHub
-
-**Day 10: Content production**
-- Record demo video (2-3 min): show the extension working on a real app, LLM observing + acting
-- Write launch blog post: "SLOP: The missing perception layer for AI"
-- Prepare Twitter/X thread with key insights + demo clips
-- Create GitHub repo description, topics, social preview image
-
-### Week 3: Launch + outreach
-
-**Day 11: Soft launch**
-- Push to GitHub (public)
-- Publish npm packages (@slop-ai/types, @slop-ai/provider, @slop-ai/consumer, @slop-ai/provider-browser)
-- Publish Python package to PyPI
-- Submit extension to Chrome Web Store (or provide sideload instructions)
-
-**Day 12-14: Outreach blitz**
-- Post on: Hacker News, Reddit (r/programming, r/artificial, r/LocalLLaMA), Product Hunt
-- Twitter/X thread from personal account + ask for retweets from AI community
-- Direct outreach to influencers (see below)
-- Submit to newsletters: TLDR, The Pragmatic Engineer, AI News
-- Open GitHub Discussions for community feedback
-
-### Week 4: Community + iterate
-
-- Respond to issues, PRs, and feedback
-- Iterate on the spec based on community input
-- Start conversations with AI companies (Anthropic, OpenAI, Google) about adoption
-- Track metrics: GitHub stars, npm downloads, extension installs
-
-## Influencer / channel targets
-
-**Tier 1 — Tech YouTube (100k+ subscribers, AI/dev focus):**
-- Fireship — perfect format for "X in 100 seconds" style coverage
-- Theo (t3.gg) — covers new web dev tools, strong opinions
-- ThePrimeagen — systems/protocol level, would appreciate the design
-- Matt Pocock — TypeScript ecosystem, SDK angle
-- AI Jason — AI tools/agents focus
-
-**Tier 2 — Tech Twitter/X (AI builders, high signal):**
-- Swyx (@swyx) — AI engineering, coined "AI engineer", would get the MCP comparison
-- Simon Willison (@simonw) — AI tools, open source, very influential
-- Harrison Chase (LangChain) — agent frameworks, SLOP complements their stack
-- Peter Steinberger (@steipete) — OpenClaw creator, direct partnership opportunity
-- Devin AI team — SLOP is relevant to their agent-in-browser approach
-
-**Tier 3 — Communities:**
-- Hacker News (Show HN post)
-- Reddit r/LocalLLaMA (Ollama integration angle)
-- Discord: Ollama, LangChain, OpenClaw communities
-- Dev.to / Hashnode blog cross-posts
-
-## Messaging / positioning
-
-**One-liner:** "SLOP is a protocol that lets AI see and interact with any application — like the accessibility tree, but for AI agents."
-
-**vs MCP:** "MCP gives AI tools to act. SLOP gives AI eyes to see. They're complementary — SLOP is the perception layer MCP is missing."
-
-**For app developers:** "Add 50 lines of code and any AI agent can understand your app's state and take actions in context."
-
-**For AI companies:** "SLOP standardizes how AI agents perceive application state. Own the standard, own the interface."
-
-## Hacker News launch strategy
-
-HN is the highest-leverage platform. A front-page Show HN can generate 10,000+ repo visits in a day.
-
-### The post
+## 1. Hacker News
 
 **Title:** `Show HN: SLOP – A protocol for AI to observe and interact with application state`
 
-- Factual, no hype. HN downvotes marketing language.
-- URL points to the **GitHub repo**, not a blog post or landing page. HN rewards substance.
+**URL:** Points to the GitHub repo. HN rewards substance over marketing pages.
 
-**First comment** (posted by you immediately after submission):
+**First comment** (post immediately after submission):
 
-Must cover:
-1. Who you are (one line)
-2. The problem: "AI agents interact with apps through two extremes — screenshots (expensive, lossy) or blind tool calls (no context). SLOP fills the gap."
-3. How it differs from MCP: "MCP gives AI tools to act. SLOP gives AI eyes to see. They're complementary."
-4. Live demo: link to the Kanban board or a hosted demo
-5. What's missing / honest limitations
-6. Invite feedback on the spec
+> Hey HN — I built SLOP because AI agents interact with apps through two bad options: screenshots (expensive, lossy, fragile) or blind tool calls (no context about what the user is looking at or what state the app is in).
+>
+> SLOP is a protocol that fixes this. Apps expose a semantic state tree — structured, meaning-level data about what they currently are. AI subscribes to the parts it cares about and gets pushed incremental updates (JSON Patch). No polling, no pixel parsing.
+>
+> Actions are contextual — they live on the state nodes they affect, not in a flat global registry. A "merge" affordance appears on a PR node only when the PR is mergeable. A "reply" action lives on the message it replies to. Actions come and go as state changes, so the AI always sees what it can actually do.
+>
+> How it relates to MCP: MCP is action-first — the AI gets a list of tools to call. SLOP is state-first — the AI gets structured awareness of what the app is, then acts in context. They solve different problems and can coexist.
+>
+> The spec is 14 docs covering state trees, transport (WebSocket, Unix socket, stdio, postMessage), affordances, attention/salience hints, scaling, and integrations. SDKs in TypeScript (10 packages including React, Vue, Solid, Angular adapters), Python, Rust, and Go. There's a Chrome extension and working examples. All MIT.
+>
+> What I'd love feedback on: the state tree schema design, the affordance model (contextual actions vs global tools), and whether the transport/discovery choices make sense.
+>
+> Try it: the CLI task manager example (`examples/cli/`) has implementations in Bun, Python, Go, and Rust — each exposes the same SLOP tree over a Unix socket. The `--slop` flag is all it takes.
 
-HN loves: technical depth, honest trade-offs, solo builders, protocols/standards. SLOP hits all four.
+**Tone rules:**
+- No hype words ("disrupting", "10x", "revolutionary")
+- Be honest about limitations and what's missing
+- Respond to every comment in the first 2 hours
+- Be genuinely receptive to criticism — "good point, I'll add that to the spec" > defending
+- Give thorough technical answers with links to relevant spec docs
+
+---
+
+## 2. Twitter/X
+
+**Format:** Thread (5-6 tweets)
+
+**Tweet 1 (hook):**
+> AI agents interact with apps through two bad options:
+>
+> - Screenshots (expensive, lossy, fragile)
+> - Blind tool calls (no awareness of app state)
+>
+> I built SLOP — a protocol that gives AI structured, real-time awareness of application state.
+>
+> Open source today. Here's the idea:
+
+**Tweet 2 (how it works):**
+> Apps expose a semantic state tree — structured data about what they are right now. Not pixels, not DOM, not database rows. Meaning.
+>
+> AI subscribes and gets pushed incremental updates (JSON Patch). No polling.
+>
+> Actions live on the nodes they affect — a "reply" action on a message, a "merge" action on a PR. They appear and disappear as state changes.
+
+**Tweet 3 (vs MCP):**
+> How does this relate to MCP?
+>
+> MCP is action-first: a flat registry of tools the AI can call, disconnected from state.
+>
+> SLOP is state-first: AI gets structured awareness of what the app is, then acts in context.
+>
+> Different problems. They can coexist.
+
+**Tweet 4 (what ships):**
+> What's in the box:
+> - 14-doc spec (state trees, transport, affordances, attention, scaling)
+> - 13 SDK packages: TypeScript (core + React/Vue/Solid/Angular/TanStack Start), Python, Rust, Go
+> - Chrome extension
+> - Examples in 4 languages
+>
+> All MIT licensed.
+
+**Tweet 5 (demo):**
+> [Demo GIF/video]
+>
+> The full loop: user changes state -> AI sees the update -> AI invokes a contextual action -> state updates again.
+
+**Tweet 6 (CTA):**
+> GitHub: [link]
+> Spec: [link]
+> Docs: [link]
+>
+> Feedback welcome — especially on the spec design.
+
+---
+
+## 3. LinkedIn
+
+**Format:** Single post, professional tone, more context on the "why"
+
+> I've open-sourced SLOP (State Layer for Observable Programs) — a protocol for AI to observe and interact with application state.
+>
+> The problem: AI agents interact with software through two extremes. Vision (screenshots) is expensive and lossy — the AI parses pixels to recover information the app already had in structured form. Tool calling (MCP, function calling) lets AI act, but with no awareness of what the user sees or what state the application is in.
+>
+> SLOP is a different approach. Applications expose a semantic state tree — structured, meaning-level data about what they currently are — that AI can subscribe to, query at variable depth, and act on through contextual affordances. Actions live on the state nodes they affect (not in a flat registry) and appear/disappear as state changes. The protocol is push-first, token-aware, and transport-agnostic.
+>
+> The spec is 14 documents covering state trees, transports (WebSocket, Unix socket, stdio, postMessage), affordances, attention/salience, scaling, and integration patterns. SDKs ship in TypeScript (10 packages including framework adapters for React, Vue, Solid, and Angular), Python, Rust, and Go. There's a Chrome extension and working examples.
+>
+> SLOP and MCP solve different problems — MCP is action-first (a registry of tools), SLOP is state-first (structured awareness with contextual actions). They can coexist.
+>
+> Everything is MIT licensed. Looking for feedback from developers, AI researchers, and anyone building agent tooling.
+>
+> [link to repo]
+
+---
+
+## 4. Reddit
+
+### r/programming
+
+**Title:** `Show r/programming: SLOP – A protocol for AI to observe and interact with application state (open source)`
+
+**Body:**
+
+> I've been working on SLOP (State Layer for Observable Programs) — an open protocol for apps to expose their semantic state to AI.
+>
+> **The core idea:** Apps publish a state tree — structured, meaning-level data about what they currently are. AI subscribes to the parts it cares about and gets pushed incremental updates (JSON Patch). Actions are contextual: they live on the state nodes they affect, not in a flat global registry. A "merge" affordance only appears on a PR node when the PR is actually mergeable.
+>
+> **How it relates to MCP:** MCP is action-first — the AI gets a list of tools to call, disconnected from app state. SLOP is state-first — the AI gets structured awareness and acts in context. Different problems, can coexist.
+>
+> **The spec** (14 docs) covers: state trees with progressive depth, transport (WebSocket, Unix socket, stdio, postMessage), affordances with JSON Schema params, attention/salience hints for token budget management, windowed collections, and async actions.
+>
+> **SDKs:** 10 TypeScript packages (core, client, server, consumer, React, Vue, Solid, Angular, TanStack Start, OpenClaw plugin), plus Python, Rust, and Go. Chrome extension included. Examples in 4 languages.
+>
+> MIT licensed. Feedback on the spec design welcome — especially the affordance model and transport choices.
+>
+> [GitHub link]
+
+### r/LocalLLaMA
+
+**Title:** `SLOP – A protocol for local LLMs to observe and interact with application state`
+
+**Body:**
+
+> I open-sourced SLOP (State Layer for Observable Programs) — a protocol for apps to expose structured state to AI, instead of relying on screenshots or blind tool calls.
+>
+> Apps publish a semantic state tree that your LLM can subscribe to and act on. Actions are contextual — they live on the nodes they affect and appear/disappear as state changes. Updates are incremental (JSON Patch), so your model's context window isn't wasted on redundant state dumps.
+>
+> The CLI task manager example (`examples/cli/`) has implementations in Bun, Python, Go, and Rust — each exposes the same SLOP tree over a Unix socket. The `--slop` flag is all it takes. The Chrome extension connects to SLOP providers and lets you interact with any SLOP-enabled app.
+>
+> 14-doc spec. SDKs in TypeScript (10 packages), Python, Rust, and Go. All MIT.
+>
+> Would love feedback from the local-first AI community — especially on transport choices and whether the protocol fits how you're building agents.
+>
+> [GitHub link]
+
+---
+
+## 5. GitHub README
+
+The current README is already in good shape. Launch polish checklist:
+
+- [ ] Add hero GIF/video at the top (15-20s showing the full loop: user action -> AI sees state change -> AI invokes affordance -> state updates)
+- [ ] Verify all quick start code blocks work when copy-pasted
+- [ ] Verify all spec links point to the new structure (core/, extensions/, integrations/)
+- [ ] Add clear "try it" instructions with actual commands (e.g. `cd examples/cli/bun && bun install && bun run slop`)
+- [ ] Verify all SDK links point to existing packages
+- [ ] Add social preview image to repo settings (owl logo + tagline)
+- [ ] Add GitHub topics: `ai`, `protocol`, `llm`, `agent`, `state-management`, `open-source`
+- [ ] Ensure LICENSE file exists and is MIT
+- [ ] Ensure CONTRIBUTING.md exists
+- [ ] Add a root-level `demo` script to package.json so `bun run demo` works from the repo root
+
+### README must answer in 10 seconds
+
+1. **What is this?** — A protocol for AI to observe and interact with application state
+2. **Why should I care?** — Screenshots are expensive, tool calls are blind, SLOP gives AI structured state awareness with contextual actions
+3. **How is it different?** — Comparison table (already present — verify it's accurate)
+4. **Can I try it now?** — Yes, with actual working commands
+
+---
+
+## 6. Launch day coordination
 
 ### Timing
 
-- **Tuesday–Thursday, 8–9am EST** — peak HN traffic
-- Avoid Mondays (crowded), Fridays (low engagement), weekends
-- Avoid days with major tech news (Apple events, big launches)
+- **Day:** Tuesday, Wednesday, or Thursday
+- **Time:** 8-9am EST (peak HN traffic)
+- **Avoid:** Mondays (crowded), Fridays (low engagement), weekends, days with major tech news
 
-### What gets upvotes
+### Sequence (all within a 2-hour window)
 
-- **Working demo > pitch deck.** The README GIF must show the full loop: user drags card → LLM sees the change → LLM acts → UI updates. That's the "wow" moment.
-- **Spec quality.** HN readers will click into the spec docs. 10 well-written docs = massive credibility.
-- **Comparison table.** SLOP vs MCP vs Accessibility APIs in the README gives instant mental model.
-- **Local-first / self-hostable.** Ollama integration means no API keys needed to try it. HN loves this.
+| Time | Action |
+|------|--------|
+| T+0 | Push repo to public (if not already) |
+| T+0 | Submit Show HN + post first comment immediately |
+| T+15min | Post Twitter/X thread |
+| T+30min | Post to r/programming |
+| T+30min | Post to r/LocalLLaMA |
+| T+45min | Post LinkedIn |
+| T+2h | Check HN ranking, respond to all comments |
+| T+6h | If HN front page, post update comment with stats/feedback |
 
-### What gets you killed
+### Pre-launch checklist
+
+- [ ] Demo GIF/video recorded and embedded in README
+- [ ] `bun run demo` works from repo root (add script to root package.json)
+- [ ] All npm packages published and installable
+- [ ] Python package published on PyPI
+- [ ] Rust crate published
+- [ ] Go module tagged
+- [ ] Extension sideload instructions clear (Chrome Web Store takes days)
+- [ ] All spec links verified (new core/extensions/integrations structure)
+- [ ] Social preview image set on GitHub
+- [ ] All post drafts finalized and ready to copy-paste
+- [ ] 3-4 people briefed to leave genuine technical comments on HN (not upvotes — early discussion signals quality)
+
+### HN engagement rules
+
+- Respond to **every** comment in the first 2 hours (keeps the post active in ranking)
+- Be receptive to criticism — "good point, I'll add that" > defending
+- Give thorough technical answers with spec doc links
+- If it hits front page, post an update comment at T+6h
+
+### What kills an HN post
 
 - Vote rings (HN detects and penalizes coordinated upvoting)
-- Marketing language ("disrupting", "10x", "AI-powered")
+- Marketing language
 - Broken demo link
 - No source code
 - Responding defensively to criticism
 
-### Pre-launch prep
+### Cross-platform amplification
 
-1. **README hero section**: GIF showing extension in action (15-20s, no audio)
-2. **Zero-friction try-it**: `git clone` → `bun install` → `bun run demo:web` works in under 2 minutes
-3. **Extension sideload instructions**: Chrome Web Store takes days, provide manual load steps
-4. **Spec is clean and versioned**: linked prominently from README
-5. **Seed discussion**: have 3-4 people ready to leave genuine technical *comments* (not upvotes). Early thoughtful discussion signals quality to the HN ranking algorithm.
-
-### README must answer in 10 seconds
-
-1. What is this? → protocol for AI to see app state
-2. Why should I care? → screenshots are expensive, tool calls are blind
-3. How is it different from X? → comparison table
-4. Can I try it now? → yes, 3-step quickstart or live demo link
-
-### Simultaneous cross-posting
-
-Don't rely on HN alone. Post within the same 2-hour window:
-
-| Platform | Format | Angle |
-|---|---|---|
-| **Hacker News** | Show HN + first comment | Technical protocol design |
-| **Twitter/X** | Thread with demo GIF + key insight | "MCP lets AI act. SLOP lets AI see." |
-| **Reddit r/programming** | Link post with technical summary | Protocol comparison angle |
-| **Reddit r/LocalLLaMA** | Self-post with Ollama focus | "Your local LLM can now see any app" |
-| **Dev.to** | Blog post with code examples | Integration tutorial angle |
-| **Product Hunt** | Product page (schedule for same day) | "AI assistant for any web app" |
-
-If HN catches, the others amplify. If HN doesn't catch, the others are independent shots on goal.
-
-### The viral hook
-
-The accessibility tree mode (Tier 3) — "install this extension and AI can see ANY website" — is the viral angle. The native SLOP protocol is the long-term value, but "works everywhere without any app changes" is what makes someone click, install, and share. Lead with that in the demo GIF.
-
-### Post-launch HN engagement
-
-- Respond to every comment within the first 2 hours (this keeps the post active in the ranking algorithm)
-- Be genuinely receptive to criticism — "good point, I'll add that to the spec" wins more goodwill than defending
-- If someone asks a technical question, give a thorough answer with links to the relevant spec doc
-- If it hits front page, post an update comment at the 6-hour mark with stats/feedback so far
-
-## Defense against big players copying
-
-**You can't prevent it. You can make it more expensive to compete than to acquire.**
-
-### Ecosystem penetration = moat
-
-| Week | Action | Switching cost created |
-|---|---|---|
-| Launch | Extension works on any site (Tier 3) | Users depend on the extension |
-| Week 1 | npm + PyPI packages published | Developers build on @slop-ai/provider |
-| Week 2 | OpenClaw integration live | OpenClaw ecosystem tied to SLOP |
-| Week 2 | 2-3 real apps ship SLOP support | Apps would need to support two protocols |
-| Week 3 | Community PRs for Go, Rust, Swift SDKs | Multi-language ecosystem |
-| Week 4 | Spec governance established | SLOP = the standard, not just a project |
-
-### Strategic outreach to AI companies
-
-Start relationships **before** they think about competing:
-
-- **Week of launch**: Email DevRel at Anthropic, OpenAI, Google: "We built SLOP, the perception complement to tool calling. Here's the spec, here's the adoption. We'd love your input."
-- **Frame as collaboration, not competition**: "SLOP + MCP together" not "SLOP vs MCP"
-- **Offer spec co-authorship**: If Anthropic wants to influence the spec, let them. Their involvement = their investment in SLOP surviving.
-
-### Spec ownership
-
-- Publish under MIT license (code) + Creative Commons (spec docs)
-- Establish a lightweight governance process (RFC-style for spec changes)
-- You control the spec repo, the versioning, the roadmap
-- Companies can implement freely, but spec evolution is under your stewardship
-
-## Key risks and mitigations
-
-| Risk | Mitigation |
-|---|---|
-| MCP team builds something similar | Ship fast, build community, position as complementary not competitive |
-| Low adoption from app developers | The extension's compatibility mode (accessibility tree) works without any app changes — adoption isn't gated on developers |
-| Name "SLOP" turns off enterprise | Lean into it — memorable > professional. LAMP, CRUD, REST all sounded weird at first |
-| Big player builds their own | That's the acquisition signal — approach them before they build |
-
-## Success metrics (first 30 days)
-
-- 1,000+ GitHub stars
-- 500+ npm weekly downloads
-- 100+ Chrome extension installs
-- 5+ community-contributed issues/PRs
-- 2+ tech influencer mentions
-- 1+ integration from an existing app/tool
-
-## Files to create/modify
-
-### New files
-- `/LICENSE` (MIT)
-- `/CONTRIBUTING.md`
-- `/CODE_OF_CONDUCT.md`
-- `/.gitignore`
-- `/sdks/python/` — Python SDK
-- `/sdks/typescript/packages/provider-browser/` — Browser SDK with useSlop
-- Extension: accessibility tree adapter (Tier 3)
-
-### Files to modify
-- `/README.md` — complete rewrite for launch (hero section, quick start, demo)
-- All `package.json` files — add description, license, repository
-- `/spec/*.md` — final review, version to 1.0-rc1
-- Extension: fix disconnect/reconnect stability
-- Restructure repo directories
-
-## Verification
-
-Before launch:
-1. Fresh clone → `bun install` → `bun test` passes
-2. `bun run demo:web` → extension connects → LLM chat works
-3. `bun run demo:spa` → extension connects via postMessage → LLM chat works
-4. Extension works on a non-SLOP site (accessibility tree mode)
-5. Python SDK: `pip install slop-py` → provider + consumer work
-6. README quick start code works when copy-pasted
-7. Demo video recorded and hosted
+If HN catches, the Reddit/Twitter posts amplify. If HN doesn't catch, the other platforms are independent shots on goal. Don't put all eggs in one basket.

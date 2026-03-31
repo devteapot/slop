@@ -90,7 +90,7 @@ Children may be:
 
 ### `meta`
 
-Metadata about the node itself (not the domain data). See [06 — Attention & Salience](./06-attention.md) for the full meta schema. Key fields:
+Metadata about the node itself (not the domain data). See [Attention & Salience](./attention.md) for the full meta schema. Key fields:
 
 ```jsonc
 {
@@ -158,7 +158,7 @@ When a collection has many children, the provider returns a **window** (a contig
 }
 ```
 
-The consumer can request a different window via a `query` message (see [04 — Messages](./04-messages.md)).
+The consumer can request a different window via a `query` message (see [Messages](./messages.md)).
 
 ## Example: full state tree
 

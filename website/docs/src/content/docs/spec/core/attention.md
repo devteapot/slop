@@ -81,7 +81,7 @@ A natural language hint explaining *why* this node is salient. Useful for AI com
 
 ## Attention-aware subscriptions
 
-Consumers can use salience to filter subscriptions (see [04 — Messages](./04-messages.md)):
+Consumers can use salience to filter subscriptions (see [Messages](./messages.md)):
 
 ```jsonc
 {

@@ -1,4 +1,4 @@
-# 06 — Attention & Salience
+# Attention & Salience
 
 An AI reading a state tree faces the same problem a human faces with a cluttered screen: *what matters right now?* Attention hints help the AI focus its limited context window on what's relevant.
 
@@ -85,7 +85,7 @@ A natural language hint explaining *why* this node is salient. Useful for AI com
 
 ## Attention-aware subscriptions
 
-Consumers can use salience to filter subscriptions (see [04 — Messages](./04-messages.md)):
+Consumers can use salience to filter subscriptions (see [Messages](./messages.md)):
 
 ```jsonc
 {

@@ -1,4 +1,4 @@
-# 01 — Overview & Concepts
+# Overview & Concepts
 
 ## The problem
 

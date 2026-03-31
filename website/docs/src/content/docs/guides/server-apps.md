@@ -6,7 +6,7 @@ description: Add SLOP to server-backed web apps, Electron apps, and CLI tools
 Web SPAs use `@slop-ai/client` with postMessage transport (the browser extension discovers them via `<meta>` tag). But server-backed web apps, Electron apps, and CLI tools use `@slop-ai/server` with **different transports** that connect directly — no browser extension needed.
 
 :::tip[Using Next.js, Nuxt, or SvelteKit?]
-Meta-framework adapters (`@slop-ai/next`, `@slop-ai/nuxt`, `@slop-ai/sveltekit`) handle server setup, UI sync, and state composition automatically. They wrap `@slop-ai/server` with framework-specific integration so you don't need to wire anything manually. See [Web Integration spec](/spec/08-web-integration) for details.
+Meta-framework adapters (`@slop-ai/next`, `@slop-ai/nuxt`, `@slop-ai/sveltekit`) handle server setup, UI sync, and state composition automatically. They wrap `@slop-ai/server` with framework-specific integration so you don't need to wire anything manually. See [Web Integration spec](/spec/integrations/web) for details.
 
 This guide covers the lower-level `@slop-ai/server` API — useful for Express, Fastify, Hono, Electron, Tauri, CLI tools, or when you need full control.
 :::

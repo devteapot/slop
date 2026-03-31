@@ -111,7 +111,7 @@ The consumer doesn't need conditional logic to know when merging is possible —
 
 ## Invoking affordances
 
-Affordances are invoked via the `invoke` message (see [04 — Messages](./04-messages.md)):
+Affordances are invoked via the `invoke` message (see [Messages](./messages.md)):
 
 ```jsonc
 {

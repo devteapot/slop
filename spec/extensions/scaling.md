@@ -1,6 +1,4 @@
----
-title: "Scaling"
----
+# Scaling
 
 SLOP is designed for AI consumption, and AI has a finite context window. A small todo app might fit entirely in context, but a large application — an email client, a project management tool, an IDE — has far more state than any AI can or should process at once.
 
@@ -180,7 +178,7 @@ This pattern is useful for:
 
 ## Salience-driven pruning
 
-The attention system (see [06 — Attention & Salience](./06-attention.md)) can drive tree pruning at scale. Nodes with low salience can be omitted entirely from subscriptions that filter by `min_salience`.
+The attention system (see [Attention & Salience](../core/attention.md)) can drive tree pruning at scale. Nodes with low salience can be omitted entirely from subscriptions that filter by `min_salience`.
 
 ```jsonc
 // Consumer subscribes with salience filter

@@ -1,6 +1,4 @@
----
-title: "Agent-Assisted Integration"
----
+# Agent-Assisted Integration
 
 Adding SLOP to an existing application is the main adoption barrier. The developer must understand the protocol, design a tree schema, write `register()` calls in the right components, and wire up action handlers. This is mechanical work that follows clear patterns — a perfect fit for AI assistance.
 
@@ -18,7 +16,7 @@ The agent analyzes the full codebase, generates the schema, and adds `register()
 1. A typed schema file (`slop.ts`) declaring the tree structure
 2. `useSlop()` calls added to existing components, near the state they describe
 3. Action handlers wired to existing state mutations
-4. `@slop-ai/client` and the appropriate framework adapter added to dependencies
+4. `@slop-ai/core` and the appropriate framework adapter added to dependencies
 
 ### Incremental mode: "Add SLOP to this component"
 
@@ -92,7 +90,7 @@ The agent scans `package.json` and imports to identify:
 - **Framework:** React, Vue, Svelte, vanilla
 - **State management:** useState, Zustand, Redux, Pinia, MobX, Jotai, Svelte stores
 - **Router:** React Router, Next.js, Vue Router, SvelteKit
-- **Existing SLOP integration:** check for `@slop-ai/client` in dependencies
+- **Existing SLOP integration:** check for `@slop-ai/core` in dependencies
 
 ### Step 2: Map routes to views
 
@@ -221,7 +219,7 @@ export const slop = createSlop({
 ### Step 6: Install dependencies
 
 ```bash
-npm install @slop-ai/client @slop-ai/react   # or @slop-ai/vue, @slop-ai/svelte
+npm install @slop-ai/core @slop-ai/react   # or @slop-ai/vue, @slop-ai/svelte
 ```
 
 ## Incremental workflow
@@ -309,7 +307,7 @@ A VS Code / JetBrains extension that adds:
 The analysis patterns documented in this spec are detailed enough that any AI coding assistant (Copilot, Cursor, Cline, Aider) can follow them. The developer pastes the prompt:
 
 ```
-Read the SLOP spec at https://github.com/.../spec/11-agent-integration.md
+Read the SLOP spec at https://github.com/.../spec/integrations/agents.md
 and add SLOP integration to this component: [paste component]
 ```
 
@@ -324,7 +322,7 @@ You are adding SLOP integration to a web application.
 
 SLOP (State Layer for Observable Programs) is a protocol that lets AI observe
 and interact with application state. You are adding the developer-side
-integration using the @slop-ai/client library.
+integration using the @slop-ai/core library.
 
 Your job:
 1. Analyze the component's state (useState, stores, etc.)
@@ -467,7 +465,7 @@ function StatsBar() {
 ```json
 {
   "dependencies": {
-    "@slop-ai/client": "^1.0.0",
+    "@slop-ai/core": "^1.0.0",
     "@slop-ai/react": "^1.0.0"
   }
 }

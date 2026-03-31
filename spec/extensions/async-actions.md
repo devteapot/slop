@@ -1,4 +1,4 @@
-# 14 — Async Actions
+# Async Actions
 
 Some actions take seconds, minutes, or longer to complete — deployments, report generation, test runs, video processing, large file operations. The AI can't wait indefinitely for a result, and it needs to see progress, be able to cancel, and handle failures.
 
@@ -64,7 +64,7 @@ The `accepted` status is analogous to HTTP `202 Accepted` — the request was va
 
 ### The `estimate` affordance field
 
-Affordances can declare their expected duration via the `estimate` field (already defined in [05 — Affordances](./05-affordances.md)):
+Affordances can declare their expected duration via the `estimate` field (already defined in [Affordances](../core/affordances.md)):
 
 ```jsonc
 {

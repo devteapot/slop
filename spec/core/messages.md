@@ -1,4 +1,4 @@
-# 04 — Message Protocol
+# Message Protocol
 
 All SLOP communication consists of JSON messages exchanged between a consumer and a provider. Messages are categorized by direction.
 
@@ -82,7 +82,7 @@ Trigger an affordance on a node.
 
 ### `hello`
 
-Sent once after connection. See [03 — Transport](./03-transport.md).
+Sent once after connection. See [Transport](./transport.md).
 
 ```jsonc
 {

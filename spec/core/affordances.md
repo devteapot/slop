@@ -1,4 +1,4 @@
-# 05 — Affordances
+# Affordances
 
 Affordances are the action layer of SLOP. They describe what can be done, where it can be done, and how.
 
@@ -109,7 +109,7 @@ The consumer doesn't need conditional logic to know when merging is possible —
 
 ## Invoking affordances
 
-Affordances are invoked via the `invoke` message (see [04 — Messages](./04-messages.md)):
+Affordances are invoked via the `invoke` message (see [Messages](./messages.md)):
 
 ```jsonc
 {

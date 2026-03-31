@@ -1,6 +1,8 @@
-# 03 — Transport & Discovery
+---
+title: "Transport & Discovery"
+---
 
-SLOP is transport-agnostic. The protocol defines message semantics (see [04 — Messages](./04-messages.md)); this document defines how consumers find providers and establish connections.
+SLOP is transport-agnostic. The protocol defines message semantics (see [Messages](./messages.md)); this document defines how consumers find providers and establish connections.
 
 ## Transport requirements
 

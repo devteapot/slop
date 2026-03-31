@@ -84,7 +84,7 @@ Trigger an affordance on a node.
 
 ### `hello`
 
-Sent once after connection. See [03 — Transport](./03-transport.md).
+Sent once after connection. See [Transport](./transport.md).
 
 ```jsonc
 {

@@ -1,4 +1,4 @@
-# 13 — Content References
+# Content References
 
 SLOP state trees are JSON. This works well for structured data — properties, collections, affordances. But some application state is **large, binary, or opaque**: document bodies, file contents, images, audio, video, database exports, logs.
 

@@ -66,7 +66,7 @@ The `accepted` status is analogous to HTTP `202 Accepted` — the request was va
 
 ### The `estimate` affordance field
 
-Affordances can declare their expected duration via the `estimate` field (already defined in [05 — Affordances](./05-affordances.md)):
+Affordances can declare their expected duration via the `estimate` field (already defined in [Affordances](../core/affordances.md)):
 
 ```jsonc
 {

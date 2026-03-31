@@ -1,4 +1,4 @@
-# 12 — OpenClaw Integration
+# OpenClaw Integration
 
 SLOP providers can be controlled from any messaging channel — WhatsApp, Telegram, Slack, Discord, and more — through [OpenClaw](https://github.com/openclaw/openclaw), an open-source personal AI assistant. This document covers how the integration works, how to set it up, and the design decisions behind it.
 

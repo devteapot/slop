@@ -68,20 +68,28 @@ That's it. Your component is now observable by any SLOP consumer — the Chrome 
 
 The full specification is in [`spec/`](./spec/):
 
-1. [Overview & Concepts](./spec/01-overview.md)
-2. [State Tree](./spec/02-state-tree.md)
-3. [Transport & Discovery](./spec/03-transport.md)
-4. [Message Protocol](./spec/04-messages.md)
-5. [Affordances](./spec/05-affordances.md)
-6. [Attention & Salience](./spec/06-attention.md)
-7. [Adapters](./spec/07-adapters.md)
-8. [Web Integration](./spec/08-web-integration.md)
-9. [Scaling](./spec/09-scaling.md)
-10. [Desktop Integration](./spec/10-desktop-integration.md)
-11. [Agent-Assisted Integration](./spec/11-agent-integration.md)
-12. [OpenClaw Integration](./spec/12-openclaw-integration.md)
-13. [Content References](./spec/13-content-references.md)
-14. [Async Actions](./spec/14-async-actions.md)
+### Core protocol
+
+1. [Overview & Concepts](./spec/core/overview.md)
+2. [State Tree](./spec/core/state-tree.md)
+3. [Transport & Discovery](./spec/core/transport.md)
+4. [Message Protocol](./spec/core/messages.md)
+5. [Affordances](./spec/core/affordances.md)
+6. [Attention & Salience](./spec/core/attention.md)
+
+### Extensions
+
+- [Scaling](./spec/extensions/scaling.md) — windowing, pagination, view-scoped trees
+- [Content References](./spec/extensions/content-references.md) — lazy-loaded media, URI schemes
+- [Async Actions](./spec/extensions/async-actions.md) — long-running operations, progress tracking
+
+### Integration guides
+
+- [Adapters](./spec/integrations/adapters.md) — wrapping existing apps
+- [Web](./spec/integrations/web.md) — browser integration, postMessage, security tiers
+- [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
+- [Agents](./spec/integrations/agents.md) — LLM interaction patterns
+- [OpenClaw](./spec/integrations/openclaw.md) — OpenClaw plugin architecture
 
 ## SDKs
 

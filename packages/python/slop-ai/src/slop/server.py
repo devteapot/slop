@@ -26,6 +26,7 @@ Usage::
 
 from __future__ import annotations
 
+import copy
 import inspect
 from typing import Any, Callable, Protocol, runtime_checkable
 
@@ -186,7 +187,7 @@ class SlopServer:
                 "id": self.id,
                 "name": self.name,
                 "slop_version": "0.1",
-                "capabilities": ["state", "patches", "affordances"],
+                "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
             },
         })
 
@@ -200,6 +201,7 @@ class SlopServer:
                 path=msg.get("path", "/"),
                 depth=msg.get("depth", -1),
                 connection=conn,
+                last_tree=copy.deepcopy(self._current_tree),
             ))
             conn.send({
                 "type": "snapshot",
@@ -350,24 +352,29 @@ class SlopServer:
     def _broadcast_patches(self, ops: list[PatchOp]) -> None:
         for sub in self._subscriptions:
             try:
-                sub.connection.send({
-                    "type": "snapshot",
-                    "id": sub.id,
-                    "version": self._version,
-                    "tree": self._current_tree.to_dict(),
-                })
+                new_tree = self._current_tree
+                sub_ops = diff_nodes(sub.last_tree, new_tree)
+                if sub_ops:
+                    sub.connection.send({
+                        "type": "patch",
+                        "subscription": sub.id,
+                        "version": self._version,
+                        "ops": [op.to_dict() for op in sub_ops],
+                    })
+                    sub.last_tree = copy.deepcopy(new_tree)
             except Exception:
                 pass
 
 
 class _Subscription:
-    __slots__ = ("id", "path", "depth", "connection")
+    __slots__ = ("id", "path", "depth", "connection", "last_tree")
 
-    def __init__(self, id: str, path: str, depth: int, connection: Connection) -> None:
+    def __init__(self, id: str, path: str, depth: int, connection: Connection, last_tree: SlopNode) -> None:
         self.id = id
         self.path = path
         self.depth = depth
         self.connection = connection
+        self.last_tree = last_tree
 
 
 class _ScopedServer:

@@ -1,11 +1,16 @@
 import { SlopClientImpl } from "./client";
-import type { SlopClient, SlopClientOptions } from "@slop-ai/core";
+import type { SlopClient, SlopClientOptions, Transport } from "@slop-ai/core";
 import { createPostMessageTransport } from "./postmessage-transport";
+import { createWebSocketTransport } from "./websocket-transport";
 
 /**
  * Create a SLOP browser provider. This is the main entry point for adding SLOP to a client-side SPA.
  *
  * Uses postMessage transport and automatically injects a `<meta name="slop">` discovery tag.
+ *
+ * Optionally connects directly to a desktop consumer via WebSocket when
+ * `desktopUrl` is provided (`true` for the default `ws://localhost:9339/slop`,
+ * or a custom URL string).
  *
  * ```ts
  * const slop = createSlop({ id: "my-app", name: "My App" });
@@ -20,10 +25,18 @@ import { createPostMessageTransport } from "./postmessage-transport";
  * ```
  */
 export function createSlop<S = unknown>(
-  options: SlopClientOptions<S> & { schema?: S }
+  options: SlopClientOptions<S> & { schema?: S; desktopUrl?: string | boolean }
 ): SlopClient<S> {
-  const transport = createPostMessageTransport();
-  const client = new SlopClientImpl<S>(options, transport);
+  const transports: Transport[] = [createPostMessageTransport()];
+
+  if (options.desktopUrl) {
+    const url = typeof options.desktopUrl === "string"
+      ? options.desktopUrl
+      : undefined; // use default
+    transports.push(createWebSocketTransport(url));
+  }
+
+  const client = new SlopClientImpl<S>(options, transports);
   client.start();
   return client;
 }
@@ -65,3 +78,4 @@ export type {
 } from "@slop-ai/core";
 
 export { createPostMessageTransport } from "./postmessage-transport";
+export { createWebSocketTransport } from "./websocket-transport";

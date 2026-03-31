@@ -104,7 +104,10 @@ func (c *Consumer) handleMessage(msg map[string]any, helloCh chan map[string]any
 		}
 
 	case "patch":
-		id, _ := msg["id"].(string)
+		id, _ := msg["subscription"].(string)
+		if id == "" {
+			id, _ = msg["id"].(string) // fallback for compat
+		}
 		version := jsonInt(msg["version"])
 		ops := unmarshalPatchOps(msg["ops"])
 

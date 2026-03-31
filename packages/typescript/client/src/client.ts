@@ -1,6 +1,6 @@
-import { ProviderBase } from "@slop-ai/core";
+import { ProviderBase, diffNodes } from "@slop-ai/core";
 import type {
-  SlopNode, ActionHandler, Action, ParamDef,
+  SlopNode, PatchOp, ActionHandler, Action, ParamDef,
   NodeDescriptor, SlopClient, SlopClientOptions, TaskHandle, InferParams,
   SubscriptionFilter, Transport,
 } from "@slop-ai/core";
@@ -10,23 +10,25 @@ interface Subscription {
   path: string;
   depth: number;
   filter?: SubscriptionFilter;
+  lastTree: SlopNode | null;
+  transport: Transport; // which transport this subscription came from
 }
 
 /**
  * In-browser SLOP provider. Extends ProviderBase with:
- * - Single transport (postMessage)
+ * - Multi-transport support (postMessage + WebSocket simultaneously)
  * - Microtask-batched rebuilds
  * - Async action task tracking
  */
 export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements SlopClient<S> {
   private registrations = new Map<string, NodeDescriptor>();
-  private transport: Transport;
+  private transports: Transport[];
   private subscriptions = new Map<string, Subscription>();
   private rebuildQueued = false;
 
-  constructor(options: SlopClientOptions<S>, transport: Transport) {
+  constructor(options: SlopClientOptions<S>, transport: Transport | Transport[]) {
     super(options);
-    this.transport = transport;
+    this.transports = Array.isArray(transport) ? transport : [transport];
   }
 
   register(path: string, descriptor: NodeDescriptor): void {
@@ -129,12 +131,14 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
   }
 
   start(): void {
-    this.transport.start();
-    this.transport.onMessage((msg) => this.handleMessage(msg));
+    for (const t of this.transports) {
+      t.start();
+      t.onMessage((msg) => this.handleMessage(msg, t));
+    }
   }
 
   stop(): void {
-    this.transport.stop();
+    for (const t of this.transports) t.stop();
   }
 
   // --- ProviderBase hooks ---
@@ -143,11 +147,37 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
     return this.registrations;
   }
 
-  protected broadcast(): void {
+  protected broadcast(_globalOps: PatchOp[]): void {
+    const version = this.getVersion();
     for (const [, sub] of this.subscriptions) {
-      this.transport.send(
-        this.snapshotMessage(sub.id, { path: sub.path, depth: sub.depth, filter: sub.filter })
-      );
+      const newTree = this.getOutputTree({
+        path: sub.path,
+        depth: sub.depth,
+        filter: sub.filter,
+      });
+
+      if (!sub.lastTree) {
+        sub.lastTree = structuredClone(newTree);
+        sub.transport.send({
+          type: "snapshot",
+          id: sub.id,
+          version,
+          tree: newTree,
+        });
+        continue;
+      }
+
+      const ops = diffNodes(sub.lastTree, newTree);
+      sub.lastTree = structuredClone(newTree);
+
+      if (ops.length > 0) {
+        sub.transport.send({
+          type: "patch",
+          subscription: sub.id,
+          version,
+          ops,
+        });
+      }
     }
   }
 
@@ -163,43 +193,54 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
     });
   }
 
-  private handleMessage(msg: any): void {
+  private handleMessage(msg: any, transport: Transport): void {
     switch (msg.type) {
       case "connect":
-        this.transport.send(this.helloMessage());
+        transport.send(this.helloMessage());
         break;
 
-      case "subscribe":
+      case "subscribe": {
+        const outputTree = this.getOutputTree({
+          path: msg.path ?? "/",
+          depth: msg.depth ?? -1,
+          filter: msg.filter,
+        });
         this.subscriptions.set(msg.id, {
           id: msg.id,
           path: msg.path ?? "/",
           depth: msg.depth ?? -1,
           filter: msg.filter,
+          lastTree: structuredClone(outputTree),
+          transport,
         });
-        this.transport.send(
-          this.snapshotMessage(msg.id, { path: msg.path, depth: msg.depth, filter: msg.filter })
-        );
+        transport.send({
+          type: "snapshot",
+          id: msg.id,
+          version: this.getVersion(),
+          tree: outputTree,
+        });
         break;
+      }
 
       case "unsubscribe":
         this.subscriptions.delete(msg.id);
         break;
 
       case "query":
-        this.transport.send(
+        transport.send(
           this.snapshotMessage(msg.id, { path: msg.path, depth: msg.depth, filter: msg.filter })
         );
         break;
 
       case "invoke":
-        this.handleInvoke(msg);
+        this.handleInvoke(msg, transport);
         break;
     }
   }
 
-  private async handleInvoke(msg: { id: string; path: string; action: string; params?: Record<string, unknown> }): Promise<void> {
+  private async handleInvoke(msg: { id: string; path: string; action: string; params?: Record<string, unknown> }, transport: Transport): Promise<void> {
     const result = await this.executeInvoke(msg);
-    this.transport.send(result);
+    transport.send(result);
   }
 }
 

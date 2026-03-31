@@ -120,7 +120,7 @@ func RegisterProvider(id, name, socketPath string) error {
 		"slop_version": "0.1",
 		"transport":    map[string]any{"type": "unix", "path": socketPath},
 		"pid":          os.Getpid(),
-		"capabilities": []string{"state", "patches", "affordances"},
+		"capabilities": []string{"state", "patches", "affordances", "attention", "windowing", "async", "content_refs"},
 	}
 	data, err := json.MarshalIndent(descriptor, "", "  ")
 	if err != nil {

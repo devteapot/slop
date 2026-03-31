@@ -117,7 +117,7 @@ pub fn register_provider(id: &str, name: &str, socket_path: &str) -> Result<()> 
         "slop_version": "0.1",
         "transport": {"type": "unix", "path": socket_path},
         "pid": std::process::id(),
-        "capabilities": ["state", "patches", "affordances"]
+        "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"]
     });
 
     let path = providers_dir.join(format!("{id}.json"));

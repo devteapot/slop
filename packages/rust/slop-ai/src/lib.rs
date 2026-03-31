@@ -49,3 +49,12 @@ pub use types::{
 
 #[cfg(feature = "native")]
 pub use consumer::{ClientTransport, SlopConsumer};
+
+#[cfg(feature = "websocket")]
+pub use transport::ws_client::WsClientTransport;
+
+#[cfg(feature = "websocket")]
+pub use transport::ws_accepted::AcceptedWsTransport;
+
+#[cfg(feature = "unix")]
+pub use transport::unix_client::UnixClientTransport;

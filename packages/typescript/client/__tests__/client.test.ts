@@ -276,7 +276,7 @@ describe("SlopClient scaling integration", () => {
     expect(a?.children).toBeUndefined();
   });
 
-  test("broadcast sends per-subscription filtered trees", () => {
+  test("broadcast sends per-subscription patches", () => {
     const { client, sent, simulate } = createTrackedClient();
     client.register("high", { type: "item", meta: { salience: 0.9 }, props: { v: 1 } });
     client.register("low", { type: "item", meta: { salience: 0.1 } });
@@ -285,23 +285,28 @@ describe("SlopClient scaling integration", () => {
     // Two subscriptions with different filters
     simulate({ type: "subscribe", id: "all", path: "/" });
     simulate({ type: "subscribe", id: "filtered", path: "/", filter: { min_salience: 0.5 } });
+
+    // Verify initial snapshots have correct filtering
+    const allSnap = sent.find(m => m.type === "snapshot" && m.id === "all");
+    const filteredSnap = sent.find(m => m.type === "snapshot" && m.id === "filtered");
+    expect(allSnap.tree.children?.map((c: any) => c.id)).toContain("low");
+    expect(filteredSnap.tree.children?.map((c: any) => c.id)).not.toContain("low");
+
     sent.length = 0; // clear
 
     // Trigger a change
     client.register("high", { type: "item", meta: { salience: 0.9 }, props: { v: 2 } });
     client.flush();
 
-    const allSnapshot = sent.find(m => m.type === "snapshot" && m.id === "all");
-    const filteredSnapshot = sent.find(m => m.type === "snapshot" && m.id === "filtered");
-    expect(allSnapshot).toBeDefined();
-    expect(filteredSnapshot).toBeDefined();
+    // After change, we should get patch messages (not snapshots)
+    const allPatch = sent.find(m => m.type === "patch" && m.subscription === "all");
+    const filteredPatch = sent.find(m => m.type === "patch" && m.subscription === "filtered");
+    expect(allPatch).toBeDefined();
+    expect(filteredPatch).toBeDefined();
+    expect(allPatch.ops.length).toBeGreaterThan(0);
 
-    // "all" subscription should see both nodes
-    const allIds = allSnapshot.tree.children?.map((c: any) => c.id) ?? [];
-    expect(allIds).toContain("low");
-
-    // "filtered" subscription should only see high salience
-    const filteredIds = filteredSnapshot.tree.children?.map((c: any) => c.id) ?? [];
-    expect(filteredIds).not.toContain("low");
+    // Both patches should update the high node's v property
+    const allReplaceOp = allPatch.ops.find((o: any) => o.path.includes("properties/v"));
+    expect(allReplaceOp?.value).toBe(2);
   });
 });

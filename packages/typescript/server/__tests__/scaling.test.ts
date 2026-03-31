@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { SlopServer } from "../src/server";
 import type { Connection } from "../src/server";
+import { StateMirror } from "../../consumer/src/state-mirror";
 
 // --- Mock Connection ---
 
@@ -22,6 +23,19 @@ class MockConnection implements Connection {
 
   lastSnapshot(): any {
     return [...this.messages].reverse().find((m) => m.type === "snapshot");
+  }
+
+  /** Replay all snapshot + patch messages to reconstruct current tree state. */
+  currentTree(): any {
+    let mirror: StateMirror | null = null;
+    for (const msg of this.messages) {
+      if (msg.type === "snapshot") {
+        mirror = new StateMirror(msg);
+      } else if (msg.type === "patch" && mirror) {
+        mirror.applyPatch(msg);
+      }
+    }
+    return mirror ? { type: "snapshot", version: mirror.getVersion(), tree: mirror.getTree() } : this.lastSnapshot();
   }
 }
 
@@ -214,10 +228,10 @@ describe("SlopServer scaling", () => {
     count = 1;
     slop.refresh();
 
-    snapshot = conn.lastSnapshot();
-    ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
+    const current = conn.currentTree();
+    ids = current.tree.children?.map((c: any) => c.id) ?? [];
     expect(ids).toContain("counter");
-    expect(snapshot.tree.children.find((c: any) => c.id === "counter").meta.summary).toBe(
+    expect(current.tree.children.find((c: any) => c.id === "counter").meta.summary).toBe(
       "Count is 1"
     );
   });

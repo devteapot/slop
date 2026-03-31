@@ -292,6 +292,7 @@ impl SlopConsumer {
                 }
             }
             "patch" => {
+                let sub_id = msg["subscription"].as_str().unwrap_or(&msg_id).to_string();
                 let mut locked = inner.lock().await;
                 let version = msg["version"].as_u64().unwrap_or(0);
                 let ops: Vec<PatchOp> = msg["ops"]
@@ -303,7 +304,7 @@ impl SlopConsumer {
                     })
                     .unwrap_or_default();
 
-                if let Some(mirror) = locked.mirrors.get_mut(&msg_id) {
+                if let Some(mirror) = locked.mirrors.get_mut(&sub_id) {
                     mirror.apply_patch(&ops, version);
                 }
 
@@ -311,7 +312,7 @@ impl SlopConsumer {
                 let callbacks: Vec<_> = locked.patch_callbacks.clone();
                 drop(locked);
                 for cb in &callbacks {
-                    cb(&msg_id, &ops, version);
+                    cb(&sub_id, &ops, version);
                 }
             }
             "result" => {

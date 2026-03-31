@@ -13,6 +13,7 @@ type subscription struct {
 	path       string
 	depth      int
 	connection Connection
+	lastTree   *WireNode
 }
 
 // Server is a SLOP provider that manages state registrations, connections,
@@ -168,7 +169,7 @@ func (s *Server) HandleConnection(conn Connection) {
 			"id":           s.id,
 			"name":         s.name,
 			"slop_version": "0.1",
-			"capabilities": []string{"state", "patches", "affordances"},
+			"capabilities": []string{"state", "patches", "affordances", "attention", "windowing", "async", "content_refs"},
 		},
 	}
 	s.mu.RUnlock()
@@ -207,8 +208,10 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		_ = conn.Send(snapshot)
 
 		s.mu.Lock()
+		initTree := cloneWireNode(s.currentTree)
 		s.subscriptions = append(s.subscriptions, subscription{
 			id: subID, path: path, depth: depth, connection: conn,
+			lastTree: &initTree,
 		})
 		s.mu.Unlock()
 
@@ -390,14 +393,20 @@ func (s *Server) rebuild() {
 }
 
 func (s *Server) broadcastPatches() {
-	treeMap := wireNodeToMap(s.currentTree)
-	for _, sub := range s.subscriptions {
+	for i := range s.subscriptions {
+		sub := &s.subscriptions[i]
+		ops := diffNodes(sub.lastTree, &s.currentTree, "")
+		if len(ops) == 0 {
+			continue
+		}
 		_ = sub.connection.Send(map[string]any{
-			"type":    "snapshot",
-			"id":      sub.id,
-			"version": s.version,
-			"tree":    treeMap,
+			"type":         "patch",
+			"subscription": sub.id,
+			"version":      s.version,
+			"ops":          ops,
 		})
+		updated := cloneWireNode(s.currentTree)
+		sub.lastTree = &updated
 	}
 }
 

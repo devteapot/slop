@@ -59,10 +59,11 @@ export abstract class ProviderBase<S = unknown> {
 
   /**
    * Called after a successful rebuild with changes.
+   * Receives the diff ops so implementations can send `patch` messages.
    * The client pushes to a single transport; the server pushes
    * to all subscribed connections.
    */
-  protected abstract broadcast(): void;
+  protected abstract broadcast(ops: PatchOp[]): void;
 
   // --- Shared logic ---
 
@@ -80,7 +81,7 @@ export abstract class ProviderBase<S = unknown> {
     if (ops.length > 0) {
       this.currentTree = tree;
       this.version++;
-      this.broadcast();
+      this.broadcast(ops);
     } else if (this.version === 0) {
       this.currentTree = tree;
       this.version = 1;
@@ -160,7 +161,7 @@ export abstract class ProviderBase<S = unknown> {
         id: this.options.id,
         name: this.options.name,
         slop_version: "0.1",
-        capabilities: ["state", "patches", "affordances"],
+        capabilities: ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
       },
     };
   }

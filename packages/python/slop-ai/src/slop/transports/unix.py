@@ -115,7 +115,7 @@ def _register_provider(id: str, name: str, socket_path: str) -> None:
         "slop_version": "0.1",
         "transport": {"type": "unix", "path": socket_path},
         "pid": os.getpid(),
-        "capabilities": ["state", "patches", "affordances"],
+        "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
     }
     (providers_dir / f"{id}.json").write_text(json.dumps(descriptor, indent=2))
 

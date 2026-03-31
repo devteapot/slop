@@ -132,7 +132,7 @@ class SlopMiddleware:
             "name": self.slop.name,
             "slop_version": "0.1",
             "transport": {"type": "ws", "url": f"ws://{host}{self.path}"},
-            "capabilities": ["state", "patches", "affordances"],
+            "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
         }).encode()
 
         await send({

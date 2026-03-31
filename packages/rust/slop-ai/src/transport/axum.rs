@@ -85,7 +85,7 @@ pub fn slop_router(slop: &SlopServer) -> Router {
                             .unwrap_or(""),
                         "slop_version": "0.1",
                         "transport": {"type": "ws", "url": "ws://localhost/slop"},
-                        "capabilities": ["state", "patches", "affordances"]
+                        "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"]
                     }))
                 }
             }),

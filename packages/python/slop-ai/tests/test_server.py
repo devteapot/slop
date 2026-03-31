@@ -177,5 +177,7 @@ def test_broadcast_on_change():
     slop.register("x", {"type": "group", "props": {"v": 2}})
     assert len(conn.messages) > initial_count
     last = conn.messages[-1]
-    assert last["type"] == "snapshot"
+    assert last["type"] == "patch"
     assert last["version"] == slop.version
+    assert "ops" in last
+    assert len(last["ops"]) > 0

@@ -66,7 +66,7 @@ func (s *Server) DiscoveryHandler() http.Handler {
 			"name":         s.name,
 			"slop_version": "0.1",
 			"transport":    map[string]any{"type": "ws", "url": "ws://" + r.Host + "/slop"},
-			"capabilities": []string{"state", "patches", "affordances"},
+			"capabilities": []string{"state", "patches", "affordances", "attention", "windowing", "async", "content_refs"},
 		})
 	})
 }

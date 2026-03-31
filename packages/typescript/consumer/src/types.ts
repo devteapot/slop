@@ -7,11 +7,24 @@ export interface SlopNode {
   children?: SlopNode[];
   affordances?: Affordance[];
   meta?: NodeMeta;
+  content_ref?: ContentRef;
+}
+
+export interface ContentRef {
+  type: "text" | "binary" | "stream";
+  mime: string;
+  size?: number;
+  uri?: string;
+  summary: string;
+  preview?: string;
+  encoding?: string;
+  hash?: string;
 }
 
 export interface NodeMeta {
   summary?: string;
   salience?: number;
+  pinned?: boolean;
   changed?: boolean;
   focus?: boolean;
   urgency?: "none" | "low" | "medium" | "high" | "critical";
@@ -54,7 +67,7 @@ export interface HelloMessage { type: "hello"; provider: { id: string; name: str
 export interface SnapshotMessage { type: "snapshot"; id: string; version: number; tree: SlopNode; }
 export interface PatchOp { op: "add" | "remove" | "replace"; path: string; value?: unknown; }
 export interface PatchMessage { type: "patch"; subscription: string; version: number; ops: PatchOp[]; }
-export interface ResultMessage { type: "result"; id: string; status: "ok" | "error"; data?: unknown; error?: { code: string; message: string }; }
+export interface ResultMessage { type: "result"; id: string; status: "ok" | "error" | "accepted"; data?: unknown; error?: { code: string; message: string }; }
 
 export type ProviderMessage = HelloMessage | SnapshotMessage | PatchMessage | ResultMessage;
 export type SlopMessage = ConsumerMessage | ProviderMessage;

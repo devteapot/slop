@@ -24,6 +24,7 @@ struct Subscription {
     #[allow(dead_code)]
     depth: i32,
     connection: Arc<dyn Connection>,
+    last_tree: Option<SlopNode>,
 }
 
 /// Options for action registration.
@@ -293,7 +294,7 @@ impl SlopServer {
                 "id": inner.id,
                 "name": inner.name,
                 "slop_version": "0.1",
-                "capabilities": ["state", "patches", "affordances"]
+                "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"]
             }
         }));
         drop(inner);
@@ -315,12 +316,14 @@ impl SlopServer {
                     "version": inner.version,
                     "tree": serde_json::to_value(&inner.current_tree).unwrap()
                 }));
+                let last_tree = Some(inner.current_tree.clone());
                 drop(inner);
                 self.inner.write().unwrap().subscriptions.push(Subscription {
                     id: sub_id,
                     path,
                     depth,
                     connection: Arc::clone(conn),
+                    last_tree,
                 });
             }
             "unsubscribe" => {
@@ -512,15 +515,26 @@ fn rebuild(inner: &mut Inner) {
     }
 }
 
-fn broadcast_patches(inner: &Inner) {
-    let tree_val = serde_json::to_value(&inner.current_tree).unwrap();
-    for sub in &inner.subscriptions {
-        let _ = sub.connection.send(&json!({
-            "type": "snapshot",
-            "id": sub.id,
-            "version": inner.version,
-            "tree": tree_val
-        }));
+fn broadcast_patches(inner: &mut Inner) {
+    for sub in &mut inner.subscriptions {
+        let ops = match &sub.last_tree {
+            Some(old) => diff_nodes(old, &inner.current_tree, ""),
+            None => diff_nodes(
+                &SlopNode::new(&inner.id, "root"),
+                &inner.current_tree,
+                "",
+            ),
+        };
+        if !ops.is_empty() {
+            let ops_val = serde_json::to_value(&ops).unwrap();
+            let _ = sub.connection.send(&json!({
+                "type": "patch",
+                "subscription": sub.id,
+                "version": inner.version,
+                "ops": ops_val
+            }));
+        }
+        sub.last_tree = Some(inner.current_tree.clone());
     }
 }
 

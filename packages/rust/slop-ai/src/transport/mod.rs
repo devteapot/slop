@@ -9,8 +9,17 @@
 #[cfg(feature = "websocket")]
 pub mod websocket;
 
+#[cfg(feature = "websocket")]
+pub mod ws_client;
+
+#[cfg(feature = "websocket")]
+pub mod ws_accepted;
+
 #[cfg(feature = "unix")]
 pub mod unix;
+
+#[cfg(feature = "unix")]
+pub mod unix_client;
 
 #[cfg(feature = "stdio")]
 pub mod stdio;

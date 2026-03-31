@@ -115,7 +115,7 @@ function registerProvider(id: string, name: string, socketPath: string): void {
     slop_version: "0.1",
     transport: { type: "unix", path: socketPath },
     pid: process.pid,
-    capabilities: ["state", "patches", "affordances"],
+    capabilities: ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
   };
   writeFileSync(join(dir, `${id}.json`), JSON.stringify(descriptor, null, 2));
 }

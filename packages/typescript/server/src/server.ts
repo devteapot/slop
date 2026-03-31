@@ -1,6 +1,6 @@
-import { ProviderBase } from "@slop-ai/core";
+import { ProviderBase, diffNodes } from "@slop-ai/core";
 import type {
-  SlopNode, ActionHandler, NodeDescriptor,
+  SlopNode, PatchOp, ActionHandler, NodeDescriptor,
   SlopClientOptions, SubscriptionFilter,
 } from "@slop-ai/core";
 
@@ -20,6 +20,8 @@ interface Subscription {
   depth: number;
   filter?: SubscriptionFilter;
   connection: Connection;
+  /** Last output tree sent to this subscriber (for diffing). */
+  lastTree: SlopNode | null;
 }
 
 export interface SlopServerOptions<S = unknown> extends SlopClientOptions<S> {}
@@ -108,19 +110,26 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   async handleMessage(conn: Connection, msg: any): Promise<void> {
     switch (msg.type) {
       case "subscribe": {
+        const outputTree = this.getOutputTree({
+          path: msg.path ?? "/",
+          depth: msg.depth ?? -1,
+          filter: msg.filter,
+        });
         const sub: Subscription = {
           id: msg.id,
           path: msg.path ?? "/",
           depth: msg.depth ?? -1,
           filter: msg.filter,
           connection: conn,
+          lastTree: structuredClone(outputTree),
         };
         this.subscriptions.push(sub);
-        conn.send(this.snapshotMessage(msg.id, {
-          path: sub.path,
-          depth: sub.depth,
-          filter: sub.filter,
-        }));
+        conn.send({
+          type: "snapshot",
+          id: msg.id,
+          version: this.getVersion(),
+          tree: outputTree,
+        });
         break;
       }
 
@@ -190,14 +199,39 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
     return all;
   }
 
-  protected broadcast(): void {
+  protected broadcast(_globalOps: PatchOp[]): void {
+    const version = this.getVersion();
     for (const sub of this.subscriptions) {
       try {
-        sub.connection.send(this.snapshotMessage(sub.id, {
+        const newTree = this.getOutputTree({
           path: sub.path,
           depth: sub.depth,
           filter: sub.filter,
-        }));
+        });
+
+        if (!sub.lastTree) {
+          // No previous tree — send snapshot
+          sub.lastTree = structuredClone(newTree);
+          sub.connection.send({
+            type: "snapshot",
+            id: sub.id,
+            version,
+            tree: newTree,
+          });
+          continue;
+        }
+
+        const ops = diffNodes(sub.lastTree, newTree);
+        sub.lastTree = structuredClone(newTree);
+
+        if (ops.length > 0) {
+          sub.connection.send({
+            type: "patch",
+            subscription: sub.id,
+            version,
+            ops,
+          });
+        }
       } catch {
         // Connection may have been closed
       }

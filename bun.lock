@@ -9,6 +9,7 @@
       "name": "slop-desktop",
       "version": "0.1.0",
       "dependencies": {
+        "@slop-ai/consumer": "workspace:*",
         "@tauri-apps/api": "^2.0.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -31,6 +32,27 @@
       },
       "dependencies": {
         "@slop-ai/server": "workspace:*",
+      },
+    },
+    "examples/demo": {
+      "name": "slop-demo",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop-ai/client": "workspace:*",
+        "@slop-ai/consumer": "workspace:*",
+        "@slop-ai/core": "workspace:*",
+        "@slop-ai/react": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4.1.18",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^4.5.2",
+        "tailwindcss": "^4.1.18",
+        "typescript": "^5.8.3",
+        "vite": "^6.3.5",
       },
     },
     "examples/notes-spa": {
@@ -1806,6 +1828,8 @@
     "signal-exit": ["signal-exit@3.0.7", "", {}, "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ=="],
 
     "sisteransi": ["sisteransi@1.0.5", "", {}, "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg=="],
+
+    "slop-demo": ["slop-demo@workspace:examples/demo"],
 
     "slop-desktop": ["slop-desktop@workspace:desktop"],
 

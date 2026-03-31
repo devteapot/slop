@@ -8,6 +8,7 @@
   "scripts": {
     "build": "(cd packages/typescript/core && bun run build) && (cd packages/typescript/consumer && bun run build) && for d in client server react vue solid angular tanstack-start openclaw-plugin; do (cd packages/typescript/$d && bun run build) || exit 1; done",
     "test": "for d in packages/typescript/*/; do if ls \"$d\"__tests__/*.test.* >/dev/null 2>&1; then echo \"Testing $d\" && (cd \"$d\" && bun test); fi; done",
-    "clean": "for d in packages/typescript/*/; do (cd \"$d\" && rm -rf dist); done"
+    "clean": "for d in packages/typescript/*/; do (cd \"$d\" && rm -rf dist); done",
+    "demo": "cd examples/demo && bunx vite --port 3001"
   }
 }

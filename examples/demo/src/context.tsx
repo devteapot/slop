@@ -1,0 +1,163 @@
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+import { slop } from "./slop";
+import { useAppState } from "./state";
+
+// --- Status types ---
+
+export type StatusState = "observing" | "acting" | "updating" | "user" | "idle";
+
+export interface DemoStatus {
+  state: StatusState;
+  label: string;
+  step?: [number, number]; // [current, total]
+}
+
+// --- Chat types ---
+
+export interface ToolCallData {
+  path: string;
+  action: string;
+  params?: Record<string, unknown>;
+  result?: { status: string; data?: unknown };
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  toolCalls?: ToolCallData[];
+  isTyping?: boolean;
+}
+
+// --- Context ---
+
+type AppStateReturn = ReturnType<typeof useAppState>;
+
+interface DemoContextValue {
+  mode: "replay" | "interactive";
+  setMode: (mode: "replay" | "interactive") => void;
+  replayKey: number;
+  restartReplay: () => void;
+  status: DemoStatus;
+  setStatus: (status: DemoStatus) => void;
+  messages: ChatMessage[];
+  addMessage: (msg: ChatMessage) => void;
+  updateMessage: (id: string, update: Partial<ChatMessage>) => void;
+  executeAction: (
+    path: string,
+    action: string,
+    params?: Record<string, unknown>,
+  ) => Promise<any>;
+  bumpTreeVersion: () => void;
+  clickTarget: string | null;
+  simulateClick: (target: string) => Promise<void>;
+  appState: AppStateReturn;
+  apiKey: string;
+  setApiKey: (key: string) => void;
+  apiProvider: string;
+  setApiProvider: (provider: string) => void;
+  apiModel: string;
+  setApiModel: (model: string) => void;
+}
+
+const DemoContext = createContext<DemoContextValue | null>(null);
+
+let msgCounter = 0;
+export function createMessageId(): string {
+  return `msg-${++msgCounter}`;
+}
+
+export function DemoProvider({ children }: { children: ReactNode }) {
+  const appState = useAppState();
+  const [mode, setMode] = useState<"replay" | "interactive">("replay");
+  const [status, setStatus] = useState<DemoStatus>({ state: "idle", label: "Ready" });
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [replayKey, setReplayKey] = useState(0);
+  const [apiKey, setApiKey] = useState("");
+  const [apiProvider, setApiProvider] = useState("openrouter");
+  const [apiModel, setApiModel] = useState("");
+  const invokeCounter = useRef(0);
+
+  const restartReplay = useCallback(() => {
+    appState.resetState();
+    setMessages([]);
+    setStatus({ state: "idle", label: "Ready" });
+    setReplayKey((k) => k + 1);
+  }, [appState]);
+
+  const addMessage = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const updateMessage = useCallback((id: string, update: Partial<ChatMessage>) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...update } : m)),
+    );
+  }, []);
+
+  const [clickTarget, setClickTarget] = useState<string | null>(null);
+
+  const simulateClick = useCallback(async (target: string) => {
+    setClickTarget(target);
+    await new Promise((r) => setTimeout(r, 800));
+    setClickTarget(null);
+  }, []);
+
+  const bumpTreeVersion = useCallback(() => {
+    slop.flush(); // triggers rebuild → broadcast → tree panel receives patch
+  }, []);
+
+  const executeAction = useCallback(
+    async (path: string, action: string, params?: Record<string, unknown>) => {
+      slop.flush();
+      const result = await slop.executeInvoke({
+        id: `demo-inv-${++invokeCounter.current}`,
+        path,
+        action,
+        params,
+      });
+      // React state setters are async — wait for re-render, then flush so the
+      // provider rebuilds the tree and broadcasts patches. Server-side providers
+      // rebuild synchronously; this delay is React-specific (see slop.ts).
+      await new Promise((r) => setTimeout(r, 10));
+      slop.flush();
+      return result;
+    },
+    [],
+  );
+
+  return (
+    <DemoContext.Provider
+      value={{
+        mode,
+        setMode,
+        replayKey,
+        restartReplay,
+        status,
+        setStatus,
+        messages,
+        addMessage,
+        updateMessage,
+        executeAction,
+        bumpTreeVersion,
+        clickTarget,
+        simulateClick,
+        appState,
+        apiKey,
+        setApiKey,
+        apiProvider,
+        setApiProvider,
+        apiModel,
+        setApiModel,
+      }}
+    >
+      {children}
+    </DemoContext.Provider>
+  );
+}
+
+export function useDemo(): DemoContextValue {
+  const ctx = useContext(DemoContext);
+  if (!ctx) throw new Error("useDemo must be inside DemoProvider");
+  return ctx;
+}

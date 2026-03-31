@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-surface: #111319;
+  --color-surface-lowest: #0c0e14;
+  --color-surface-low: #161923;
+  --color-surface-container: #1c1f2b;
+  --color-surface-highest: #252836;
+  --color-surface-variant: #2a2d3a;
+  --color-primary: #91db37;
+  --color-primary-container: #6ba825;
+  --color-secondary: #adc6ff;
+  --color-secondary-container: #3d5a99;
+  --color-on-surface: #e1e3e8;
+  --color-on-surface-variant: #9a9daa;
+  --color-outline-variant: #3a3d4a;
+  --color-error: #f2836b;
+  --color-amber: #f0c040;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: color-mix(in srgb, var(--color-surface-variant) 60%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+/* Neon green flash for tree node changes */
+@keyframes flash-green {
+  0% {
+    background-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+}
+
+.flash-change {
+  animation: flash-green 1.5s ease-out forwards;
+}
+
+/* Typewriter cursor */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typing-cursor::after {
+  content: "▍";
+  color: var(--color-primary);
+  animation: blink-cursor 0.8s infinite;
+}
+
+/* Click ripple for simulated user clicks */
+@keyframes click-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(4);
+    opacity: 0;
+  }
+}
+
+.click-ripple {
+  animation: click-ripple 0.6s ease-out forwards;
+}
+
+/* Highlight on the clicked element */
+.click-target-highlight {
+  outline: 2px solid var(--color-secondary) !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+  transition: outline-color 0.15s;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 3px;
+}

@@ -35,7 +35,8 @@ export function useSlop<S = unknown>(
   descriptor: () => NodeDescriptor
 ): void {
   createEffect(() => {
-    client.register(path as any, descriptor());
+    // JSON round-trip strips Solid store proxies before entering the protocol layer.
+    client.register(path as any, JSON.parse(JSON.stringify(descriptor())));
   });
   onCleanup(() => {
     client.unregister(path as any);

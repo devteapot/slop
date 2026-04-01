@@ -33,7 +33,8 @@ export function useSlop<S = unknown>(
   descriptor: () => NodeDescriptor
 ): void {
   watchEffect(() => {
-    client.register(path as any, descriptor());
+    // JSON round-trip strips Vue reactive proxies before entering the protocol layer.
+    client.register(path as any, JSON.parse(JSON.stringify(descriptor())));
   });
   onUnmounted(() => {
     client.unregister(path as any);

@@ -321,8 +321,23 @@ class SlopServer:
         if not extra:
             return descriptor
         merged = dict(descriptor)
-        actions = dict(merged.get("actions") or {})
-        actions.update(extra)
+        existing = merged.get("actions")
+        if existing:
+            # Descriptor already declares actions — treat as authoritative.
+            # Only enrich existing actions with decorator metadata (fill gaps),
+            # don't add new ones. This supports state-dependent affordances
+            # where the descriptor intentionally omits certain actions.
+            actions = dict(existing)
+            for name, opts in extra.items():
+                if name in actions:
+                    if isinstance(actions[name], dict) and isinstance(opts, dict):
+                        enriched = dict(opts)
+                        enriched.update(actions[name])  # descriptor wins on conflicts
+                        actions[name] = enriched
+                    # else: descriptor's action def takes precedence
+        else:
+            # No actions in descriptor — add all decorator actions
+            actions = dict(extra)
         merged["actions"] = actions
         return merged
 

@@ -722,14 +722,38 @@ fn merge_action_metadata(
         if let Some(meta_obj) = meta.as_object() {
             if !meta_obj.is_empty() {
                 let desc_obj = descriptor.as_object_mut().unwrap();
-                let actions = desc_obj
-                    .entry("actions")
-                    .or_insert_with(|| json!({}))
-                    .as_object_mut()
-                    .unwrap();
-                for (name, opts) in meta_obj {
-                    if !actions.contains_key(name) {
-                        actions.insert(name.clone(), opts.clone());
+                // If the descriptor already defines actions, treat it as
+                // authoritative — don't add registered actions that aren't
+                // listed. This supports state-dependent affordances where
+                // the descriptor intentionally omits certain actions.
+                if desc_obj.contains_key("actions") {
+                    // Only enrich existing actions with metadata, don't add new ones
+                    let actions = desc_obj["actions"].as_object_mut().unwrap();
+                    for (name, opts) in meta_obj {
+                        if actions.contains_key(name) {
+                            // Merge metadata into existing action (fill gaps)
+                            if let (Some(existing), Some(new)) =
+                                (actions.get_mut(name).and_then(|v| v.as_object_mut()), opts.as_object())
+                            {
+                                for (k, v) in new {
+                                    if !existing.contains_key(k) {
+                                        existing.insert(k.clone(), v.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // No actions in descriptor — add all registered actions
+                    let actions = desc_obj
+                        .entry("actions")
+                        .or_insert_with(|| json!({}))
+                        .as_object_mut()
+                        .unwrap();
+                    for (name, opts) in meta_obj {
+                        if !actions.contains_key(name) {
+                            actions.insert(name.clone(), opts.clone());
+                        }
                     }
                 }
             }

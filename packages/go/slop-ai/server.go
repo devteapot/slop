@@ -553,22 +553,36 @@ func (s *Server) mergeActionMeta(path string, node Node) Node {
 		return node
 	}
 
-	if node.Actions == nil {
-		node.Actions = Actions{}
-	}
-	for actionName, opts := range meta {
-		if _, exists := node.Actions[actionName]; !exists {
-			// Create a placeholder handler that delegates to actionHandlers
-			key := actionName
-			if path != "" {
-				key = path + "/" + actionName
-			}
-			if h, ok := s.actionHandlers[key]; ok {
-				if opts.Label != "" || opts.Description != "" || opts.Dangerous || opts.Idempotent || opts.Estimate != "" || opts.Params != nil {
-					node.Actions[actionName] = WithOpts(h, opts)
-				} else {
-					node.Actions[actionName] = h
+	// If the descriptor already declares actions, treat it as authoritative —
+	// only enrich existing actions with metadata, don't add new ones.
+	// This supports state-dependent affordances where the descriptor
+	// intentionally omits certain actions.
+	if len(node.Actions) > 0 {
+		for actionName, opts := range meta {
+			if h, exists := node.Actions[actionName]; exists {
+				// Wrap with opts if the existing handler lacks metadata
+				if _, alreadyWrapped := h.(*optsHandler); !alreadyWrapped {
+					if opts.Label != "" || opts.Description != "" || opts.Dangerous || opts.Idempotent || opts.Estimate != "" || opts.Params != nil {
+						node.Actions[actionName] = WithOpts(h, opts)
+					}
 				}
+			}
+		}
+		return node
+	}
+
+	// No actions in descriptor — add all registered actions
+	node.Actions = Actions{}
+	for actionName, opts := range meta {
+		key := actionName
+		if path != "" {
+			key = path + "/" + actionName
+		}
+		if h, ok := s.actionHandlers[key]; ok {
+			if opts.Label != "" || opts.Description != "" || opts.Dangerous || opts.Idempotent || opts.Estimate != "" || opts.Params != nil {
+				node.Actions[actionName] = WithOpts(h, opts)
+			} else {
+				node.Actions[actionName] = h
 			}
 		}
 	}

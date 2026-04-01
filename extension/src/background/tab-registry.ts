@@ -257,7 +257,7 @@ function pushTree(tabId: number): void {
   send(entry.port, {
     type: "tree",
     formatted: formatTree(tree),
-    toolCount: affordancesToTools(tree).length,
+    toolCount: affordancesToTools(tree).tools.length,
   });
 }
 

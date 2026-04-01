@@ -1,10 +1,12 @@
 //! LLM tool integration — convert SLOP affordances into LLM-consumable tool
 //! definitions and format trees for context injection.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::types::{Affordance, SlopNode};
+use crate::types::SlopNode;
 
 /// An LLM tool definition (OpenAI-compatible format).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,83 +24,161 @@ pub struct LlmFunction {
     pub parameters: Value,
 }
 
-/// Walk a node tree and collect all affordances as LLM tool definitions.
-///
-/// `path` is the SLOP path prefix for this node (e.g. `"/app"`).
-pub fn affordances_to_tools(node: &SlopNode, path: &str) -> Vec<LlmTool> {
-    let mut tools = Vec::new();
-    collect_tools(node, path, &mut tools);
-    tools
+/// Resolved path and action for a tool name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolResolution {
+    pub path: String,
+    pub action: String,
 }
 
-fn collect_tools(node: &SlopNode, path: &str, out: &mut Vec<LlmTool>) {
+/// A set of LLM tools with a resolver to map short names back to full paths.
+#[derive(Debug, Clone)]
+pub struct ToolSet {
+    pub tools: Vec<LlmTool>,
+    resolve_map: HashMap<String, ToolResolution>,
+}
+
+impl ToolSet {
+    /// Resolve a tool name back to its path and action for invoke messages.
+    pub fn resolve(&self, tool_name: &str) -> Option<&ToolResolution> {
+        self.resolve_map.get(tool_name)
+    }
+}
+
+fn sanitize(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect()
+}
+
+struct Entry {
+    short_name: String,
+    path: String,
+    action: String,
+    ancestors: Vec<String>,
+    label: Option<String>,
+    description: Option<String>,
+    dangerous: bool,
+    params: Option<Value>,
+}
+
+/// Walk a node tree and collect all affordances as LLM tools.
+///
+/// Tool names use short `{nodeId}__{action}` format. Collisions are
+/// disambiguated by prepending parent IDs.
+pub fn affordances_to_tools(node: &SlopNode, path: &str) -> ToolSet {
+    let mut entries = Vec::new();
+    collect(node, path, &[], &mut entries);
+
+    let name_map = disambiguate(&entries);
+
+    let mut tools = Vec::new();
+    let mut resolve_map = HashMap::new();
+
+    for (i, entry) in entries.iter().enumerate() {
+        let tool_name = &name_map[i];
+        let p = if entry.path.is_empty() { "/" } else { &entry.path };
+
+        resolve_map.insert(
+            tool_name.clone(),
+            ToolResolution { path: p.to_string(), action: entry.action.clone() },
+        );
+
+        let label = entry.label.as_deref().unwrap_or(&entry.action);
+        let mut desc = match &entry.description {
+            Some(d) => format!("{label}: {d}"),
+            None => label.to_string(),
+        };
+        desc.push_str(&format!(" (on {p})"));
+        if entry.dangerous {
+            desc.push_str(" [DANGEROUS - confirm first]");
+        }
+
+        let parameters = entry.params.clone()
+            .unwrap_or_else(|| json!({"type": "object", "properties": {}}));
+
+        tools.push(LlmTool {
+            tool_type: "function".into(),
+            function: LlmFunction {
+                name: tool_name.clone(),
+                description: desc,
+                parameters,
+            },
+        });
+    }
+
+    ToolSet { tools, resolve_map }
+}
+
+fn collect(node: &SlopNode, path: &str, ancestors: &[String], out: &mut Vec<Entry>) {
+    let safe_id = sanitize(&node.id);
     if let Some(affs) = &node.affordances {
         for aff in affs {
-            out.push(affordance_to_tool(aff, path));
+            let safe_action = sanitize(&aff.action);
+            let p = if path.is_empty() { "/".to_string() } else { path.to_string() };
+            out.push(Entry {
+                short_name: format!("{safe_id}__{safe_action}"),
+                path: p,
+                action: aff.action.clone(),
+                ancestors: ancestors.iter().map(|a| sanitize(a)).collect(),
+                label: aff.label.clone(),
+                description: aff.description.clone(),
+                dangerous: aff.dangerous,
+                params: aff.params.clone(),
+            });
         }
     }
     if let Some(children) = &node.children {
+        let mut new_ancestors = ancestors.to_vec();
+        new_ancestors.push(node.id.clone());
         for child in children {
             let child_path = format!("{}/{}", path, child.id);
-            collect_tools(child, &child_path, out);
+            collect(child, &child_path, &new_ancestors, out);
         }
     }
 }
 
-fn affordance_to_tool(aff: &Affordance, path: &str) -> LlmTool {
-    let name = encode_tool(path, &aff.action);
+fn disambiguate(entries: &[Entry]) -> Vec<String> {
+    let mut result = vec![String::new(); entries.len()];
 
-    let description = aff
-        .description
-        .clone()
-        .or_else(|| aff.label.clone())
-        .unwrap_or_else(|| format!("{} at {}", aff.action, path));
-
-    let parameters = aff
-        .params
-        .clone()
-        .unwrap_or_else(|| json!({"type": "object", "properties": {}}));
-
-    LlmTool {
-        tool_type: "function".into(),
-        function: LlmFunction {
-            name,
-            description,
-            parameters,
-        },
+    // Group by short name
+    let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
+    for (i, e) in entries.iter().enumerate() {
+        groups.entry(&e.short_name).or_default().push(i);
     }
-}
 
-/// Encode a SLOP path and action into a tool function name.
-///
-/// Uses `__` as separator with `invoke` prefix, matching the cross-language convention.
-/// Example: `("/app/counter", "increment")` -> `"invoke__app__counter__increment"`.
-pub fn encode_tool(path: &str, action: &str) -> String {
-    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-    let mut parts = vec!["invoke"];
-    parts.extend(segments);
-    parts.push(action);
-    parts.join("__")
-}
-
-/// Decode a tool name back into `(path, action)`.
-///
-/// Returns the path with a leading `/`.
-pub fn decode_tool(name: &str) -> (String, String) {
-    let parts: Vec<&str> = name.split("__").collect();
-    if parts.is_empty() {
-        return ("/".into(), String::new());
+    for (short_name, indices) in &groups {
+        if indices.len() == 1 {
+            result[indices[0]] = short_name.to_string();
+            continue;
+        }
+        // Collision — prepend ancestors until unique
+        for &idx in indices {
+            let entry = &entries[idx];
+            let mut name = short_name.to_string();
+            for i in (0..entry.ancestors.len()).rev() {
+                name = format!("{}__{name}", entry.ancestors[i]);
+                let mut unique = true;
+                let depth = entry.ancestors.len() - 1 - i;
+                for &other in indices {
+                    if other == idx { continue; }
+                    let oe = &entries[other];
+                    let mut o_name = short_name.to_string();
+                    for j in (0..oe.ancestors.len()).rev().take(depth + 1) {
+                        o_name = format!("{}__{o_name}", oe.ancestors[j]);
+                    }
+                    if o_name == name {
+                        unique = false;
+                        break;
+                    }
+                }
+                if unique { break; }
+            }
+            result[idx] = name;
+        }
     }
-    let action = parts[parts.len() - 1].to_string();
-    // Skip "invoke" prefix (index 0) and action (last)
-    let start = if parts[0] == "invoke" { 1 } else { 0 };
-    let path_segments = &parts[start..parts.len() - 1];
-    let path = if path_segments.is_empty() {
-        "/".into()
-    } else {
-        format!("/{}", path_segments.join("/"))
-    };
-    (path, action)
+
+    result
 }
 
 /// Format a node tree as an indented text block suitable for LLM context.
@@ -173,7 +253,7 @@ fn write_node(node: &SlopNode, indent: usize, out: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Affordance, NodeMeta, SlopNode, Urgency};
+    use crate::types::{NodeMeta, SlopNode, Urgency};
     use serde_json::json;
 
     fn sample_tree() -> SlopNode {
@@ -197,34 +277,47 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_decode() {
-        let encoded = encode_tool("/app/counter", "increment");
-        assert_eq!(encoded, "invoke__app__counter__increment");
-
-        let (path, action) = decode_tool(&encoded);
-        assert_eq!(path, "/app/counter");
-        assert_eq!(action, "increment");
-    }
-
-    #[test]
-    fn test_encode_root() {
-        let encoded = encode_tool("/", "refresh");
-        assert_eq!(encoded, "invoke__refresh");
-
-        let (path, action) = decode_tool(&encoded);
-        assert_eq!(path, "/");
-        assert_eq!(action, "refresh");
-    }
-
-    #[test]
-    fn test_affordances_to_tools() {
+    fn test_short_tool_names() {
         let tree = sample_tree();
-        let tools = affordances_to_tools(&tree, "/app");
-        assert_eq!(tools.len(), 2);
-        assert_eq!(tools[0].tool_type, "function");
-        assert_eq!(tools[0].function.name, "invoke__app__counter__increment");
-        assert_eq!(tools[0].function.description, "Increment the counter");
-        assert_eq!(tools[1].function.name, "invoke__app__counter__reset");
+        let ts = affordances_to_tools(&tree, "/app");
+        assert_eq!(ts.tools.len(), 2);
+        assert_eq!(ts.tools[0].tool_type, "function");
+        assert_eq!(ts.tools[0].function.name, "counter__increment");
+        assert_eq!(ts.tools[1].function.name, "counter__reset");
+    }
+
+    #[test]
+    fn test_resolve() {
+        let tree = sample_tree();
+        let ts = affordances_to_tools(&tree, "/app");
+        let r = ts.resolve("counter__increment").unwrap();
+        assert_eq!(r.path, "/app/counter");
+        assert_eq!(r.action, "increment");
+    }
+
+    #[test]
+    fn test_disambiguate_collisions() {
+        let tree: SlopNode = serde_json::from_value(json!({
+            "id": "root", "type": "root",
+            "children": [
+                { "id": "board-1", "type": "view", "children": [
+                    { "id": "backlog", "type": "collection", "affordances": [{"action": "reorder"}] }
+                ]},
+                { "id": "board-2", "type": "view", "children": [
+                    { "id": "backlog", "type": "collection", "affordances": [{"action": "reorder"}] }
+                ]}
+            ]
+        })).unwrap();
+        let ts = affordances_to_tools(&tree, "");
+        assert_eq!(ts.tools.len(), 2);
+        let names: Vec<&str> = ts.tools.iter().map(|t| t.function.name.as_str()).collect();
+        assert!(names.contains(&"board_1__backlog__reorder"));
+        assert!(names.contains(&"board_2__backlog__reorder"));
+
+        let r1 = ts.resolve("board_1__backlog__reorder").unwrap();
+        assert_eq!(r1.path, "/board-1/backlog");
+        let r2 = ts.resolve("board_2__backlog__reorder").unwrap();
+        assert_eq!(r2.path, "/board-2/backlog");
     }
 
     #[test]
@@ -254,7 +347,7 @@ mod tests {
     #[test]
     fn test_no_affordances() {
         let tree = SlopNode::new("empty", "group");
-        let tools = affordances_to_tools(&tree, "/empty");
-        assert!(tools.is_empty());
+        let ts = affordances_to_tools(&tree, "/empty");
+        assert!(ts.tools.is_empty());
     }
 }

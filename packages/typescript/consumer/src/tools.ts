@@ -16,40 +16,136 @@ export interface ChatMessage {
   tool_call_id?: string;
 }
 
-/** Walk the state tree and collect all affordances as LLM tools */
-export function affordancesToTools(node: SlopNode, path = ""): LlmTool[] {
+export interface ToolSet {
+  tools: LlmTool[];
+  /** Resolve a tool name back to the full path + action for `invoke`. */
+  resolve(toolName: string): { path: string; action: string } | null;
+}
+
+/**
+ * Walk the state tree and collect all affordances as LLM tools.
+ *
+ * Tool names use `{nodeId}__{action}` — short and LLM-friendly.
+ * When two nodes share the same ID (different branches), parent IDs
+ * are prepended until names are unique.
+ *
+ * Returns a `ToolSet` with the tools and a `resolve()` function that
+ * maps tool names back to `{ path, action }` for `invoke` messages.
+ */
+export function affordancesToTools(node: SlopNode, path = ""): ToolSet {
+  // Phase 1: collect all affordances with their raw short names
+  const entries: { shortName: string; path: string; action: string; ancestors: string[]; aff: any }[] = [];
+  collectAffordances(node, path, [], entries);
+
+  // Phase 2: disambiguate collisions by prepending ancestors
+  const nameMap = disambiguate(entries);
+
+  // Phase 3: build LlmTool array + resolve map
+  const resolveMap = new Map<string, { path: string; action: string }>();
   const tools: LlmTool[] = [];
-  for (const aff of node.affordances ?? []) {
-    const toolName = encodeTool(path || "/", aff.action);
+
+  for (const entry of entries) {
+    const toolName = nameMap.get(entry)!;
+    resolveMap.set(toolName, { path: entry.path || "/", action: entry.action });
     tools.push({
       type: "function",
       function: {
         name: toolName,
         description:
-          `${aff.label ?? aff.action}${aff.description ? ": " + aff.description : ""}` +
-          ` (on ${path || "/"})` +
-          (aff.dangerous ? " [DANGEROUS - confirm first]" : ""),
-        parameters: aff.params ? aff.params : { type: "object", properties: {} },
+          `${entry.aff.label ?? entry.aff.action}${entry.aff.description ? ": " + entry.aff.description : ""}` +
+          ` (on ${entry.path || "/"})` +
+          (entry.aff.dangerous ? " [DANGEROUS - confirm first]" : ""),
+        parameters: entry.aff.params ? entry.aff.params : { type: "object", properties: {} },
       },
     });
   }
-  for (const child of node.children ?? []) {
-    tools.push(...affordancesToTools(child, `${path}/${child.id}`));
+
+  return {
+    tools,
+    resolve(toolName: string) {
+      return resolveMap.get(toolName) ?? null;
+    },
+  };
+}
+
+/** Sanitize an ID segment for use in tool names (alphanumeric + underscore only). */
+function sanitize(s: string): string {
+  return s.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+/** Recursively collect all affordances from the tree. */
+function collectAffordances(
+  node: SlopNode,
+  path: string,
+  ancestors: string[],
+  out: { shortName: string; path: string; action: string; ancestors: string[]; aff: any }[],
+): void {
+  const safeId = sanitize(node.id);
+  for (const aff of node.affordances ?? []) {
+    const safeAction = sanitize(aff.action);
+    out.push({
+      shortName: `${safeId}__${safeAction}`,
+      path,
+      action: aff.action,
+      ancestors: ancestors.map(sanitize),
+      aff,
+    });
   }
-  return tools;
+  for (const child of node.children ?? []) {
+    collectAffordances(child, `${path}/${child.id}`, [...ancestors, node.id], out);
+  }
 }
 
-export function encodeTool(path: string, action: string): string {
-  const segments = path.split("/").filter(Boolean);
-  return ["invoke", ...segments, action].join("__");
+/** Resolve name collisions by prepending ancestor IDs until unique. */
+function disambiguate(
+  entries: { shortName: string; ancestors: string[]; [k: string]: any }[],
+): Map<any, string> {
+  const result = new Map<any, string>();
+
+  // Group by short name to find collisions
+  const groups = new Map<string, typeof entries>();
+  for (const entry of entries) {
+    const list = groups.get(entry.shortName) ?? [];
+    list.push(entry);
+    groups.set(entry.shortName, list);
+  }
+
+  for (const [shortName, group] of groups) {
+    if (group.length === 1) {
+      // No collision — use short name
+      result.set(group[0], shortName);
+    } else {
+      // Collision — prepend ancestors until unique
+      for (const entry of group) {
+        let name = shortName;
+        for (let i = entry.ancestors.length - 1; i >= 0; i--) {
+          name = `${entry.ancestors[i]}__${name}`;
+          // Check if this name is now unique among the collision group
+          const sameName = group.filter(
+            (e) => e !== entry && buildName(e, entry.ancestors.length - 1 - i) === name,
+          );
+          if (sameName.length === 0) break;
+        }
+        result.set(entry, name);
+      }
+    }
+  }
+
+  return result;
 }
 
-export function decodeTool(name: string): { path: string; action: string } {
-  const parts = name.split("__");
-  const action = parts[parts.length - 1];
-  const pathSegments = parts.slice(1, -1);
-  return { path: pathSegments.length > 0 ? "/" + pathSegments.join("/") : "/", action };
+/** Build a disambiguated name by prepending N ancestor levels. */
+function buildName(
+  entry: { shortName: string; ancestors: string[] },
+  ancestorLevels: number,
+): string {
+  let name = entry.shortName;
+  for (let i = entry.ancestors.length - 1; i >= entry.ancestors.length - 1 - ancestorLevels && i >= 0; i--) {
+    name = `${entry.ancestors[i]}__${name}`;
+  }
+  return name;
 }
+
 
 /** Format the state tree as readable string for LLM context */
 export function formatTree(node: SlopNode, indent = 0): string {

@@ -95,7 +95,7 @@ Layer 1: Engine (@slop-ai/core)          — Tree assembly, diffing, descriptor 
 Layer 2: Transport (@slop-ai/client,     — postMessage, WebSocket, Unix socket, stdio
          @slop-ai/server)
 Layer 3: SPA adapters (@slop-ai/react,   — useSlop() hooks for component lifecycle
-         vue, solid, angular)
+         vue, solid, angular, svelte)
 Layer 4: Meta-framework adapters         — Consumer-side tree merge, data invalidation,
          (@slop-ai/next, nuxt, sveltekit)  framework-specific refresh, session routing
 ```
@@ -108,6 +108,7 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 @slop-ai/vue            — useSlop() composable (~10 lines)
 @slop-ai/solid          — useSlop() primitive (~10 lines)
 @slop-ai/angular        — useSlop() with signals (~15 lines)
+@slop-ai/svelte         — useSlop() with $effect runes (~15 lines, ships as .svelte.ts source)
 @slop-ai/next           — Next.js integration (server setup + UI sync + state composition)
 @slop-ai/nuxt           — Nuxt module (Nitro WebSocket + auto-sync + composables)
 @slop-ai/sveltekit      — SvelteKit integration (Vite plugin + load invalidation)
@@ -479,9 +480,14 @@ export function useSlop(client, id, descriptorFn) {
 ```js
 import { onDestroy } from "svelte";
 
-export function useSlop(client, id, descriptorFn) {
-  $effect(() => client.register(id, descriptorFn()));
-  onDestroy(() => client.unregister(id));
+export function useSlop(client, path, descriptorFn) {
+  let currentPath = typeof path === "function" ? path() : path;
+  $effect(() => {
+    const p = typeof path === "function" ? path() : path;
+    if (p !== currentPath) { client.unregister(currentPath); currentPath = p; }
+    client.register(currentPath, descriptorFn());
+  });
+  onDestroy(() => client.unregister(currentPath));
 }
 ```
 

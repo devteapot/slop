@@ -14,7 +14,8 @@
  * not a protocol deviation — server-side providers don't need it.
  */
 
-import { affordancesToTools, formatTree, decodeTool } from "@slop-ai/consumer/browser";
+import { affordancesToTools, formatTree } from "@slop-ai/consumer/browser";
+import type { ToolSet } from "@slop-ai/consumer/browser";
 import type { ChatMessage, LlmTool, SlopNode } from "@slop-ai/consumer/browser";
 import { transport } from "../slop";
 import { chatCompletion, type LLMConfig } from "./provider";
@@ -119,9 +120,9 @@ export async function runAgentTurn(
     { role: "user", content: userMessage + stateContext },
   ];
 
-  let tools: LlmTool[] = affordancesToTools(tree);
+  let toolSet = affordancesToTools(tree);
   context.setStatus({ state: "observing", label: "AI thinking..." });
-  let response = await chatCompletion(config, conversation, tools);
+  let response = await chatCompletion(config, conversation, toolSet.tools);
 
   // Tool call loop
   let round = 0;
@@ -130,7 +131,9 @@ export async function runAgentTurn(
     conversation.push(response);
 
     for (const tc of response.tool_calls) {
-      const { path, action } = decodeTool(tc.function.name);
+      const resolved = toolSet.resolve(tc.function.name);
+      if (!resolved) continue;
+      const { path, action } = resolved;
       const params = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
 
       context.setStatus({ state: "acting", label: `Invoking ${action} on ${path}` });
@@ -163,11 +166,11 @@ export async function runAgentTurn(
     // Refresh tools from updated tree
     const updatedTree = c.getTree();
     if (updatedTree) {
-      tools = affordancesToTools(updatedTree);
+      toolSet = affordancesToTools(updatedTree);
     }
 
     context.setStatus({ state: "observing", label: "AI thinking..." });
-    response = await chatCompletion(config, conversation, tools);
+    response = await chatCompletion(config, conversation, toolSet.tools);
   }
 
   // Final text response

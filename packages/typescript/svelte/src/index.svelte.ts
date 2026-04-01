@@ -1,48 +1,47 @@
-import { watchEffect, onUnmounted, toRaw } from "vue";
+import { onDestroy } from "svelte";
 import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
 /**
- * Vue composable that registers a SLOP node.
+ * Svelte 5 composable that registers a SLOP node.
  *
  * Accepts a static or dynamic path (`string` or `() => string`).
- * The descriptor function is called reactively — when any `ref`/`reactive`
- * dependency inside it changes, the node is re-registered automatically.
+ * The descriptor function is called inside `$effect` — Svelte tracks
+ * reactive `$state` dependencies and re-registers automatically.
  *
- * Vue reactive Proxies are deep-stripped via `toRaw()` before reaching
- * the protocol layer (which uses `structuredClone`/`postMessage`).
+ * Svelte 5 `$state` Proxies are deep-stripped before reaching the
+ * protocol layer (which uses `structuredClone`/`postMessage`).
  *
- * ```vue
- * <script setup>
- * import { ref } from "vue";
- * import { useSlop } from "@slop-ai/vue";
+ * ```svelte
+ * <script lang="ts">
+ * import { useSlop } from "@slop-ai/svelte";
  * import { slop } from "./slop";
  *
- * const notes = ref([...]);
+ * let notes = $state([...]);
  *
  * // Static path
  * useSlop(slop, "notes", () => ({
  *   type: "collection",
- *   props: { count: notes.value.length },
- *   items: notes.value.map(n => ({
+ *   props: { count: notes.length },
+ *   items: notes.map(n => ({
  *     id: n.id,
  *     props: { title: n.title },
- *     actions: { delete: () => notes.value = notes.value.filter(x => x.id !== n.id) },
+ *     actions: { delete: () => notes = notes.filter(x => x.id !== n.id) },
  *   })),
  * }));
  *
  * // Dynamic path
- * useSlop(slop, () => activeView.value ?? "fallback", () => ({ ... }));
+ * useSlop(slop, () => activeView?.id ?? "fallback", () => ({ ... }));
  * </script>
  * ```
  */
 export function useSlop<S = unknown>(
   client: SlopClient<S>,
   path: string | (() => string),
-  descriptor: () => NodeDescriptor
+  descriptor: () => NodeDescriptor,
 ): void {
   let currentPath = resolvePath(path);
 
-  watchEffect(() => {
+  $effect(() => {
     const p = resolvePath(path);
     const desc = descriptor();
 
@@ -52,9 +51,9 @@ export function useSlop<S = unknown>(
     }
 
     client.register(currentPath as any, deepUnwrap(desc) as NodeDescriptor);
-  }, { flush: "post" });
+  });
 
-  onUnmounted(() => {
+  onDestroy(() => {
     client.unregister(currentPath as any);
   });
 }
@@ -64,20 +63,16 @@ function resolvePath(path: string | (() => string)): string {
 }
 
 /**
- * Recursively strip Vue reactive Proxies from data while preserving
- * functions (action handlers). Uses Vue's own `toRaw()` at each level.
+ * Recursively strip Svelte 5 `$state` Proxies while preserving
+ * functions (action handlers).
  */
 function deepUnwrap(obj: unknown): unknown {
   if (obj == null || typeof obj !== "object") return obj;
   if (typeof obj === "function") return obj;
-
-  const raw = toRaw(obj);
-
-  if (Array.isArray(raw)) return raw.map(deepUnwrap);
-
+  if (Array.isArray(obj)) return obj.map(deepUnwrap);
   const out: Record<string, unknown> = {};
-  for (const key of Object.keys(raw)) {
-    const val = (raw as Record<string, unknown>)[key];
+  for (const key of Object.keys(obj)) {
+    const val = (obj as Record<string, unknown>)[key];
     out[key] = typeof val === "function" ? val : deepUnwrap(val);
   }
   return out;

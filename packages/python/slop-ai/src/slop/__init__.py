@@ -47,9 +47,9 @@ from .state_mirror import StateMirror
 from .consumer import SlopConsumer
 from .tools import (
     LlmTool,
+    ToolSet,
+    ToolResolution,
     affordances_to_tools,
-    encode_tool,
-    decode_tool,
     format_tree,
 )
 
@@ -82,8 +82,8 @@ __all__ = [
     "StateMirror",
     "SlopConsumer",
     "LlmTool",
+    "ToolSet",
+    "ToolResolution",
     "affordances_to_tools",
-    "encode_tool",
-    "decode_tool",
     "format_tree",
 ]

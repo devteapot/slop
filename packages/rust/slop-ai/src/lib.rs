@@ -41,7 +41,7 @@ pub use scaling::{
     OutputTreeOptions,
 };
 pub use state_mirror::StateMirror;
-pub use tools::{affordances_to_tools, decode_tool, encode_tool, format_tree, LlmFunction, LlmTool};
+pub use tools::{affordances_to_tools, format_tree, LlmFunction, LlmTool, ToolResolution, ToolSet};
 pub use types::{
     Affordance, ContentRef, ContentType, Estimate, NodeMeta, PatchOp, PatchOpKind, SlopNode,
     Urgency,

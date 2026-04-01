@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+from dataclasses import dataclass, field
 from typing import Any, TypedDict
 
 from .types import SlopNode
@@ -23,58 +25,134 @@ class LlmTool(TypedDict):
     function: _FunctionDef
 
 
+@dataclass
+class ToolResolution:
+    path: str
+    action: str
+
+
+@dataclass
+class ToolSet:
+    """Tools and a resolver to map short names back to path + action."""
+
+    tools: list[LlmTool] = field(default_factory=list)
+    _resolve_map: dict[str, ToolResolution] = field(default_factory=dict)
+
+    def resolve(self, tool_name: str) -> ToolResolution | None:
+        """Map a tool name back to its path and action for invoke messages."""
+        return self._resolve_map.get(tool_name)
+
+
 # ---------------------------------------------------------------
 # Affordances -> LLM tools
 # ---------------------------------------------------------------
 
-def affordances_to_tools(node: SlopNode, path: str = "") -> list[LlmTool]:
-    """Recursively collect affordances from *node* into LLM tool defs."""
-    tools: list[LlmTool] = []
+_SANITIZE_RE = re.compile(r"[^a-zA-Z0-9]")
 
-    for aff in node.affordances or []:
-        tool_name = encode_tool(path or "/", aff.action)
-        label = aff.label or aff.action
-        desc = f"{label}: {aff.description}" if aff.description else label
-        desc += f" (on {path or '/'})"
-        if aff.dangerous:
+
+def _sanitize(s: str) -> str:
+    return _SANITIZE_RE.sub("_", s)
+
+
+@dataclass
+class _Entry:
+    short_name: str
+    path: str
+    action: str
+    ancestors: list[str]
+    aff: Any
+
+
+def affordances_to_tools(node: SlopNode, path: str = "") -> ToolSet:
+    """Recursively collect affordances from *node* into a :class:`ToolSet`.
+
+    Tool names use short ``{nodeId}__{action}`` format. Collisions are
+    disambiguated by prepending parent IDs.
+    """
+    entries: list[_Entry] = []
+    _collect(node, path, [], entries)
+
+    name_map = _disambiguate(entries)
+
+    ts = ToolSet()
+    for entry in entries:
+        tool_name = name_map[id(entry)]
+        p = entry.path or "/"
+        ts._resolve_map[tool_name] = ToolResolution(path=p, action=entry.action)
+
+        label = entry.aff.label or entry.aff.action
+        desc = f"{label}: {entry.aff.description}" if entry.aff.description else label
+        desc += f" (on {p})"
+        if entry.aff.dangerous:
             desc += " [DANGEROUS - confirm first]"
 
-        tools.append(
+        ts.tools.append(
             LlmTool(
                 type="function",
                 function=_FunctionDef(
                     name=tool_name,
                     description=desc,
-                    parameters=aff.params if aff.params else {"type": "object", "properties": {}},
+                    parameters=entry.aff.params if entry.aff.params else {"type": "object", "properties": {}},
                 ),
             )
         )
 
+    return ts
+
+
+def _collect(
+    node: SlopNode,
+    path: str,
+    ancestors: list[str],
+    out: list[_Entry],
+) -> None:
+    safe_id = _sanitize(node.id)
+    for aff in node.affordances or []:
+        safe_action = _sanitize(aff.action)
+        out.append(_Entry(
+            short_name=f"{safe_id}__{safe_action}",
+            path=path or "/",
+            action=aff.action,
+            ancestors=[_sanitize(a) for a in ancestors],
+            aff=aff,
+        ))
     for child in node.children or []:
-        tools.extend(affordances_to_tools(child, f"{path}/{child.id}"))
-
-    return tools
+        _collect(child, f"{path}/{child.id}", [*ancestors, node.id], out)
 
 
-# ---------------------------------------------------------------
-# Encode / decode tool names
-# ---------------------------------------------------------------
+def _disambiguate(entries: list[_Entry]) -> dict[int, str]:
+    result: dict[int, str] = {}
 
-def encode_tool(path: str, action: str) -> str:
-    """Encode a node path + action into a flat tool name (double-underscore separated)."""
-    segments = [s for s in path.split("/") if s]
-    return "__".join(["invoke", *segments, action])
+    groups: dict[str, list[_Entry]] = {}
+    for entry in entries:
+        groups.setdefault(entry.short_name, []).append(entry)
 
+    for short_name, group in groups.items():
+        if len(group) == 1:
+            result[id(group[0])] = short_name
+            continue
 
-def decode_tool(name: str) -> dict[str, str]:
-    """Decode a tool name back to ``{"path": ..., "action": ...}``."""
-    parts = name.split("__")
-    action = parts[-1]
-    path_segments = parts[1:-1]
-    return {
-        "path": "/" + "/".join(path_segments) if path_segments else "/",
-        "action": action,
-    }
+        for entry in group:
+            name = short_name
+            for i in range(len(entry.ancestors) - 1, -1, -1):
+                name = f"{entry.ancestors[i]}__{name}"
+                # Check uniqueness
+                others_match = False
+                depth = len(entry.ancestors) - 1 - i
+                for other in group:
+                    if other is entry:
+                        continue
+                    o_name = other.short_name
+                    for j in range(len(other.ancestors) - 1, max(-1, len(other.ancestors) - 2 - depth), -1):
+                        o_name = f"{other.ancestors[j]}__{o_name}"
+                    if o_name == name:
+                        others_match = True
+                        break
+                if not others_match:
+                    break
+            result[id(entry)] = name
+
+    return result
 
 
 # ---------------------------------------------------------------

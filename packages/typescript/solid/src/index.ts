@@ -4,8 +4,12 @@ import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 /**
  * SolidJS primitive that registers a SLOP node.
  *
+ * Accepts a static or dynamic path (`string` or `() => string`).
  * The descriptor function is called reactively — when any signal
  * inside it changes, the node is re-registered automatically.
+ *
+ * Solid store Proxies are deep-stripped before reaching the protocol
+ * layer (which uses `structuredClone`/`postMessage`).
  *
  * ```tsx
  * import { createSignal } from "solid-js";
@@ -15,6 +19,7 @@ import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
  * function NotesList() {
  *   const [notes, setNotes] = createSignal([...]);
  *
+ *   // Static path
  *   useSlop(slop, "notes", () => ({
  *     type: "collection",
  *     props: { count: notes().length },
@@ -25,20 +30,53 @@ import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
  *     })),
  *   }));
  *
+ *   // Dynamic path
+ *   useSlop(slop, () => activeView()?.id ?? "fallback", () => ({ ... }));
+ *
  *   return <div>{notes().map(n => <div>{n.title}</div>)}</div>;
  * }
  * ```
  */
 export function useSlop<S = unknown>(
   client: SlopClient<S>,
-  path: string,
+  path: string | (() => string),
   descriptor: () => NodeDescriptor
 ): void {
+  let currentPath = resolvePath(path);
+
   createEffect(() => {
-    // JSON round-trip strips Solid store proxies before entering the protocol layer.
-    client.register(path as any, JSON.parse(JSON.stringify(descriptor())));
+    const p = resolvePath(path);
+    const desc = descriptor();
+
+    if (p !== currentPath) {
+      client.unregister(currentPath as any);
+      currentPath = p;
+    }
+
+    client.register(currentPath as any, deepUnwrap(desc) as NodeDescriptor);
   });
+
   onCleanup(() => {
-    client.unregister(path as any);
+    client.unregister(currentPath as any);
   });
+}
+
+function resolvePath(path: string | (() => string)): string {
+  return typeof path === "function" ? path() : path;
+}
+
+/**
+ * Recursively strip reactive Proxies (from Solid stores) while
+ * preserving functions (action handlers).
+ */
+function deepUnwrap(obj: unknown): unknown {
+  if (obj == null || typeof obj !== "object") return obj;
+  if (typeof obj === "function") return obj;
+  if (Array.isArray(obj)) return obj.map(deepUnwrap);
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(obj)) {
+    const val = (obj as Record<string, unknown>)[key];
+    out[key] = typeof val === "function" ? val : deepUnwrap(val);
+  }
+  return out;
 }

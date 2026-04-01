@@ -7,10 +7,13 @@
  */
 export function createBridgeRelay(port: chrome.runtime.Port) {
   let active = false;
+  const RELAY_TAG = "__slop_relay";
 
   const windowListener = (event: MessageEvent) => {
     if (!active || event.source !== window) return;
     if (event.data?.slop !== true) return;
+    // Ignore messages we posted ourselves (bridge-relay → window echo)
+    if (event.data[RELAY_TAG]) return;
     port.postMessage({ type: "slop-from-provider", message: event.data.message });
   };
 
@@ -20,7 +23,7 @@ export function createBridgeRelay(port: chrome.runtime.Port) {
       return;
     }
     if (msg.type === "slop-to-provider" && active) {
-      window.postMessage({ slop: true, message: msg.message }, "*");
+      window.postMessage({ slop: true, [RELAY_TAG]: true, message: msg.message }, "*");
     }
   };
 

@@ -37,7 +37,7 @@ export function registerSlopTools(api: any, discovery: DiscoveryService) {
           const isConnected = connectedIds.has(desc.id);
           const provider = isConnected ? connected.find(p => p.id === desc.id) : null;
           const tree = provider?.consumer.getTree(provider.subscriptionId);
-          const actionCount = tree ? affordancesToTools(tree).length : 0;
+          const actionCount = tree ? affordancesToTools(tree).tools.length : 0;
           const label = tree?.properties?.label ?? desc.name;
           const status = isConnected ? `connected, ${actionCount} actions` : "available";
           return `- **${label}** (id: \`${desc.id}\`, ${desc.transport.type}) — ${status}`;
@@ -71,12 +71,12 @@ export function registerSlopTools(api: any, discovery: DiscoveryService) {
         };
       }
 
-      const tools = affordancesToTools(tree);
-      const actionsText = tools
+      const toolSet = affordancesToTools(tree);
+      const actionsText = toolSet.tools
         .map(t => {
-          const parts = t.function.name.split("__");
-          const action = parts[parts.length - 1];
-          const path = "/" + parts.slice(1, -1).join("/");
+          const resolved = toolSet.resolve(t.function.name);
+          const action = resolved?.action ?? t.function.name;
+          const path = resolved?.path ?? "/";
           return `  - **${action}** on \`${path}\`: ${t.function.description}`;
         })
         .join("\n");
@@ -87,7 +87,7 @@ export function registerSlopTools(api: any, discovery: DiscoveryService) {
           text:
             `## ${p.name}\nID: \`${p.id}\`\n\n` +
             `### Current State\n\`\`\`\n${formatTree(tree)}\n\`\`\`\n\n` +
-            `### Available Actions (${tools.length})\n${actionsText}`,
+            `### Available Actions (${toolSet.tools.length})\n${actionsText}`,
         }],
       };
     },

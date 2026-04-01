@@ -4,7 +4,21 @@ import type { ChatMessage, LlmTool } from "@slop-ai/consumer/browser";
 function makeGeminiName(original: string): string {
   // Gemini limits function names to 64 chars, must be [a-zA-Z_][a-zA-Z0-9_]*
   const name = "fn_" + original.replace(/[^a-zA-Z0-9_]/g, "_");
-  return name.length > 64 ? name.slice(0, 64) : name;
+  if (name.length <= 64) return name;
+  // Truncation would lose the action suffix, causing collisions.
+  // Append a short hash to keep truncated names unique.
+  const h = fnv1a(name);
+  return name.slice(0, 56) + "_" + h;
+}
+
+/** FNV-1a hash → 7-char base36 string (fits in 64 - 56 - 1 = 7 chars) */
+function fnv1a(str: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(36).padStart(7, "0");
 }
 
 function convertSchemaForGemini(schema: Record<string, unknown>): Record<string, unknown> {
@@ -172,7 +186,7 @@ export async function geminiChatCompletion(
       }
 
       if (!originalName) {
-        // Last resort: strip fn_ prefix so decodeTool can parse it
+        // Last resort: strip fn_ prefix and use raw name
         originalName = geminiName.startsWith("fn_") ? geminiName.slice(3) : geminiName;
       }
 

@@ -2,6 +2,7 @@ package slop
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -18,75 +19,160 @@ type LlmFunction struct {
 	Parameters  any    `json:"parameters"`
 }
 
+// ToolSet holds LLM tools and a resolver to map tool names back to path + action.
+type ToolSet struct {
+	Tools      []LlmTool
+	resolveMap map[string]ToolResolution
+}
+
+// ToolResolution holds the path and action for a tool name.
+type ToolResolution struct {
+	Path   string
+	Action string
+}
+
+// Resolve maps a tool name back to its path and action for invoke messages.
+func (ts *ToolSet) Resolve(toolName string) (ToolResolution, bool) {
+	r, ok := ts.resolveMap[toolName]
+	return r, ok
+}
+
+var sanitizeRe = regexp.MustCompile(`[^a-zA-Z0-9]`)
+
+func sanitize(s string) string {
+	return sanitizeRe.ReplaceAllString(s, "_")
+}
+
+type toolEntry struct {
+	shortName string
+	path      string
+	action    string
+	ancestors []string
+	aff       Affordance
+}
+
 // AffordancesToTools walks the tree and collects affordances as LLM tools.
-// The path parameter is the slash-separated path to the node (e.g. "/root/inbox").
-func AffordancesToTools(node WireNode, path string) []LlmTool {
-	var tools []LlmTool
+// Tool names use short {nodeId}__{action} format. Collisions are disambiguated
+// by prepending parent IDs.
+func AffordancesToTools(node WireNode, path string) *ToolSet {
+	var entries []toolEntry
+	collectAffordances(node, path, nil, &entries)
 
-	for _, aff := range node.Affordances {
-		desc := aff.Description
+	nameMap := disambiguate(entries)
+
+	ts := &ToolSet{resolveMap: make(map[string]ToolResolution)}
+
+	for i, e := range entries {
+		toolName := nameMap[i]
+		ts.resolveMap[toolName] = ToolResolution{Path: e.path, Action: e.action}
+
+		desc := e.aff.Description
 		if desc == "" {
-			desc = aff.Label
+			desc = e.aff.Label
 		}
 		if desc == "" {
-			desc = fmt.Sprintf("Invoke %s on %s", aff.Action, path)
+			desc = fmt.Sprintf("Invoke %s on %s", e.aff.Action, e.path)
+		}
+		p := e.path
+		if p == "" {
+			p = "/"
+		}
+		desc += fmt.Sprintf(" (on %s)", p)
+		if e.aff.Dangerous {
+			desc += " [DANGEROUS - confirm first]"
 		}
 
-		params := aff.Params
+		params := e.aff.Params
 		if params == nil {
-			params = map[string]any{
-				"type":       "object",
-				"properties": map[string]any{},
-			}
+			params = map[string]any{"type": "object", "properties": map[string]any{}}
 		}
 
-		tools = append(tools, LlmTool{
+		ts.Tools = append(ts.Tools, LlmTool{
 			Type: "function",
 			Function: LlmFunction{
-				Name:        EncodeTool(path, aff.Action),
+				Name:        toolName,
 				Description: desc,
 				Parameters:  params,
 			},
 		})
 	}
 
-	for _, child := range node.Children {
-		childPath := path + "/" + child.ID
-		tools = append(tools, AffordancesToTools(child, childPath)...)
-	}
-
-	return tools
+	return ts
 }
 
-// EncodeTool encodes a path and action as a tool name: "invoke__seg1__seg2__action".
-func EncodeTool(path, action string) string {
-	parts := []string{"invoke"}
-	for _, seg := range strings.Split(path, "/") {
-		if seg != "" {
-			parts = append(parts, seg)
+func collectAffordances(node WireNode, path string, ancestors []string, out *[]toolEntry) {
+	safeID := sanitize(node.ID)
+	for _, aff := range node.Affordances {
+		safeAction := sanitize(aff.Action)
+		anc := make([]string, len(ancestors))
+		for i, a := range ancestors {
+			anc[i] = sanitize(a)
+		}
+		p := path
+		if p == "" {
+			p = "/"
+		}
+		*out = append(*out, toolEntry{
+			shortName: safeID + "__" + safeAction,
+			path:      p,
+			action:    aff.Action,
+			ancestors: anc,
+			aff:       aff,
+		})
+	}
+	for _, child := range node.Children {
+		collectAffordances(child, path+"/"+child.ID, append(ancestors, node.ID), out)
+	}
+}
+
+func disambiguate(entries []toolEntry) []string {
+	result := make([]string, len(entries))
+
+	// Group by short name to find collisions
+	groups := make(map[string][]int)
+	for i, e := range entries {
+		groups[e.shortName] = append(groups[e.shortName], i)
+	}
+
+	for shortName, indices := range groups {
+		if len(indices) == 1 {
+			result[indices[0]] = shortName
+			continue
+		}
+		// Collision — prepend ancestors until unique
+		for _, idx := range indices {
+			e := entries[idx]
+			name := shortName
+			for i := len(e.ancestors) - 1; i >= 0; i-- {
+				name = e.ancestors[i] + "__" + name
+				// Check if unique among collision group
+				unique := true
+				for _, other := range indices {
+					if other == idx {
+						continue
+					}
+					oe := entries[other]
+					oName := oe.shortName
+					depth := len(e.ancestors) - 1 - i
+					for j := len(oe.ancestors) - 1; j >= 0 && j >= len(oe.ancestors)-1-depth; j-- {
+						oName = oe.ancestors[j] + "__" + oName
+					}
+					if oName == name {
+						unique = false
+						break
+					}
+				}
+				if unique {
+					break
+				}
+			}
+			result[idx] = name
 		}
 	}
-	parts = append(parts, action)
-	return strings.Join(parts, "__")
+
+	return result
 }
 
-// DecodeTool reverses EncodeTool, returning the original path and action.
-func DecodeTool(name string) (path, action string) {
-	parts := strings.Split(name, "__")
-	// Remove "invoke" prefix
-	if len(parts) > 0 && parts[0] == "invoke" {
-		parts = parts[1:]
-	}
-	if len(parts) == 0 {
-		return "", ""
-	}
-	if len(parts) == 1 {
-		return "", parts[0]
-	}
-	action = parts[len(parts)-1]
-	path = "/" + strings.Join(parts[:len(parts)-1], "/")
-	return path, action
-}
 
 // FormatTree formats the tree as readable text for LLM context.
 // Each node shows its type, label, extra properties, and available actions.

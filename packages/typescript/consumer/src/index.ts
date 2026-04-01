@@ -11,9 +11,8 @@ export { NodeSocketClientTransport } from "./transport-node-socket";
 export {
   affordancesToTools,
   formatTree,
-  encodeTool,
-  decodeTool,
   type LlmTool,
+  type ToolSet,
   type ChatMessage,
 } from "./tools";
 

@@ -1,8 +1,7 @@
 import type { ChatMessage } from "@slop-ai/consumer/browser";
-import { formatTree, affordancesToTools } from "@slop-ai/consumer/browser";
 import type { BackgroundMessage } from "../types";
 import type { Session } from "./session";
-import { buildMergedContext, routeToolCall, type ProviderTreeInfo } from "./tool-router";
+import { buildMergedContext, type ProviderTreeInfo } from "./tool-router";
 import { chatCompletion } from "./llm";
 
 const SYSTEM_PROMPT = `You are an AI assistant connected to a web application via the SLOP protocol (State Layer for Observable Programs).
@@ -57,7 +56,7 @@ export async function runTurn(
       conversation.push(response);
 
       for (const tc of response.tool_calls) {
-        const route = routeToolCall(tc.function.name, merged.providerNames, merged.singleProvider);
+        const route = merged.resolve(tc.function.name);
 
         if (!route) {
           conversation.push({

@@ -12,9 +12,8 @@ export { PostMessageClientTransport } from "./transport-pm";
 export {
   affordancesToTools,
   formatTree,
-  encodeTool,
-  decodeTool,
   type LlmTool,
+  type ToolSet,
   type ChatMessage,
 } from "./tools";
 

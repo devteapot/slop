@@ -1,0 +1,22 @@
+{
+  "name": "@slop-ai/svelte",
+  "version": "0.1.0",
+  "type": "module",
+  "svelte": "src/index.svelte.ts",
+  "main": "src/index.svelte.ts",
+  "types": "src/index.svelte.ts",
+  "exports": {
+    ".": {
+      "svelte": "./src/index.svelte.ts",
+      "import": "./src/index.svelte.ts",
+      "types": "./src/index.svelte.ts"
+    }
+  },
+  "files": ["src"],
+  "sideEffects": false,
+  "license": "MIT",
+  "description": "SLOP integration for Svelte 5 — useSlop() rune-based composable",
+  "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/typescript/svelte" },
+  "dependencies": { "@slop-ai/core": "workspace:*" },
+  "peerDependencies": { "svelte": ">=5.0.0" }
+}

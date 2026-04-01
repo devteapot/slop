@@ -1,11 +1,13 @@
-import type { SlopNode, LlmTool } from "@slop-ai/consumer/browser";
-import { affordancesToTools, formatTree, decodeTool } from "@slop-ai/consumer/browser";
+import type { SlopNode, LlmTool, ToolSet } from "@slop-ai/consumer/browser";
+import { affordancesToTools, formatTree } from "@slop-ai/consumer/browser";
 
 export interface MergedContext {
   tools: LlmTool[];
   stateStr: string;
   singleProvider: boolean;
   providerNames: Array<{ name: string; index: number }>;
+  /** Resolve a tool name (possibly provider-prefixed) back to path + action. */
+  resolve(toolName: string): { providerIndex: number; path: string; action: string } | null;
 }
 
 export interface ProviderTreeInfo {
@@ -20,18 +22,23 @@ export function buildMergedContext(providers: ProviderTreeInfo[]): MergedContext
   let stateStr = "";
   const providerNames = providers.map(p => ({ name: p.name, index: p.index }));
 
-  for (const { name, tree } of providers) {
-    const tools = affordancesToTools(tree);
+  // Per-provider ToolSets for resolve
+  const providerToolSets: { name: string; index: number; toolSet: ToolSet }[] = [];
+
+  for (const { name, index, tree } of providers) {
+    const toolSet = affordancesToTools(tree);
+    providerToolSets.push({ name, index, toolSet });
 
     if (singleProvider) {
-      allTools.push(...tools);
+      allTools.push(...toolSet.tools);
     } else {
-      for (const tool of tools) {
+      const safeName = name.replace(/[^a-zA-Z0-9]/g, "_");
+      for (const tool of toolSet.tools) {
         allTools.push({
           ...tool,
           function: {
             ...tool.function,
-            name: `${name}__${tool.function.name}`,
+            name: `${safeName}__${tool.function.name}`,
             description: `[${name}] ${tool.function.description}`,
           },
         });
@@ -42,27 +49,32 @@ export function buildMergedContext(providers: ProviderTreeInfo[]): MergedContext
     stateStr += formatTree(tree) + "\n";
   }
 
-  return { tools: allTools, stateStr, singleProvider, providerNames };
-}
+  return {
+    tools: allTools,
+    stateStr,
+    singleProvider,
+    providerNames,
+    resolve(toolName: string) {
+      if (singleProvider) {
+        const entry = providerToolSets[0];
+        if (!entry) return null;
+        const resolved = entry.toolSet.resolve(toolName);
+        if (!resolved) return null;
+        return { providerIndex: entry.index, ...resolved };
+      }
 
-export function routeToolCall(
-  toolName: string,
-  providerNames: Array<{ name: string; index: number }>,
-  singleProvider: boolean
-): { providerIndex: number; path: string; action: string } | null {
-  if (singleProvider) {
-    if (providerNames.length === 0) return null;
-    const { path, action } = decodeTool(toolName);
-    return { providerIndex: providerNames[0].index, path, action };
-  }
-
-  for (const { name, index } of providerNames) {
-    const prefix = `${name}__`;
-    if (toolName.startsWith(prefix)) {
-      const original = toolName.slice(prefix.length);
-      const { path, action } = decodeTool(original);
-      return { providerIndex: index, path, action };
-    }
-  }
-  return null;
+      // Multi-provider: strip provider prefix, then resolve
+      for (const entry of providerToolSets) {
+        const safeName = entry.name.replace(/[^a-zA-Z0-9]/g, "_");
+        const prefix = `${safeName}__`;
+        if (toolName.startsWith(prefix)) {
+          const unprefixed = toolName.slice(prefix.length);
+          const resolved = entry.toolSet.resolve(unprefixed);
+          if (!resolved) return null;
+          return { providerIndex: entry.index, ...resolved };
+        }
+      }
+      return null;
+    },
+  };
 }

@@ -4,8 +4,11 @@ import * as tabRegistry from "./tab-registry";
 import * as bridge from "./bridge-client";
 import { getStorage, saveStorage, fetchModels, setActiveModel } from "./llm";
 
-// Keep MV3 service worker alive while tabs are connected
-setInterval(() => {}, 20_000);
+// Keep MV3 service worker alive while tabs are connected.
+// chrome.alarms is the official MV3 keepalive mechanism —
+// empty setInterval callbacks may not prevent worker termination.
+chrome.alarms.create("keepalive", { periodInMinutes: 0.4 });
+chrome.alarms.onAlarm.addListener(() => {});
 
 // --- Port connections ---
 

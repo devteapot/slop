@@ -59,6 +59,7 @@ export function teardown(tabId: number): void {
   entry.desktopRelays.clear();
 
   tabs.delete(tabId);
+  lastStatus.delete(tabId);
 }
 
 export function setDiscoveries(
@@ -141,7 +142,7 @@ export async function ensureSession(tabId: number): Promise<boolean> {
     tabId,
     entry.port,
     () => pushStatus(tabId),
-    () => pushTree(tabId),
+    () => pushTree(tabId, "onTreeUpdate"),
   );
   entry.session = session;
   await session.connect(specs);
@@ -232,17 +233,25 @@ export function reannounceAll(): void {
 
 // --- Internal helpers ---
 
+const lastStatus = new Map<number, string>();
+
 function pushStatus(tabId: number): void {
   const entry = tabs.get(tabId);
   if (!entry?.session) return;
 
+  const status = entry.session.getStatus();
+  const prev = lastStatus.get(tabId);
+  lastStatus.set(tabId, status);
+
   send(entry.port, {
     type: "status",
-    status: entry.session.getStatus(),
+    status,
     providerName: entry.session.providerName,
   });
 
-  if (entry.session.getStatus() === "connected") {
+  // Only push tree on actual transition to connected, not on every
+  // redundant status callback while already connected
+  if (status === "connected" && prev !== "connected") {
     pushTree(tabId);
   }
 }

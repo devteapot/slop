@@ -3,7 +3,7 @@
   "name": "SLOP",
   "version": "0.1.0",
   "description": "AI assistant that sees and acts on application state via SLOP",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "dist/background.js"

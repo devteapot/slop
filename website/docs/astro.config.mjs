@@ -61,6 +61,12 @@ export default defineConfig({
 					autogenerate: { directory: 'spec/integrations' },
 				},
 				{
+					label: 'Status',
+					items: [
+						{ label: 'Known Limitations & Future Work', slug: 'spec/limitations' },
+					],
+				},
+				{
 					label: 'Extension',
 					items: [
 						{ label: 'Install & Setup', slug: 'extension/install' },

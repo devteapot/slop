@@ -83,8 +83,6 @@ The full specification is in [`spec/`](./spec/):
 4. [Message Protocol](./spec/core/messages.md)
 5. [Affordances](./spec/core/affordances.md)
 6. [Attention & Salience](./spec/core/attention.md)
-7. [Development & Debugging](./spec/core/development.md)
-
 ### Extensions
 
 - [Scaling](./spec/extensions/scaling.md) — windowing, pagination, view-scoped trees
@@ -98,6 +96,11 @@ The full specification is in [`spec/`](./spec/):
 - [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
 - [Agents](./spec/integrations/agents.md) — LLM interaction patterns
 - [OpenClaw](./spec/integrations/openclaw.md) — OpenClaw plugin architecture
+
+### SDK guides
+
+- [Development & Debugging](./docs/sdk/development.md) — `printTree()`, schema validation, message logging
+- [Sessions & Multi-User](./docs/sdk/sessions.md) — session-scoped trees, multi-user scaling, provider patterns
 
 ## SDKs
 
@@ -120,7 +123,8 @@ The full specification is in [`spec/`](./spec/):
 
 ```
 slop/
-├── spec/                           # Protocol specification (14 docs)
+├── spec/                           # Protocol specification
+├── docs/sdk/                       # SDK architecture & implementation guides
 ├── packages/
 │   ├── typescript/
 │   │   ├── core/                   # @slop-ai/core — types, tree assembly, diffing
@@ -161,8 +165,32 @@ Each example follows a **blueprint** — a language-agnostic spec defining the e
 - **[TanStack Start](./examples/full-stack/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
 - **[Python + React](./examples/full-stack/python-react/)** — Python FastAPI backend + React SPA frontend. Cross-SDK integration with two independent providers.
 
+## Known limitations
+
+SLOP v0.1 is designed to be useful now while leaving room to grow. Key limitations:
+
+- **Multi-user apps** — Server-side providers currently expose one shared tree to all consumers. The protocol already supports per-user state (each connection is independent), but the SDKs don't implement session-scoped tree rendering yet. Client-only SPAs are unaffected — each tab is its own provider. See [Sessions & Multi-User](./docs/sdk/sessions.md).
+- **No reconnection** — If a WebSocket drops, the consumer must re-connect and re-subscribe from scratch. No automatic reconnect or version-based catch-up.
+- **No backpressure** — `pause`/`resume` messages are mentioned in the spec but not defined. Providers should debounce rapid changes (50-100ms).
+- **No network discovery** — mDNS/DNS-SD is reserved but unspecified. Remote providers require manual configuration.
+
+Full list: [Known Limitations & Future Work](https://docs.slopai.dev/spec/limitations/)
+
 ## Roadmap
 
+**Protocol**
+- Backpressure (`pause`/`resume` flow control)
+- Network discovery (mDNS/DNS-SD)
+- Ancestor retention for salience filtering
+- Binary encoding (optional MessagePack/CBOR)
+
+**SDKs**
+- Session-scoped trees (multi-user server apps)
+- Automatic reconnection with version catch-up
+- Typed affordance results
+- Consumer-side tree composition (merge multiple providers)
+
+**Product**
 - Firefox extension
 - Safari extension
 - OpenClaw integration

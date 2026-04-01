@@ -443,3 +443,5 @@ The AI navigated the tree by invoking an affordance. The protocol didn't change.
 7. **Update salience with user context.** The focused item is 1.0. The notification that just fired is 1.0. The settings page the user hasn't visited in a week is 0.0.
 
 8. **Patch, don't replace, on navigation.** When the user changes views, collapse the old view and expand the new one via patches. Don't send a full snapshot.
+
+9. **Scope trees per session for multi-user apps.** Each user should see their own tree with their own data, permissions, and active view. This ensures view-scoped trees, salience, and windowing are all scoped to the correct user. See [Sessions & Multi-User](../../docs/sdk/sessions.md) for SDK implementation patterns.

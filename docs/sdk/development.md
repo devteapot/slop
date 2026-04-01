@@ -133,4 +133,4 @@ When enabled, log each message with direction and type:
 1. Use `meta.salience` to mark less-important nodes — consumers can filter by `min_salience`
 2. Use windowed collections for large lists — expose a `window` with a subset of items
 3. Subscribe at a shallower `depth` — get the overview without the details
-4. See [Scaling](../extensions/scaling.md) for depth truncation, compaction, and view-scoped trees
+4. See [Scaling](../../spec/extensions/scaling.md) for depth truncation, compaction, and view-scoped trees

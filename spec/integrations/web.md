@@ -828,6 +828,8 @@ Session management is the backend's responsibility — authenticating the WebSoc
 
 The browser UI provider is naturally per-tab — each browser tab runs its own `@slop-ai/client` instance and opens its own outbound browser-to-server connection. The server decides how to map those connections onto mounted `ui` subtrees (for example, one active tab, or one subtree per tab).
 
+See [Sessions & Multi-User](../../docs/sdk/sessions.md) for the SDK architecture guide — session-scoped trees vs provider-per-session tradeoffs, scaling analysis, the `refresh({ where })` API, multi-tab handling, tab-closed resilience, and meta-framework adapter patterns.
+
 #### Data invalidation
 
 When the AI invokes a data action (e.g., `add_todo`), the server's tree updates. But the browser UI may be showing stale data from its last fetch. The protocol doesn't solve this — it's the adapter's job.

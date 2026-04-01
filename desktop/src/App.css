@@ -238,8 +238,14 @@ body {
 }
 
 .status-dot.connected { background: #91db37; }
-.status-dot.connecting { background: #d29922; }
+.status-dot.connecting { background: #d29922; animation: pulse 1.5s ease-in-out infinite; }
 .status-dot.disconnected { background: #6e7681; }
+.status-dot.error { background: #da3633; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
 
 .provider-item .name {
   flex: 1;
@@ -719,22 +725,3 @@ body {
   opacity: 1;
 }
 
-/* ───────────────────────────────────────────────
-   Pin / Unpin Button
-   ─────────────────────────────────────────────── */
-
-.pin-btn {
-  background: none;
-  border: none;
-  color: #6e7681;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: 13px;
-  border-radius: 4px;
-  line-height: 1;
-}
-
-.pin-btn:hover {
-  color: #d29922;
-  background: rgba(210, 153, 34, 0.12);
-}

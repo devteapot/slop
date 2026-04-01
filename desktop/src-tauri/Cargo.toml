@@ -17,10 +17,16 @@ tauri-build = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dirs = "6"
-tokio = { version = "1", features = ["net", "io-util", "sync", "rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["net", "io-util", "sync", "rt", "rt-multi-thread", "macros", "time", "fs"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
 slop-ai = { path = "../../packages/rust/slop-ai" }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+notify = { version = "7", features = ["macos_kqueue"] }
+tokio-util = "0.7"
+async-trait = "0.1"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

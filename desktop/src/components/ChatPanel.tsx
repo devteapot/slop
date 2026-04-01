@@ -1,20 +1,19 @@
-import { useState, useRef, useEffect } from "react";
-import { useChatStore } from "../hooks/use-chat";
-import { useProviderStore } from "../hooks/use-provider-store";
-import { useWorkspaceStore } from "../hooks/use-workspace-store";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useAppStore } from "../stores/app-store";
+import { useChatStore } from "../stores/chat-store";
+
+const EMPTY_MESSAGES: never[] = [];
 
 export function ChatPanel() {
-  const workspace = useWorkspaceStore(s => s.getActiveWorkspace());
-  const messages = workspace.messages;
-  const processing = useChatStore(s => s.processing);
+  const activeWorkspaceId = useAppStore(s => s.activeWorkspaceId);
+  const providers = useAppStore(s => s.providers);
+
+  const rawMessages = useChatStore(s => s.messages[activeWorkspaceId]);
+  const messages = rawMessages ?? EMPTY_MESSAGES;
+  const processing = useChatStore(s => !!s.processing[activeWorkspaceId]);
   const sendMessage = useChatStore(s => s.sendMessage);
 
-  // Check if any provider in the workspace is connected
-  const providers = useProviderStore(s => s.providers);
-  const connectedCount = workspace.providerIds.filter(id => {
-    const p = providers.get(id);
-    return p?.status === "connected";
-  }).length;
+  const connectedCount = providers.filter(p => p.status === "connected").length;
   const connected = connectedCount > 0;
 
   const [text, setText] = useState("");
@@ -34,7 +33,7 @@ export function ChatPanel() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSend) return;
-    sendMessage(text.trim());
+    sendMessage(activeWorkspaceId, text.trim());
     setText("");
   }
 
@@ -65,7 +64,12 @@ export function ChatPanel() {
           placeholder={connected ? "Ask about the app..." : "Connect to a provider first"}
           value={text}
           onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
           disabled={!connected || processing}
           rows={1}
         />

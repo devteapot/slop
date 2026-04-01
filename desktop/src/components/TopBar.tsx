@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useWorkspaceStore } from "../hooks/use-workspace-store";
-import { useLlmStore } from "../hooks/use-llm-store";
+import { useAppStore } from "../stores/app-store";
 
 interface TopBarProps {
   treeOpen: boolean;
@@ -9,25 +8,26 @@ interface TopBarProps {
 }
 
 export function TopBar({ treeOpen, onToggleTree, onOpenSettings }: TopBarProps) {
-  const profiles = useLlmStore(s => s.profiles);
-  const activeProfileId = useLlmStore(s => s.activeProfileId);
-  const models = useLlmStore(s => s.models);
-  const modelsLoading = useLlmStore(s => s.modelsLoading);
-  const setActiveProfile = useLlmStore(s => s.setActiveProfile);
-  const setModel = useLlmStore(s => s.setModel);
-  const fetchModels = useLlmStore(s => s.fetchModels);
-  const getActiveProfile = useLlmStore(s => s.getActiveProfile);
+  const workspaces = useAppStore(s => s.workspaces);
+  const activeWorkspaceId = useAppStore(s => s.activeWorkspaceId);
+  const profiles = useAppStore(s => s.profiles);
+  const activeProfileId = useAppStore(s => s.activeProfileId);
+  const models = useAppStore(s => s.models);
+  const modelsLoading = useAppStore(s => s.modelsLoading);
 
-  const workspaces = useWorkspaceStore(s => s.workspaces);
-  const activeWorkspaceId = useWorkspaceStore(s => s.activeWorkspaceId);
-  const setActiveWorkspace = useWorkspaceStore(s => s.setActiveWorkspace);
-  const createWorkspace = useWorkspaceStore(s => s.createWorkspace);
-  const renameWorkspace = useWorkspaceStore(s => s.renameWorkspace);
-  const deleteWorkspace = useWorkspaceStore(s => s.deleteWorkspace);
+  const createWorkspace = useAppStore(s => s.createWorkspace);
+  const renameWorkspace = useAppStore(s => s.renameWorkspace);
+  const deleteWorkspace = useAppStore(s => s.deleteWorkspace);
+  const setActiveWorkspace = useAppStore(s => s.setActiveWorkspace);
+  const setActiveProfile = useAppStore(s => s.setActiveProfile);
+  const setModel = useAppStore(s => s.setModel);
+  const fetchModels = useAppStore(s => s.fetchModels);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const editRef = useRef<HTMLInputElement>(null);
+
+  const activeProfile = profiles.find(p => p.id === activeProfileId) ?? profiles[0];
 
   useEffect(() => {
     fetchModels();
@@ -40,11 +40,8 @@ export function TopBar({ treeOpen, onToggleTree, onOpenSettings }: TopBarProps) 
     }
   }, [editingId]);
 
-  const activeProfile = getActiveProfile();
-
   function handleAddWorkspace() {
-    const count = workspaces.length + 1;
-    createWorkspace(`Workspace ${count}`);
+    createWorkspace(`Workspace ${workspaces.length + 1}`);
   }
 
   function startRename(id: string, currentName: string) {
@@ -60,26 +57,16 @@ export function TopBar({ treeOpen, onToggleTree, onOpenSettings }: TopBarProps) 
     setEditName("");
   }
 
-  function handleTabContextMenu(e: React.MouseEvent, id: string, name: string) {
-    e.preventDefault();
-    startRename(id, name);
-  }
-
-  function handleTabDoubleClick(id: string, name: string) {
-    startRename(id, name);
-  }
-
   return (
     <>
-      {/* Row 1: Workspace tab bar */}
       <div className="workspace-bar">
         {workspaces.map(ws => (
           <div
             key={ws.id}
             className={`workspace-tab${ws.id === activeWorkspaceId ? " active" : ""}`}
             onClick={() => setActiveWorkspace(ws.id)}
-            onContextMenu={e => handleTabContextMenu(e, ws.id, ws.name)}
-            onDoubleClick={() => handleTabDoubleClick(ws.id, ws.name)}
+            onContextMenu={e => { e.preventDefault(); startRename(ws.id, ws.name); }}
+            onDoubleClick={() => startRename(ws.id, ws.name)}
           >
             {editingId === ws.id ? (
               <input
@@ -109,7 +96,6 @@ export function TopBar({ treeOpen, onToggleTree, onOpenSettings }: TopBarProps) 
         <button className="workspace-add" onClick={handleAddWorkspace}>+</button>
       </div>
 
-      {/* Row 2: Toolbar */}
       <div className="top-bar">
         <span className="title">SLOP Desktop</span>
 
@@ -123,17 +109,17 @@ export function TopBar({ treeOpen, onToggleTree, onOpenSettings }: TopBarProps) 
         </select>
 
         <select
-          value={activeProfile.model}
+          value={activeProfile?.model ?? ""}
           onChange={e => setModel(e.target.value)}
         >
           {modelsLoading && <option value="">Loading models...</option>}
           {!modelsLoading && models.length === 0 && (
-            <option value={activeProfile.model}>{activeProfile.model || "No models"}</option>
+            <option value={activeProfile?.model ?? ""}>{activeProfile?.model || "No models"}</option>
           )}
           {models.map(m => (
             <option key={m} value={m}>{m}</option>
           ))}
-          {!modelsLoading && activeProfile.model && !models.includes(activeProfile.model) && (
+          {!modelsLoading && activeProfile?.model && !models.includes(activeProfile.model) && (
             <option value={activeProfile.model}>{activeProfile.model}</option>
           )}
         </select>

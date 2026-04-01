@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useLlmStore } from "../hooks/use-llm-store";
-import type { LlmProfile } from "../slop/profiles";
+import { useAppStore } from "../stores/app-store";
+import type { LlmProfile } from "../lib/types";
 
 interface SettingsProps {
   onClose: () => void;
@@ -21,12 +21,12 @@ const DEFAULT_ENDPOINTS: Record<string, string> = {
 };
 
 export function Settings({ onClose }: SettingsProps) {
-  const profiles = useLlmStore(s => s.profiles);
-  const activeProfileId = useLlmStore(s => s.activeProfileId);
-  const addProfile = useLlmStore(s => s.addProfile);
-  const updateProfile = useLlmStore(s => s.updateProfile);
-  const deleteProfile = useLlmStore(s => s.deleteProfile);
-  const setActiveProfile = useLlmStore(s => s.setActiveProfile);
+  const profiles = useAppStore(s => s.profiles);
+  const activeProfileId = useAppStore(s => s.activeProfileId);
+  const addProfile = useAppStore(s => s.addProfile);
+  const updateProfile = useAppStore(s => s.updateProfile);
+  const deleteProfile = useAppStore(s => s.deleteProfile);
+  const setActiveProfile = useAppStore(s => s.setActiveProfile);
 
   const [editing, setEditing] = useState<LlmProfile | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -36,9 +36,9 @@ export function Settings({ onClose }: SettingsProps) {
     setEditing({
       id: `profile-${Date.now()}`,
       name: "",
-      llmProvider: "ollama",
+      provider: "ollama",
       endpoint: DEFAULT_ENDPOINTS.ollama,
-      apiKey: "",
+      api_key: "",
       model: "",
     });
   }
@@ -50,10 +50,10 @@ export function Settings({ onClose }: SettingsProps) {
 
   function handleSave() {
     if (!editing) return;
-    const profile = {
+    const profile: LlmProfile = {
       ...editing,
-      name: editing.name || `${editing.llmProvider} profile`,
-      endpoint: editing.endpoint || DEFAULT_ENDPOINTS[editing.llmProvider],
+      name: editing.name || `${editing.provider} profile`,
+      endpoint: editing.endpoint || DEFAULT_ENDPOINTS[editing.provider],
     };
     if (isNew) {
       addProfile(profile);
@@ -63,12 +63,12 @@ export function Settings({ onClose }: SettingsProps) {
     setEditing(null);
   }
 
-  function handleProviderChange(llmProvider: LlmProfile["llmProvider"]) {
+  function handleProviderChange(provider: string) {
     if (!editing) return;
     setEditing({
       ...editing,
-      llmProvider,
-      endpoint: DEFAULT_ENDPOINTS[llmProvider],
+      provider,
+      endpoint: DEFAULT_ENDPOINTS[provider],
     });
   }
 
@@ -94,7 +94,7 @@ export function Settings({ onClose }: SettingsProps) {
                   {p.name} {p.id === activeProfileId && "(active)"}
                 </div>
                 <div className="detail">
-                  {p.llmProvider} &middot; {p.model || "no model"} &middot; {p.endpoint}
+                  {p.provider} &middot; {p.model || "no model"} &middot; {p.endpoint}
                 </div>
               </div>
               {p.id !== activeProfileId && (
@@ -118,8 +118,8 @@ export function Settings({ onClose }: SettingsProps) {
 
               <label>Provider</label>
               <select
-                value={editing.llmProvider}
-                onChange={e => handleProviderChange(e.target.value as LlmProfile["llmProvider"])}
+                value={editing.provider}
+                onChange={e => handleProviderChange(e.target.value)}
               >
                 {PROVIDERS.map(p => (
                   <option key={p.value} value={p.value}>{p.label}</option>
@@ -130,16 +130,16 @@ export function Settings({ onClose }: SettingsProps) {
               <input
                 value={editing.endpoint}
                 onChange={e => setEditing({ ...editing, endpoint: e.target.value })}
-                placeholder={DEFAULT_ENDPOINTS[editing.llmProvider]}
+                placeholder={DEFAULT_ENDPOINTS[editing.provider]}
               />
 
-              {editing.llmProvider !== "ollama" && (
+              {editing.provider !== "ollama" && (
                 <>
                   <label>API Key</label>
                   <input
                     type="password"
-                    value={editing.apiKey}
-                    onChange={e => setEditing({ ...editing, apiKey: e.target.value })}
+                    value={editing.api_key}
+                    onChange={e => setEditing({ ...editing, api_key: e.target.value })}
                     placeholder="sk-..."
                   />
                 </>
@@ -149,7 +149,7 @@ export function Settings({ onClose }: SettingsProps) {
               <input
                 value={editing.model}
                 onChange={e => setEditing({ ...editing, model: e.target.value })}
-                placeholder={editing.llmProvider === "ollama" ? "qwen2.5:14b" : "gpt-4o"}
+                placeholder={editing.provider === "ollama" ? "qwen2.5:14b" : "gpt-4o"}
               />
 
               <div className="actions">

@@ -210,3 +210,25 @@ Node IDs and action names SHOULD be sanitized to `[a-zA-Z0-9_]` in tool names (r
 ### Multi-provider prefix
 
 When a consumer connects to multiple providers, tool names SHOULD be prefixed with the provider name to avoid collisions: `{providerName}__{nodeId}__{action}`.
+
+### Length limits and deep trees
+
+Some LLM providers impose function name length limits (e.g., Gemini: 64 characters). Short names stay well within limits for typical apps:
+
+| Scenario | Example | Length |
+|---|---|---|
+| Simple node + action | `card_123__edit` | 14 |
+| UUID node + action | `550e8400_e29b_41d4_a716_446655440000__edit` | 42 |
+| Multi-provider + UUID | `my_app__550e8400_e29b_41d4_a716_446655440000__edit` | 50 |
+| Disambiguated UUID + UUID parent | `550e8400_...440001__550e8400_...440000__edit` | **79** |
+
+The last case — UUID collision requiring a UUID parent prefix — exceeds 64 chars. This is rare (requires two sibling-level nodes with identical IDs at different branches, both with long IDs), but possible in deep trees with UUID-based identifiers.
+
+**Mitigation:** Consumer implementations SHOULD apply a hash-based truncation when sanitized names exceed the provider's limit. Truncate to `limit - 8` characters and append `_` plus a 7-character hash of the full name. This preserves uniqueness while respecting the limit:
+
+```
+fn_550e8400_e29b_41d4_a716_446655440001__550e8400_e29b → exceeds 64
+fn_550e8400_e29b_41d4_a716_446655440001__550e84_k3m7x9w → 64 chars, unique
+```
+
+**Provider guidance:** Prefer short, human-readable node IDs (e.g., `card-123`, `inbox`, `settings`) over UUIDs where possible. Short IDs produce better tool names, clearer tree output, and avoid length limit issues entirely.

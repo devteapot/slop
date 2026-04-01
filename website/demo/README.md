@@ -7,7 +7,7 @@ A three-panel web app that demonstrates the full SLOP protocol loop: an e-commer
 ```bash
 bun install
 bun demo    # from repo root, or:
-cd examples/demo && bunx vite --port 3001
+cd website/demo && bunx vite --port 3001
 ```
 
 Open http://localhost:3001.

@@ -33,27 +33,6 @@
         "@slop-ai/server": "workspace:*",
       },
     },
-    "examples/demo": {
-      "name": "slop-demo",
-      "version": "0.1.0",
-      "dependencies": {
-        "@slop-ai/client": "workspace:*",
-        "@slop-ai/consumer": "workspace:*",
-        "@slop-ai/core": "workspace:*",
-        "@slop-ai/react": "workspace:*",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-      },
-      "devDependencies": {
-        "@tailwindcss/vite": "^4.1.18",
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
-        "@vitejs/plugin-react": "^4.5.2",
-        "tailwindcss": "^4.1.18",
-        "typescript": "^5.8.3",
-        "vite": "^6.3.5",
-      },
-    },
     "examples/desktop/typescript": {
       "name": "pomodoro-electron",
       "version": "0.1.0",
@@ -327,6 +306,27 @@
       },
       "peerDependencies": {
         "vue": ">=3.3.0",
+      },
+    },
+    "website/demo": {
+      "name": "slop-demo",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop-ai/client": "workspace:*",
+        "@slop-ai/consumer": "workspace:*",
+        "@slop-ai/core": "workspace:*",
+        "@slop-ai/react": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4.1.18",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^4.5.2",
+        "tailwindcss": "^4.1.18",
+        "typescript": "^5.8.3",
+        "vite": "^6.3.5",
       },
     },
     "website/playground": {
@@ -2450,7 +2450,7 @@
 
     "slice-ansi": ["slice-ansi@5.0.0", "", { "dependencies": { "ansi-styles": "^6.0.0", "is-fullwidth-code-point": "^4.0.0" } }, "sha512-FC+lgizVPfie0kkhqUScwRu1O/lF6NOgJmlCgK+/LYxDCTk8sGelYaHDhFcDN+Sn3Cv+3VSa4Byeo+IMCzpMgQ=="],
 
-    "slop-demo": ["slop-demo@workspace:examples/demo"],
+    "slop-demo": ["slop-demo@workspace:website/demo"],
 
     "slop-desktop": ["slop-desktop@workspace:desktop"],
 

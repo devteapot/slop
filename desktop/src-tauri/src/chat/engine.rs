@@ -163,8 +163,7 @@ impl ChatEngine {
             for tc in &tool_calls {
                 let route = route_tool_call(
                     &tc.function.name,
-                    &merged.provider_names,
-                    merged.single_provider,
+                    &merged,
                 );
 
                 if route.is_none() {

@@ -94,13 +94,15 @@ The full specification is in [`spec/`](./spec/):
 - [Adapters](./spec/integrations/adapters.md) — wrapping existing apps
 - [Web](./spec/integrations/web.md) — browser integration, postMessage, security tiers
 - [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
-- [Agents](./spec/integrations/agents.md) — LLM interaction patterns
-- [OpenClaw](./spec/integrations/openclaw.md) — OpenClaw plugin architecture
-
 ### SDK guides
 
 - [Development & Debugging](./docs/sdk/development.md) — `printTree()`, schema validation, message logging
 - [Sessions & Multi-User](./docs/sdk/sessions.md) — session-scoped trees, multi-user scaling, provider patterns
+
+### Guides
+
+- [Agent-Assisted Integration](./docs/guides/agent-scaffolding.md) — AI-powered SLOP scaffolding for existing codebases
+- [OpenClaw Integration](./docs/guides/openclaw.md) — control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
 
 ## SDKs
 

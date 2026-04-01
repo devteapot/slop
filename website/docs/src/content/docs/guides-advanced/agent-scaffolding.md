@@ -309,7 +309,7 @@ A VS Code / JetBrains extension that adds:
 The analysis patterns documented in this spec are detailed enough that any AI coding assistant (Copilot, Cursor, Cline, Aider) can follow them. The developer pastes the prompt:
 
 ```
-Read the SLOP spec at https://github.com/.../spec/integrations/agents.md
+Read the SLOP agent scaffolding guide at https://docs.slopai.dev/guides-advanced/agent-scaffolding/
 and add SLOP integration to this component: [paste component]
 ```
 

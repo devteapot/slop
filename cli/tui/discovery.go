@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -55,7 +56,12 @@ func (m DiscoveryModel) Update(msg tea.Msg) (DiscoveryModel, tea.Cmd) {
 	case ProvidersRefreshedMsg:
 		m.providers = msg.Providers
 		m.err = msg.Err
-		return m, nil
+		if m.cursor >= len(m.providers) {
+			m.cursor = max(len(m.providers)-1, 0)
+		}
+		return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+			return refreshProviders()
+		})
 
 	case tea.KeyMsg:
 		if m.manualMode {
@@ -124,7 +130,7 @@ func (m DiscoveryModel) View() string {
 	b.WriteString("\n  " + title + "\n")
 
 	// Separator
-	sep := StyleSeparator.Render(strings.Repeat("─", min(m.width-4, 60)))
+	sep := StyleSeparator.Render(strings.Repeat("─", max(min(m.width-4, 60), 0)))
 	b.WriteString("  " + sep + "\n\n")
 
 	if m.manualMode {

@@ -55,54 +55,52 @@ func (sm *StateMirror) applyAdd(segments []string, value any) {
 		return
 	}
 
-	lastSeg := segments[len(segments)-1]
+	node, remaining := sm.navigateTo(segments)
 
-	// Check if target is a known field
-	if isFieldPath(segments) {
-		node, remaining := sm.navigateTo(segments[:len(segments)-1])
-		if node == nil || len(remaining) > 0 {
+	// navigateTo returned nil — the last segment(s) don't exist yet.
+	// Navigate to the parent and add the child there.
+	if node == nil {
+		parent, parentRemaining := sm.navigateTo(segments[:len(segments)-1])
+		if parent == nil || len(parentRemaining) > 0 {
 			return
 		}
-
-		// Adding a property
-		if len(remaining) == 0 && len(segments) >= 2 && segments[len(segments)-2] == "properties" {
-			if node.Properties == nil {
-				node.Properties = Props{}
-			}
-			node.Properties[lastSeg] = value
-			return
+		child := unmarshalWireNode(value)
+		if child.ID == "" {
+			child.ID = segments[len(segments)-1]
 		}
-
-		// Adding affordances list
-		if lastSeg == "affordances" {
-			var affs []Affordance
-			data, _ := json.Marshal(value)
-			_ = json.Unmarshal(data, &affs)
-			node.Affordances = affs
-			return
-		}
-
-		// Adding meta
-		if lastSeg == "meta" {
-			var meta WireMeta
-			data, _ := json.Marshal(value)
-			_ = json.Unmarshal(data, &meta)
-			node.Meta = &meta
-			return
-		}
+		parent.Children = append(parent.Children, child)
 		return
 	}
 
-	// Adding a child node — navigate to parent
-	node, remaining := sm.navigateTo(segments[:len(segments)-1])
-	if node == nil || len(remaining) > 0 {
+	// Field-level add: navigateTo stopped at a field boundary
+	if len(remaining) > 0 {
+		sm.applyFieldAdd(node, remaining, value)
 		return
 	}
-	child := unmarshalWireNode(value)
-	if child.ID == "" {
-		child.ID = lastSeg
+}
+
+func (sm *StateMirror) applyFieldAdd(node *WireNode, fieldPath []string, value any) {
+	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
+		if node.Properties == nil {
+			node.Properties = Props{}
+		}
+		node.Properties[fieldPath[1]] = value
+		return
 	}
-	node.Children = append(node.Children, child)
+	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
+		var affs []Affordance
+		data, _ := json.Marshal(value)
+		_ = json.Unmarshal(data, &affs)
+		node.Affordances = affs
+		return
+	}
+	if len(fieldPath) == 1 && fieldPath[0] == "meta" {
+		var meta WireMeta
+		data, _ := json.Marshal(value)
+		_ = json.Unmarshal(data, &meta)
+		node.Meta = &meta
+		return
+	}
 }
 
 func (sm *StateMirror) applyRemove(segments []string) {
@@ -110,42 +108,48 @@ func (sm *StateMirror) applyRemove(segments []string) {
 		return
 	}
 
-	lastSeg := segments[len(segments)-1]
-
-	// Check if target is a known field
-	if isFieldPath(segments) {
-		node, remaining := sm.navigateTo(segments[:len(segments)-1])
-		if node == nil || len(remaining) > 0 {
-			return
-		}
-
-		if len(segments) >= 2 && segments[len(segments)-2] == "properties" {
-			delete(node.Properties, lastSeg)
-			return
-		}
-		if lastSeg == "affordances" {
-			node.Affordances = nil
-			return
-		}
-		if lastSeg == "meta" {
-			node.Meta = nil
-			return
-		}
+	node, remaining := sm.navigateTo(segments)
+	if node == nil {
 		return
 	}
 
-	// Removing a child by ID
-	node, remaining := sm.navigateTo(segments[:len(segments)-1])
-	if node == nil || len(remaining) > 0 {
+	// Field-level remove
+	if len(remaining) > 0 {
+		sm.applyFieldRemove(node, remaining)
 		return
 	}
-	filtered := node.Children[:0]
-	for _, c := range node.Children {
-		if c.ID != lastSeg {
+
+	// Removing a child by ID — navigate to parent
+	if len(segments) < 2 {
+		return
+	}
+	parent, parentRemaining := sm.navigateTo(segments[:len(segments)-1])
+	if parent == nil || len(parentRemaining) > 0 {
+		return
+	}
+	childID := segments[len(segments)-1]
+	filtered := parent.Children[:0]
+	for _, c := range parent.Children {
+		if c.ID != childID {
 			filtered = append(filtered, c)
 		}
 	}
-	node.Children = filtered
+	parent.Children = filtered
+}
+
+func (sm *StateMirror) applyFieldRemove(node *WireNode, fieldPath []string) {
+	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
+		delete(node.Properties, fieldPath[1])
+		return
+	}
+	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
+		node.Affordances = nil
+		return
+	}
+	if len(fieldPath) == 1 && fieldPath[0] == "meta" {
+		node.Meta = nil
+		return
+	}
 }
 
 func (sm *StateMirror) applyReplace(segments []string, value any) {
@@ -153,33 +157,34 @@ func (sm *StateMirror) applyReplace(segments []string, value any) {
 		return
 	}
 
-	node, remaining := sm.navigateTo(segments[:len(segments)-1])
-	if node == nil || len(remaining) > 0 {
+	node, remaining := sm.navigateTo(segments)
+	if node == nil {
 		return
 	}
 
-	lastSeg := segments[len(segments)-1]
+	// Field-level replace
+	if len(remaining) > 0 {
+		sm.applyFieldReplace(node, remaining, value)
+		return
+	}
+}
 
-	// Replacing a property value
-	if len(segments) >= 2 && segments[len(segments)-2] == "properties" {
+func (sm *StateMirror) applyFieldReplace(node *WireNode, fieldPath []string, value any) {
+	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
 		if node.Properties == nil {
 			node.Properties = Props{}
 		}
-		node.Properties[lastSeg] = value
+		node.Properties[fieldPath[1]] = value
 		return
 	}
-
-	// Replacing affordances
-	if lastSeg == "affordances" {
+	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
 		var affs []Affordance
 		data, _ := json.Marshal(value)
 		_ = json.Unmarshal(data, &affs)
 		node.Affordances = affs
 		return
 	}
-
-	// Replacing meta
-	if lastSeg == "meta" {
+	if len(fieldPath) == 1 && fieldPath[0] == "meta" {
 		var meta WireMeta
 		data, _ := json.Marshal(value)
 		_ = json.Unmarshal(data, &meta)

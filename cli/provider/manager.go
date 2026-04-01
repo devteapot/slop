@@ -17,14 +17,12 @@ type LogEntry struct {
 }
 
 type Manager struct {
-	consumer *slop.Consumer
-	subID    string
-	tree     *slop.WireNode
-	address  string
-	mu       sync.RWMutex
-
-	onTreeUpdate func()
-	onLog        func(LogEntry)
+	consumer   *slop.Consumer
+	subID      string
+	tree       *slop.WireNode
+	address    string
+	mu         sync.RWMutex
+	pendingLog []LogEntry
 }
 
 func NewManager() *Manager {
@@ -58,21 +56,11 @@ func (m *Manager) Connect(ctx context.Context, address string) error {
 
 	// Register callbacks
 	consumer.OnPatch(func(subID string, ops []slop.PatchOp, version int) {
-		m.mu.RLock()
-		tree := consumer.Tree(m.subID)
-		m.mu.RUnlock()
+		tree := consumer.Tree(subID)
 		if tree != nil {
 			m.mu.Lock()
 			m.tree = tree
 			m.mu.Unlock()
-		}
-
-		for _, op := range ops {
-			m.log("patch", fmt.Sprintf("v%d %s %s", version, op.Op, op.Path))
-		}
-
-		if m.onTreeUpdate != nil {
-			m.onTreeUpdate()
 		}
 	})
 
@@ -103,10 +91,6 @@ func (m *Manager) Connect(ctx context.Context, address string) error {
 	nodeCount := countNodes(tree)
 	m.log("snapshot", fmt.Sprintf("Received tree (%d nodes)", nodeCount))
 
-	if m.onTreeUpdate != nil {
-		m.onTreeUpdate()
-	}
-
 	return nil
 }
 
@@ -132,26 +116,15 @@ func (m *Manager) Invoke(ctx context.Context, path, action string, params slop.P
 		return nil, fmt.Errorf("not connected")
 	}
 
-	m.log("invoke", fmt.Sprintf("%s → %s", path, action))
-
-	result, err := m.consumer.Invoke(ctx, path, action, params)
-	if err != nil {
-		m.log("error", fmt.Sprintf("invoke failed: %v", err))
-		return nil, err
-	}
-
-	status, _ := result["status"].(string)
-	m.log("result", fmt.Sprintf("status=%s", status))
-
-	return result, nil
+	return m.consumer.Invoke(ctx, path, action, params)
 }
 
-func (m *Manager) OnTreeUpdate(fn func()) {
-	m.onTreeUpdate = fn
-}
-
-func (m *Manager) OnLog(fn func(LogEntry)) {
-	m.onLog = fn
+func (m *Manager) DrainLog() []LogEntry {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	entries := m.pendingLog
+	m.pendingLog = nil
+	return entries
 }
 
 func (m *Manager) log(kind, message string) {
@@ -160,9 +133,9 @@ func (m *Manager) log(kind, message string) {
 		Kind:    kind,
 		Message: message,
 	}
-	if m.onLog != nil {
-		m.onLog(entry)
-	}
+	m.mu.Lock()
+	m.pendingLog = append(m.pendingLog, entry)
+	m.mu.Unlock()
 }
 
 func (m *Manager) transportForAddress(address string) slop.ClientTransport {

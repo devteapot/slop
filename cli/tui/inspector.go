@@ -31,8 +31,9 @@ type InspectorModel struct {
 	address string
 
 	// Tree state
-	flatNodes []FlatNode
-	cursor    int
+	flatNodes    []FlatNode
+	cursor       int
+	treeVersion  int
 
 	// Log state
 	logEntries []provider.LogEntry
@@ -40,13 +41,9 @@ type InspectorModel struct {
 	// Invoke overlay
 	invoking    bool
 	invokeModel InvokeModel
-
-	// Async update channel
-	updateCh chan tea.Msg
 }
 
-type TreeUpdatedMsg struct{}
-type LogEntryMsg struct{ Entry provider.LogEntry }
+type tickMsg struct{}
 type ConnectedMsg struct{ Err error }
 type DisconnectedMsg struct{}
 type InvokeResultMsg struct {
@@ -56,33 +53,15 @@ type InvokeResultMsg struct {
 
 func NewInspectorModel() InspectorModel {
 	return InspectorModel{
-		manager:  provider.NewManager(),
-		tree:     viewport.New(80, 20),
-		log:      viewport.New(80, 8),
-		updateCh: make(chan tea.Msg, 64),
+		manager: provider.NewManager(),
+		tree:    viewport.New(80, 20),
+		log:     viewport.New(80, 8),
 	}
 }
 
 func (m InspectorModel) Connect(address string) tea.Cmd {
 	m.address = address
-
-	// Set up callbacks before connecting — they write to the channel
 	mgr := m.manager
-	ch := m.updateCh
-
-	mgr.OnTreeUpdate(func() {
-		select {
-		case ch <- TreeUpdatedMsg{}:
-		default:
-		}
-	})
-
-	mgr.OnLog(func(entry provider.LogEntry) {
-		select {
-		case ch <- LogEntryMsg{Entry: entry}:
-		default:
-		}
-	})
 
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -116,12 +95,10 @@ func (m InspectorModel) Resize() InspectorModel {
 	return m
 }
 
-// waitForUpdate returns a Cmd that blocks until the next async update arrives.
-func (m InspectorModel) waitForUpdate() tea.Cmd {
-	ch := m.updateCh
-	return func() tea.Msg {
-		return <-ch
-	}
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg {
+		return tickMsg{}
+	})
 }
 
 func (m InspectorModel) Update(msg tea.Msg) (InspectorModel, tea.Cmd) {
@@ -132,16 +109,12 @@ func (m InspectorModel) Update(msg tea.Msg) (InspectorModel, tea.Cmd) {
 			return m, func() tea.Msg { return DisconnectedMsg{} }
 		}
 		m.address = m.manager.Address()
-		m.refreshTree()
-		return m, m.waitForUpdate()
+		m.syncFromManager()
+		return m, tickCmd()
 
-	case TreeUpdatedMsg:
-		m.refreshTree()
-		return m, m.waitForUpdate()
-
-	case LogEntryMsg:
-		m.addLog(msg.Entry)
-		return m, m.waitForUpdate()
+	case tickMsg:
+		m.syncFromManager()
+		return m, tickCmd()
 
 	case InvokeResultMsg:
 		m.invokeModel.SetResult(msg.Result, msg.Err)
@@ -151,7 +124,7 @@ func (m InspectorModel) Update(msg tea.Msg) (InspectorModel, tea.Cmd) {
 			status, _ := msg.Result["status"].(string)
 			m.addLog(provider.LogEntry{Kind: "result", Message: fmt.Sprintf("status=%s", status), Time: time.Now()})
 		}
-		return m, m.waitForUpdate()
+		return m, nil
 
 	case tea.KeyMsg:
 		if m.invoking {
@@ -248,19 +221,24 @@ func (m InspectorModel) updateInvoke(msg tea.KeyMsg) (InspectorModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *InspectorModel) refreshTree() {
+func (m *InspectorModel) syncFromManager() {
+	// Pull latest tree
 	tree := m.manager.Tree()
-	if tree == nil {
-		return
+	if tree != nil {
+		m.flatNodes = FlattenTree(*tree, "", 0)
+		if m.cursor >= len(m.flatNodes) {
+			m.cursor = len(m.flatNodes) - 1
+		}
+		if m.cursor < 0 {
+			m.cursor = 0
+		}
+		m.updateTreeContent()
 	}
-	m.flatNodes = FlattenTree(*tree, "", 0)
-	if m.cursor >= len(m.flatNodes) {
-		m.cursor = len(m.flatNodes) - 1
+
+	// Pull any new log entries
+	for _, entry := range m.manager.DrainLog() {
+		m.addLog(entry)
 	}
-	if m.cursor < 0 {
-		m.cursor = 0
-	}
-	m.updateTreeContent()
 }
 
 func (m *InspectorModel) updateTreeContent() {

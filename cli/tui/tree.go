@@ -21,7 +21,7 @@ func FlattenTree(node slop.WireNode, path string, indent int) []FlatNode {
 	var result []FlatNode
 	nodePath := path
 	if path == "" {
-		nodePath = node.ID
+		nodePath = "/" + node.ID
 	}
 
 	result = append(result, FlatNode{

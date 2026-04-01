@@ -64,10 +64,11 @@ cargo test
   - Python: `slop-ai` (in `packages/python/slop-ai/`)
   - Rust: `slop-ai` (in `packages/rust/slop-ai/`)
   - Go: `github.com/slop-ai/slop-go` (in `packages/go/slop-ai/`)
-- `extension/` — Chrome extension
-- `desktop/` — Tauri desktop app
+- `apps/` — Standalone consumer applications
+  - `extension/` — Chrome extension
+  - `desktop/` — Tauri desktop app
+  - `cli/` — Go CLI inspector
 - `examples/` — Runnable example apps
-- `mvp/` — Prototyping sandbox
 
 ## How to contribute
 

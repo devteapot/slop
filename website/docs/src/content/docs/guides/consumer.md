@@ -111,7 +111,7 @@ cd extension
 bun install && bun run build.ts
 ```
 
-Then in Chrome: `chrome://extensions` > Developer mode > Load unpacked > select `extension/`.
+Then in Chrome: `chrome://extensions` > Developer mode > Load unpacked > select `apps/extension/`.
 
 ### How it works
 

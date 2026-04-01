@@ -142,10 +142,11 @@ slop/
 │   ├── python/slop-ai/             # Python SDK
 │   ├── rust/slop-ai/               # Rust SDK
 │   └── go/slop-ai/                 # Go SDK
-├── extension/                      # Chrome extension (SLOP consumer + AI chat)
-├── desktop/                        # Tauri desktop app
+├── apps/
+│   ├── extension/                  # Chrome extension (SLOP consumer + AI chat)
+│   ├── desktop/                    # Tauri desktop app
+│   └── cli/                        # Go CLI inspector
 ├── examples/
-│   ├── demo/                       # Interactive three-panel demo (bun demo)
 │   ├── cli/                        # Task manager CLI in 4 languages (Bun, Python, Go, Rust)
 │   ├── spa/
 │   │   └── notes/                  # React SPA with in-browser SLOP
@@ -154,7 +155,9 @@ slop/
 │       └── python-react/           # Python FastAPI + React — cross-SDK
 └── website/
     ├── landing/                    # slopai.dev landing page
-    └── docs/                       # docs.slopai.dev documentation
+    ├── docs/                       # docs.slopai.dev documentation
+    ├── demo/                       # demo.slopai.dev interactive demo
+    └── playground/                 # playground.slopai.dev
 ```
 
 ## Examples

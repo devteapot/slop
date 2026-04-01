@@ -129,13 +129,13 @@ For **each** package, run these checks:
 
 ## 7. Chrome Extension
 
-- [ ] `cd extension && bun install && bun run build` (or equivalent)
+- [ ] `cd apps/extension && bun install && bun run build` (or equivalent)
 - [ ] `dist/` contains valid extension files (manifest.json, popup, background, content scripts)
-- [ ] Sideload in Chrome: chrome://extensions → Load unpacked → select `extension/dist/`
+- [ ] Sideload in Chrome: chrome://extensions → Load unpacked → select `apps/extension/dist/`
 - [ ] Extension detects a running SLOP provider (test with one of the examples)
 - [ ] Extension can subscribe to state and display the tree
 - [ ] Extension can invoke affordances
-- [ ] Sideload instructions are clear in extension/README.md or main README
+- [ ] Sideload instructions are clear in apps/extension/README.md or main README
 - [ ] Note in README: Chrome Web Store submission takes days — sideload is the launch-day path
 
 ---

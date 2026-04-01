@@ -12,6 +12,7 @@ export function ChatPanel() {
   const messages = rawMessages ?? EMPTY_MESSAGES;
   const processing = useChatStore(s => !!s.processing[activeWorkspaceId]);
   const sendMessage = useChatStore(s => s.sendMessage);
+  const clearChat = useChatStore(s => s.clearChat);
 
   const connectedCount = providers.filter(p => p.status === "connected").length;
   const connected = connectedCount > 0;
@@ -39,6 +40,18 @@ export function ChatPanel() {
 
   return (
     <div className="chat-panel">
+      {messages.length > 0 && (
+        <div className="chat-toolbar">
+          <button
+            className="clear-chat-btn"
+            onClick={() => clearChat(activeWorkspaceId)}
+            disabled={processing}
+            title="Clear conversation"
+          >
+            Clear
+          </button>
+        </div>
+      )}
       {messages.length === 0 ? (
         <div className="chat-empty">
           {connected

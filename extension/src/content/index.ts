@@ -1,25 +1,27 @@
 import { discoverSlop, observeDiscovery, type SlopDiscovery } from "./discovery";
-import { createBridgeController } from "./bridge";
+import { createBridgeRelay } from "./bridge-relay";
 import { createChatUI } from "../ui/chat";
 import { buildAxTree, observeChanges, executeAction } from "./ax-adapter";
-import type { BackgroundMessage, ContentMessage } from "../shared/messages";
+import type { BackgroundMessage, ContentMessage } from "../types";
 
 let port: chrome.runtime.Port | null = null;
-let bridgeController: ReturnType<typeof createBridgeController> | null = null;
+let bridgeRelay: ReturnType<typeof createBridgeRelay> | null = null;
 let chatUI: ReturnType<typeof createChatUI> | null = null;
 let currentDiscoveries: SlopDiscovery[] = [];
 let isActive = true;
 let axCleanup: (() => void) | null = null;
 let reconnecting = false;
 
+// ========================================================================
+// Init
+// ========================================================================
+
 async function init() {
   const result = await chrome.storage.local.get("prefs");
   isActive = result.prefs?.active ?? true;
 
-  // Initial discovery
   currentDiscoveries = discoverSlop();
 
-  // Watch for new meta tags (SPAs inject postMessage after hydration)
   observeDiscovery((ds) => {
     const isNew = ds.length > currentDiscoveries.length;
     currentDiscoveries = ds;
@@ -28,11 +30,7 @@ async function init() {
     if (!port && ds.length > 0) {
       connectPort();
     } else if (port && isNew) {
-      // New provider appeared — re-announce all
-      port.postMessage({
-        type: "slop-discovered",
-        providers: ds.map((d) => ({ transport: d.transport, endpoint: d.endpoint })),
-      } satisfies ContentMessage);
+      sendDiscoveries();
     }
   });
 
@@ -40,36 +38,40 @@ async function init() {
     connectPort();
   }
 
-  // React to master toggle changes
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.prefs) {
-      const newActive = changes.prefs.newValue?.active ?? true;
-      if (newActive && !isActive && currentDiscoveries.length > 0) {
-        isActive = true;
-        connectPort();
-      } else if (!newActive && isActive) {
-        isActive = false;
-        teardown();
-      }
+    if (area !== "local" || !changes.prefs) return;
+    const newActive = changes.prefs.newValue?.active ?? true;
+    if (newActive && !isActive && currentDiscoveries.length > 0) {
+      isActive = true;
+      connectPort();
+    } else if (!newActive && isActive) {
+      isActive = false;
+      teardown();
+    }
+    // Chat UI toggle
+    if (isActive && port) {
+      const chatEnabled = changes.prefs.newValue?.chatUIEnabled ?? true;
+      if (chatEnabled) showChatUI();
+      else hideChatUI();
     }
   });
 }
 
-// --- Port lifecycle with reconnection ---
+// ========================================================================
+// Port lifecycle
+// ========================================================================
 
 function connectPort() {
   if (port) return;
 
   port = chrome.runtime.connect({ name: "slop" });
-  bridgeController = createBridgeController(port);
+  bridgeRelay = createBridgeRelay(port);
 
-  // Listen for background messages
   port.onMessage.addListener(handleBackgroundMessage);
 
-  // Port reconnection on disconnect (MV3 service worker restart)
   port.onDisconnect.addListener(() => {
-    bridgeController?.dispose();
-    bridgeController = null;
+    bridgeRelay?.dispose();
+    bridgeRelay = null;
     port = null;
     chatUI?.setStatus("disconnected");
 
@@ -77,115 +79,103 @@ function connectPort() {
       reconnecting = true;
       setTimeout(() => {
         reconnecting = false;
-        if (isActive && currentDiscoveries.length > 0) {
-          connectPort();
-        }
+        if (isActive && currentDiscoveries.length > 0) connectPort();
       }, 500);
     }
   });
 
-  // Announce discovered providers
-  if (currentDiscoveries.length > 0) {
-    port.postMessage({
-      type: "slop-discovered",
-      providers: currentDiscoveries.map((d) => ({ transport: d.transport, endpoint: d.endpoint })),
-    } satisfies ContentMessage);
-  }
+  sendDiscoveries();
 
-  // Show chat UI if enabled
   chrome.storage.local.get("prefs", (result) => {
-    const chatEnabled = result.prefs?.chatUIEnabled ?? true;
-    if (chatEnabled) showChatUI();
-  });
-
-  // React to chat overlay toggle
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes.prefs) return;
-    const newPrefs = changes.prefs.newValue;
-    if (!(newPrefs?.active ?? true)) return;
-    if (newPrefs?.chatUIEnabled) showChatUI();
-    else hideChatUI();
+    if (result.prefs?.chatUIEnabled ?? true) showChatUI();
   });
 }
 
 function teardown() {
   hideChatUI();
   if (port) {
-    port.postMessage({ type: "slop-lost" } satisfies ContentMessage);
+    port.postMessage({ type: "lost" } satisfies ContentMessage);
     port.disconnect();
     port = null;
   }
-  bridgeController?.dispose();
-  bridgeController = null;
+  bridgeRelay?.dispose();
+  bridgeRelay = null;
 }
+
+function sendDiscoveries() {
+  port?.postMessage({
+    type: "discovered",
+    providers: currentDiscoveries.map((d) => ({ transport: d.transport, endpoint: d.endpoint })),
+  } satisfies ContentMessage);
+}
+
+// ========================================================================
+// Background message handler
+// ========================================================================
 
 function handleBackgroundMessage(msg: BackgroundMessage) {
   if (!chatUI) return;
   switch (msg.type) {
-    case "connection-status":
+    case "status":
       chatUI.setStatus(msg.status, msg.providerName);
       break;
-    case "state-update":
-      chatUI.setTree(msg.formattedTree, msg.toolCount);
+    case "tree":
+      chatUI.setTree(msg.formatted, msg.toolCount);
       break;
-    case "chat-message":
-      chatUI.addMessage(msg.role, msg.content);
+    case "assistant":
+      chatUI.addMessage("assistant", msg.content);
       break;
-    case "chat-done":
-      chatUI.setInputEnabled(true);
+    case "progress":
+      chatUI.addMessage("tool-progress", msg.content);
       break;
-    case "chat-error":
+    case "error":
       chatUI.addMessage("assistant", `Error: ${msg.message}`);
       chatUI.setInputEnabled(true);
       break;
+    case "input-ready":
+      chatUI.setInputEnabled(true);
+      break;
     case "profiles":
-      chatUI.setProfiles(msg.profiles, msg.activeProfileId);
+      chatUI.setProfiles(msg.profiles, msg.activeId);
       break;
     case "models":
-      chatUI.setModels(msg.models, msg.activeModel);
+      chatUI.setModels(msg.models, msg.active);
       break;
   }
 }
 
-// --- Chat UI ---
+// ========================================================================
+// Chat UI
+// ========================================================================
 
 function showChatUI() {
   if (chatUI) return;
 
   chatUI = createChatUI({
     onSendMessage: (text) => {
-      port?.postMessage({ type: "user-message", text } satisfies ContentMessage);
-    },
-    onRequestState: () => {
-      port?.postMessage({ type: "get-state" } satisfies ContentMessage);
+      port?.postMessage({ type: "send", text } satisfies ContentMessage);
     },
     onSwitchProfile: (profileId) => {
-      port?.postMessage({ type: "set-active-profile", profileId } satisfies ContentMessage);
-    },
-    onRequestProfiles: () => {
-      port?.postMessage({ type: "get-profiles" } satisfies ContentMessage);
-    },
-    onFetchModels: () => {
-      port?.postMessage({ type: "fetch-models" } satisfies ContentMessage);
+      port?.postMessage({ type: "set-profile", profileId } satisfies ContentMessage);
     },
     onSelectModel: (model) => {
       port?.postMessage({ type: "set-model", model } satisfies ContentMessage);
     },
   });
 
-  port?.postMessage({ type: "get-status" } satisfies ContentMessage);
+  // Request initial state
   port?.postMessage({ type: "get-profiles" } satisfies ContentMessage);
-  port?.postMessage({ type: "fetch-models" } satisfies ContentMessage);
+  port?.postMessage({ type: "get-models" } satisfies ContentMessage);
 }
 
 function hideChatUI() {
-  if (!chatUI) return;
-  const host = document.getElementById("slop-extension-root");
-  if (host) host.remove();
+  chatUI?.destroy();
   chatUI = null;
 }
 
-// --- Tier 3: Accessibility adapter (triggered from popup) ---
+// ========================================================================
+// AX Adapter (Tier 2/3 — triggered from popup)
+// ========================================================================
 
 function startAxAdapter() {
   if (port) return;
@@ -193,32 +183,27 @@ function startAxAdapter() {
   port = chrome.runtime.connect({ name: "slop" });
 
   port.postMessage({
-    type: "slop-discovered",
+    type: "discovered",
     providers: [{ transport: "postmessage" as const }],
   } satisfies ContentMessage);
 
   const tree = buildAxTree();
   let version = 1;
 
-  port.postMessage({
-    type: "slop-from-provider",
-    message: {
-      type: "hello",
-      provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] },
-    },
-  } satisfies ContentMessage);
+  // AX adapter acts as a postMessage provider — use SDK-compatible message types
+  const slopUp = (message: any) =>
+    port?.postMessage({ type: "slop-from-provider", message });
 
-  port.postMessage({
-    type: "slop-from-provider",
-    message: { type: "snapshot", id: "sub-1", version, tree },
-  } satisfies ContentMessage);
+  slopUp({
+    type: "hello",
+    provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] },
+  });
+
+  slopUp({ type: "snapshot", id: "sub-1", version, tree });
 
   axCleanup = observeChanges((newTree) => {
     version++;
-    port?.postMessage({
-      type: "slop-from-provider",
-      message: { type: "snapshot", id: "sub-1", version, tree: newTree },
-    } satisfies ContentMessage);
+    slopUp({ type: "snapshot", id: "sub-1", version, tree: newTree });
   });
 
   port.onMessage.addListener((msg: any) => {
@@ -226,33 +211,21 @@ function startAxAdapter() {
       const { id, path, action, params } = msg.message;
       const nodeId = path.split("/").pop() ?? path.replace(/^\//, "");
       const result = executeAction(nodeId, action, params);
-      port?.postMessage({
-        type: "slop-from-provider",
-        message: {
-          type: "result", id,
-          status: result.status === "ok" ? "ok" : "error",
-          ...(result.status === "ok" ? {} : { error: { code: "internal", message: result.message ?? "Unknown error" } }),
-        },
-      } satisfies ContentMessage);
+      slopUp({
+        type: "result", id,
+        status: result.status === "ok" ? "ok" : "error",
+        ...(result.status === "ok" ? {} : { error: { code: "internal", message: result.message ?? "Unknown error" } }),
+      });
       setTimeout(() => {
         version++;
-        port?.postMessage({
-          type: "slop-from-provider",
-          message: { type: "snapshot", id: "sub-1", version, tree: buildAxTree() },
-        } satisfies ContentMessage);
+        slopUp({ type: "snapshot", id: "sub-1", version, tree: buildAxTree() });
       }, 100);
     }
     if (msg.type === "slop-to-provider" && msg.message?.type === "connect") {
-      port?.postMessage({
-        type: "slop-from-provider",
-        message: { type: "hello", provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] } },
-      } satisfies ContentMessage);
+      slopUp({ type: "hello", provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] } });
     }
     if (msg.type === "slop-to-provider" && msg.message?.type === "subscribe") {
-      port?.postMessage({
-        type: "slop-from-provider",
-        message: { type: "snapshot", id: msg.message.id, version, tree: buildAxTree() },
-      } satisfies ContentMessage);
+      slopUp({ type: "snapshot", id: msg.message.id, version, tree: buildAxTree() });
     }
   });
 
@@ -271,10 +244,14 @@ function startAxAdapter() {
 function stopAxAdapter() {
   if (axCleanup) { axCleanup(); axCleanup = null; }
   hideChatUI();
-  bridgeController?.dispose();
-  bridgeController = null;
+  bridgeRelay?.dispose();
+  bridgeRelay = null;
   if (port) { port.disconnect(); port = null; }
 }
+
+// ========================================================================
+// Message listener (popup commands)
+// ========================================================================
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "scan-page") {

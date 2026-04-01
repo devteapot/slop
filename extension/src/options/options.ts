@@ -1,5 +1,5 @@
-import type { LlmProfile, SlopStorage } from "../shared/messages";
-import { DEFAULT_STORAGE, DEFAULT_PROFILE } from "../shared/messages";
+import type { LlmProfile, SlopStorage } from "../types";
+import { DEFAULT_STORAGE, DEFAULT_PROFILE } from "../types";
 
 const profileListEl = document.getElementById("profileList")!;
 const addProfileBtn = document.getElementById("addProfile") as HTMLButtonElement;

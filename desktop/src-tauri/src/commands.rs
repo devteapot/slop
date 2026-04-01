@@ -178,10 +178,11 @@ pub async fn connect_provider(
     tokio::spawn(async move {
         match provider::connect_provider(&app_clone, &registry_clone, &provider_id).await {
             Ok(result) => {
-                manager_clone
-                    .lock()
-                    .await
-                    .add_provider_to_workspace(&workspace_id, &provider_id);
+                {
+                    let mut mgr = manager_clone.lock().await;
+                    mgr.add_provider_to_workspace(&workspace_id, &provider_id);
+                    events::emit_workspaces_changed(&app_clone, mgr.list_summaries());
+                }
 
                 events::emit_provider_status(
                     &app_clone,
@@ -222,10 +223,11 @@ pub async fn disconnect_provider(
 ) -> Result<(), String> {
     provider::disconnect_provider(&*registry, &provider_id).await;
 
-    manager
-        .lock()
-        .await
-        .remove_provider_from_workspace(&workspace_id, &provider_id);
+    {
+        let mut mgr = manager.lock().await;
+        mgr.remove_provider_from_workspace(&workspace_id, &provider_id);
+        events::emit_workspaces_changed(&app, mgr.list_summaries());
+    }
 
     events::emit_provider_status(
         &app,

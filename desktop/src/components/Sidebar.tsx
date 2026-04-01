@@ -12,13 +12,30 @@ function transportLabel(p: ProviderSummary): string {
 
 export function Sidebar() {
   const providers = useAppStore(s => s.providers);
+  const workspaces = useAppStore(s => s.workspaces);
+  const activeWorkspaceId = useAppStore(s => s.activeWorkspaceId);
+  const bridgeConnected = useAppStore(s => s.bridgeConnected);
   const connectProvider = useAppStore(s => s.connectProvider);
   const disconnectProvider = useAppStore(s => s.disconnectProvider);
   const addManualProvider = useAppStore(s => s.addManualProvider);
   const removeProvider = useAppStore(s => s.removeProvider);
 
   const [url, setUrl] = useState("");
-  const [browserCollapsed, setBrowserCollapsed] = useState(true);
+  const [browserCollapsed, setBrowserCollapsed] = useState(false);
+
+  const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
+  const workspaceProviderIds = useMemo(
+    () => new Set(activeWorkspace?.provider_ids ?? []),
+    [activeWorkspace?.provider_ids],
+  );
+
+  // Workspace-scoped status: only show "connected" if in this workspace
+  function effectiveStatus(p: ProviderSummary): string {
+    if (p.status === "connected" && !workspaceProviderIds.has(p.id)) {
+      return "disconnected";
+    }
+    return p.status;
+  }
 
   const localEntries = useMemo(
     () => providers.filter(p => p.source === "discovered"),
@@ -41,7 +58,8 @@ export function Sidebar() {
   }
 
   function handleClick(p: ProviderSummary) {
-    if (p.status === "connected") {
+    const status = effectiveStatus(p);
+    if (status === "connected") {
       disconnectProvider(p.id);
     } else {
       connectProvider(p.id);
@@ -54,20 +72,21 @@ export function Sidebar() {
   }
 
   function renderItem(p: ProviderSummary) {
+    const status = effectiveStatus(p);
     return (
       <div
         key={p.id}
-        className={`provider-item${p.status === "connected" ? " active" : ""}`}
+        className={`provider-item${status === "connected" ? " active" : ""}`}
         onClick={() => handleClick(p)}
       >
-        <span className={`status-dot ${p.status}`} />
+        <span className={`status-dot ${status}`} />
         <span className="name" title={p.id}>
           {p.provider_name ?? p.name}
         </span>
         <span className="transport-badge">{transportLabel(p)}</span>
 
         <span className="provider-actions">
-          {p.status === "connected" && (
+          {status === "connected" && (
             <button
               className="remove-btn"
               title="Disconnect"
@@ -76,7 +95,7 @@ export function Sidebar() {
               &#x23FB;
             </button>
           )}
-          {p.source === "manual" && p.status === "disconnected" && (
+          {p.source === "manual" && status === "disconnected" && (
             <button
               className="remove-btn"
               title="Remove"
@@ -94,7 +113,15 @@ export function Sidebar() {
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header">Providers</div>
+      <div className="sidebar-header">
+        <span>Providers</span>
+        <span
+          className={`bridge-indicator ${bridgeConnected ? "connected" : "disconnected"}`}
+          title={bridgeConnected ? "Extension bridge connected" : "Extension bridge disconnected"}
+        >
+          {bridgeConnected ? "Bridge" : "No bridge"}
+        </span>
+      </div>
 
       <div className="provider-list">
         {showEmpty && (

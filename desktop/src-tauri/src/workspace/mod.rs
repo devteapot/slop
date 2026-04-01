@@ -34,7 +34,7 @@ impl Workspace {
 pub struct WorkspaceSummary {
     pub id: String,
     pub name: String,
-    pub provider_count: usize,
+    pub provider_ids: Vec<String>,
 }
 
 impl From<&Workspace> for WorkspaceSummary {
@@ -42,7 +42,7 @@ impl From<&Workspace> for WorkspaceSummary {
         Self {
             id: ws.id.clone(),
             name: ws.name.clone(),
-            provider_count: ws.provider_ids.len(),
+            provider_ids: ws.provider_ids.clone(),
         }
     }
 }

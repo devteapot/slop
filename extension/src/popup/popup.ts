@@ -1,4 +1,4 @@
-import { getPrefs, savePrefs } from "../shared/messages";
+import { getPrefs, savePrefs } from "../types";
 
 const activeToggle = document.getElementById("activeToggle") as HTMLInputElement;
 const chatToggle = document.getElementById("chatToggle") as HTMLInputElement;

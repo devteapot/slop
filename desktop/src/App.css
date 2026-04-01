@@ -93,7 +93,6 @@ body {
 }
 
 .workspace-tab .close {
-  display: none;
   background: none;
   border: none;
   color: #6e7681;
@@ -102,10 +101,6 @@ body {
   line-height: 1;
   padding: 0 2px;
   border-radius: 2px;
-}
-
-.workspace-tab:hover .close {
-  display: inline-flex;
 }
 
 .workspace-tab .close:hover {
@@ -203,6 +198,27 @@ body {
   text-transform: uppercase;
   color: #8b949e;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bridge-indicator {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bridge-indicator.connected {
+  color: #91db37;
+  background: rgba(145, 219, 55, 0.1);
+}
+
+.bridge-indicator.disconnected {
+  color: #6e7681;
+  background: rgba(110, 118, 129, 0.1);
 }
 
 .provider-list {
@@ -327,6 +343,30 @@ body {
   background: #111319;
 }
 
+.chat-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 16px 0;
+}
+
+.clear-chat-btn {
+  background: none;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.clear-chat-btn:hover {
+  color: #da3633;
+  background: rgba(218, 54, 51, 0.1);
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -435,6 +475,8 @@ body {
   display: flex;
   flex-direction: column;
   background: #0c0e14;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .state-tree-header {
@@ -717,11 +759,6 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
-  opacity: 0;
   flex-shrink: 0;
-}
-
-.provider-item:hover .provider-actions {
-  opacity: 1;
 }
 

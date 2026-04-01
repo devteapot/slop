@@ -35,20 +35,31 @@ impl LlmClient for GeminiClient {
         let mut name_to_gemini: HashMap<String, String> = HashMap::new();
         let mut gemini_to_name: HashMap<String, String> = HashMap::new();
 
-        fn make_gemini_name(original: &str) -> String {
-            format!(
-                "fn_{}",
-                original
-                    .chars()
-                    .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
-                    .collect::<String>()
-            )
+        fn make_gemini_name(original: &str, existing: &HashMap<String, String>) -> String {
+            let sanitized: String = original
+                .chars()
+                .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+                .collect();
+            let mut name = format!("fn_{}", sanitized);
+            // Gemini limits function names to 64 characters
+            if name.len() > 64 {
+                name = name[..64].to_string();
+            }
+            // Avoid collisions from truncation
+            let base = name.clone();
+            let mut i = 0u32;
+            while existing.contains_key(&name) && existing[&name] != original {
+                i += 1;
+                let suffix = format!("_{i}");
+                name = format!("{}{}", &base[..64 - suffix.len()], suffix);
+            }
+            name
         }
 
         // Current tools are the ONLY authoritative source for reverse lookup
         for t in tools {
             let original = &t.function.name;
-            let gname = make_gemini_name(original);
+            let gname = make_gemini_name(original, &gemini_to_name);
             name_to_gemini.insert(original.clone(), gname.clone());
             gemini_to_name.insert(gname, original.clone());
         }
@@ -69,9 +80,8 @@ impl LlmClient for GeminiClient {
             };
             for original in names {
                 if !name_to_gemini.contains_key(&original) {
-                    let gname = make_gemini_name(&original);
+                    let gname = make_gemini_name(&original, &gemini_to_name);
                     name_to_gemini.insert(original, gname);
-                    // NOT added to gemini_to_name — only tools are authoritative
                 }
             }
         }

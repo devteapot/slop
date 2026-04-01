@@ -5,6 +5,7 @@ import type {
   LlmProfile,
   SlopNode,
 } from "../lib/types";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import * as commands from "../lib/commands";
 import { setupEvents, cleanup } from "../lib/events";
 
@@ -22,6 +23,9 @@ interface AppState {
   activeProfileId: string;
   models: string[];
   modelsLoading: boolean;
+
+  // Bridge
+  bridgeConnected: boolean;
 
   // Initialization
   initialized: boolean;
@@ -58,6 +62,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeProfileId: "",
   models: [],
   modelsLoading: false,
+  bridgeConnected: false,
   initialized: false,
 
   init: async () => {
@@ -118,6 +123,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       onProfilesChanged: ({ profiles, active_id }) => {
         set({ profiles, activeProfileId: active_id });
       },
+    });
+
+    // Bridge status listener
+    listen<boolean>("bridge-status", (e) => {
+      set({ bridgeConnected: e.payload });
     });
 
     // Initial discovery refresh

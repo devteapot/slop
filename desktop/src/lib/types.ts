@@ -3,7 +3,7 @@
 export interface WorkspaceSummary {
   id: string;
   name: string;
-  provider_count: number;
+  provider_ids: string[];
 }
 
 export interface WorkspaceDetail {

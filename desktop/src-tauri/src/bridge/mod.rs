@@ -82,11 +82,11 @@ pub async fn start_bridge_server(app: AppHandle) {
                 }
             };
 
-            println!("Bridge: extension connected");
             let (write, mut read) = ws_stream.split();
             let write = Arc::new(Mutex::new(write));
 
             sinks_clone.lock().await.push(write.clone());
+            let _ = app_clone.emit("bridge-status", true);
 
             while let Some(msg) = read.next().await {
                 match msg {
@@ -108,8 +108,8 @@ pub async fn start_bridge_server(app: AppHandle) {
 
             if no_sinks_left {
                 clear_all_relays(&app_clone).await;
+                let _ = app_clone.emit("bridge-status", false);
             }
-            println!("Bridge: extension disconnected");
         });
     }
 }

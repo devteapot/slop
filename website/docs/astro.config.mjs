@@ -37,6 +37,7 @@ export default defineConfig({
 						{ label: 'Python', slug: 'guides/python' },
 						{ label: 'Go', slug: 'guides/go' },
 						{ label: 'Rust', slug: 'guides/rust' },
+						{ label: 'Consumer / Testing', slug: 'guides/consumer' },
 					],
 				},
 				{
@@ -61,21 +62,31 @@ export default defineConfig({
 					autogenerate: { directory: 'spec/integrations' },
 				},
 				{
+					label: 'SDK Architecture',
+					items: [
+						{ label: 'Development & Debugging', slug: 'sdk/development' },
+						{ label: 'Sessions & Multi-User', slug: 'sdk/sessions' },
+					],
+				},
+				{
+					label: 'Advanced Guides',
+					items: [
+						{ label: 'Agent-Assisted Integration', slug: 'guides-advanced/agent-scaffolding' },
+						{ label: 'OpenClaw Integration', slug: 'guides-advanced/openclaw' },
+					],
+				},
+				{
 					label: 'Status',
 					items: [
 						{ label: 'Known Limitations & Future Work', slug: 'spec/limitations' },
 					],
 				},
 				{
-					label: 'Extension',
+					label: 'Consumers',
 					items: [
-						{ label: 'Install & Setup', slug: 'extension/install' },
-					],
-				},
-				{
-					label: 'Desktop App',
-					items: [
-						{ label: 'Install & Setup', slug: 'desktop/install' },
+						{ label: 'Overview & CLI', slug: 'guides/consumer' },
+						{ label: 'Desktop App', slug: 'desktop/install' },
+						{ label: 'Chrome Extension', slug: 'extension/install' },
 					],
 				},
 			],

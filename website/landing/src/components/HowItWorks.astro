@@ -52,6 +52,13 @@
         </div>
       </div>
     </div>
+
+    <div class="playground-cta">
+      <a href="https://playground.slopai.dev" class="btn btn-secondary">
+        Try it in the playground →
+      </a>
+      <span class="cta-hint">Edit descriptors, see the tree, invoke actions — no install needed</span>
+    </div>
   </div>
 </section>
 
@@ -101,5 +108,16 @@
   }
   .tree-view {
     color: var(--secondary);
+  }
+  .playground-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-10);
+  }
+  .cta-hint {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
   }
 </style>

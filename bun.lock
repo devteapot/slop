@@ -318,6 +318,25 @@
         "vue": ">=3.3.0",
       },
     },
+    "website/playground": {
+      "name": "slop-playground",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop-ai/consumer": "workspace:*",
+        "@slop-ai/core": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4.1.18",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^4.5.2",
+        "tailwindcss": "^4.1.18",
+        "typescript": "^5.8.3",
+        "vite": "^6.3.5",
+      },
+    },
   },
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.31", "", {}, "sha512-ZnR3GSaH+/vJ0YlHau21FjfLYjMpYVIzTD8M8vIEQvIGxeOXyXdzCI140rrCY862p/C/BbzWsjc1dgnM9mkoTA=="],
@@ -2423,6 +2442,8 @@
     "slop-desktop": ["slop-desktop@workspace:desktop"],
 
     "slop-extension": ["slop-extension@workspace:extension"],
+
+    "slop-playground": ["slop-playground@workspace:website/playground"],
 
     "smart-buffer": ["smart-buffer@4.2.0", "", {}, "sha512-94hK0Hh8rPqQl2xXc3HsaBoOXKV20MToPkcXvwbISWLEs+64sBq5kFgn2kJDHb1Pry9yrP0dxrCI9RRci7RXKg=="],
 

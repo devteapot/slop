@@ -15,9 +15,17 @@ import SloppyRoaming from './SloppyRoaming.astro';
     </p>
     <div class="actions">
       <a href="https://docs.slopai.dev/getting-started" class="btn btn-primary">Get Started</a>
-      <a href="https://github.com/devteapot/slop" class="btn btn-secondary">View on GitHub</a>
+      <a href="https://playground.slopai.dev" class="btn btn-secondary">Try the Playground</a>
+      <a href="https://github.com/devteapot/slop" class="btn btn-ghost">View on GitHub</a>
     </div>
     <div class="hero-visual">
+      <div class="demo-video">
+        <video src="https://github.com/user-attachments/assets/738add8c-8c06-4e5c-a85d-1e81e7472354" autoplay muted loop playsinline></video>
+        <p class="demo-caption">
+          AI agent observing state and invoking actions in real time.
+          <a href="https://demo.slopai.dev" class="demo-link">Run it yourself →</a>
+        </p>
+      </div>
       <div class="code-pair">
         <div class="code-block">
           <span class="code-label">Provider</span>
@@ -98,6 +106,26 @@ slop.<span class="fn">register</span>(<span class="string">"notes"</span>, () =>
   .hero-visual {
     max-width: 1100px;
     width: 100%;
+  }
+  .demo-video {
+    margin-bottom: var(--space-8);
+  }
+  .demo-video video {
+    width: 100%;
+    border-radius: 8px;
+  }
+  .demo-caption {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    margin-top: var(--space-3);
+    text-align: center;
+  }
+  .demo-link {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .demo-link:hover {
+    text-decoration: underline;
   }
   .code-pair {
     display: grid;

@@ -139,6 +139,18 @@ a:hover {
   text-decoration: none;
 }
 
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-machine);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: transparent;
+}
+.btn-ghost:hover {
+  text-decoration-color: var(--text-secondary);
+}
+
 /* Cards */
 .card {
   background: var(--surface-container);

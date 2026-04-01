@@ -20,6 +20,8 @@ export default defineConfig({
 					label: 'Getting Started',
 					items: [
 						{ label: 'Quick Start', slug: 'getting-started' },
+						{ label: 'Playground', link: 'https://playground.slopai.dev', attrs: { target: '_blank' } },
+						{ label: 'Interactive Demo', link: 'https://demo.slopai.dev', attrs: { target: '_blank' } },
 						{ label: 'Installation', slug: 'getting-started/installation' },
 					],
 				},

@@ -5,44 +5,68 @@
   font-family: 'Space Grotesk', sans-serif;
   font-size: 14px;
   color: #e6edf3;
+  --slop-trigger-offset: 20px;
+  --slop-trigger-height: 58px;
+  --slop-panel-gap: 18px;
+  --slop-eye-color: #8b949e;
 }
 
 .slop-fab {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: #1a1d27;
-  border: 1px solid rgba(173, 198, 255, 0.15);
+  bottom: var(--slop-trigger-offset);
+  right: var(--slop-trigger-offset);
+  width: 56px;
+  height: 58px;
+  padding: 0;
+  background: transparent;
+  border: none;
   cursor: pointer;
   z-index: 2147483647;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
-.slop-fab:hover { border-color: #adc6ff; box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 15px rgba(173, 198, 255, 0.25); transform: scale(1.05); }
-.slop-fab svg { width: 24px; height: 24px; }
-.slop-fab .status-dot {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #1a1d27;
+.slop-fab:hover {
+  transform: scale(1.05);
+  filter: drop-shadow(0 6px 18px rgba(31, 42, 64, 0.4));
 }
-.status-dot.connected { background: #91db37; }
-.status-dot.connecting { background: #d29922; }
-.status-dot.disconnected { background: #6e7681; }
+.slop-fab:focus-visible {
+  outline: 2px solid rgba(145, 219, 55, 0.8);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+.slop-fab svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.slop-fab #left-sclera,
+.slop-fab #right-scalera,
+.slop-fab #left-glow path,
+.slop-fab #right-glow path {
+  fill: var(--slop-eye-color);
+  transition: fill 0.25s ease;
+}
+.slop-fab #left-arm,
+.slop-fab #right-arm {
+  transform-box: fill-box;
+}
+.slop-fab[data-status="disconnected"] {
+  --slop-eye-color: #9aa4b2;
+}
+.slop-fab[data-status="connecting"] {
+  --slop-eye-color: #f4c15d;
+}
+.slop-fab[data-status="connected"] {
+  --slop-eye-color: #98f5a6;
+}
 
 .slop-panel {
   position: fixed;
-  bottom: 82px;
-  right: 20px;
+  bottom: calc(var(--slop-trigger-offset) + var(--slop-trigger-height) + var(--slop-panel-gap));
+  right: var(--slop-trigger-offset);
   width: 400px;
   height: min(600px, calc(100vh - 100px));
   background: rgba(26, 29, 39, 0.85);

@@ -3,6 +3,11 @@ declare module "*.css" {
   export default content;
 }
 
+declare module "*.svg" {
+  const content: string;
+  export default content;
+}
+
 declare namespace chrome {
   interface Event<TCallback extends (...args: any[]) => void> {
     addListener(callback: TCallback): void;

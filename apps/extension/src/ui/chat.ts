@@ -1,4 +1,5 @@
 import chatCssText from "./chat.css" with { type: "text" };
+import sloppySvgText from "./sloppy.svg" with { type: "text" };
 import type { LlmProfile } from "../types";
 
 interface ChatCallbacks {
@@ -30,13 +31,13 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
   let treeVisible = false;
 
   // FAB
-  const fab = document.createElement("div");
+  const fab = document.createElement("button");
+  fab.type = "button";
   fab.className = "slop-fab";
+  fab.dataset.status = "disconnected";
+  fab.setAttribute("aria-label", "Open SLOP chat");
   fab.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#58a6ff" stroke="#58a6ff"/>
-    </svg>
-    <span class="status-dot disconnected"></span>
+    ${sloppySvgText}
   `;
   fab.onclick = () => {
     panelOpen = !panelOpen;
@@ -124,7 +125,6 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
   document.body.appendChild(host);
 
   // Internal helpers
-  const statusDot = fab.querySelector(".status-dot")!;
   const badge = shadow.getElementById("slop-badge")!;
   const titleEl = header.querySelector(".title")!;
 
@@ -138,7 +138,7 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
 
   return {
     setStatus(status, providerName) {
-      statusDot.className = `status-dot ${status}`;
+      fab.dataset.status = status;
       badge.className = `badge ${status}`;
       badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
       if (providerName) titleEl.textContent = providerName;

@@ -101,6 +101,7 @@ export default defineConfig({
 						{ label: 'Overview & CLI', slug: 'guides/consumer' },
 						{ label: 'Desktop App', slug: 'desktop/install' },
 						{ label: 'Chrome Extension', slug: 'extension/install' },
+						{ label: 'Extension Privacy Policy', slug: 'extension/privacy' },
 					],
 				},
 			],

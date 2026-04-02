@@ -35,3 +35,4 @@ When enabled, the extension connects to the desktop bridge at `ws://localhost:93
 
 - [Consumer guide](/guides/consumer)
 - [Desktop app docs](/desktop/install)
+- [Extension privacy policy](/extension/privacy)

@@ -62,6 +62,18 @@ When this secret is configured, the `update-homebrew.yml` workflow updates
 
 - `CARGO_REGISTRY_TOKEN`
 
+### macOS desktop signing + notarization
+
+- `APPLE_CERTIFICATE`
+- `APPLE_CERTIFICATE_PASSWORD`
+- `APPLE_SIGNING_IDENTITY`
+- `APPLE_API_ISSUER`
+- `APPLE_API_KEY`
+- `APPLE_API_PRIVATE_KEY`
+
+These are required if you want the macOS desktop artifacts uploaded by the
+release workflow to be Developer ID signed and notarized.
+
 ## Local Dry Run
 
 Validate the release version sync without changing files:
@@ -105,6 +117,24 @@ Publish the Rust crate locally after syncing the version:
 bun run release:publish-rust v0.2.0
 ```
 
+Build a signed + notarized macOS app bundle locally:
+
+```bash
+cd apps/desktop
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export APPLE_API_ISSUER="..."
+export APPLE_API_KEY="..."
+export APPLE_API_KEY_PATH="/absolute/path/to/AuthKey_XXXXXXX.p8"
+bunx tauri build --bundles app
+```
+
+Validate the resulting macOS bundle:
+
+```bash
+spctl --assess -vv "src-tauri/target/release/bundle/macos/SLOP Desktop.app"
+xcrun stapler validate "src-tauri/target/release/bundle/macos/SLOP Desktop.app"
+```
+
 Create the Go module tag manually if you ever need to backfill a release:
 
 ```bash
@@ -117,6 +147,7 @@ git push origin "packages/go/slop-ai/v0.2.0"
 - Release tags must be stable SemVer in the form `vX.Y.Z`.
 - The TypeScript package publish step is Bun-native. Bun 1.3.x does not expose npm's `--provenance` flag, so switching away from `npm publish` also drops provenance signing for now.
 - The desktop workflow builds distributable binaries, but platform signing and notarization can be layered on separately if you want trusted installers.
+- The release workflow now expects the macOS signing + notarization secrets above on macOS runners and will fail the macOS desktop build if they are missing.
 - The Go module path now matches the monorepo subdirectory: `github.com/devteapot/slop/packages/go/slop-ai`.
 - Because the module lives in a repository subdirectory, Go release tags must be prefixed with that subdirectory. For `v0.2.0`, the Go tag is `packages/go/slop-ai/v0.2.0`.
 - The release workflow creates that Go tag automatically from the GitHub release tag.

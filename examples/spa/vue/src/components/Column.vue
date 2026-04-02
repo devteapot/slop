@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useSlop } from "@slop-ai/vue";
+import type { ItemDescriptor } from "@slop-ai/core";
+import { action, useSlop } from "@slop-ai/vue";
 import { slop } from "../slop";
 import type { Card } from "../types";
 import { computeSalience } from "../salience";
@@ -42,7 +43,7 @@ function buildItemDescriptor(card: Card) {
   const sal = computeSalience(card);
   const otherColumns = props.allColumns.filter((c) => c !== card.column);
 
-  const descriptor: Record<string, unknown> = {
+  const descriptor: ItemDescriptor = {
     id: card.id,
     props: {
       title: card.title,
@@ -58,50 +59,44 @@ function buildItemDescriptor(card: Card) {
       ...(sal.pinned ? { pinned: true } : {}),
     },
     actions: {
-      edit: {
-        params: {
+      edit: action(
+        {
           title: { type: "string" },
           priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
           due: { type: "string", description: "ISO date string" },
           tags: { type: "string", description: "Comma-separated tags" },
         },
-        idempotent: true,
-        handler: (params: Record<string, unknown>) => {
+        ({ title, priority, due, tags }) => {
           const updates: Partial<Pick<Card, "title" | "priority" | "due" | "tags">> = {};
-          if (params.title) updates.title = params.title as string;
-          if (params.priority) updates.priority = params.priority as Card["priority"];
-          if (params.due) updates.due = params.due as string;
-          if (params.tags) {
-            updates.tags = typeof params.tags === "string"
-              ? params.tags.split(",").map((t) => t.trim()).filter(Boolean)
-              : params.tags as string[];
+          if (title) updates.title = title;
+          if (priority) updates.priority = priority as Card["priority"];
+          if (due) updates.due = due;
+          if (tags) {
+            updates.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
           }
           emit("editCard", card.id, updates);
         },
-      },
-      move: {
-        params: {
+        { idempotent: true },
+      ),
+      move: action(
+        {
           column: {
             type: "string",
             description: `Target column. One of: ${otherColumns.join(", ")}`,
           },
         },
-        handler: ({ column }: Record<string, unknown>) => emit("moveCard", card.id, column as string),
-      },
-      delete: {
-        dangerous: true,
-        handler: () => emit("deleteCard", card.id),
-      },
-      set_description: {
-        params: { content: { type: "string", description: "Markdown content" } },
-        handler: ({ content }: Record<string, unknown>) =>
-          emit("setDescription", card.id, content as string),
-      },
+        ({ column }) => emit("moveCard", card.id, column),
+      ),
+      delete: action(() => emit("deleteCard", card.id), { dangerous: true }),
+      set_description: action(
+        { content: { type: "string", description: "Markdown content" } },
+        ({ content }) => emit("setDescription", card.id, content),
+      ),
     },
   };
 
   if (card.description) {
-    (descriptor as Record<string, unknown>).contentRef = {
+    descriptor.contentRef = {
       type: "text" as const,
       mime: "text/markdown",
       size: card.description.length,
@@ -114,7 +109,7 @@ function buildItemDescriptor(card: Card) {
 }
 
 // SLOP: collection descriptor
-useSlop(slop, `${props.boardId}/${props.columnId}`, () => {
+useSlop(slop, () => `${props.boardId}/${props.columnId}`, () => {
   const windowed = sorted.value.slice(0, WINDOW_SIZE);
   const useWindow = total.value > WINDOW_SIZE;
 
@@ -128,11 +123,10 @@ useSlop(slop, `${props.boardId}/${props.columnId}`, () => {
         offset: 0,
       },
       actions: {
-        reorder: {
-          params: { card_id: "string", position: "number" },
-          handler: ({ card_id, position: pos }: Record<string, unknown>) =>
-            emit("reorderCard", props.columnId, card_id as string, pos as number),
-        },
+        reorder: action(
+          { card_id: "string", position: "number" },
+          ({ card_id, position }) => emit("reorderCard", props.columnId, card_id, position),
+        ),
       },
     };
   }
@@ -143,11 +137,10 @@ useSlop(slop, `${props.boardId}/${props.columnId}`, () => {
     meta: { window: [0, total.value] as [number, number], total_children: total.value },
     items: sorted.value.map(buildItemDescriptor),
     actions: {
-      reorder: {
-        params: { card_id: "string", position: "number" },
-        handler: ({ card_id, position: pos }: Record<string, unknown>) =>
-          emit("reorderCard", props.columnId, card_id as string, pos as number),
-      },
+      reorder: action(
+        { card_id: "string", position: "number" },
+        ({ card_id, position }) => emit("reorderCard", props.columnId, card_id, position),
+      ),
     },
   };
 });

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slop } from "./slop";
-  import { useSlop } from "@slop-ai/svelte";
+  import { action, useSlop } from "@slop-ai/svelte";
   import * as store from "./store";
   import type { Board, Card } from "./types";
   import BoardSwitcher from "./components/BoardSwitcher.svelte";
@@ -9,9 +9,12 @@
   import CreateCard from "./components/CreateCard.svelte";
   import CardDetail from "./components/CardDetail.svelte";
 
-  let boards = $state<Board[]>(store.getBoards());
-  let activeBoardId = $state(boards[0]?.id || "");
-  let cards = $state<Card[]>(store.getCardsForBoard(activeBoardId));
+  const initialBoards = store.getBoards();
+  const initialBoardId = initialBoards[0]?.id || "";
+
+  let boards = $state<Board[]>(initialBoards);
+  let activeBoardId = $state(initialBoardId);
+  let cards = $state<Card[]>(store.getCardsForBoard(initialBoardId));
   let searchQuery = $state("");
   let showCreate = $state(false);
   let detailCardId = $state<string | null>(null);
@@ -107,15 +110,12 @@
     type: "root",
     props: { board_count: boards.length, active_board: activeBoardId },
     actions: {
-      create_board: {
-        params: { name: "string" },
-        handler: ({ name }: Record<string, unknown>) => handleCreateBoard(name as string),
-      },
-      navigate: {
-        params: { board_id: "string" },
-        idempotent: true,
-        handler: ({ board_id }: Record<string, unknown>) => navigateToBoard(board_id as string),
-      },
+      create_board: action({ name: "string" }, ({ name }) => handleCreateBoard(name)),
+      navigate: action(
+        { board_id: "string" },
+        ({ board_id }) => navigateToBoard(board_id),
+        { idempotent: true },
+      ),
     },
     children: Object.fromEntries(
       boards.map((board) => {
@@ -144,8 +144,8 @@
       },
       meta: { focus: true },
       actions: {
-        create_card: {
-          params: {
+        create_card: action(
+          {
             title: "string",
             column: { type: "string", description: `Target column. One of: ${activeBoard.columns.join(", ")}` },
             priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
@@ -153,34 +153,28 @@
             description: { type: "string", description: "Markdown description" },
             tags: { type: "string", description: "Comma-separated tags" },
           },
-          handler: ({ title, column, priority, due, description, tags }: Record<string, unknown>) => {
-            const tagList = typeof tags === "string" ? tags.split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
+          ({ title, column, priority, due, description, tags }) => {
+            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
             handleCreateCard(
-              title as string,
-              column as string | undefined,
+              title,
+              column || undefined,
               priority as Card["priority"] | undefined,
-              due as string | undefined,
-              description as string | undefined,
+              due || undefined,
+              description || undefined,
               tagList,
             );
           },
-        },
-        rename: {
-          params: { name: "string" },
-          idempotent: true,
-          handler: ({ name }: Record<string, unknown>) => handleRenameBoard(name as string),
-        },
-        delete: {
-          dangerous: true,
-          handler: () => handleDeleteBoard(),
-        },
-        search: {
-          params: { query: "string" },
-          handler: ({ query }: Record<string, unknown>) => {
-            const results = store.searchCards(activeBoardId, query as string);
+        ),
+        rename: action(
+          { name: "string" },
+          ({ name }) => handleRenameBoard(name),
+          { idempotent: true },
+        ),
+        delete: action(() => handleDeleteBoard(), { dangerous: true }),
+        search: action({ query: "string" }, ({ query }) => {
+            const results = store.searchCards(activeBoardId, query);
             return results.map((c) => ({ id: c.id, title: c.title, column: c.column, priority: c.priority }));
-          },
-        },
+        }),
       },
     };
   });

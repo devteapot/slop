@@ -13,7 +13,7 @@ bun add @slop-ai/client @slop-ai/solid
 ```tsx
 import { createSignal } from "solid-js";
 import { createSlop } from "@slop-ai/client";
-import { useSlop } from "@slop-ai/solid";
+import { action, useSlop } from "@slop-ai/solid";
 
 const slop = createSlop({ id: "notes-app", name: "Notes App" });
 
@@ -26,6 +26,15 @@ export function NotesList() {
     items: notes().map((note) => ({
       id: note.id,
       props: { title: note.title, pinned: note.pinned },
+      actions: {
+        toggle_pin: action(() =>
+          setNotes((current) =>
+            current.map((item) =>
+              item.id === note.id ? { ...item, pinned: !item.pinned } : item,
+            ),
+          ),
+        ),
+      },
     })),
   }));
 

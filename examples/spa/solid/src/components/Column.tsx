@@ -1,5 +1,6 @@
 import { For, Show } from "solid-js";
-import { useSlop } from "@slop-ai/solid";
+import type { ItemDescriptor } from "@slop-ai/core";
+import { action, useSlop } from "@slop-ai/solid";
 import { slop } from "../slop";
 import type { Card } from "../types";
 import { computeSalience } from "../salience";
@@ -39,7 +40,7 @@ export default function Column(props: Props) {
     const sal = computeSalience(card);
     const otherColumns = props.allColumns.filter((c) => c !== card.column);
 
-    const descriptor: Record<string, unknown> = {
+    const descriptor: ItemDescriptor = {
       id: card.id,
       props: {
         title: card.title,
@@ -55,50 +56,44 @@ export default function Column(props: Props) {
         ...(sal.pinned ? { pinned: true } : {}),
       },
       actions: {
-        edit: {
-          params: {
+        edit: action(
+          {
             title: { type: "string" },
             priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
             due: { type: "string", description: "ISO date string" },
             tags: { type: "string", description: "Comma-separated tags" },
           },
-          idempotent: true,
-          handler: (params: Record<string, unknown>) => {
+          ({ title, priority, due, tags }) => {
             const updates: Partial<Pick<Card, "title" | "priority" | "due" | "tags">> = {};
-            if (params.title) updates.title = params.title as string;
-            if (params.priority) updates.priority = params.priority as Card["priority"];
-            if (params.due) updates.due = params.due as string;
-            if (params.tags) {
-              updates.tags = typeof params.tags === "string"
-                ? params.tags.split(",").map((t) => t.trim()).filter(Boolean)
-                : params.tags as string[];
+            if (title) updates.title = title;
+            if (priority) updates.priority = priority as Card["priority"];
+            if (due) updates.due = due;
+            if (tags) {
+              updates.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
             }
             props.onEditCard(card.id, updates);
           },
-        },
-        move: {
-          params: {
+          { idempotent: true },
+        ),
+        move: action(
+          {
             column: {
               type: "string",
               description: `Target column. One of: ${otherColumns.join(", ")}`,
             },
           },
-          handler: ({ column }: Record<string, unknown>) => props.onMoveCard(card.id, column as string),
-        },
-        delete: {
-          dangerous: true,
-          handler: () => props.onDeleteCard(card.id),
-        },
-        set_description: {
-          params: { content: { type: "string", description: "Markdown content" } },
-          handler: ({ content }: Record<string, unknown>) =>
-            props.onSetDescription(card.id, content as string),
-        },
+          ({ column }) => props.onMoveCard(card.id, column),
+        ),
+        delete: action(() => props.onDeleteCard(card.id), { dangerous: true }),
+        set_description: action(
+          { content: { type: "string", description: "Markdown content" } },
+          ({ content }) => props.onSetDescription(card.id, content),
+        ),
       },
     };
 
     if (card.description) {
-      (descriptor as Record<string, unknown>).contentRef = {
+      descriptor.contentRef = {
         type: "text" as const,
         mime: "text/markdown",
         size: card.description.length,
@@ -110,7 +105,7 @@ export default function Column(props: Props) {
     return descriptor;
   };
 
-  useSlop(slop, `${props.boardId}/${props.columnId}`, () => {
+  useSlop(slop, () => `${props.boardId}/${props.columnId}`, () => {
     const s = sorted();
     const t = total();
     const windowed = s.slice(0, WINDOW_SIZE);
@@ -126,11 +121,10 @@ export default function Column(props: Props) {
           offset: 0,
         },
         actions: {
-          reorder: {
-            params: { card_id: "string", position: "number" },
-            handler: ({ card_id, position: pos }: Record<string, unknown>) =>
-              props.onReorderCard(props.columnId, card_id as string, pos as number),
-          },
+          reorder: action(
+            { card_id: "string", position: "number" },
+            ({ card_id, position }) => props.onReorderCard(props.columnId, card_id, position),
+          ),
         },
       };
     }
@@ -141,11 +135,10 @@ export default function Column(props: Props) {
       meta: { window: [0, t] as [number, number], total_children: t },
       items: s.map(buildItemDescriptor),
       actions: {
-        reorder: {
-          params: { card_id: "string", position: "number" },
-          handler: ({ card_id, position: pos }: Record<string, unknown>) =>
-            props.onReorderCard(props.columnId, card_id as string, pos as number),
-        },
+        reorder: action(
+          { card_id: "string", position: "number" },
+          ({ card_id, position }) => props.onReorderCard(props.columnId, card_id, position),
+        ),
       },
     };
   });

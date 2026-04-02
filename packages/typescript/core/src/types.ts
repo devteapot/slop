@@ -41,7 +41,7 @@ export interface JsonSchema {
   items?: JsonSchema;
   description?: string;
   default?: unknown;
-  enum?: unknown[];
+  enum?: readonly unknown[];
 }
 
 export interface PatchOp {
@@ -54,7 +54,7 @@ export interface PatchOp {
 
 export type ActionHandler = (params: Record<string, unknown>) => unknown | Promise<unknown>;
 
-export type ParamDef = string | { type: string; description?: string; enum?: unknown[]; items?: JsonSchema };
+export type ParamDef = string | { type: string; description?: string; enum?: readonly unknown[]; items?: JsonSchema };
 
 export type Action = ActionHandler | {
   handler: ActionHandler;

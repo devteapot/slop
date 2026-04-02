@@ -1,5 +1,5 @@
 import { Component, signal, computed } from "@angular/core";
-import { useSlop } from "@slop-ai/angular";
+import { action, useSlop } from "@slop-ai/angular";
 import { slop } from "./slop";
 import * as store from "./store";
 import type { Board, Card } from "./types";
@@ -117,17 +117,12 @@ export class AppComponent {
       type: "root",
       props: { board_count: this.boards().length, active_board: this.activeBoardId() },
       actions: {
-        create_board: {
-          params: { name: "string" },
-          handler: ({ name }: Record<string, unknown>) =>
-            this.handleCreateBoard(name as string),
-        },
-        navigate: {
-          params: { board_id: "string" },
-          idempotent: true,
-          handler: ({ board_id }: Record<string, unknown>) =>
-            this.navigateToBoard(board_id as string),
-        },
+        create_board: action({ name: "string" }, ({ name }) => this.handleCreateBoard(name)),
+        navigate: action(
+          { board_id: "string" },
+          ({ board_id }) => this.navigateToBoard(board_id),
+          { idempotent: true },
+        ),
       },
       children: Object.fromEntries(
         this.boards().map((board) => {
@@ -157,8 +152,8 @@ export class AppComponent {
         },
         meta: { focus: true },
         actions: {
-          create_card: {
-            params: {
+          create_card: action(
+            {
               title: "string",
               column: { type: "string", description: `Target column. One of: ${ab.columns.join(", ")}` },
               priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
@@ -166,35 +161,28 @@ export class AppComponent {
               description: { type: "string", description: "Markdown description" },
               tags: { type: "string", description: "Comma-separated tags" },
             },
-            handler: ({ title, column, priority, due, description, tags }: Record<string, unknown>) => {
-              const tagList = typeof tags === "string" ? (tags as string).split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+            ({ title, column, priority, due, description, tags }) => {
+              const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
               this.handleCreateCard(
-                title as string,
-                column as string | undefined,
+                title,
+                column || undefined,
                 priority as Card["priority"] | undefined,
-                due as string | undefined,
-                description as string | undefined,
+                due || undefined,
+                description || undefined,
                 tagList,
               );
             },
-          },
-          rename: {
-            params: { name: "string" },
-            idempotent: true,
-            handler: ({ name }: Record<string, unknown>) =>
-              this.handleRenameBoard(name as string),
-          },
-          delete: {
-            dangerous: true,
-            handler: () => this.handleDeleteBoard(),
-          },
-          search: {
-            params: { query: "string" },
-            handler: ({ query }: Record<string, unknown>) => {
+          ),
+          rename: action(
+            { name: "string" },
+            ({ name }) => this.handleRenameBoard(name),
+            { idempotent: true },
+          ),
+          delete: action(() => this.handleDeleteBoard(), { dangerous: true }),
+          search: action({ query: "string" }, ({ query }) => {
               const results = store.searchCards(this.activeBoardId(), query as string);
               return results.map((c) => ({ id: c.id, title: c.title, column: c.column, priority: c.priority }));
-            },
-          },
+          }),
         },
       };
     });

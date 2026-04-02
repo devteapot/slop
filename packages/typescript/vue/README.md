@@ -14,7 +14,7 @@ bun add @slop-ai/client @slop-ai/vue
 <script setup lang="ts">
 import { ref } from "vue";
 import { createSlop } from "@slop-ai/client";
-import { useSlop } from "@slop-ai/vue";
+import { action, useSlop } from "@slop-ai/vue";
 
 const slop = createSlop({ id: "notes-app", name: "Notes App" });
 const notes = ref([{ id: "1", title: "Ship docs", pinned: false }]);
@@ -25,6 +25,13 @@ useSlop(slop, "notes", () => ({
   items: notes.value.map((note) => ({
     id: note.id,
     props: { title: note.title, pinned: note.pinned },
+    actions: {
+      toggle_pin: action(() => {
+        notes.value = notes.value.map((item) =>
+          item.id === note.id ? { ...item, pinned: !item.pinned } : item,
+        );
+      }),
+    },
   })),
 }));
 </script>

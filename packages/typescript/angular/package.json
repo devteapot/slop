@@ -13,7 +13,7 @@
   "files": ["src", "dist"],
   "sideEffects": false,
   "license": "MIT",
-  "description": "SLOP integration for Angular — useSlop() with signals",
+  "description": "SLOP integration for Angular 19+ — useSlop() with signals",
   "homepage": "https://docs.slopai.dev/api/angular",
   "bugs": "https://github.com/devteapot/slop/issues",
   "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/typescript/angular" },
@@ -22,5 +22,5 @@
     "clean": "rm -rf dist"
   },
   "dependencies": { "@slop-ai/core": "workspace:*" },
-  "peerDependencies": { "@angular/core": ">=16.0.0" }
+  "peerDependencies": { "@angular/core": ">=19.0.0" }
 }

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 import { slop } from "./slop";
 import * as store from "./store";
 import type { Board, Card } from "./types";
@@ -125,24 +125,20 @@ export default function App() {
   };
 
   // SLOP: root node
-  useSlop(slop, "/", {
+  useSlop(slop, "/", () => ({
     type: "root",
     props: { board_count: boards.length, active_board: activeBoardId },
     actions: {
-      create_board: {
-        params: { name: "string" },
-        handler: ({ name }) => handleCreateBoard(name as string),
-      },
-      navigate: {
-        params: { board_id: "string" },
-        idempotent: true,
-        handler: ({ board_id }) => navigateToBoard(board_id as string),
-      },
+      create_board: action({ name: "string" }, ({ name }) => handleCreateBoard(name)),
+      navigate: action(
+        { board_id: "string" },
+        ({ board_id }) => navigateToBoard(board_id),
+        { idempotent: true },
+      ),
     },
     children: Object.fromEntries(
       boards.map((board) => {
         if (board.id === activeBoardId) return [board.id, { type: "view" }];
-        // Stub for inactive boards
         return [
           board.id,
           {
@@ -153,57 +149,59 @@ export default function App() {
         ];
       }),
     ),
-  });
+  }));
 
   // SLOP: active board node
-  useSlop(slop, activeBoard ? activeBoard.id : "__none__", activeBoard ? {
-    type: "view",
-    props: {
-      name: activeBoard.name,
-      card_count: cards.length,
-      column_count: activeBoard.columns.length,
-    },
-    meta: { focus: true },
-    actions: {
-      create_card: {
-        params: {
-          title: "string",
-          column: { type: "string", description: `Target column. One of: ${activeBoard.columns.join(", ")}` },
-          priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
-          due: { type: "string", description: "ISO date string" },
-          description: { type: "string", description: "Markdown description" },
-          tags: { type: "string", description: "Comma-separated tags" },
-        },
-        handler: ({ title, column, priority, due, description, tags }) => {
-          const tagList = typeof tags === "string" ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
-          handleCreateCard(
-            title as string,
-            column as string | undefined,
-            priority as Card["priority"] | undefined,
-            due as string | undefined,
-            description as string | undefined,
-            tagList,
-          );
-        },
+  useSlop(slop, () => activeBoard?.id ?? "__none__", () => {
+    if (!activeBoard) return { type: "view" as const };
+    return {
+      type: "view" as const,
+      props: {
+        name: activeBoard.name,
+        card_count: cards.length,
+        column_count: activeBoard.columns.length,
       },
-      rename: {
-        params: { name: "string" },
-        idempotent: true,
-        handler: ({ name }) => handleRenameBoard(name as string),
+      meta: { focus: true },
+      actions: {
+        create_card: action(
+          {
+            title: "string",
+            column: { type: "string", description: `Target column. One of: ${activeBoard.columns.join(", ")}` },
+            priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
+            due: { type: "string", description: "ISO date string" },
+            description: { type: "string", description: "Markdown description" },
+            tags: { type: "string", description: "Comma-separated tags" },
+          },
+          ({ title, column, priority, due, description, tags }) => {
+            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+            handleCreateCard(
+              title,
+              column || undefined,
+              priority as Card["priority"] | undefined,
+              due || undefined,
+              description || undefined,
+              tagList,
+            );
+          },
+        ),
+        rename: action(
+          { name: "string" },
+          ({ name }) => handleRenameBoard(name),
+          { idempotent: true },
+        ),
+        delete: action(() => handleDeleteBoard(), { dangerous: true }),
+        search: action({ query: "string" }, ({ query }) => {
+          const results = store.searchCards(activeBoardId, query);
+          return results.map((c) => ({
+            id: c.id,
+            title: c.title,
+            column: c.column,
+            priority: c.priority,
+          }));
+        }),
       },
-      delete: {
-        dangerous: true,
-        handler: () => handleDeleteBoard(),
-      },
-      search: {
-        params: { query: "string" },
-        handler: ({ query }) => {
-          const results = store.searchCards(activeBoardId, query as string);
-          return results.map((c) => ({ id: c.id, title: c.title, column: c.column, priority: c.priority }));
-        },
-      },
-    },
-  } : { type: "view" });
+    };
+  });
 
   const filteredCards = searchQuery
     ? store.searchCards(activeBoardId, searchQuery)

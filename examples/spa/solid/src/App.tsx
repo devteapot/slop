@@ -1,5 +1,5 @@
 import { createSignal, Show, For } from "solid-js";
-import { useSlop } from "@slop-ai/solid";
+import { action, useSlop } from "@slop-ai/solid";
 import { slop } from "./slop";
 import * as store from "./store";
 import type { Board, Card } from "./types";
@@ -108,15 +108,12 @@ export default function App() {
     type: "root",
     props: { board_count: boards().length, active_board: activeBoardId() },
     actions: {
-      create_board: {
-        params: { name: "string" },
-        handler: ({ name }: Record<string, unknown>) => handleCreateBoard(name as string),
-      },
-      navigate: {
-        params: { board_id: "string" },
-        idempotent: true,
-        handler: ({ board_id }: Record<string, unknown>) => navigateToBoard(board_id as string),
-      },
+      create_board: action({ name: "string" }, ({ name }) => handleCreateBoard(name)),
+      navigate: action(
+        { board_id: "string" },
+        ({ board_id }) => navigateToBoard(board_id),
+        { idempotent: true },
+      ),
     },
     children: Object.fromEntries(
       boards().map((board) => {
@@ -146,8 +143,8 @@ export default function App() {
       },
       meta: { focus: true },
       actions: {
-        create_card: {
-          params: {
+        create_card: action(
+          {
             title: "string",
             column: { type: "string", description: `Target column. One of: ${ab.columns.join(", ")}` },
             priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
@@ -155,34 +152,28 @@ export default function App() {
             description: { type: "string", description: "Markdown description" },
             tags: { type: "string", description: "Comma-separated tags" },
           },
-          handler: ({ title, column, priority, due, description, tags }: Record<string, unknown>) => {
-            const tagList = typeof tags === "string" ? tags.split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
+          ({ title, column, priority, due, description, tags }) => {
+            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
             handleCreateCard(
-              title as string,
-              column as string | undefined,
+              title,
+              column || undefined,
               priority as Card["priority"] | undefined,
-              due as string | undefined,
-              description as string | undefined,
+              due || undefined,
+              description || undefined,
               tagList,
             );
           },
-        },
-        rename: {
-          params: { name: "string" },
-          idempotent: true,
-          handler: ({ name }: Record<string, unknown>) => handleRenameBoard(name as string),
-        },
-        delete: {
-          dangerous: true,
-          handler: () => handleDeleteBoard(),
-        },
-        search: {
-          params: { query: "string" },
-          handler: ({ query }: Record<string, unknown>) => {
+        ),
+        rename: action(
+          { name: "string" },
+          ({ name }) => handleRenameBoard(name),
+          { idempotent: true },
+        ),
+        delete: action(() => handleDeleteBoard(), { dangerous: true }),
+        search: action({ query: "string" }, ({ query }) => {
             const results = store.searchCards(activeBoardId(), query as string);
             return results.map((c) => ({ id: c.id, title: c.title, column: c.column, priority: c.priority }));
-          },
-        },
+        }),
       },
     };
   });

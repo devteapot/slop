@@ -77,3 +77,5 @@ function deepUnwrap(obj: unknown): unknown {
   }
   return out;
 }
+
+export { action } from "@slop-ai/core";

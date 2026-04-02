@@ -12,9 +12,18 @@
   } = $props();
 
   let editingDesc = $state(false);
-  let descDraft = $state(card.description);
+  let descDraft = $state("");
   let editingTitle = $state(false);
-  let titleDraft = $state(card.title);
+  let titleDraft = $state("");
+
+  $effect(() => {
+    if (!editingDesc) {
+      descDraft = card.description;
+    }
+    if (!editingTitle) {
+      titleDraft = card.title;
+    }
+  });
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->

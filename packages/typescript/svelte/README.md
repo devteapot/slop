@@ -13,7 +13,7 @@ bun add @slop-ai/client @slop-ai/svelte
 ```svelte
 <script lang="ts">
   import { createSlop } from "@slop-ai/client";
-  import { useSlop } from "@slop-ai/svelte";
+  import { action, useSlop } from "@slop-ai/svelte";
 
   const slop = createSlop({ id: "notes-app", name: "Notes App" });
   let notes = $state([{ id: "1", title: "Ship docs", pinned: false }]);
@@ -24,6 +24,13 @@ bun add @slop-ai/client @slop-ai/svelte
     items: notes.map((note) => ({
       id: note.id,
       props: { title: note.title, pinned: note.pinned },
+      actions: {
+        toggle_pin: action(() => {
+          notes = notes.map((item) =>
+            item.id === note.id ? { ...item, pinned: !item.pinned } : item,
+          );
+        }),
+      },
     })),
   }));
 </script>

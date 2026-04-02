@@ -15,10 +15,17 @@
   } = $props();
 
   let title = $state("");
-  let column = $state(columns[0] || "");
+  let column = $state("");
   let priority = $state<Card["priority"]>("medium");
   let due = $state("");
   let tags = $state("");
+
+  $effect(() => {
+    const nextColumn = columns[0] || "";
+    if (!columns.includes(column)) {
+      column = nextColumn;
+    }
+  });
 
   function handleSubmit() {
     if (!title.trim()) return;

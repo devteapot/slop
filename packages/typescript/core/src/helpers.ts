@@ -23,7 +23,7 @@ export function omit<T extends Record<string, unknown>, K extends keyof T>(
 }
 
 /** Create a typed action with params inferred from the declaration */
-export function action<P extends Record<string, ParamDef>>(
+export function action<const P extends Record<string, ParamDef>>(
   params: P,
   handler: (params: InferParams<P>) => unknown | Promise<unknown>,
   options?: { label?: string; description?: string; dangerous?: boolean; idempotent?: boolean; estimate?: "instant" | "fast" | "slow" | "async" }
@@ -32,7 +32,7 @@ export function action<P extends Record<string, ParamDef>>(
 /** Create an action with options (no params) */
 export function action(
   handler: ActionHandler,
-  options: { label?: string; description?: string; dangerous?: boolean; idempotent?: boolean; estimate?: "instant" | "fast" | "slow" | "async" }
+  options?: { label?: string; description?: string; dangerous?: boolean; idempotent?: boolean; estimate?: "instant" | "fast" | "slow" | "async" }
 ): Action;
 
 export function action(...args: unknown[]): Action {

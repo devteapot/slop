@@ -1,6 +1,6 @@
 import { Component, input, output, computed } from "@angular/core";
-import type { NodeDescriptor } from "@slop-ai/core";
-import { useSlop } from "@slop-ai/angular";
+import type { ItemDescriptor, NodeDescriptor } from "@slop-ai/core";
+import { action, useSlop } from "@slop-ai/angular";
 import { slop } from "../slop";
 import type { Card } from "../types";
 import { computeSalience } from "../salience";
@@ -79,11 +79,11 @@ export class ColumnComponent {
     const allCols = this.allColumns();
     const columnId = this.columnId();
 
-    const buildItemDescriptor = (card: Card): Record<string, unknown> => {
+    const buildItemDescriptor = (card: Card): ItemDescriptor => {
       const sal = computeSalience(card);
       const otherColumns = allCols.filter((c) => c !== card.column);
 
-      const descriptor: Record<string, unknown> = {
+      const descriptor: ItemDescriptor = {
         id: card.id,
         props: {
           title: card.title,
@@ -99,51 +99,44 @@ export class ColumnComponent {
           ...(sal.pinned ? { pinned: true } : {}),
         },
         actions: {
-          edit: {
-            params: {
+          edit: action(
+            {
               title: { type: "string" },
               priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
               due: { type: "string", description: "ISO date string" },
               tags: { type: "string", description: "Comma-separated tags" },
             },
-            idempotent: true,
-            handler: (params: Record<string, unknown>) => {
+            ({ title, priority, due, tags }) => {
               const updates: Partial<Pick<Card, "title" | "priority" | "due" | "tags">> = {};
-              if (params["title"]) updates.title = params["title"] as string;
-              if (params["priority"]) updates.priority = params["priority"] as Card["priority"];
-              if (params["due"]) updates.due = params["due"] as string;
-              if (params["tags"]) {
-                updates.tags = typeof params["tags"] === "string"
-                  ? (params["tags"] as string).split(",").map((t) => t.trim()).filter(Boolean)
-                  : params["tags"] as string[];
+              if (title) updates.title = title;
+              if (priority) updates.priority = priority as Card["priority"];
+              if (due) updates.due = due;
+              if (tags) {
+                updates.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
               }
               this.editCard.emit({ cardId: card.id, updates });
             },
-          },
-          move: {
-            params: {
+            { idempotent: true },
+          ),
+          move: action(
+            {
               column: {
                 type: "string",
                 description: `Target column. One of: ${otherColumns.join(", ")}`,
               },
             },
-            handler: ({ column }: Record<string, unknown>) =>
-              this.moveCard.emit({ cardId: card.id, column: column as string }),
-          },
-          delete: {
-            dangerous: true,
-            handler: () => this.deleteCard.emit(card.id),
-          },
-          set_description: {
-            params: { content: { type: "string", description: "Markdown content" } },
-            handler: ({ content }: Record<string, unknown>) =>
-              this.setDescription.emit({ cardId: card.id, content: content as string }),
-          },
+            ({ column }) => this.moveCard.emit({ cardId: card.id, column }),
+          ),
+          delete: action(() => this.deleteCard.emit(card.id), { dangerous: true }),
+          set_description: action(
+            { content: { type: "string", description: "Markdown content" } },
+            ({ content }) => this.setDescription.emit({ cardId: card.id, content }),
+          ),
         },
       };
 
       if (card.description) {
-        descriptor["contentRef"] = {
+        descriptor.contentRef = {
           type: "text" as const,
           mime: "text/markdown",
           size: card.description.length,
@@ -165,13 +158,13 @@ export class ColumnComponent {
           offset: 0,
         },
         actions: {
-          reorder: {
-            params: { card_id: "string", position: "number" },
-            handler: ({ card_id, position: p }: Record<string, unknown>) =>
-              this.reorderCard.emit({ column: columnId, cardId: card_id as string, position: p as number }),
-          },
+          reorder: action(
+            { card_id: "string", position: "number" },
+            ({ card_id, position }) =>
+              this.reorderCard.emit({ column: columnId, cardId: card_id, position }),
+          ),
         },
-      } as unknown as NodeDescriptor;
+      };
     }
 
     return {
@@ -180,13 +173,13 @@ export class ColumnComponent {
       meta: { window: [0, total] as [number, number], total_children: total },
       items: sortedCards.map(buildItemDescriptor),
       actions: {
-        reorder: {
-          params: { card_id: "string", position: "number" },
-          handler: ({ card_id, position: p }: Record<string, unknown>) =>
-            this.reorderCard.emit({ column: columnId, cardId: card_id as string, position: p as number }),
-        },
+        reorder: action(
+          { card_id: "string", position: "number" },
+          ({ card_id, position }) =>
+            this.reorderCard.emit({ column: columnId, cardId: card_id, position }),
+        ),
       },
-    } as unknown as NodeDescriptor;
+    };
   }
 
   handleMove(event: { cardId: string; column: string }) {

@@ -12,8 +12,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from slop import SlopServer
-from slop.transports.unix import listen as listen_unix
+from slop_ai import SlopServer
+from slop_ai.transports.unix import listen as listen_unix
 
 from tsk.store import load_tasks, save_tasks, next_id, get_file_path
 

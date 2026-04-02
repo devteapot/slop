@@ -1,4 +1,4 @@
-module github.com/slop-ai/slop-go
+module github.com/devteapot/slop/packages/go/slop-ai
 
 go 1.22
 

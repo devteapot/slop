@@ -14,7 +14,7 @@
 //! }
 //! ```
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use ::axum::extract::ws::{Message, WebSocket};
 use ::axum::extract::WebSocketUpgrade;
@@ -23,36 +23,30 @@ use ::axum::routing::get;
 use ::axum::Router;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
+use tokio::sync::mpsc;
 
 use crate::error::{Result, SlopError};
 use crate::server::{Connection, SlopServer};
 
-struct AxumWsConnection {
-    sender: Mutex<futures_util::stream::SplitSink<WebSocket, Message>>,
+enum ConnMessage {
+    Send(Value),
+    Close,
 }
 
-impl Connection for AxumWsConnection {
+struct ChannelConnection {
+    tx: mpsc::UnboundedSender<ConnMessage>,
+}
+
+impl Connection for ChannelConnection {
     fn send(&self, message: &Value) -> Result<()> {
-        let json = serde_json::to_string(message)?;
-        let mut sender = self.sender.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        let rt = tokio::runtime::Handle::try_current()
-            .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            sender
-                .send(Message::Text(json))
-                .await
-                .map_err(|e| SlopError::Transport(e.to_string()))
-        })
+        self.tx
+            .send(ConnMessage::Send(message.clone()))
+            .map_err(|_| SlopError::Transport("connection closed".into()))
     }
 
     fn close(&self) -> Result<()> {
-        let mut sender = self.sender.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        let rt = tokio::runtime::Handle::try_current()
-            .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            let _ = sender.send(Message::Close(None)).await;
-            Ok(())
-        })
+        let _ = self.tx.send(ConnMessage::Close);
+        Ok(())
     }
 }
 
@@ -93,9 +87,26 @@ pub fn slop_router(slop: &SlopServer) -> Router {
 }
 
 async fn handle_ws(slop: SlopServer, socket: WebSocket) {
-    let (sender, mut receiver) = socket.split();
-    let conn: Arc<dyn Connection> = Arc::new(AxumWsConnection {
-        sender: Mutex::new(sender),
+    let (mut sender, mut receiver) = socket.split();
+    let (tx, mut rx) = mpsc::unbounded_channel::<ConnMessage>();
+    let conn: Arc<dyn Connection> = Arc::new(ChannelConnection { tx });
+
+    // Spawn a writer task that drains the channel into the WS sink
+    tokio::spawn(async move {
+        while let Some(msg) = rx.recv().await {
+            match msg {
+                ConnMessage::Send(val) => {
+                    let json = serde_json::to_string(&val).unwrap_or_default();
+                    if sender.send(Message::Text(json.into())).await.is_err() {
+                        break;
+                    }
+                }
+                ConnMessage::Close => {
+                    let _ = sender.send(Message::Close(None)).await;
+                    break;
+                }
+            }
+        }
     });
 
     slop.handle_connection(conn.clone());

@@ -39,7 +39,9 @@ function loadSessions() {
       if (data.settings) settings = { ...settings, ...data.settings };
       return;
     }
-  } catch {}
+  } catch (error) {
+    console.warn("[slop] failed to load pomodoro session data, falling back to seed:", error);
+  }
 
   // Seed if no file exists
   try {
@@ -49,7 +51,9 @@ function loadSessions() {
       if (data.settings) settings = { ...settings, ...data.settings };
       saveSessions();
     }
-  } catch {}
+  } catch (error) {
+    console.warn("[slop] failed to seed pomodoro session data:", error);
+  }
 }
 
 function saveSessions() {
@@ -474,7 +478,7 @@ async function startSlopProvider() {
   // Sessions collection — dynamic
   slop.register("sessions", () => {
     const today = todaySessions();
-    const items = today
+    const items = sessions
       .slice()
       .reverse()
       .map((s) => {
@@ -535,7 +539,7 @@ async function startSlopProvider() {
         count: sessions.length,
         today_count: today.length,
       },
-      summary: `${today.length} pomodoros completed today`,
+      summary: `${sessions.length} saved sessions, ${today.length} completed today`,
       items,
     };
   });

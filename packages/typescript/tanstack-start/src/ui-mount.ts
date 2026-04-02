@@ -1,3 +1,6 @@
+import {
+  AsyncActionResult,
+} from "@slop-ai/core";
 import type {
   SlopNode,
   PatchOp,
@@ -8,6 +11,69 @@ import type {
 import type { Connection, SlopServer } from "@slop-ai/server";
 
 const NODE_FIELDS = new Set(["properties", "meta", "affordances", "content_ref"]);
+
+interface ProviderHelloMessage {
+  type: "hello";
+  provider?: {
+    id?: string;
+  };
+}
+
+interface ProviderSnapshotMessage {
+  type: "snapshot";
+  id: string;
+  version: number;
+  tree: SlopNode;
+}
+
+interface ProviderPatchMessage {
+  type: "patch";
+  subscription: string;
+  version: number;
+  ops?: PatchOp[];
+}
+
+interface ProviderResultMessage {
+  type: "result";
+  id: string;
+  status: "ok" | "error" | "accepted";
+  data?: unknown;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+
+interface ProviderErrorMessage {
+  type: "error";
+  id?: string;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+
+interface ProviderEventMessage {
+  type: "event";
+  name: string;
+  data?: unknown;
+}
+
+interface ProviderBatchMessage {
+  type: "batch";
+  messages?: ProviderMessage[];
+}
+
+type ProviderMessage =
+  | ProviderHelloMessage
+  | ProviderSnapshotMessage
+  | ProviderPatchMessage
+  | ProviderResultMessage
+  | ProviderErrorMessage
+  | ProviderEventMessage
+  | ProviderBatchMessage;
+
+type ResultMessage = ProviderResultMessage;
 
 interface PendingInvoke {
   resolve: (value: unknown) => void;
@@ -37,7 +103,7 @@ export class UiMountSession {
     this.connection.send({ type: "connect" });
   }
 
-  handleMessage(message: any): void {
+  handleMessage(message: ProviderMessage): void {
     if (!this.active || !message?.type) return;
 
     switch (message.type) {
@@ -99,7 +165,9 @@ export class UiMountSession {
 
     try {
       this.connection.send({ type: "unsubscribe", id: this.subscriptionId });
-    } catch {}
+    } catch (e) {
+      console.warn("[slop] failed to unsubscribe remote UI session:", e);
+    }
 
     const error = new Error(reason);
     for (const pending of this.pendingInvokes.values()) {
@@ -179,9 +247,18 @@ export class UiMountSession {
   }
 }
 
-function normalizeInvokeResult(message: any): unknown {
+function normalizeInvokeResult(message: ResultMessage): unknown {
   if (message.status === "accepted") {
-    return { __async: true, ...(message.data ?? {}) };
+    const payload =
+      message.data && typeof message.data === "object"
+        ? message.data as Record<string, unknown>
+        : {};
+    const { taskId, ...rest } = payload;
+
+    if (typeof taskId !== "string") {
+      throw new Error("Remote UI invoke accepted without a taskId");
+    }
+    return new AsyncActionResult(taskId, Object.keys(rest).length > 0 ? rest : undefined);
   }
 
   if (message.status === "error") {
@@ -318,21 +395,23 @@ function applyReplace(root: SlopNode, segments: string[], value: unknown): void 
 function navigate(
   root: SlopNode,
   segments: string[],
-): { parent: any; key: string } | null {
-  let current: any = root;
+): { parent: Record<string, unknown>; key: string } | null {
+  let current: Record<string, unknown> = root as unknown as Record<string, unknown>;
   for (let index = 0; index < segments.length - 1; index++) {
     const segment = segments[index];
     if (NODE_FIELDS.has(segment)) {
-      current = current[segment];
-      if (current === undefined) return null;
+      const next = current[segment];
+      if (!next || typeof next !== "object") return null;
+      current = next as Record<string, unknown>;
       continue;
     }
 
-    const child = (current.children as SlopNode[] | undefined)?.find(
+    const children = current.children as SlopNode[] | undefined;
+    const child = children?.find(
       (candidate) => candidate.id === segment,
     );
     if (!child) return null;
-    current = child;
+    current = child as unknown as Record<string, unknown>;
   }
 
   return { parent: current, key: segments[segments.length - 1] };

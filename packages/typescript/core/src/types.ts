@@ -116,6 +116,16 @@ type InferParam<T> = T extends "string" ? string
 
 export type InferParams<T> = { [K in keyof T]: InferParam<T[K]> };
 
+// --- Async action result marker ---
+
+/** Returned by async action handlers to signal accepted (202) status. */
+export class AsyncActionResult {
+  constructor(
+    public readonly taskId: string,
+    public readonly data?: Record<string, unknown>,
+  ) {}
+}
+
 // --- Task handle for async actions ---
 
 export interface TaskHandle {

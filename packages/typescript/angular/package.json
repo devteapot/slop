@@ -14,6 +14,8 @@
   "sideEffects": false,
   "license": "MIT",
   "description": "SLOP integration for Angular — useSlop() with signals",
+  "homepage": "https://docs.slopai.dev/api/angular",
+  "bugs": "https://github.com/devteapot/slop/issues",
   "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/typescript/angular" },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --format esm --external '@slop-ai/core' --external '@angular/core' && bunx tsc --emitDeclarationOnly --outDir dist",

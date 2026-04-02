@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.4
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/slop-ai/slop-go v0.0.0
+	github.com/devteapot/slop/packages/go/slop-ai v0.0.0
 )
 
 require (
@@ -32,4 +32,4 @@ require (
 	nhooyr.io/websocket v1.8.17 // indirect
 )
 
-replace github.com/slop-ai/slop-go => ../packages/go/slop-ai
+replace github.com/devteapot/slop/packages/go/slop-ai => ../../packages/go/slop-ai

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from slop import SlopServer
+from slop_ai import SlopServer
 
 from .state import state, Contact
 

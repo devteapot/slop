@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	slop "github.com/slop-ai/slop-go"
+	slop "github.com/devteapot/slop/packages/go/slop-ai"
 )
 
 type InvokeModel struct {

@@ -21,7 +21,9 @@ export class NodeSocketClientTransport implements ClientTransport {
       try {
         const msg = JSON.parse(line) as SlopMessage;
         for (const h of messageHandlers) h(msg);
-      } catch {}
+      } catch (e) {
+        console.warn("[slop] failed to parse socket message:", e);
+      }
     });
 
     socket.on("close", () => {

@@ -1,7 +1,23 @@
 import { WebSocketServer, WebSocket } from "ws";
-import type { Server as HttpServer } from "node:http";
+import type { IncomingMessage, Server as HttpServer } from "node:http";
+import type { Socket } from "node:net";
 import type { SlopHandlerOptions } from "./ws-handler";
 import { createWebSocketHandler } from "./ws-handler";
+
+interface ViteDevServerLike {
+  httpServer?: HttpServer;
+}
+
+interface VitePeer {
+  send(data: string): void;
+  close(): void;
+  __slopRequest: IncomingMessage;
+}
+
+interface VitePeerMessage {
+  text(): string;
+  toString(): string;
+}
 
 /**
  * Creates a Vite plugin that attaches a SLOP WebSocket endpoint
@@ -9,7 +25,7 @@ import { createWebSocketHandler } from "./ws-handler";
  *
  * ```ts
  * // app.config.ts or vite.config.ts
- * import { slopVitePlugin } from "@slop-ai/tanstack-start/vite-plugin";
+ * import { slopVitePlugin } from "@slop-ai/tanstack-start/server";
  *
  * export default defineConfig({
  *   vite: {
@@ -25,14 +41,14 @@ export function slopVitePlugin(
 
   return {
     name: "slop-adapter",
-    configureServer(server: any) {
-      const httpServer: HttpServer = server.httpServer;
+    configureServer(server: ViteDevServerLike) {
+      const httpServer = server.httpServer;
       if (!httpServer) return;
 
       const handler = createWebSocketHandler(options);
       const wss = new WebSocketServer({ noServer: true });
 
-      httpServer.on("upgrade", (req, socket, head) => {
+      httpServer.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
         const url = new URL(req.url!, `http://${req.headers.host}`);
         if (url.pathname === path) {
           wss.handleUpgrade(req, socket, head, (ws) => {
@@ -42,22 +58,21 @@ export function slopVitePlugin(
       });
 
       // Bridge ws WebSocket connections to the peer-based handler
-      wss.on("connection", (ws: WebSocket, req: any) => {
+      wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
         // Create a peer-like object that the handler expects
-        const peer = {
+        const peer: VitePeer = {
           send(data: string) {
             if (ws.readyState === WebSocket.OPEN) ws.send(data);
           },
           close() { ws.close(); },
           __slopRequest: req,
-          __slop: null as any,
         };
 
         handler.open(peer);
 
         ws.on("message", (data) => {
           // Wrap raw data in a peer message-like object
-          const msg = {
+          const msg: VitePeerMessage = {
             text() { return data.toString(); },
             toString() { return data.toString(); },
           };
@@ -70,9 +85,9 @@ export function slopVitePlugin(
       });
 
       // Also serve /.well-known/slop discovery
-      const originalListeners = httpServer.listeners("request") as Function[];
+      const originalListeners = httpServer.listeners("request");
       httpServer.removeAllListeners("request");
-      httpServer.on("request", (req: any, res: any) => {
+      httpServer.on("request", (req, res) => {
         if (req.url === "/.well-known/slop") {
           const host = req.headers.host ?? "localhost";
           res.writeHead(200, { "Content-Type": "application/json" });

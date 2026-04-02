@@ -2,14 +2,14 @@
 ---
 <section class="how-it-works friend">
   <div class="container">
-    <span class="label">How It Works</span>
-    <h2>Three concepts, one protocol</h2>
+    <span class="label">Agent Interface</span>
+    <h2>Three parts of an interface for agents</h2>
 
     <div class="steps">
       <div class="step">
         <div class="step-number">1</div>
-        <h3>App exposes state</h3>
-        <p>Your app registers semantic nodes — not DOM elements, not database rows — <em>meaning</em>.</p>
+        <h3>App publishes semantic state</h3>
+        <p>Your app exposes a curated view of what it is right now — not DOM elements, not raw internals, but <em>meaning</em>.</p>
         <div class="code-block">
           <pre set:html={`<span class="fn">useSlop</span>(slop, <span class="string">"notes"</span>, {
   type: <span class="string">"collection"</span>,
@@ -24,13 +24,13 @@
 
       <div class="step">
         <div class="step-number">2</div>
-        <h3>AI observes</h3>
-        <p>The AI subscribes to the state tree and receives incremental patches as things change.</p>
+        <h3>Agent subscribes to the program</h3>
+        <p>The agent subscribes to the state tree and receives patches as things change. No screenshots, polling, or repeated read tools.</p>
         <div class="code-block tree-view">
           <pre>[root] My App
   [collection] notes (count=3)
     [item] Meeting notes
-    [item] Grocery list  <span class="string">★ pinned</span>
+    [item] Grocery list (pinned=true)
     [item] App ideas
   [status] stats (total=3, pinned=1)</pre>
         </div>
@@ -38,8 +38,8 @@
 
       <div class="step">
         <div class="step-number">3</div>
-        <h3>AI acts in context</h3>
-        <p>Actions live on the nodes they affect. The AI sees what it can do alongside what it sees.</p>
+        <h3>Agent invokes contextual actions</h3>
+        <p>Actions live on the nodes they affect, so the agent sees what it can do in context and acts through the program directly.</p>
         <div class="code-block">
           <pre set:html={`actions: {
   <span class="fn">toggle_pin</span>: () =&gt; togglePin(note.id),
@@ -57,7 +57,7 @@
       <a href="https://playground.slopai.dev" class="btn btn-secondary">
         Try it in the playground →
       </a>
-      <span class="cta-hint">Edit descriptors, see the tree, invoke actions — no install needed</span>
+      <span class="cta-hint">Edit descriptors, inspect the tree, invoke actions, and explore the agent-facing interface live</span>
     </div>
   </div>
 </section>

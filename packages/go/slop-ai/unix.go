@@ -86,11 +86,11 @@ func ListenUnix(ctx context.Context, s *Server, socketPath string, opts ...UnixO
 			}
 			return err
 		}
-		go handleNdjsonConn(s, conn)
+		go handleNdjsonConn(ctx, s, conn)
 	}
 }
 
-func handleNdjsonConn(s *Server, rawConn net.Conn) {
+func handleNdjsonConn(ctx context.Context, s *Server, rawConn net.Conn) {
 	conn := &ndjsonConn{conn: rawConn}
 	s.HandleConnection(conn)
 	defer s.HandleDisconnect(conn)
@@ -103,7 +103,7 @@ func handleNdjsonConn(s *Server, rawConn net.Conn) {
 		}
 		var msg map[string]any
 		if json.Unmarshal([]byte(line), &msg) == nil {
-			s.HandleMessage(conn, msg)
+			s.HandleMessage(ctx, conn, msg)
 		}
 	}
 }

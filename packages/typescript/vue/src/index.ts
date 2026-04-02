@@ -47,15 +47,15 @@ export function useSlop<S = unknown>(
     const desc = descriptor();
 
     if (p !== currentPath) {
-      client.unregister(currentPath as any);
+      client.unregister(currentPath);
       currentPath = p;
     }
 
-    client.register(currentPath as any, deepUnwrap(desc) as NodeDescriptor);
+    client.register(currentPath, deepUnwrap(desc) as NodeDescriptor);
   }, { flush: "post" });
 
   onUnmounted(() => {
-    client.unregister(currentPath as any);
+    client.unregister(currentPath);
   });
 }
 

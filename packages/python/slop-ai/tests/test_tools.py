@@ -1,7 +1,7 @@
 """Tests for format_tree matching spec/core/state-tree.md 'Consumer display format'."""
 
-from slop.tools import format_tree
-from slop.types import Affordance, NodeMeta, SlopNode
+from slop_ai.tools import format_tree
+from slop_ai.types import Affordance, NodeMeta, SlopNode
 
 
 def _canonical_tree() -> SlopNode:

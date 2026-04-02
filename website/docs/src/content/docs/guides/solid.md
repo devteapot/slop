@@ -6,7 +6,7 @@ description: How to use SLOP with SolidJS to expose component state to AI agents
 ## Installation
 
 ```bash
-npm install @slop-ai/client @slop-ai/solid
+bun add @slop-ai/client @slop-ai/solid
 ```
 
 ## Setup
@@ -89,4 +89,6 @@ export function Notes() {
 
 ## Next Steps
 
-See the [API Reference](/reference/core/) for the full node descriptor format and client options.
+- [Solid package API](/api/solid)
+- [Browser provider API](/api/client)
+- [Core helper types](/api/core)

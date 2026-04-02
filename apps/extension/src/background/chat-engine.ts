@@ -17,7 +17,11 @@ IMPORTANT: You can and SHOULD call MULTIPLE tools in a single response when the 
 You are running inside a browser extension chat panel. Keep responses concise.`;
 
 function send(port: chrome.runtime.Port, msg: BackgroundMessage) {
-  try { port.postMessage(msg); } catch {}
+  try {
+    port.postMessage(msg);
+  } catch (e) {
+    console.warn("[slop] failed to post chat update:", e);
+  }
 }
 
 export async function runTurn(
@@ -96,7 +100,9 @@ export async function runTurn(
               try {
                 await uiProvider.consumer.invoke("/__adapter", "refresh");
                 await new Promise(r => setTimeout(r, 200));
-              } catch {}
+              } catch (e) {
+                console.warn("[slop] failed to refresh UI provider after data action:", e);
+              }
             }
           }
 
@@ -105,10 +111,10 @@ export async function runTurn(
             : `Error [${result.error?.code}]: ${result.error?.message}`;
 
           conversation.push({ role: "tool", content: resultStr, tool_call_id: tc.id });
-        } catch (err: any) {
+        } catch (err: unknown) {
           conversation.push({
             role: "tool",
-            content: `Error: ${err.message}`,
+            content: `Error: ${getErrorMessage(err)}`,
             tool_call_id: tc.id,
           });
         }
@@ -121,12 +127,16 @@ export async function runTurn(
     conversation.push(response);
     send(port, { type: "assistant", content: response.content || "(no response)" });
     send(port, { type: "input-ready" });
-  } catch (err: any) {
-    send(port, { type: "error", message: err.message });
+  } catch (err: unknown) {
+    send(port, { type: "error", message: getErrorMessage(err) });
     send(port, { type: "input-ready" });
   }
 }
 
 export function initConversation(): ChatMessage[] {
   return [{ role: "system", content: SYSTEM_PROMPT }];
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

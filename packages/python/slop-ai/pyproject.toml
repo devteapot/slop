@@ -24,16 +24,19 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+test = ["pytest>=9.0"]
+dev = ["pytest>=9.0", "websockets>=12.0"]
 websocket = ["websockets>=12.0"]
-all = ["websockets>=12.0"]
+all = ["pytest>=9.0", "websockets>=12.0"]
 
 [project.urls]
 Homepage = "https://slopai.dev"
-Repository = "https://github.com/slop-ai/slop"
-Documentation = "https://slopai.dev/guides/python"
+Repository = "https://github.com/devteapot/slop"
+Documentation = "https://docs.slopai.dev/api/python"
+Guide = "https://docs.slopai.dev/guides/python"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/slop"]
+packages = ["src/slop_ai"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

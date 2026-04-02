@@ -2,6 +2,16 @@ import type { Scenario, VerificationResult } from "./types";
 import type { IssueTrackerStore } from "../app/store";
 import { createLargeSeedData } from "../app/seed";
 
+interface RepoSummary {
+  id: string;
+}
+
+interface IssueSummary {
+  id: string;
+  assignee?: string | null;
+  labels: string[];
+}
+
 /**
  * Scenario: Same triage task but against a 10-repo, ~100-issue dataset.
  *
@@ -44,8 +54,7 @@ export const scaleTriage: Scenario = {
       async mcp(client) {
         // MCP: must list repos then query each one
         const result = await client.callTool({ name: "list_repos", arguments: {} });
-        const text = (result.content as any[])?.find((c: any) => c.type === "text")?.text ?? "[]";
-        const repos = JSON.parse(text);
+        const repos = parseRepoSummaries(getToolText(result));
         for (const repo of repos) {
           await client.callTool({
             name: "list_issues",
@@ -86,8 +95,7 @@ export const scaleTriage: Scenario = {
         // In practice, the agent would parse the list_issues results. We simulate finding 5 bugs.
         // First, re-list to get issue details (agent doesn't cache across steps)
         const repoResult = await client.callTool({ name: "list_repos", arguments: {} });
-        const repoText = (repoResult.content as any[])?.find((c: any) => c.type === "text")?.text ?? "[]";
-        const repos = JSON.parse(repoText);
+        const repos = parseRepoSummaries(getToolText(repoResult));
 
         let actedOn = 0;
         for (const repo of repos) {
@@ -96,8 +104,7 @@ export const scaleTriage: Scenario = {
             name: "list_issues",
             arguments: { repo_id: repo.id, status: "open" },
           });
-          const issueText = (issueResult.content as any[])?.find((c: any) => c.type === "text")?.text ?? "[]";
-          const issues = JSON.parse(issueText);
+          const issues = parseIssueSummaries(getToolText(issueResult));
           for (const issue of issues) {
             if (actedOn >= 5) break;
             if (!issue.assignee && issue.labels.includes("bug")) {
@@ -154,3 +161,60 @@ export const scaleTriage: Scenario = {
     return { passed: checks.every((c) => c.passed), checks };
   },
 };
+
+function getToolText(result: unknown): string {
+  if (!isContentResult(result)) return "[]";
+  const textBlock = result.content.find(isTextContentBlock);
+  return textBlock?.text ?? "[]";
+}
+
+function parseRepoSummaries(text: string): RepoSummary[] {
+  const data = safeParseJson(text);
+  if (!Array.isArray(data)) return [];
+  return data.filter(isRepoSummary);
+}
+
+function parseIssueSummaries(text: string): IssueSummary[] {
+  const data = safeParseJson(text);
+  if (!Array.isArray(data)) return [];
+  return data.filter(isIssueSummary);
+}
+
+function safeParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.warn("[slop] failed to parse MCP benchmark payload:", error);
+    return [];
+  }
+}
+
+function isTextContentBlock(value: unknown): value is { type: "text"; text: string } {
+  return !!value
+    && typeof value === "object"
+    && (value as { type?: unknown }).type === "text"
+    && typeof (value as { text?: unknown }).text === "string";
+}
+
+function isContentResult(value: unknown): value is { content: unknown[] } {
+  return !!value
+    && typeof value === "object"
+    && Array.isArray((value as { content?: unknown }).content);
+}
+
+function isRepoSummary(value: unknown): value is RepoSummary {
+  return !!value
+    && typeof value === "object"
+    && typeof (value as { id?: unknown }).id === "string";
+}
+
+function isIssueSummary(value: unknown): value is IssueSummary {
+  return !!value
+    && typeof value === "object"
+    && typeof (value as { id?: unknown }).id === "string"
+    && Array.isArray((value as { labels?: unknown }).labels)
+    && (value as { labels: unknown[] }).labels.every((label) => typeof label === "string")
+    && (typeof (value as { assignee?: unknown }).assignee === "string"
+      || typeof (value as { assignee?: unknown }).assignee === "undefined"
+      || (value as { assignee?: unknown }).assignee === null);
+}

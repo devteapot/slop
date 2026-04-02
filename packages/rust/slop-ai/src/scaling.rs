@@ -1,7 +1,7 @@
 //! Tree scaling utilities: depth truncation, node-budget compaction,
 //! salience filtering, and subtree extraction.
 
-use crate::types::{NodeMeta, SlopNode};
+use crate::types::SlopNode;
 
 /// Options for preparing a tree for output to a consumer.
 #[derive(Debug, Clone, Default)]
@@ -172,7 +172,7 @@ fn collect_candidates(
         child_path.push(i);
 
         let pinned = child.meta.as_ref().and_then(|m| m.pinned).unwrap_or(false);
-        let has_children = child.children.as_ref().map_or(false, |c| !c.is_empty());
+        let has_children = child.children.as_ref().is_some_and(|c| !c.is_empty());
 
         if has_children && !is_root_child && !pinned {
             let child_count = count_nodes(child) - 1;

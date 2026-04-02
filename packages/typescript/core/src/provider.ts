@@ -11,6 +11,7 @@ import type {
   SlopNode, PatchOp, ActionHandler, NodeDescriptor,
   SlopClientOptions,
 } from "./types";
+import { AsyncActionResult } from "./types";
 import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
 import { prepareTree, getSubtree } from "./scaling";
@@ -113,7 +114,7 @@ export abstract class ProviderBase<S = unknown> {
     path: string;
     action: string;
     params?: Record<string, unknown>;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     const handler = this.resolveHandler(msg.path, msg.action);
     if (!handler) {
       return {
@@ -129,14 +130,18 @@ export abstract class ProviderBase<S = unknown> {
 
     try {
       const data = await handler(msg.params ?? {});
-      const isAsync = data && typeof data === "object" && (data as any).__async === true;
-      const { __async, ...resultData } = (data as any) ?? {};
-      const result: any = {
+      const isAsync = data instanceof AsyncActionResult;
+      const resultData = isAsync
+        ? (data.data ?? {})
+        : (data && typeof data === "object" ? data as Record<string, unknown> : {});
+      const result: Record<string, unknown> = {
         type: "result",
         id: msg.id,
         status: isAsync ? "accepted" : "ok",
       };
-      if (Object.keys(resultData).length > 0) {
+      if (isAsync) {
+        result.data = { taskId: data.taskId, ...resultData };
+      } else if (Object.keys(resultData).length > 0) {
         result.data = resultData;
       }
       // Auto-refresh
@@ -156,7 +161,7 @@ export abstract class ProviderBase<S = unknown> {
   }
 
   /** Build the hello message for a new connection. */
-  helloMessage(): any {
+  helloMessage(): Record<string, unknown> {
     return {
       type: "hello",
       provider: {
@@ -205,7 +210,7 @@ export abstract class ProviderBase<S = unknown> {
   }
 
   /** Build a snapshot message for a given request. */
-  snapshotMessage(id: string, request?: OutputRequest): any {
+  snapshotMessage(id: string, request?: OutputRequest): Record<string, unknown> {
     return {
       type: "snapshot",
       id,

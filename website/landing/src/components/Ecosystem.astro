@@ -16,9 +16,9 @@ const languages = [
       { name: "Vue", pkg: "@slop-ai/vue", href: `${docs}/guides/vue` },
       { name: "Solid", pkg: "@slop-ai/solid", href: `${docs}/guides/solid` },
       { name: "Angular", pkg: "@slop-ai/angular", href: `${docs}/guides/angular` },
-      { name: "Svelte", pkg: "@slop-ai/client", href: `${docs}/guides/svelte` },
+      { name: "Svelte", pkg: "@slop-ai/svelte", href: `${docs}/guides/svelte` },
       { name: "Vanilla JS", pkg: "@slop-ai/client", href: `${docs}/guides/vanilla` },
-      { name: "TanStack Start", pkg: "@slop-ai/server", href: `${docs}/guides/tanstack-start` },
+      { name: "TanStack Start", pkg: "@slop-ai/tanstack-start", href: `${docs}/guides/tanstack-start` },
       { name: "Server Apps", pkg: "@slop-ai/server", href: `${docs}/guides/server-apps` },
     ],
   },
@@ -45,7 +45,7 @@ const languages = [
     icon: "GO",
     href: `${docs}/guides/go`,
     packages: [
-      { name: "slop-go", desc: "Full SDK — provider, consumer, state tree, transports" },
+      { name: "slop-ai", desc: "Go SDK — provider, consumer, state tree, transports" },
     ],
     adapters: [],
   },
@@ -54,7 +54,7 @@ const languages = [
 const tools = [
   { title: "Chrome Extension", desc: "AI chat overlay on any SLOP-enabled web app.", href: `${docs}/extension/install` },
   { title: "Desktop App", desc: "Unified dashboard for all your SLOP providers.", href: `${docs}/desktop/install` },
-  { title: "Protocol Spec", desc: "Open, language-agnostic standard. 14 documents.", href: `${docs}/spec/core/overview` },
+  { title: "Protocol Spec", desc: "Open, language-agnostic standard with core docs, integrations, and extensions.", href: `${docs}/spec/core/overview` },
 ];
 ---
 <section class="ecosystem">

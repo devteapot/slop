@@ -1,19 +1,17 @@
 ---
 title: Svelte
-description: How to use SLOP with Svelte to expose component state to AI agents.
+description: How to use SLOP with Svelte 5 to expose component state to AI agents
 ---
 
 ## Installation
 
-Svelte does not need a dedicated adapter. Use `@slop-ai/client` directly with Svelte's `$effect` and `onDestroy`.
-
 ```bash
-npm install @slop-ai/client
+bun add @slop-ai/client @slop-ai/svelte
 ```
 
 ## Setup
 
-Create a SLOP client instance for your app:
+Create a browser-side provider once and reuse it across components:
 
 ```ts
 import { createSlop } from "@slop-ai/client";
@@ -24,15 +22,13 @@ export const slop = createSlop({
 });
 ```
 
-## Pattern
+## Using `useSlop`
 
-Use `$effect` to register/update the node whenever reactive state changes, and `onDestroy` to unregister it when the component is destroyed.
-
-## Full Example
+`@slop-ai/svelte` exports a Svelte 5 composable that tracks rune-based state and unregisters automatically on component destroy.
 
 ```svelte
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { useSlop } from "@slop-ai/svelte";
   import { slop } from "./slop";
 
   interface Note {
@@ -43,48 +39,30 @@ Use `$effect` to register/update the node whenever reactive state changes, and `
 
   let notes = $state<Note[]>([]);
 
-  $effect(() => {
-    slop.register("/notes", {
-      type: "collection",
-      props: { count: notes.length },
-      items: notes,
+  useSlop(slop, "notes", () => ({
+    type: "collection",
+    props: { count: notes.length },
+    items: notes.map((note) => ({
+      id: note.id,
+      props: { title: note.title, pinned: note.pinned },
       actions: {
-        create: {
-          params: { title: "string" },
-          handler: ({ title }: { title: string }) => {
-            notes = [
-              ...notes,
-              { id: crypto.randomUUID(), title, pinned: false },
-            ];
-          },
-        },
-        togglePin: ({ id }: { id: string }) => {
-          notes = notes.map((n) =>
-            n.id === id ? { ...n, pinned: !n.pinned } : n
+        toggle_pin: () => {
+          notes = notes.map((entry) =>
+            entry.id === note.id ? { ...entry, pinned: !entry.pinned } : entry,
           );
         },
-        clearAll: {
-          handler: () => {
-            notes = [];
-          },
-          dangerous: true,
-        },
       },
-    });
-  });
-
-  onDestroy(() => {
-    slop.unregister("/notes");
-  });
+    })),
+  }));
 </script>
-
-<ul>
-  {#each notes as note (note.id)}
-    <li>{note.pinned ? "📌 " : ""}{note.title}</li>
-  {/each}
-</ul>
 ```
+
+## Why use the adapter?
+
+The package publishes a `.svelte.ts` entrypoint so downstream Svelte tooling keeps compiling rune syntax correctly. You still author normal Svelte 5 code, but the adapter handles registration, updates, and cleanup in the right lifecycle.
 
 ## Next Steps
 
-See the [API Reference](/reference/core/) for the full node descriptor format and client options.
+- [Svelte package API](/api/svelte)
+- [Browser provider API](/api/client)
+- [Core helper types](/api/core)

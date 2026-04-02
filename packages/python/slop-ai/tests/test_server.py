@@ -3,7 +3,7 @@
 import asyncio
 import pytest
 
-from slop import SlopServer
+from slop_ai import SlopServer
 
 
 def _run(coro):

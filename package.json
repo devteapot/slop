@@ -6,9 +6,15 @@
   "repository": "https://github.com/devteapot/slop",
   "workspaces": ["packages/typescript/*", "website/demo", "examples/cli/*", "examples/spa/*", "examples/full-stack/*", "examples/full-stack/*/frontend", "examples/desktop/*", "website/playground", "apps/extension", "apps/desktop", "benchmarks/mcp-vs-slop"],
   "scripts": {
-    "build": "(cd packages/typescript/core && bun run build) && (cd packages/typescript/consumer && bun run build) && for d in client server react vue solid angular tanstack-start openclaw-plugin; do (cd packages/typescript/$d && bun run build) || exit 1; done",
+    "build": "bun run scripts/build-typescript-packages.ts",
     "test": "for d in packages/typescript/*/; do if ls \"$d\"__tests__/*.test.* >/dev/null 2>&1; then echo \"Testing $d\" && (cd \"$d\" && bun test); fi; done",
     "clean": "for d in packages/typescript/*/; do (cd \"$d\" && rm -rf dist); done",
-    "demo": "cd website/demo && bunx vite --port 3001"
+    "demo": "cd website/demo && bunx vite --port 3001",
+    "release:sync-version": "bun run scripts/release/sync-version.ts",
+    "release:publish-packages": "bun run scripts/release/publish-packages.ts",
+    "release:publish-python": "bun run scripts/release/publish-python.ts",
+    "release:publish-rust": "bun run scripts/release/publish-rust.ts",
+    "release:stage-extension": "bun run scripts/release/stage-extension.ts",
+    "release:publish-extension": "bun run scripts/release/publish-chrome-web-store.ts"
   }
 }

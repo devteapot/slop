@@ -1,5 +1,6 @@
 import type { LlmProfile } from "../../types";
 import type { ChatMessage, LlmTool } from "@slop-ai/consumer/browser";
+import { parseChatMessage } from "./parsers";
 
 export async function openaiChatCompletion(
   profile: LlmProfile,
@@ -33,6 +34,15 @@ export async function openaiChatCompletion(
     throw new Error(`LLM error ${res.status}: ${text.slice(0, 200)}`);
   }
 
-  const data = await res.json() as any;
-  return data.choices[0].message;
+  const payload = await res.json();
+  if (!payload || typeof payload !== "object" || !("choices" in payload) || !Array.isArray(payload.choices)) {
+    throw new Error("LLM response missing choices");
+  }
+
+  const firstChoice = payload.choices[0];
+  if (!firstChoice || typeof firstChoice !== "object" || !("message" in firstChoice)) {
+    throw new Error("LLM response missing first choice message");
+  }
+
+  return parseChatMessage(firstChoice.message);
 }

@@ -21,8 +21,9 @@ type unixClientConn struct {
 }
 
 // Connect dials the Unix socket and returns a ClientConnection.
-func (t *UnixClientTransport) Connect(_ context.Context) (ClientConnection, error) {
-	conn, err := net.Dial("unix", t.Path)
+func (t *UnixClientTransport) Connect(ctx context.Context) (ClientConnection, error) {
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "unix", t.Path)
 	if err != nil {
 		return nil, err
 	}

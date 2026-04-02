@@ -94,3 +94,15 @@ export interface ProfilesChangedPayload {
   profiles: LlmProfile[];
   active_id: string;
 }
+
+export interface ProviderDiscoveredPayload {
+  provider: ProviderSummary;
+}
+
+export interface ProviderRemovedPayload {
+  provider_id: string;
+}
+
+export interface WorkspacesChangedPayload {
+  workspaces: WorkspaceSummary[];
+}

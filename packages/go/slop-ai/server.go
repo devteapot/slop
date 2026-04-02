@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 )
@@ -37,6 +38,7 @@ type Server struct {
 	connections     []Connection
 	changeListeners []func()
 	eventListeners  []Connection // all connections that receive events
+	logger          *slog.Logger
 }
 
 // NewServer creates a new SLOP server with the given provider ID and name.
@@ -49,8 +51,12 @@ func NewServer(id, name string) *Server {
 		actionHandlers: map[string]Handler{},
 		actionMeta:     map[string]map[string]ActionOpts{},
 		currentTree:    WireNode{ID: id, Type: "root"},
+		logger:         slog.Default(),
 	}
 }
+
+// SetLogger replaces the default logger used for internal warnings.
+func (s *Server) SetLogger(l *slog.Logger) { s.logger = l }
 
 // Tree returns the current state tree.
 func (s *Server) Tree() WireNode {
@@ -178,7 +184,9 @@ func (s *Server) HandleConnection(conn Connection) {
 	}
 	s.mu.RUnlock()
 
-	_ = conn.Send(hello)
+	if err := conn.Send(hello); err != nil {
+		s.logger.Warn("failed to send message", "err", err)
+	}
 
 	s.mu.Lock()
 	s.connections = append(s.connections, conn)
@@ -186,7 +194,7 @@ func (s *Server) HandleConnection(conn Connection) {
 }
 
 // HandleMessage processes an incoming SLOP message from a consumer.
-func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
+func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[string]any) {
 	msgType, _ := msg["type"].(string)
 
 	switch msgType {
@@ -230,23 +238,27 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		s.mu.RUnlock()
 
 		if outTree == nil {
-			_ = conn.Send(map[string]any{
+			if err := conn.Send(map[string]any{
 				"type": "error",
 				"id":   subID,
 				"error": map[string]any{
 					"code":    "not_found",
 					"message": "Path " + path + " does not exist in the state tree",
 				},
-			})
+			}); err != nil {
+				s.logger.Warn("failed to send message", "err", err)
+			}
 			return
 		}
 
-		_ = conn.Send(map[string]any{
+		if err := conn.Send(map[string]any{
 			"type":    "snapshot",
 			"id":      subID,
 			"version": ver,
 			"tree":    wireNodeToMap(*outTree),
-		})
+		}); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 
 		s.mu.Lock()
 		initTree := cloneWireNode(*outTree)
@@ -307,14 +319,16 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		s.mu.RUnlock()
 
 		if outTree == nil {
-			_ = conn.Send(map[string]any{
+			if err := conn.Send(map[string]any{
 				"type": "error",
 				"id":   qID,
 				"error": map[string]any{
 					"code":    "not_found",
 					"message": "Path " + qPath + " does not exist in the state tree",
 				},
-			})
+			}); err != nil {
+				s.logger.Warn("failed to send message", "err", err)
+			}
 			return
 		}
 
@@ -333,15 +347,17 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 			}
 		}
 
-		_ = conn.Send(map[string]any{
+		if err := conn.Send(map[string]any{
 			"type":    "snapshot",
 			"id":      qID,
 			"version": ver,
 			"tree":    wireNodeToMap(*outTree),
-		})
+		}); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 
 	case "invoke":
-		s.handleInvoke(conn, msg)
+		s.handleInvoke(ctx, conn, msg)
 
 	default:
 		msgID, _ := msg["id"].(string)
@@ -355,7 +371,9 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		if msgID != "" {
 			errMsg["id"] = msgID
 		}
-		_ = conn.Send(errMsg)
+		if err := conn.Send(errMsg); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 	}
 }
 
@@ -396,7 +414,9 @@ func (s *Server) EmitEvent(name string, data any) {
 		"data": data,
 	}
 	for _, conn := range conns {
-		_ = conn.Send(msg)
+		if err := conn.Send(msg); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 	}
 }
 
@@ -431,7 +451,7 @@ func (s *Server) getOutputTree(path string, depth int, maxNodes *int, filterType
 
 // --- Internal ---
 
-func (s *Server) handleInvoke(conn Connection, msg map[string]any) {
+func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[string]any) {
 	path, _ := msg["path"].(string)
 	action, _ := msg["action"].(string)
 	msgID, _ := msg["id"].(string)
@@ -452,7 +472,7 @@ func (s *Server) handleInvoke(conn Connection, msg map[string]any) {
 	s.mu.RUnlock()
 
 	if !ok {
-		_ = conn.Send(map[string]any{
+		if err := conn.Send(map[string]any{
 			"type":   "result",
 			"id":     msgID,
 			"status": "error",
@@ -460,18 +480,22 @@ func (s *Server) handleInvoke(conn Connection, msg map[string]any) {
 				"code":    "not_found",
 				"message": fmt.Sprintf("No handler for %s at %s", action, path),
 			},
-		})
+		}); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 		return
 	}
 
-	result, err := handler.HandleAction(context.Background(), Params(params))
+	result, err := handler.HandleAction(ctx, Params(params))
 	if err != nil {
-		_ = conn.Send(map[string]any{
+		if err := conn.Send(map[string]any{
 			"type":   "result",
 			"id":     msgID,
 			"status": "error",
 			"error":  map[string]any{"code": "internal", "message": err.Error()},
-		})
+		}); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 		return
 	}
 
@@ -502,7 +526,9 @@ func (s *Server) handleInvoke(conn Connection, msg map[string]any) {
 			resp["data"] = result
 		}
 	}
-	_ = conn.Send(resp)
+	if err := conn.Send(resp); err != nil {
+		s.logger.Warn("failed to send message", "err", err)
+	}
 
 	// Auto-refresh after invoke
 	s.Refresh()
@@ -565,12 +591,14 @@ func (s *Server) broadcastPatches() {
 		if len(ops) == 0 {
 			continue
 		}
-		_ = sub.connection.Send(map[string]any{
+		if err := sub.connection.Send(map[string]any{
 			"type":         "patch",
 			"subscription": sub.id,
 			"version":      s.version,
 			"ops":          ops,
-		})
+		}); err != nil {
+			s.logger.Warn("failed to send message", "err", err)
+		}
 		updated := cloneWireNode(*outTree)
 		sub.lastTree = &updated
 	}
@@ -634,9 +662,15 @@ func jsonIntFromAny(v any) int {
 // wireNodeToMap converts a WireNode to a map for JSON serialization
 // through the Connection.Send interface.
 func wireNodeToMap(wn WireNode) map[string]any {
-	data, _ := json.Marshal(wn)
+	data, err := json.Marshal(wn)
+	if err != nil {
+		slog.Default().Warn("failed to marshal wire node", "err", err)
+		return nil
+	}
 	var m map[string]any
-	_ = json.Unmarshal(data, &m)
+	if err := json.Unmarshal(data, &m); err != nil {
+		slog.Default().Warn("failed to unmarshal wire node", "err", err)
+	}
 	return m
 }
 

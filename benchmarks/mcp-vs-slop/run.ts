@@ -18,6 +18,8 @@ import { setVerbose } from "./harness/logger";
 import type { BenchmarkReport, ScenarioResult } from "./harness/types";
 import { join } from "node:path";
 
+type BenchmarkMode = "scripted" | "agent" | "all";
+
 const { values } = parseArgs({
   options: {
     mode: { type: "string", default: "scripted" },
@@ -29,7 +31,7 @@ const { values } = parseArgs({
   },
 });
 
-const mode = values.mode as "scripted" | "agent" | "all";
+const mode = parseMode(values.mode);
 const iterations = parseInt(values.iterations!, 10);
 const model = values.model!;
 setGeminiModel(model);
@@ -97,3 +99,7 @@ const report: BenchmarkReport = {
 };
 
 writeReport(report, join(import.meta.dir, "results"));
+
+function parseMode(value: string | undefined): BenchmarkMode {
+  return value === "agent" || value === "all" ? value : "scripted";
+}

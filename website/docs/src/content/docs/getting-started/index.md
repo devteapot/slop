@@ -5,7 +5,9 @@ description: Add SLOP to your app in 5 minutes
 
 ## See it in action
 
-<video src="https://github.com/user-attachments/assets/738add8c-8c06-4e5c-a85d-1e81e7472354" autoplay muted loop playsinline style="width: 100%; border-radius: 8px; margin-bottom: 1rem;"></video>
+<video autoplay muted loop playsinline preload="metadata" poster="/hero-demo-poster.jpg" style="width: 100%; aspect-ratio: 1440 / 900; object-fit: cover; border-radius: 8px; margin-bottom: 1rem; background: #161a23;">
+  <source src="/hero-demo.mp4" type="video/mp4" />
+</video>
 
 > An AI agent browsing products, adding to cart, and writing a review — all through the SLOP protocol. Run it yourself: `bun demo`
 

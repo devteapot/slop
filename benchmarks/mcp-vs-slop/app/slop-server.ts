@@ -1,5 +1,6 @@
 import { SlopServer } from "@slop-ai/server";
 import { bunHandler } from "@slop-ai/server/bun";
+import type { Action, NodeDescriptor } from "@slop-ai/core";
 import type { IssueTrackerStore, Issue } from "./store";
 
 export interface SlopServerOpts {
@@ -116,7 +117,12 @@ export function createSlopServer(store: IssueTrackerStore, opts?: SlopServerOpts
       return {
         type: "collection",
         props: { count: repoIssues.length },
-        items: repoIssues.map((issue) => buildIssueItem(store, slop, issue, false)),
+        children: Object.fromEntries(
+          repoIssues.map((issue) => [
+            issue.id,
+            buildIssueNode(store, slop, issue, false),
+          ]),
+        ),
       };
     });
   }
@@ -133,7 +139,7 @@ function buildOptimizedCollection(
   slop: SlopServer,
   repoId: string,
   allIssues: Issue[],
-) {
+): NodeDescriptor {
   const openIssues = allIssues.filter((i) => i.status === "open");
   const closedCount = allIssues.length - openIssues.length;
   const unassigned = openIssues.filter((i) => !i.assignee).length;
@@ -163,8 +169,11 @@ function buildOptimizedCollection(
     type: "collection",
     props: { count: allIssues.length },
     summary: `${allIssues.length} issues: ${openIssues.length} open (${unassigned} unassigned, ${bugs} bugs), ${closedCount} closed. Labels: ${labelSummary}`,
-    items: scored.map(({ issue, salience }) =>
-      buildIssueItem(store, slop, issue, true, salience),
+    children: Object.fromEntries(
+      scored.map(({ issue, salience }) => [
+        issue.id,
+        buildIssueNode(store, slop, issue, true, salience),
+      ]),
     ),
   };
 }
@@ -193,15 +202,15 @@ function computeIssueSalience(issue: Issue): number {
   return Math.min(1.0, Math.max(0.0, salience));
 }
 
-function buildIssueItem(
+function buildIssueNode(
   store: IssueTrackerStore,
   slop: SlopServer,
   issue: Issue,
   lazyComments: boolean,
   salience?: number,
-) {
+): NodeDescriptor {
   const comments = store.listComments(issue.id);
-  const actions: Record<string, any> = {};
+  const actions: Record<string, Action> = {};
 
   // Comment is always available (you can comment on closed issues)
   actions.comment = {
@@ -282,7 +291,7 @@ function buildIssueItem(
   }
 
   // Build meta with salience if provided
-  const meta: Record<string, unknown> = {};
+  const meta: NonNullable<NodeDescriptor["meta"]> = {};
   if (salience != null) meta.salience = salience;
 
   // Lazy comments: don't inline comment bodies, just declare they exist
@@ -293,38 +302,42 @@ function buildIssueItem(
     meta.summary = `${comments.length} comment${comments.length === 1 ? "" : "s"} from ${authors.join(", ")}`;
   }
 
-  const result: Record<string, any> = {
-    id: issue.id,
-    type: "tracker:issue",
-    props: {
-      title: issue.title,
-      status: issue.status,
-      labels: issue.labels,
-      assignee: issue.assignee,
-      created_at: issue.createdAt,
-    },
-    actions,
+  const props: Record<string, unknown> = {
+    title: issue.title,
+    status: issue.status,
+    labels: issue.labels,
+    assignee: issue.assignee,
+    created_at: issue.createdAt,
   };
 
-  // Only include body in non-optimized mode — it's verbose and rarely needed for triage
   if (!lazyComments) {
-    result.props.body = issue.body;
-    result.props.comment_count = comments.length;
+    props.body = issue.body;
+    props.comment_count = comments.length;
   }
+
+  const result: NodeDescriptor = {
+    type: "tracker:issue",
+    props,
+    actions,
+  };
 
   if (Object.keys(meta).length > 0) result.meta = meta;
 
   // Inline comments only in naive mode
   if (!lazyComments) {
-    result.children = comments.map((c) => ({
-      id: c.id,
-      type: "tracker:comment",
-      props: {
-        author: c.author,
-        body: c.body,
-        created_at: c.createdAt,
-      },
-    }));
+    result.children = Object.fromEntries(
+      comments.map((comment) => [
+        comment.id,
+        {
+          type: "tracker:comment",
+          props: {
+            author: comment.author,
+            body: comment.body,
+            created_at: comment.createdAt,
+          },
+        } satisfies NodeDescriptor,
+      ]),
+    );
   }
 
   return result;

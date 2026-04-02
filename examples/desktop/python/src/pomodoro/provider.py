@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from slop import SlopServer
-from slop.transports.unix import listen as listen_unix
+from slop_ai import SlopServer
+from slop_ai.transports.unix import listen as listen_unix
 
 from pomodoro.pomodoro import PomodoroTimer, Phase
 

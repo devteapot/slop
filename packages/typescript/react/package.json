@@ -14,6 +14,8 @@
   "sideEffects": false,
   "license": "MIT",
   "description": "React hook for SLOP — useSlop() to expose component state to AI",
+  "homepage": "https://docs.slopai.dev/api/react",
+  "bugs": "https://github.com/devteapot/slop/issues",
   "repository": {
     "type": "git",
     "url": "https://github.com/devteapot/slop",

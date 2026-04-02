@@ -1,61 +1,37 @@
 ---
 title: Chrome Extension
-description: Install and use the SLOP browser extension
+description: Build and use the SLOP browser extension
 ---
 
-The SLOP Chrome extension discovers SLOP providers on web pages and provides an AI chat overlay. It also bridges browser providers to the desktop app.
+The Chrome extension discovers browser-based SLOP providers, opens an AI chat overlay, and can bridge those providers into the desktop app.
 
-## Install
+## Release builds
 
-### From Chrome Web Store
+The release workflow produces a packaged extension artifact alongside tagged releases. For development and local testing, sideload the extension from source.
 
-Coming soon.
+## Build from source
 
-### Sideload (developer mode)
+```bash
+git clone https://github.com/devteapot/slop.git
+cd slop/apps/extension
+bun install
+bun run build
+```
 
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/devteapot/slop.git
-   cd slop/extension
-   bun install && bun run build.ts
-   ```
+Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the `apps/extension` directory.
 
-2. Open `chrome://extensions` in Chrome
+## What it does
 
-3. Enable **Developer mode** (top right)
+- discovers browser providers via the SLOP discovery tag
+- opens an AI chat overlay on supported pages
+- relays browser providers to the desktop app when the bridge is enabled
+- supports multiple LLM backends configured from the popup
 
-4. Click **Load unpacked** and select the `extension/` directory
+## Desktop bridge
 
-## Configure
+When enabled, the extension connects to the desktop bridge at `ws://localhost:9339` and re-announces active browser providers after reconnects or service-worker restarts.
 
-Click the SLOP extension icon in the toolbar to access the popup:
+## Related pages
 
-- **Active** — master toggle. When off, no connections, no UI.
-- **Chat overlay** — show/hide the floating chat panel on web pages.
-- **Desktop bridge** — connect to the SLOP Desktop app (off by default).
-- **LLM Settings** — configure AI providers (Ollama, OpenAI, OpenRouter, Gemini).
-
-## Usage
-
-1. Navigate to a SLOP-enabled web app
-2. The extension auto-detects the `<meta name="slop">` tag
-3. A blue chat button appears in the bottom-right corner
-4. Click it to open the chat panel
-5. Ask the AI about the app state or tell it to perform actions
-
-## Supported LLM providers
-
-| Provider | Endpoint | Notes |
-|---|---|---|
-| Ollama | `http://localhost:11434` | Local, free. Set `OLLAMA_ORIGINS=*` |
-| OpenAI | `https://api.openai.com` | Requires API key |
-| OpenRouter | `https://openrouter.ai/api` | Access to many models |
-| Google Gemini | `https://generativelanguage.googleapis.com` | Requires API key |
-
-## Desktop bridge resilience
-
-The extension maintains a robust connection to the desktop app's WebSocket bridge:
-
-- **Auto-retry** — reconnects on a 5-second interval when the bridge disconnects
-- **Full re-announcement** — re-announces all active browser providers on reconnect so the desktop app's sidebar is immediately up to date
-- **MV3 service worker recovery** — handles Chrome Manifest V3 service worker restarts by actively querying all tabs, ensuring no providers are lost when Chrome suspends and wakes the background script
+- [Consumer guide](/guides/consumer)
+- [Desktop app docs](/desktop/install)

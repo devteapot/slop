@@ -7,8 +7,8 @@ from typing import Any
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from slop import SlopServer
-from slop.transports.asgi import SlopMiddleware
+from slop_ai import SlopServer
+from slop_ai.transports.asgi import SlopMiddleware
 
 from .state import state
 from .slop_tree import register_tree

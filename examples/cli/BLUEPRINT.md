@@ -434,7 +434,7 @@ These rules ensure all implementations produce identical SLOP trees. They follow
 
 ## Implementation constraints
 
-- **Use the language's SLOP SDK** — `@slop-ai/server` for Bun, `slop` for Python, `slop` for Go, `slop_ai` for Rust
+- **Use the language's SLOP SDK** — `@slop-ai/server` for Bun, `slop_ai` for Python, `slop_ai` for Rust, `slop-ai` for Go
 - **No external dependencies beyond the SDK** and the language's stdlib/standard ecosystem
 - **Data file**: JSON, at `~/.tsk/tasks.json` by default
 - **Transport**: Unix domain socket (NDJSON over Unix socket)

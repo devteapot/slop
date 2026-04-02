@@ -17,7 +17,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
-	slop "github.com/slop-ai/slop-go"
+	slop "github.com/devteapot/slop/packages/go/slop-ai"
 )
 
 func main() {

@@ -17,7 +17,9 @@ export class WebSocketClientTransport implements ClientTransport {
       try {
         const msg = JSON.parse(e.data) as SlopMessage;
         for (const h of messageHandlers) h(msg);
-      } catch {}
+      } catch (e) {
+        console.warn("[slop] failed to parse WebSocket message:", e);
+      }
     };
     ws.onclose = () => {
       for (const h of closeHandlers) h();

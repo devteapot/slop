@@ -1,9 +1,9 @@
 ---
 title: "@slop-ai/react"
-description: API reference for the SLOP React hook
+description: React hook for registering SLOP state from components
 ---
 
-React hook for registering SLOP nodes in components.
+`@slop-ai/react` provides a single hook, `useSlop()`, for registering component state with a browser-side SLOP provider.
 
 ```bash
 bun add @slop-ai/react @slop-ai/client
@@ -11,41 +11,41 @@ bun add @slop-ai/react @slop-ai/client
 
 ## `useSlop(client, path, descriptor)`
 
-Registers a SLOP node for the lifetime of the component. Re-registers on every render (so handlers always close over fresh state). Unregisters on unmount.
+Registers a SLOP node for the lifetime of the component. Re-registers on every render so handlers always close over fresh state, and unregisters on unmount.
 
 ```tsx
 import { useSlop } from "@slop-ai/react";
 import { slop } from "./slop";
 
 function MyComponent() {
-  const [data, setData] = useState([...]);
+  const [data, setData] = useState([{ id: "1", title: "Ship docs" }]);
 
-  useSlop(slop, "my-data", {
+  useSlop(slop, "items", {
     type: "collection",
     props: { count: data.length },
-    items: data.map(d => ({
-      id: d.id,
-      props: { name: d.name },
-      actions: { remove: () => setData(prev => prev.filter(x => x.id !== d.id)) },
+    items: data.map((item) => ({
+      id: item.id,
+      props: { title: item.title },
+      actions: {
+        remove: () => setData((current) => current.filter((entry) => entry.id !== item.id)),
+      },
     })),
   });
 
-  return <div>...</div>;
+  return null;
 }
 ```
 
 ### Parameters
 
 | Param | Type | Description |
-|---|---|---|
-| `client` | `SlopClient` | The client from `createSlop()` or a scoped client |
-| `path` | `string` | Node path in the tree (e.g., `"inbox/messages"`) |
-| `descriptor` | `NodeDescriptor` | The node descriptor (props, actions, items, etc.) |
+| --- | --- | --- |
+| `client` | `SlopClient` | the client returned by `createSlop()` |
+| `path` | `string` | node path in the tree |
+| `descriptor` | `NodeDescriptor` | descriptor object for the node |
 
-### Behavior
+## Related pages
 
-- Calls `client.register(path, descriptor)` on every render
-- Calls `client.unregister(path)` on unmount
-- Handles path changes (unregisters old path, registers new)
-- Compatible with React strict mode
-- JSX is completely SLOP-free — the hook is the only SLOP code in the component
+- [React guide](/guides/react)
+- [Browser provider](/api/client)
+- [Core helpers](/api/core)

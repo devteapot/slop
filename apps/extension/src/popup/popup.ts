@@ -1,3 +1,4 @@
+import type { PopupCommandMessage, PopupResponse } from "../types";
 import { getPrefs, savePrefs } from "../types";
 
 const activeToggle = document.getElementById("activeToggle") as HTMLInputElement;
@@ -29,7 +30,8 @@ async function checkScanStatus() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
-  chrome.tabs.sendMessage(tab.id, { type: "get-scan-status" }, (response) => {
+  chrome.tabs.sendMessage(tab.id, { type: "get-scan-status" } satisfies PopupCommandMessage, (response) => {
+    const typedResponse = response as PopupResponse | undefined;
     if (chrome.runtime.lastError || !response) {
       // Content script not ready or no response
       scanSection.style.display = "block";
@@ -37,12 +39,12 @@ async function checkScanStatus() {
       return;
     }
 
-    if (response.hasSlop) {
+    if (typedResponse && "hasSlop" in typedResponse && typedResponse.hasSlop) {
       // SLOP-native app — show connected status, no scan button
       scanSection.style.display = "block";
       scanStatus.innerHTML = '<span class="dot green"></span>SLOP provider detected';
       scanBtn.style.display = "none";
-    } else if (response.scanning) {
+    } else if (typedResponse && "scanning" in typedResponse && typedResponse.scanning) {
       // Already scanning
       showScanning();
     } else {
@@ -75,11 +77,11 @@ scanBtn.onclick = async () => {
   if (!tab?.id) return;
 
   if (isScanning) {
-    chrome.tabs.sendMessage(tab.id, { type: "stop-scan" }, () => {
+    chrome.tabs.sendMessage(tab.id, { type: "stop-scan" } satisfies PopupCommandMessage, () => {
       showScanAvailable();
     });
   } else {
-    chrome.tabs.sendMessage(tab.id, { type: "scan-page" }, () => {
+    chrome.tabs.sendMessage(tab.id, { type: "scan-page" } satisfies PopupCommandMessage, () => {
       showScanning();
     });
   }

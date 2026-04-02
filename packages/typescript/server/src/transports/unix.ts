@@ -24,7 +24,7 @@ export function listenUnix(
   options: ListenUnixOptions = {}
 ): { close: () => void } {
   // Clean up stale socket
-  try { unlinkSync(socketPath); } catch {}
+  removeSocketIfPresent(socketPath);
   mkdirSync(dirname(socketPath), { recursive: true });
 
   const server = createServer((socket: Socket) => {
@@ -49,7 +49,7 @@ export function listenUnix(
   return {
     close() {
       server.close();
-      try { unlinkSync(socketPath); } catch {}
+      removeSocketIfPresent(socketPath);
       if (options.register) {
         unregisterProvider(slop.id);
       }
@@ -75,7 +75,9 @@ function createNdjsonConnection(socket: Socket): NdjsonConnection {
     try {
       const msg = JSON.parse(line);
       for (const h of messageHandlers) h(msg);
-    } catch {}
+    } catch (e) {
+      console.warn("[slop] failed to parse socket message:", e);
+    }
   });
 
   rl.on("close", () => {
@@ -122,5 +124,16 @@ function registerProvider(id: string, name: string, socketPath: string): void {
 
 function unregisterProvider(id: string): void {
   const filePath = join(getDiscoveryDir(), `${id}.json`);
-  try { unlinkSync(filePath); } catch {}
+  removeSocketIfPresent(filePath);
+}
+
+function removeSocketIfPresent(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (e) {
+    const code = e && typeof e === "object" && "code" in e ? (e as { code?: string }).code : undefined;
+    if (code !== "ENOENT") {
+      console.warn(`[slop] failed to remove stale socket or descriptor at ${path}:`, e);
+    }
+  }
 }

@@ -12,48 +12,37 @@
 //! }
 //! ```
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio::net::TcpListener;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::error::{Result, SlopError};
 use crate::server::{Connection, SlopServer};
 
-struct WsConnection {
-    sender: Mutex<futures_util::stream::SplitSink<
-        tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
-        Message,
-    >>,
+enum ConnMessage {
+    Send(Value),
+    Close,
 }
 
-impl Connection for WsConnection {
+struct ChannelConnection {
+    tx: mpsc::UnboundedSender<ConnMessage>,
+}
+
+impl Connection for ChannelConnection {
     fn send(&self, message: &Value) -> Result<()> {
-        let json = serde_json::to_string(message)?;
-        let mut sender = self.sender.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        // Use try_send pattern — we're in a sync context
-        // For proper async, we'd need a channel. This is a pragmatic approach.
-        let rt = tokio::runtime::Handle::try_current()
-            .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            sender
-                .send(Message::Text(json.into()))
-                .await
-                .map_err(|e| SlopError::Transport(e.to_string()))
-        })
+        self.tx
+            .send(ConnMessage::Send(message.clone()))
+            .map_err(|_| SlopError::Transport("connection closed".into()))
     }
 
     fn close(&self) -> Result<()> {
-        let mut sender = self.sender.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        let rt = tokio::runtime::Handle::try_current()
-            .map_err(|e| SlopError::Transport(e.to_string()))?;
-        rt.block_on(async {
-            let _ = sender.send(Message::Close(None)).await;
-            Ok(())
-        })
+        let _ = self.tx.send(ConnMessage::Close);
+        Ok(())
     }
 }
 
@@ -76,9 +65,26 @@ pub async fn serve(slop: &SlopServer, addr: &str) -> Result<JoinHandle<()>> {
                     Err(_) => return,
                 };
 
-                let (sender, mut receiver) = ws_stream.split();
-                let conn: Arc<dyn Connection> = Arc::new(WsConnection {
-                    sender: Mutex::new(sender),
+                let (mut sender, mut receiver) = ws_stream.split();
+                let (tx, mut rx) = mpsc::unbounded_channel::<ConnMessage>();
+                let conn: Arc<dyn Connection> = Arc::new(ChannelConnection { tx });
+
+                // Spawn a writer task that drains the channel into the WS sink
+                tokio::spawn(async move {
+                    while let Some(msg) = rx.recv().await {
+                        match msg {
+                            ConnMessage::Send(val) => {
+                                let json = serde_json::to_string(&val).unwrap_or_default();
+                                if sender.send(Message::Text(json.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            ConnMessage::Close => {
+                                let _ = sender.send(Message::Close(None)).await;
+                                break;
+                            }
+                        }
+                    }
                 });
 
                 slop.handle_connection(conn.clone());

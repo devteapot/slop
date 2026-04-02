@@ -19,7 +19,7 @@ from pomodoro.provider import (
     cleanup_discovery,
     DEFAULT_SOCK,
 )
-from slop.transports.unix import listen as listen_unix
+from slop_ai.transports.unix import listen as listen_unix
 
 
 def main() -> None:

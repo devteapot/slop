@@ -1,6 +1,6 @@
 """Tests for tree assembly."""
 
-from slop.tree import assemble_tree
+from slop_ai.tree import assemble_tree
 
 
 def test_single_registration():

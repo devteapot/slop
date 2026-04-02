@@ -2,14 +2,13 @@
 ---
 <section class="problem">
   <div class="container">
-    <span class="label">The Problem</span>
-    <h2>Today, AI is either blind or wasteful</h2>
+    <span class="label">The Mismatch</span>
+    <h2>Today's agents still operate through interfaces made for humans</h2>
 
     <div class="problem-grid">
       <div class="card problem-card rival">
-        <div class="problem-icon">&#128247;</div>
         <h3>Vision (Screenshots)</h3>
-        <p>The AI parses pixels to recover information the app already had in structured form. Expensive, lossy, fragile.</p>
+        <p>The agent drives the human UI and reconstructs meaning from pixels. Expensive, lossy, fragile.</p>
         <ul>
           <li>Tokens wasted on OCR</li>
           <li>Layout changes break everything</li>
@@ -17,20 +16,19 @@
         </ul>
       </div>
       <div class="card problem-card rival">
-        <div class="problem-icon">&#128268;</div>
         <h3>Tool Calls (MCP)</h3>
-        <p>The AI can act, but it's flying blind. Every observation requires a dedicated tool. No context of what the user sees.</p>
+        <p>The agent can call functions, but it still lacks a live model of the program. Reads must be bolted on tool by tool.</p>
         <ul>
-          <li>No awareness of app state</li>
-          <li>Hundreds of tools for one app</li>
-          <li>Actions without context</li>
+          <li>Read access requires bespoke tools</li>
+          <li>Global tools lose local context</li>
+          <li>Validity is discovered at runtime</li>
         </ul>
       </div>
     </div>
 
     <div class="solution-bridge">
       <div class="solution-line"></div>
-      <p class="solution-text">SLOP fills the gap — apps <strong>publish what they are</strong> so AI can <strong>see before it acts</strong>.</p>
+      <p class="solution-text">SLOP adds an <strong>agent-facing interface</strong> — apps publish semantic state and contextual actions so agents can <strong>operate the program directly</strong>.</p>
     </div>
   </div>
 </section>
@@ -52,13 +50,9 @@
   .problem-card {
     padding: var(--space-6);
   }
-  .problem-icon {
-    font-size: 2rem;
-    margin-bottom: var(--space-4);
-  }
   .problem-card h3 {
     font-size: 1.25rem;
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
   }
   .problem-card p {
     color: var(--text-secondary);

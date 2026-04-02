@@ -1,6 +1,11 @@
 import type { ChatMessage } from "@slop-ai/consumer/browser";
 import { formatTree, affordancesToTools } from "@slop-ai/consumer/browser";
-import type { ProviderSpec, BackgroundMessage } from "../types";
+import type {
+  BackgroundMessage,
+  BridgeMessageFromDesktop,
+  ProviderMessage,
+  ProviderSpec,
+} from "../types";
 import { Session } from "./session";
 import { initConversation, runTurn } from "./chat-engine";
 import * as bridge from "./bridge-client";
@@ -18,7 +23,11 @@ const tabs = new Map<number, TabEntry>();
 const discoveryIndex = new Map<string, { tabId: number; providerKey: string; spec: ProviderSpec }>();
 
 function send(port: chrome.runtime.Port, msg: BackgroundMessage) {
-  try { port.postMessage(msg); } catch {}
+  try {
+    port.postMessage(msg);
+  } catch (e) {
+    console.warn("[slop] failed to post background message to content script:", e);
+  }
 }
 
 function encodeKeyPart(value: string): string {
@@ -142,7 +151,7 @@ export async function ensureSession(tabId: number): Promise<boolean> {
     tabId,
     entry.port,
     () => pushStatus(tabId),
-    () => pushTree(tabId, "onTreeUpdate"),
+    () => pushTree(tabId),
   );
   entry.session = session;
   await session.connect(specs);
@@ -175,7 +184,7 @@ export function hasSession(tabId: number): boolean {
 
 // --- Bridge relay ---
 
-export function handleBridgeMessage(msg: any): void {
+export function handleBridgeMessage(msg: BridgeMessageFromDesktop): void {
   if (!msg?.type || typeof msg.providerKey !== "string") return;
 
   const indexed = discoveryIndex.get(msg.providerKey);
@@ -203,7 +212,7 @@ export function handleBridgeMessage(msg: any): void {
   }
 }
 
-export function relayUp(tabId: number, message: any): void {
+export function relayUp(tabId: number, message: ProviderMessage): void {
   const entry = tabs.get(tabId);
   if (!entry) return;
 

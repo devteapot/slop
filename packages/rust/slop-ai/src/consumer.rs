@@ -15,6 +15,18 @@ use crate::error::{Result, SlopError};
 use crate::state_mirror::StateMirror;
 use crate::types::{PatchOp, SlopNode};
 
+type TransportChannels = (
+    mpsc::UnboundedSender<Value>,
+    mpsc::UnboundedReceiver<Value>,
+);
+
+type ConnectFuture = Pin<Box<dyn Future<Output = Result<TransportChannels>> + Send>>;
+
+type PatchCallback = Arc<dyn Fn(&str, &[PatchOp], u64) + Send + Sync>;
+type DisconnectCallback = Arc<dyn Fn() + Send + Sync>;
+type ErrorCallback = Arc<dyn Fn(&str, &str, &str) + Send + Sync>;
+type EventCallback = Arc<dyn Fn(&str, Option<&Value>) + Send + Sync>;
+
 // ---------------------------------------------------------------------------
 // Transport trait
 // ---------------------------------------------------------------------------
@@ -24,18 +36,7 @@ use crate::types::{PatchOp, SlopNode};
 /// sender and receives messages via the receiver.
 pub trait ClientTransport: Send + Sync {
     /// Establish a connection, returning `(sender, receiver)`.
-    fn connect(
-        &self,
-    ) -> Pin<
-        Box<
-            dyn Future<
-                    Output = Result<(
-                        mpsc::UnboundedSender<Value>,
-                        mpsc::UnboundedReceiver<Value>,
-                    )>,
-                > + Send,
-        >,
-    >;
+    fn connect(&self) -> ConnectFuture;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,10 +57,10 @@ struct ConsumerInner {
     pending: HashMap<String, oneshot::Sender<Value>>,
     sub_counter: u32,
     req_counter: u32,
-    patch_callbacks: Vec<Arc<dyn Fn(&str, &[PatchOp], u64) + Send + Sync>>,
-    disconnect_callbacks: Vec<Arc<dyn Fn() + Send + Sync>>,
-    error_callbacks: Vec<Arc<dyn Fn(&str, &str, &str) + Send + Sync>>,
-    event_callbacks: Vec<Arc<dyn Fn(&str, Option<&Value>) + Send + Sync>>,
+    patch_callbacks: Vec<PatchCallback>,
+    disconnect_callbacks: Vec<DisconnectCallback>,
+    error_callbacks: Vec<ErrorCallback>,
+    event_callbacks: Vec<EventCallback>,
 }
 
 impl SlopConsumer {
@@ -160,7 +161,7 @@ impl SlopConsumer {
 
     /// One-shot query of the tree at a path.
     pub async fn query(&self, path: &str, depth: i32) -> Result<SlopNode> {
-        let (req_id, rx) = {
+        let rx = {
             let mut inner = self.inner.lock().await;
             inner.req_counter += 1;
             let req_id = format!("q-{}", inner.req_counter);
@@ -175,7 +176,7 @@ impl SlopConsumer {
                     "depth": depth,
                 }),
             )?;
-            (req_id, rx)
+            rx
         };
 
         let snapshot = rx.await.map_err(|_| SlopError::ConnectionClosed)?;
@@ -191,7 +192,7 @@ impl SlopConsumer {
         action: &str,
         params: Option<Value>,
     ) -> Result<Value> {
-        let (req_id, rx) = {
+        let rx = {
             let mut inner = self.inner.lock().await;
             inner.req_counter += 1;
             let req_id = format!("inv-{}", inner.req_counter);
@@ -207,7 +208,7 @@ impl SlopConsumer {
                 msg["params"] = p;
             }
             self.send_inner(&inner, msg)?;
-            (req_id, rx)
+            rx
         };
 
         let result = rx.await.map_err(|_| SlopError::ConnectionClosed)?;

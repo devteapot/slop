@@ -26,8 +26,8 @@ export default function App() {
     try {
       const data = await api.fetchContacts(search || undefined, activeTag || undefined);
       setContacts(data);
-    } catch {
-      // Backend might not be running yet
+    } catch (error) {
+      console.warn("[slop] failed to load contacts:", error);
     }
   }, [search, activeTag]);
 
@@ -35,8 +35,8 @@ export default function App() {
     try {
       const data = await api.fetchTags();
       setTags(data);
-    } catch {
-      // Backend might not be running yet
+    } catch (error) {
+      console.warn("[slop] failed to load tags:", error);
     }
   }, []);
 

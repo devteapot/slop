@@ -1,4 +1,4 @@
-import type { ContentMessage } from "../types";
+import type { PortMessageFromContent } from "../types";
 import { getActiveProfile } from "../types";
 import * as tabRegistry from "./tab-registry";
 import * as bridge from "./bridge-client";
@@ -20,12 +20,12 @@ chrome.runtime.onConnect.addListener((port) => {
 
   tabRegistry.register(tabId, port);
 
-  port.onMessage.addListener(async (msg: ContentMessage | { type: "slop-from-provider"; message: any }) => {
+  const handlePortMessage = async (msg: PortMessageFromContent) => {
     switch (msg.type) {
       // SDK's PostMessageClientTransport handles "slop-from-provider" directly
       // on the port. We also catch it here for desktop bridge relay.
       case "slop-from-provider":
-        tabRegistry.relayUp(tabId, (msg as any).message);
+        tabRegistry.relayUp(tabId, msg.message);
         return;
       case "discovered":
         tabRegistry.setDiscoveries(tabId, msg.providers);
@@ -79,10 +79,12 @@ chrome.runtime.onConnect.addListener((port) => {
         port.postMessage({ type: "models", models: [], active: msg.model });
         break;
 
-      case "slop-up":
-        tabRegistry.relayUp(tabId, (msg as any).message);
-        break;
     }
+  };
+
+  port.onMessage.addListener((message) => {
+    if (!isPortMessageFromContent(message)) return;
+    void handlePortMessage(message);
   });
 
   port.onDisconnect.addListener(() => {
@@ -101,3 +103,9 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 bridge.start();
 bridge.onMessage((msg) => tabRegistry.handleBridgeMessage(msg));
 bridge.onConnect(() => tabRegistry.reannounceAll());
+
+function isPortMessageFromContent(value: unknown): value is PortMessageFromContent {
+  return !!value
+    && typeof value === "object"
+    && typeof (value as { type?: unknown }).type === "string";
+}

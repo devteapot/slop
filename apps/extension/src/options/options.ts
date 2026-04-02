@@ -1,4 +1,4 @@
-import type { LlmProfile, SlopStorage } from "../types";
+import type { LlmProfile, SlopStorage, SlopStorageRecord } from "../types";
 import { DEFAULT_STORAGE, DEFAULT_PROFILE } from "../types";
 
 const profileListEl = document.getElementById("profileList")!;
@@ -18,7 +18,7 @@ const statusEl = document.getElementById("status")!;
 let storage: SlopStorage = DEFAULT_STORAGE;
 
 async function loadStorage(): Promise<void> {
-  const result = await chrome.storage.sync.get("slopStorage");
+  const result = await chrome.storage.sync.get("slopStorage") as SlopStorageRecord;
   storage = result.slopStorage ?? DEFAULT_STORAGE;
   renderProfiles();
 }

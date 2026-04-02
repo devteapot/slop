@@ -18,6 +18,13 @@
   "files": ["src", "dist"],
   "sideEffects": false,
   "license": "MIT",
+  "homepage": "https://docs.slopai.dev/api/tanstack-start",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/tanstack-start"
+  },
   "scripts": {
     "build": "bun build src/index.ts src/server.ts --outdir dist --format esm --splitting --external '@slop-ai/core' --external '@slop-ai/client' --external '@slop-ai/server' --external ws --external react --external '@tanstack/react-start' --external '@tanstack/react-router' && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"

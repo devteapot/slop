@@ -12,33 +12,49 @@ import type { SlopServer, Connection } from "../server";
  * Requires `nitro: { experimental: { websocket: true } }` in nuxt.config.
  */
 export function nitroHandler(slop: SlopServer) {
-  const peerConnections = new WeakMap<any, Connection>();
+  type NitroPeer = {
+    send(data: string): void;
+    close(): void;
+  };
+  type NitroMessage = string | { text(): string };
+
+  const peerConnections = new WeakMap<NitroPeer, Connection>();
 
   return {
-    open(peer: any) {
+    open(peer: NitroPeer) {
       const conn: Connection = {
         send(message: unknown) {
-          try { peer.send(JSON.stringify(message)); } catch {}
+          try {
+            peer.send(JSON.stringify(message));
+          } catch (e) {
+            console.warn("[slop] failed to send Nitro WebSocket message:", e);
+          }
         },
         close() {
-          try { peer.close(); } catch {}
+          try {
+            peer.close();
+          } catch (e) {
+            console.warn("[slop] failed to close Nitro WebSocket peer:", e);
+          }
         },
       };
       peerConnections.set(peer, conn);
       slop.handleConnection(conn);
     },
 
-    message(peer: any, message: any) {
+    message(peer: NitroPeer, message: NitroMessage) {
       const conn = peerConnections.get(peer);
       if (!conn) return;
       try {
         const text = typeof message === "string" ? message : message.text();
         const msg = JSON.parse(text);
         slop.handleMessage(conn, msg);
-      } catch {}
+      } catch (e) {
+        console.warn("[slop] failed to parse Nitro WebSocket message:", e);
+      }
     },
 
-    close(peer: any) {
+    close(peer: NitroPeer) {
       const conn = peerConnections.get(peer);
       if (conn) {
         slop.handleDisconnect(conn);

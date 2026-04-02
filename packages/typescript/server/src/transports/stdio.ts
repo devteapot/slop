@@ -28,7 +28,9 @@ export function listenStdio(slop: SlopServer): { close: () => void } {
     try {
       const msg = JSON.parse(line);
       slop.handleMessage(conn, msg);
-    } catch {}
+    } catch (e) {
+      console.warn("[slop] failed to parse stdio message:", e);
+    }
   });
 
   rl.on("close", () => {

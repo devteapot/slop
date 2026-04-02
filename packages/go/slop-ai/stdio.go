@@ -55,7 +55,7 @@ func ListenStdio(ctx context.Context, s *Server) error {
 		}
 		var msg map[string]any
 		if json.Unmarshal([]byte(line), &msg) == nil {
-			s.HandleMessage(conn, msg)
+			s.HandleMessage(ctx, conn, msg)
 		}
 	}
 

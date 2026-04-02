@@ -1,8 +1,8 @@
-import type { SlopStorage, LlmProfile } from "../../types";
+import type { SlopStorage, SlopStorageRecord } from "../../types";
 import { DEFAULT_STORAGE, getActiveProfile } from "../../types";
 
 export async function getStorage(): Promise<SlopStorage> {
-  const result = await chrome.storage.sync.get("slopStorage");
+  const result = await chrome.storage.sync.get("slopStorage") as SlopStorageRecord;
   return result.slopStorage ?? DEFAULT_STORAGE;
 }
 

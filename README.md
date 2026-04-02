@@ -122,17 +122,19 @@ Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/
 | Language | Package | Install |
 |----------|---------|---------|
 | TypeScript | [`@slop-ai/core`](./packages/typescript/core) | `bun add @slop-ai/core` |
+| Browser | [`@slop-ai/client`](./packages/typescript/client) | `bun add @slop-ai/client` |
 | React | [`@slop-ai/react`](./packages/typescript/react) | `bun add @slop-ai/react` |
 | Vue | [`@slop-ai/vue`](./packages/typescript/vue) | `bun add @slop-ai/vue` |
 | Solid | [`@slop-ai/solid`](./packages/typescript/solid) | `bun add @slop-ai/solid` |
 | Angular | [`@slop-ai/angular`](./packages/typescript/angular) | `bun add @slop-ai/angular` |
+| Svelte | [`@slop-ai/svelte`](./packages/typescript/svelte) | `bun add @slop-ai/svelte` |
 | Server (Node/Bun) | [`@slop-ai/server`](./packages/typescript/server) | `bun add @slop-ai/server` |
-| Browser | [`@slop-ai/client`](./packages/typescript/client) | `bun add @slop-ai/client` |
 | Consumer | [`@slop-ai/consumer`](./packages/typescript/consumer) | `bun add @slop-ai/consumer` |
 | TanStack Start | [`@slop-ai/tanstack-start`](./packages/typescript/tanstack-start) | `bun add @slop-ai/tanstack-start` |
+| OpenClaw | [`@slop-ai/openclaw-plugin`](./packages/typescript/openclaw-plugin) | `bun add @slop-ai/openclaw-plugin` |
 | Python | [`slop-ai`](./packages/python/slop-ai) | `pip install slop-ai` |
 | Rust | [`slop-ai`](./packages/rust/slop-ai) | `cargo add slop-ai` |
-| Go | [`slop-go`](./packages/go/slop-ai) | `go get github.com/slop-ai/slop-go` |
+| Go | [`slop-ai`](./packages/go/slop-ai) | `go get github.com/devteapot/slop/packages/go/slop-ai` |
 
 ## Project structure
 
@@ -150,6 +152,7 @@ slop/
 │   │   ├── vue/                    # @slop-ai/vue — useSlop composable
 │   │   ├── solid/                  # @slop-ai/solid — useSlop primitive
 │   │   ├── angular/                # @slop-ai/angular — useSlop with signals
+│   │   ├── svelte/                 # @slop-ai/svelte — useSlop for Svelte 5 runes
 │   │   ├── tanstack-start/         # @slop-ai/tanstack-start — SSR adapter
 │   │   └── openclaw-plugin/        # @slop-ai/openclaw-plugin — OpenClaw integration
 │   ├── python/slop-ai/             # Python SDK

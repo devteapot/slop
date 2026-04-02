@@ -30,7 +30,8 @@ export function createWebSocketTransport(
     if (stopped) return;
     try {
       ws = new WebSocket(url);
-    } catch {
+    } catch (e) {
+      console.warn("[slop] WebSocket connection failed:", e);
       scheduleReconnect();
       return;
     }
@@ -45,8 +46,8 @@ export function createWebSocketTransport(
         if (msg?.type) {
           for (const h of messageHandlers) h(msg);
         }
-      } catch {
-        // ignore non-JSON messages
+      } catch (e) {
+        console.warn("[slop] failed to parse WebSocket message:", e);
       }
     };
 

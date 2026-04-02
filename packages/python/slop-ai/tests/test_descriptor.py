@@ -1,6 +1,6 @@
 """Tests for descriptor normalization."""
 
-from slop.descriptor import normalize_descriptor
+from slop_ai.descriptor import normalize_descriptor
 
 
 def test_simple_descriptor():

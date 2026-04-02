@@ -3,6 +3,11 @@ export { useSlopUI, useSlop } from "./hooks";
 
 // Middleware (client+server safe — resolves slop instance at runtime from globalThis)
 import { createMiddleware } from "@tanstack/react-start";
+import type { SlopServer } from "@slop-ai/server";
+
+declare global {
+  var __slop_instances: Map<string, SlopServer<unknown>> | undefined;
+}
 
 /**
  * Create a TanStack Start middleware that auto-refreshes the SLOP tree
@@ -18,12 +23,12 @@ import { createMiddleware } from "@tanstack/react-start";
  * ```
  */
 export function createSlopMiddleware(slopId?: string) {
-  return createMiddleware().server(async ({ next }: any) => {
+  return createMiddleware().server(async ({ next }) => {
     const result = await next();
-    const instances: Map<string, any> | undefined = (globalThis as any).__slop_instances;
+    const instances = globalThis.__slop_instances;
     if (!instances || instances.size === 0) return result;
 
-    let slop;
+    let slop: SlopServer<unknown> | undefined;
     if (slopId) {
       slop = instances.get(slopId);
     } else if (instances.size === 1) {

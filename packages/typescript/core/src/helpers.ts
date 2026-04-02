@@ -1,7 +1,7 @@
 import type { Action, ActionHandler, ParamDef, InferParams } from "./types";
 
 /** Pick specific fields from an object for use in props */
-export function pick<T extends Record<string, any>, K extends keyof T>(
+export function pick<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
   keys: K[]
 ): Pick<T, K> {
@@ -13,12 +13,12 @@ export function pick<T extends Record<string, any>, K extends keyof T>(
 }
 
 /** Exclude specific fields from an object for use in props */
-export function omit<T extends Record<string, any>, K extends keyof T>(
+export function omit<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
   keys: K[]
 ): Omit<T, K> {
-  const result = { ...obj };
-  for (const key of keys) delete (result as any)[key];
+  const result: Partial<T> = { ...obj };
+  for (const key of keys) delete result[key];
   return result as Omit<T, K>;
 }
 
@@ -35,12 +35,16 @@ export function action(
   options: { label?: string; description?: string; dangerous?: boolean; idempotent?: boolean; estimate?: "instant" | "fast" | "slow" | "async" }
 ): Action;
 
-export function action(...args: any[]): Action {
+export function action(...args: unknown[]): Action {
   if (typeof args[0] === "function") {
     // action(handler, options)
-    return { handler: args[0], ...args[1] };
+    return { handler: args[0] as ActionHandler, ...(args[1] as Record<string, unknown> | undefined) };
   }
   // action(params, handler, options?)
   const [params, handler, options] = args;
-  return { params, handler, ...options };
+  return {
+    params: params as Record<string, ParamDef>,
+    handler: handler as ActionHandler,
+    ...(options as Record<string, unknown> | undefined),
+  };
 }

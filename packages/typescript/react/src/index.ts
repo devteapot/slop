@@ -9,7 +9,7 @@ import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
  * and unregistered when the component unmounts.
  *
  * ```tsx
- * import { createSlop } from "@slop-ai/core";
+ * import { createSlop } from "@slop-ai/client";
  * import { useSlop } from "@slop-ai/react";
  *
  * const slop = createSlop({ id: "my-app", name: "My App" });
@@ -43,20 +43,20 @@ export function useSlop<S = unknown>(
   const pathRef = useRef(path);
 
   // Register/update on every render — descriptor contains fresh handlers
-  client.register(path as any, descriptor);
+  client.register(path, descriptor);
 
   // Handle path changes: unregister old path
   if (pathRef.current !== path) {
-    client.unregister(pathRef.current as any);
+    client.unregister(pathRef.current);
     pathRef.current = path;
   }
 
   // Unregister on unmount (or when path/client changes)
   useEffect(() => {
     // Re-register in effect to handle React strict mode (cleanup + re-run)
-    client.register(path as any, descriptor);
+    client.register(path, descriptor);
     return () => {
-      client.unregister(path as any);
+      client.unregister(path);
     };
   }, [client, path]);
 }

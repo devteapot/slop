@@ -14,6 +14,8 @@
   "sideEffects": false,
   "license": "MIT",
   "description": "SLOP integration for Vue — useSlop() composable",
+  "homepage": "https://docs.slopai.dev/api/vue",
+  "bugs": "https://github.com/devteapot/slop/issues",
   "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/typescript/vue" },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --format esm --external '@slop-ai/core' --external vue && bunx tsc --emitDeclarationOnly --outDir dist",

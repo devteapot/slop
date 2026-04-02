@@ -14,6 +14,8 @@
   "files": ["src", "dist"],
   "sideEffects": false,
   "license": "MIT",
+  "homepage": "https://docs.slopai.dev/api/openclaw-plugin",
+  "bugs": "https://github.com/devteapot/slop/issues",
   "repository": {
     "type": "git",
     "url": "https://github.com/devteapot/slop",

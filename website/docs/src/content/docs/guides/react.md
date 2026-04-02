@@ -6,7 +6,7 @@ description: How to use SLOP with React to expose component state to AI agents.
 ## Installation
 
 ```bash
-npm install @slop-ai/client @slop-ai/react
+bun add @slop-ai/client @slop-ai/react
 ```
 
 ## Setup
@@ -89,4 +89,6 @@ export function Notes() {
 
 ## Next Steps
 
-See the [API Reference](/reference/core/) for the full node descriptor format and client options.
+- [React package API](/api/react)
+- [Browser provider API](/api/client)
+- [Core helper types](/api/core)

@@ -97,9 +97,9 @@ Layer 1: Engine (@slop-ai/core)          — Tree assembly, diffing, descriptor 
 Layer 2: Transport (@slop-ai/client,     — postMessage, WebSocket, Unix socket, stdio
          @slop-ai/server)
 Layer 3: SPA adapters (@slop-ai/react,   — useSlop() hooks for component lifecycle
-         vue, solid, angular)
-Layer 4: Meta-framework adapters         — Consumer-side tree merge, data invalidation,
-         (@slop-ai/next, nuxt, sveltekit)  framework-specific refresh, session routing
+         vue, solid, angular, svelte)
+Layer 4: Full-stack adapters             — UI mounting, refresh routing,
+         (@slop-ai/tanstack-start)         and framework-specific composition
 ```
 
 ```
@@ -110,24 +110,23 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 @slop-ai/vue            — useSlop() composable (~10 lines)
 @slop-ai/solid          — useSlop() primitive (~10 lines)
 @slop-ai/angular        — useSlop() with signals (~15 lines)
-@slop-ai/next           — Next.js integration (server setup + UI sync + state composition)
-@slop-ai/nuxt           — Nuxt module (Nitro WebSocket + auto-sync + composables)
-@slop-ai/sveltekit      — SvelteKit integration (Vite plugin + load invalidation)
+@slop-ai/svelte         — useSlop() composable for Svelte 5 (~10 lines)
+@slop-ai/tanstack-start — TanStack Start integration (server setup + UI sync + state composition)
 (vanilla JS)            — use @slop-ai/client directly, no adapter needed
 ```
 
 `@slop-ai/core` is the engine — it owns tree assembly, diffing, descriptor-to-wire-format translation, typed schema, and helpers (`action`, `pick`, `omit`, `asyncAction`). It has no transport. `@slop-ai/client` and `@slop-ai/server` are thin shells that wrap the engine with a transport layer. Meta-framework adapters sit on top and handle the full developer experience for a specific framework.
 
 ```
-@slop-ai/next ──────────┐
-@slop-ai/nuxt ──────────┼──→ @slop-ai/server + @slop-ai/client
-@slop-ai/sveltekit ─────┘         ↑
-                            @slop-ai/core (shared engine)
-                                   ↑
-@slop-ai/react ──┐                 │
-@slop-ai/vue  ──┤                 │
-@slop-ai/solid ──┼─────────────────┘
-@slop-ai/angular─┘
+@slop-ai/tanstack-start ──→ @slop-ai/server + @slop-ai/client
+                                     ↑
+                               @slop-ai/core (shared engine)
+                                     ↑
+@slop-ai/react ──┐                   │
+@slop-ai/vue  ──┤                   │
+@slop-ai/solid ──┼───────────────────┘
+@slop-ai/angular─┤
+@slop-ai/svelte ─┘
 ```
 
 | | `@slop-ai/core` | `@slop-ai/client` | `@slop-ai/server` |
@@ -141,11 +140,11 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 
 | App type | Install | Layer |
 |---|---|---|
-| React/Vue/Solid SPA | `@slop-ai/client` + `@slop-ai/react` (or vue, solid, angular) | 2 + 3 |
+| React/Vue/Solid/Angular/Svelte SPA | `@slop-ai/client` + framework adapter | 2 + 3 |
 | Vanilla JS SPA | `@slop-ai/client` | 2 |
-| Next.js fullstack | `@slop-ai/next` (wraps server + client) | 4 |
-| Nuxt fullstack | `@slop-ai/nuxt` (Nuxt module) | 4 |
-| SvelteKit fullstack | `@slop-ai/sveltekit` (wraps server + client) | 4 |
+| TanStack Start fullstack | `@slop-ai/tanstack-start` | 4 |
+| Nuxt / custom Nitro app | `@slop-ai/server` + `@slop-ai/server/nitro` | 2 |
+| SvelteKit / custom Vite app | `@slop-ai/server` + `@slop-ai/server/vite` | 2 |
 | Express / Fastify / Hono | `@slop-ai/server` | 2 |
 | Electron / Tauri native app | `@slop-ai/server` (Unix socket transport) | 2 |
 | CLI tool | `@slop-ai/server` (stdio transport) | 2 |
@@ -190,7 +189,7 @@ The `createSlop` function accepts an optional `schema` that defines the tree's s
 
 ```ts
 // slop.ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 const schema = {
   inbox: {

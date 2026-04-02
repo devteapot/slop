@@ -6,7 +6,7 @@ description: How to use SLOP with Vue to expose component state to AI agents.
 ## Installation
 
 ```bash
-npm install @slop-ai/client @slop-ai/vue
+bun add @slop-ai/client @slop-ai/vue
 ```
 
 ## Setup
@@ -88,4 +88,6 @@ useSlop(slop, "/notes", () => ({
 
 ## Next Steps
 
-See the [API Reference](/reference/core/) for the full node descriptor format and client options.
+- [Vue package API](/api/vue)
+- [Browser provider API](/api/client)
+- [Core helper types](/api/core)

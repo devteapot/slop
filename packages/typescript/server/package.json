@@ -38,6 +38,13 @@
   "files": ["src", "dist"],
   "sideEffects": false,
   "license": "MIT",
+  "homepage": "https://docs.slopai.dev/api/server",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/server"
+  },
   "scripts": {
     "build": "bun build src/index.ts src/transports/node.ts src/transports/bun.ts src/transports/unix.ts src/transports/stdio.ts src/adapters/nitro.ts src/adapters/vite.ts --outdir dist --format esm --splitting --target node --external '@slop-ai/core' --external ws && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"

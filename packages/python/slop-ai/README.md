@@ -1,6 +1,8 @@
-# slop-ai
+# `slop-ai`
 
-Python SDK for the [SLOP protocol](https://slopai.dev) (State Layer for Observable Programs) — let AI observe and interact with your app's state.
+Python SDK for the [SLOP protocol](https://slopai.dev).
+
+The package includes provider and consumer APIs, descriptor helpers, tree scaling utilities, and transports for ASGI, WebSocket, Unix socket, and stdio flows.
 
 ## Install
 
@@ -8,12 +10,14 @@ Python SDK for the [SLOP protocol](https://slopai.dev) (State Layer for Observab
 pip install slop-ai[websocket]
 ```
 
-## Quick start (FastAPI)
+Use the `websocket` extra when you want the standalone WebSocket transport. The core package itself has no required runtime dependencies.
+
+## Quick start
 
 ```python
 from fastapi import FastAPI
-from slop import SlopServer
-from slop.transports.asgi import SlopMiddleware
+from slop_ai import SlopServer
+from slop_ai.transports.asgi import SlopMiddleware
 
 app = FastAPI()
 slop = SlopServer("my-api", "My API")
@@ -23,8 +27,8 @@ def todos_node():
     return {
         "type": "collection",
         "items": [
-            {"id": str(t.id), "props": {"title": t.title, "done": t.done}}
-            for t in db.get_todos()
+            {"id": str(todo.id), "props": {"title": todo.title, "done": todo.done}}
+            for todo in db.get_todos()
         ],
     }
 
@@ -35,28 +39,15 @@ def create_todo(title: str):
 app.add_middleware(SlopMiddleware, slop=slop)
 ```
 
-## Transports
+## Included modules
 
-```python
-# WebSocket (standalone)
-from slop.transports.websocket import serve
-server = await serve(slop, host="0.0.0.0", port=8765)
+- `slop_ai.SlopServer` and `slop_ai.SlopConsumer`
+- `slop_ai.pick`, `slop_ai.omit`, `slop_ai.normalize_descriptor`
+- `slop_ai.transports.asgi`, `.websocket`, `.unix`, `.stdio`
+- scaling helpers such as `prepare_tree`, `truncate_tree`, and `auto_compact`
 
-# Unix socket
-from slop.transports.unix import listen
-server = await listen(slop, "/tmp/slop/my-app.sock", register=True)
+## Documentation
 
-# Stdio (CLI tools)
-from slop.transports.stdio import listen as listen_stdio
-await listen_stdio(slop)
-
-# ASGI middleware (FastAPI/Starlette)
-from slop.transports.asgi import SlopMiddleware
-app.add_middleware(SlopMiddleware, slop=slop)
-```
-
-## Links
-
-- [SLOP Protocol](https://slopai.dev)
-- [Python guide](https://slopai.dev/guides/python)
-- [GitHub](https://github.com/slop-ai/slop)
+- API reference: https://docs.slopai.dev/api/python
+- Python guide: https://docs.slopai.dev/guides/python
+- Protocol spec: https://docs.slopai.dev/spec/core/overview

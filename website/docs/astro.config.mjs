@@ -45,10 +45,21 @@ export default defineConfig({
 				{
 					label: 'API Reference',
 					items: [
+						{ label: 'Package Overview', slug: 'api' },
 						{ label: '@slop-ai/core', slug: 'api/core' },
+						{ label: '@slop-ai/client', slug: 'api/client' },
 						{ label: '@slop-ai/react', slug: 'api/react' },
+						{ label: '@slop-ai/vue', slug: 'api/vue' },
+						{ label: '@slop-ai/solid', slug: 'api/solid' },
+						{ label: '@slop-ai/angular', slug: 'api/angular' },
+						{ label: '@slop-ai/svelte', slug: 'api/svelte' },
 						{ label: '@slop-ai/server', slug: 'api/server' },
 						{ label: '@slop-ai/consumer', slug: 'api/consumer' },
+						{ label: '@slop-ai/tanstack-start', slug: 'api/tanstack-start' },
+						{ label: '@slop-ai/openclaw-plugin', slug: 'api/openclaw-plugin' },
+						{ label: 'slop-ai (Python)', slug: 'api/python' },
+						{ label: 'slop-ai (Go)', slug: 'api/go' },
+						{ label: 'slop-ai (Rust)', slug: 'api/rust' },
 					],
 				},
 				{

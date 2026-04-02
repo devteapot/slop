@@ -3,7 +3,7 @@
 <section class="comparison">
   <div class="container">
     <span class="label">Why SLOP</span>
-    <h2>How it differs</h2>
+    <h2>Built for agents, not human navigation</h2>
 
     <div class="glass table-wrapper">
       <table>
@@ -18,9 +18,9 @@
         <tbody>
           <tr>
             <td class="row-label">Purpose</td>
-            <td>AI acts</td>
-            <td>Screen readers read UI</td>
-            <td class="highlight">AI perceives + acts</td>
+            <td>AI calls functions</td>
+            <td>Assistive tech reads UI</td>
+            <td class="highlight">App exposes an agent-facing interface</td>
           </tr>
           <tr>
             <td class="row-label">Data model</td>
@@ -29,10 +29,16 @@
             <td class="highlight">Semantic state tree</td>
           </tr>
           <tr>
-            <td class="row-label">Direction</td>
-            <td>Pull (AI calls tools)</td>
+            <td class="row-label">Coupling to UI</td>
+            <td>Separate from UI, but blind</td>
+            <td>Tied to rendered UI</td>
+            <td class="highlight">Independent of the human UI</td>
+          </tr>
+          <tr>
+            <td class="row-label">Updates</td>
+            <td>Pull (AI reads on demand)</td>
             <td>Pull (reader queries)</td>
-            <td class="highlight">Push-first (app publishes)</td>
+            <td class="highlight">Push-first patches</td>
           </tr>
           <tr>
             <td class="row-label">Actions</td>
@@ -44,7 +50,7 @@
             <td class="row-label">Designed for</td>
             <td>LLM function calling</td>
             <td>Sequential navigation</td>
-            <td class="highlight">AI state comprehension</td>
+            <td class="highlight">Direct program control by agents</td>
           </tr>
         </tbody>
       </table>

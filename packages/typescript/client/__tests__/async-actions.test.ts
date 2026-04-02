@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { SlopClientImpl } from "../src/client";
+import { AsyncActionResult } from "@slop-ai/core";
 import type { SlopNode } from "@slop-ai/core";
 
 // Mock DOM globals for transport
@@ -42,11 +43,11 @@ describe("asyncAction", () => {
     expect(typeof (a as any).handler).toBe("function");
   });
 
-  test("handler returns __async: true with taskId", () => {
+  test("handler returns AsyncActionResult with taskId", () => {
     const client = createClient();
     const a = client.asyncAction({ x: "string" }, async () => {});
     const result = (a as any).handler({ x: "test" });
-    expect(result.__async).toBe(true);
+    expect(result).toBeInstanceOf(AsyncActionResult);
     expect(result.taskId).toBeDefined();
     expect(typeof result.taskId).toBe("string");
   });
@@ -157,10 +158,10 @@ describe("asyncAction", () => {
     const r2 = (slow as any).handler({});
     const r3 = (medium as any).handler({});
 
-    // All should return immediately with __async
-    expect(r1.__async).toBe(true);
-    expect(r2.__async).toBe(true);
-    expect(r3.__async).toBe(true);
+    // All should return immediately as AsyncActionResult
+    expect(r1).toBeInstanceOf(AsyncActionResult);
+    expect(r2).toBeInstanceOf(AsyncActionResult);
+    expect(r3).toBeInstanceOf(AsyncActionResult);
 
     // All should have unique taskIds
     expect(r1.taskId).not.toBe(r2.taskId);

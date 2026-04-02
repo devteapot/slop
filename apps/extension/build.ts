@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, cpSync, mkdirSync } from "fs";
+import { cpSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
 const dir = import.meta.dir;
@@ -36,8 +36,8 @@ cpSync(join(dir, "src/ui/chat.css"), join(dist, "chat.css"));
 cpSync(join(dir, "manifest.json"), join(dist, "../manifest.json"), { force: true });
 
 // Copy icons if they exist
-try {
+if (existsSync(join(dir, "icons"))) {
   cpSync(join(dir, "icons"), join(dist, "../icons"), { recursive: true });
-} catch {}
+}
 
 console.log("Extension built to dist/");

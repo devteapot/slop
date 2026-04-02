@@ -1,7 +1,7 @@
 """Tests for tree diffing."""
 
-from slop.types import SlopNode, Affordance, NodeMeta
-from slop.diff import diff_nodes
+from slop_ai.types import SlopNode, Affordance, NodeMeta
+from slop_ai.diff import diff_nodes
 
 
 def test_no_changes():

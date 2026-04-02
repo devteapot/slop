@@ -50,7 +50,7 @@ func (s *Server) WebSocketHandler() http.Handler {
 			}
 			var msg map[string]any
 			if json.Unmarshal(data, &msg) == nil {
-				s.HandleMessage(conn, msg)
+				s.HandleMessage(r.Context(), conn, msg)
 			}
 		}
 	})

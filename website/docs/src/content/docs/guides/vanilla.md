@@ -8,7 +8,7 @@ description: How to use SLOP with plain JavaScript or TypeScript without a frame
 No adapter is needed. Use `@slop-ai/client` directly.
 
 ```bash
-npm install @slop-ai/client
+bun add @slop-ai/client
 ```
 
 ## Setup
@@ -81,4 +81,5 @@ syncSlop();
 
 ## Next Steps
 
-See the [API Reference](/reference/core/) for the full node descriptor format and client options.
+- [Browser provider API](/api/client)
+- [Core helper types](/api/core)

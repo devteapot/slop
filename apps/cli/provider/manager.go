@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	slop "github.com/slop-ai/slop-go"
+	slop "github.com/devteapot/slop/packages/go/slop-ai"
 )
 
 type LogEntry struct {

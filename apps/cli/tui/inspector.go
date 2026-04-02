@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/slop-ai/slop-cli/provider"
-	slop "github.com/slop-ai/slop-go"
+	slop "github.com/devteapot/slop/packages/go/slop-ai"
 )
 
 type pane int

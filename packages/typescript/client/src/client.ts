@@ -1,4 +1,4 @@
-import { ProviderBase, diffNodes } from "@slop-ai/core";
+import { ProviderBase, diffNodes, AsyncActionResult } from "@slop-ai/core";
 import type {
   SlopNode, PatchOp, ActionHandler, Action, ParamDef,
   NodeDescriptor, SlopClient, SlopClientOptions, TaskHandle, InferParams,
@@ -125,7 +125,7 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
             });
           });
 
-        return { __async: true, taskId };
+        return new AsyncActionResult(taskId);
       },
     };
   }
@@ -244,21 +244,37 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
   }
 }
 
-function createScopedClient<S>(parent: SlopClientImpl<any>, prefix: string): SlopClient<S> {
-  return {
-    register(path: string, descriptor: NodeDescriptor) {
-      parent.register(`${prefix}/${path}`, descriptor);
+function createScopedClient<S>(parent: SlopClientImpl<unknown>, prefix: string): SlopClient<S> {
+  const base: SlopClient<S> = parent;
+
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      if (prop === "register") {
+        return (path: string, descriptor: NodeDescriptor) => {
+          parent.register(`${prefix}/${path}`, descriptor);
+        };
+      }
+      if (prop === "unregister") {
+        return (path: string, opts?: { recursive?: boolean }) => {
+          parent.unregister(`${prefix}/${path}`, opts);
+        };
+      }
+      if (prop === "scope") {
+        return (path: string, descriptor?: NodeDescriptor) =>
+          parent.scope(`${prefix}/${path}`, descriptor);
+      }
+      if (prop === "flush") {
+        return () => parent.flush();
+      }
+      if (prop === "asyncAction") {
+        return parent.asyncAction.bind(parent);
+      }
+      if (prop === "stop") {
+        return () => {};
+      }
+
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(parent) : value;
     },
-    unregister(path: string, opts?: { recursive?: boolean }) {
-      parent.unregister(`${prefix}/${path}`, opts);
-    },
-    scope(path: string, descriptor?: NodeDescriptor) {
-      return parent.scope(`${prefix}/${path}`, descriptor);
-    },
-    flush() {
-      parent.flush();
-    },
-    asyncAction: parent.asyncAction.bind(parent) as any,
-    stop() {},
-  };
+  });
 }

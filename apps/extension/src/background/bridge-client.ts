@@ -3,6 +3,13 @@
  * Announces providers and relays postMessage traffic for SPAs.
  */
 
+import type {
+  BridgeMessageFromDesktop,
+  BridgeMessageToDesktop,
+  ExtensionPrefs,
+  PrefsStorageRecord,
+  ProviderRelayMessage,
+} from "../types";
 import { getPrefs } from "../types";
 
 const BRIDGE_URL = "ws://127.0.0.1:9339/slop-bridge";
@@ -13,13 +20,13 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let connected = false;
 let enabled = true;
 
-type MessageHandler = (msg: any) => void;
+type MessageHandler = (msg: BridgeMessageFromDesktop) => void;
 type ConnectHandler = () => void;
 
 const messageHandlers: MessageHandler[] = [];
 const connectHandlers: ConnectHandler[] = [];
 
-function send(message: any): void {
+function send(message: BridgeMessageToDesktop): void {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
   }
@@ -40,8 +47,12 @@ function tryConnect(): void {
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        for (const handler of messageHandlers) handler(msg);
-      } catch {}
+        if (isBridgeMessageFromDesktop(msg)) {
+          for (const handler of messageHandlers) handler(msg);
+        }
+      } catch (e) {
+        console.warn("[slop] failed to parse desktop bridge message:", e);
+      }
     };
 
     ws.onclose = () => {
@@ -53,7 +64,8 @@ function tryConnect(): void {
     ws.onerror = () => {
       ws?.close();
     };
-  } catch {
+  } catch (e) {
+    console.warn("[slop] failed to connect to desktop bridge:", e);
     ws = null;
     scheduleRetry();
   }
@@ -88,7 +100,9 @@ export async function start(): Promise<void> {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.prefs) {
-      const newPrefs = changes.prefs.newValue;
+      const newPrefs = isExtensionPrefsPatch(changes.prefs.newValue)
+        ? changes.prefs.newValue
+        : undefined;
       const shouldBeEnabled = (newPrefs?.active ?? true) && (newPrefs?.bridgeEnabled ?? false);
       if (shouldBeEnabled && !enabled) {
         enabled = true;
@@ -129,7 +143,7 @@ export function announceGone(tabId: number, providerKey: string): void {
   }
 }
 
-export function relayToDesktop(providerKey: string, message: any): void {
+export function relayToDesktop(providerKey: string, message: ProviderRelayMessage["message"]): void {
   if (connected) {
     send({ type: "slop-relay", providerKey, message });
   }
@@ -141,4 +155,17 @@ export function onMessage(handler: MessageHandler): void {
 
 export function onConnect(handler: ConnectHandler): void {
   connectHandlers.push(handler);
+}
+
+function isBridgeMessageFromDesktop(value: unknown): value is BridgeMessageFromDesktop {
+  if (!value || typeof value !== "object") return false;
+  const msg = value as Record<string, unknown>;
+  if (msg.type === "relay-open" || msg.type === "relay-close") {
+    return typeof msg.providerKey === "string";
+  }
+  return msg.type === "slop-relay" && typeof msg.providerKey === "string" && !!msg.message;
+}
+
+function isExtensionPrefsPatch(value: unknown): value is Partial<ExtensionPrefs> {
+  return !!value && typeof value === "object";
 }

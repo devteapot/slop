@@ -31,8 +31,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set((state) => ({
           messages: { ...state.messages, [activeWorkspaceId]: detail.ui_messages },
         }));
-      } catch {
-        // Workspace might not exist yet
+      } catch (error) {
+        console.warn("[slop] failed to load active workspace chat history:", error);
       }
     }
 
@@ -79,8 +79,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set((state) => ({
         messages: { ...state.messages, [workspaceId]: detail.ui_messages },
       }));
-    } catch {
-      // Workspace might not exist yet
+    } catch (error) {
+      console.warn(`[slop] failed to load chat history for workspace "${workspaceId}":`, error);
     }
   },
 }));

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	slop "github.com/slop-ai/slop-go"
+	slop "github.com/devteapot/slop/packages/go/slop-ai"
 )
 
 func floatPtr(f float64) *float64 { return &f }

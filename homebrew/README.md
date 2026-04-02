@@ -15,7 +15,7 @@ brew install --cask slop-desktop
 
 ## How it works
 
-1. The `release-desktop.yml` GitHub Action builds the Tauri app for macOS (ARM + Intel) and Linux
+1. The `release.yml` GitHub Action builds and publishes the repo's release artifacts, including the Tauri app for macOS (ARM + Intel) and Linux
 2. It creates a GitHub Release with the `.dmg` files
 3. The Homebrew formula points to the release assets
 4. After each release, update the formula's version and sha256

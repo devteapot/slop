@@ -6,7 +6,7 @@ on:
 
 jobs:
   update-formula:
-    if: startsWith(github.event.release.tag_name, 'desktop-v')
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
         id: release
         run: |
           VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#desktop-v}"
+          VERSION="${VERSION#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Download ARM dmg and get sha
@@ -35,6 +35,7 @@ jobs:
 
       - name: Update formula
         run: |
+          mkdir -p Casks
           cat > Casks/slop-desktop.rb << 'FORMULA'
           cask "slop-desktop" do
             version "${{ steps.release.outputs.version }}"
@@ -69,5 +70,9 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add Casks/slop-desktop.rb
+          if git diff --cached --quiet; then
+            echo "No Homebrew changes to commit."
+            exit 0
+          fi
           git commit -m "Update slop-desktop to ${{ steps.release.outputs.version }}"
           git push

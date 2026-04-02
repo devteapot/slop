@@ -1,52 +1,28 @@
 ---
 title: "TanStack Start"
-description: How to use SLOP with TanStack Start to expose server and UI state to AI agents.
+description: Use SLOP in TanStack Start with server state plus mounted UI state
 ---
 
-TanStack Start is a full-stack React meta-framework with SSR, server functions, and file-based routing. The `@slop-ai/tanstack-start` adapter is a **Layer 4** integration that wires everything together: the server owns the public WebSocket provider, the browser runs a UI provider that connects back to the server, and the server mounts that browser tree under `ui`.
+`@slop-ai/tanstack-start` is the full-stack adapter for TanStack Start. The server owns the public provider, and the browser UI provider connects back so the server can mount it under `ui`.
 
-In this guide, `/ui` is a **fullstack adapter convention**, not a reserved protocol keyword. SLOP allows any normal subtree there; using `ui` just makes the shape predictable for consumers.
+See the working example in [examples/full-stack/tanstack-start](https://github.com/devteapot/slop/tree/main/examples/full-stack/tanstack-start).
 
-See the full working example in [`examples/full-stack/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/full-stack/tanstack-start).
-
-## Installation
+## Install
 
 ```bash
 bun add @slop-ai/server @slop-ai/tanstack-start
 ```
 
-## Server setup
-
-### 1. State file (`src/server/state.ts`)
-
-In development, Vite runs your server code in isolated module environments. A normal module-level variable can end up duplicated across those environments. `sharedState()` guarantees a single copy:
+## 1. Create shared server state
 
 ```ts
-import { sharedState } from "@slop-ai/tanstack-start/server";
+// src/server/slop.ts
+import { createSlopServer, sharedState } from "@slop-ai/tanstack-start/server";
 
 const state = sharedState("my-app", {
-  items: [] as Item[],
+  items: [] as Array<{ id: string; title: string }>,
   nextId: 1,
 });
-
-export function getItems(): Item[] {
-  return state.items;
-}
-
-export function addItem(title: string) {
-  state.items.push({ id: `id-${state.nextId++}`, title });
-}
-```
-
-`sharedState(key, initialValue)` returns the same object reference no matter how many times Vite re-imports the module.
-
-### 2. SLOP registration (`src/server/slop.ts`)
-
-Create the SLOP server instance and register descriptor functions that produce the tree on demand:
-
-```ts
-import { createSlopServer } from "@slop-ai/tanstack-start/server";
-import { getItems, addItem } from "./state";
 
 export const slop = createSlopServer({
   id: "my-app",
@@ -55,264 +31,77 @@ export const slop = createSlopServer({
 
 slop.register("items", () => ({
   type: "collection",
-  props: { total: getItems().length },
-  actions: {
-    create_item: {
-      params: { title: "string" },
-      handler: (params) => addItem(params.title as string),
-    },
-  },
-  items: getItems().map((item) => ({
+  props: { count: state.items.length },
+  items: state.items.map((item) => ({
     id: item.id,
     props: { title: item.title },
   })),
 }));
 ```
 
-`createSlopServer()` returns a singleton -- safe across Vite module environments, just like `sharedState()`. Descriptor functions registered with `slop.register()` are called lazily when the tree is read.
+`sharedState()` keeps development-time state stable across Vite module reload boundaries.
 
-### 3. Middleware (`src/server/middleware.ts`)
-
-After any server function mutates data, the SLOP tree needs to refresh so connected AI consumers see the change immediately. The adapter provides `createSlopMiddleware` which creates a TanStack Start middleware that auto-refreshes by looking up the SlopServer instance by ID at runtime:
+## 2. Auto-refresh after server mutations
 
 ```ts
+// src/server/middleware.ts
 import { createSlopMiddleware } from "@slop-ai/tanstack-start";
 
 export const slopMiddleware = createSlopMiddleware();
 ```
 
-No arguments needed if your app has one `SlopServer` (the common case). The middleware resolves the instance at runtime from the shared singleton map — no server-only imports in the module graph, so it's safe to import from route files. For multi-instance apps, pass the ID: `createSlopMiddleware("my-app")`.
+Attach that middleware to server functions that mutate data.
 
-Attach the middleware to any server function that writes data:
-
-```ts
-import { slopMiddleware } from "../server/middleware";
-
-const createItemFn = createServerFn({ method: "POST" })
-  .middleware([slopMiddleware])
-  .inputValidator((d: { title: string }) => d)
-  .handler(async ({ data }) => {
-    const { addItem } = await import("../server/state");
-    addItem(data.title);
-  });
-```
-
-## Vite config -- WebSocket plugin
-
-The adapter provides a WebSocket handler that plugs into Vite's dev server. Add this plugin to your `vite.config.ts`:
+## 3. Attach the WebSocket endpoint in Vite
 
 ```ts
+// vite.config.ts
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { slopVitePlugin } from "@slop-ai/tanstack-start/server";
+import { slop } from "./src/server/slop";
 
 export default defineConfig({
   plugins: [
     tanstackStart(),
-    // ... your other plugins
-    {
-      name: "slop-adapter",
-      configureServer(server) {
-        server.httpServer?.once("listening", async () => {
-          const { slop } = (await server.ssrLoadModule(
-            "./src/server/slop.ts"
-          )) as any;
-          const { createWebSocketHandler } = (await server.ssrLoadModule(
-            "@slop-ai/tanstack-start/server"
-          )) as any;
-          const ws = await import("ws");
-
-          const handler = createWebSocketHandler({ resolve: () => slop });
-          const wss = new ws.WebSocketServer({ noServer: true });
-
-          server.httpServer!.on("upgrade", (req, socket, head) => {
-            const url = new URL(req.url!, `http://${req.headers.host}`);
-            if (url.pathname === "/slop") {
-              wss.handleUpgrade(req, socket, head, (wsConn) => {
-                const peer = {
-                  send: (data: string) => {
-                    if (wsConn.readyState === 1) wsConn.send(data);
-                  },
-                  close: () => wsConn.close(),
-                  __slopRequest: req,
-                  __slop: null as any,
-                };
-                handler.open(peer);
-                wsConn.on("message", (data: any) => {
-                  handler.message(peer, {
-                    text: () => data.toString(),
-                    toString: () => data.toString(),
-                  });
-                });
-                wsConn.on("close", () => handler.close(peer));
-              });
-            }
-          });
-
-          console.log("[slop] WebSocket adapter ready at /slop");
-        });
-      },
-    },
+    slopVitePlugin({ resolve: () => slop }),
   ],
 });
 ```
 
-The plugin uses `server.ssrLoadModule` to import the SLOP instance from within Vite's SSR environment -- the same environment your server functions run in. This ensures the plugin sees the exact same `slop` singleton.
-
-## Route components
-
-### `useSlopUI()` — in the root layout
-
-Call `useSlopUI()` once in your root layout (`__root.tsx`). It:
-
-- Creates a browser-side SLOP provider for UI state
-- Connects that browser provider back to the app's `/slop` endpoint with a hidden WebSocket channel
-- Lets the server mount the current UI tree under the conventional `ui` subtree
-- Registers the current route (path, params, available routes) automatically
-- Provides `navigate` and `back` actions so AI can navigate the user
-- Registers a `refresh` affordance the consumer invokes for data invalidation
-- Auto-updates on every navigation
-- Falls back to standalone postMessage mode if no server endpoint is discoverable
+## 4. Mount UI state from the browser
 
 ```tsx
 // src/routes/__root.tsx
-import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { Outlet } from "@tanstack/react-router";
 import { useSlopUI } from "@slop-ai/tanstack-start";
 
-export const Route = createRootRoute({
-  shellComponent: RootDocument,
-  component: RootLayout,
-});
-
-function RootLayout() {
+export function RootLayout() {
   useSlopUI();
   return <Outlet />;
 }
 ```
 
-Since it's in the root layout, every page gets SLOP connectivity for free. Individual pages don't need to call `useSlopUI()`.
-
-### `useSlop(path, descriptor)` — in page components
-
-Register page-specific UI state on the browser's SLOP provider. Each call creates a node that AI agents can read and interact with:
+Then expose per-route UI state:
 
 ```tsx
-// src/routes/index.tsx
 import { useSlop } from "@slop-ai/tanstack-start";
 
-function ProjectsPage() {
-  const { projects } = Route.useLoaderData();
-  const [filter, setFilter] = useState<"all" | "active" | "archived">("all");
-  const [newName, setNewName] = useState("");
-
-  // Expose the filter UI state
-  useSlop("filters", {
-    type: "status",
-    props: { status: filter },
-    actions: {
-      set_filter: {
-        params: { status: "string" },
-        handler: (params: any) => setFilter(params.status),
-      },
-    },
-  });
-
-  // Expose the create form UI state
-  useSlop("create_form", {
-    type: "view",
-    props: { name: newName },
-    actions: {
-      type: {
-        params: { value: "string" },
-        handler: (params: any) => setNewName(params.value),
-      },
-      submit: async () => {
-        if (newName.trim()) {
-          await createProjectFn({ data: { name: newName } });
-          setNewName("");
-        }
-      },
-      clear: () => setNewName(""),
-    },
-  });
-
-  // ... render
-}
-```
-
-When the user navigates to a different page, the old `useSlop` registrations unregister automatically and the new page's registrations take their place — the mounted `ui` subtree updates to reflect the current page.
-
-## Discovery
-
-Add a `<meta name="slop">` tag so AI agents can find the server's WebSocket endpoint. `useSlopUI()` reuses that endpoint for its hidden browser-to-server UI socket; it does not publish a second discoverable provider tag in the normal fullstack path.
-
-```tsx
-// src/routes/__root.tsx
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      // ... other meta tags
-      { name: "slop", content: "ws://localhost:3000/slop" },
-    ],
-  }),
-  shellComponent: RootDocument,
-  component: RootLayout,  // useSlopUI() lives here
+useSlop("filters", {
+  type: "status",
+  props: { status: "all" },
 });
 ```
 
-AI consumers discover the server provider from the meta tag. The browser UI connection stays internal to the adapter, and the server exposes it back out under the conventional `ui` subtree. The extension bridge is still relevant for pure SPAs and accessibility adapters, but not for this fullstack path.
+## What consumers see
 
-## What the AI sees
+Consumers connect to the server provider once. That tree includes both:
 
-The consumer sees one provider tree from the server:
+- server-owned data such as `items`
+- browser-owned UI state under `ui`
 
-```
-[root] My App                            # served directly by /slop
-  projects/
-    props: { total: 3, active: 2 }
-    actions: [create_project]
-    p1/
-      props: { name: "SLOP Protocol", status: "active", taskCount: 3, done: 1 }
-      actions: [archive, rename, add_task]
-      tasks/
-        t1/ props: { title: "Write spec", done: true }  actions: [toggle, delete]
-        t2/ ...
-    p2/ ...
-  ui/
-    route/                               # auto-registered by useSlopUI()
-      props: { path: "/", availableRoutes: ["/", "/about", "/projects/$id"] }
-      actions: [navigate, back]
-    __adapter/                           # auto-registered refresh affordance
-      actions: [refresh]
-    filters/                             # registered by useSlop("filters", ...)
-      props: { status: "all" }
-      actions: [set_filter]
-    create_form/                         # registered by useSlop("create_form", ...)
-      props: { name: "" }
-      actions: [type, submit, clear]
-```
+## Next Steps
 
-The AI can navigate with `navigate`, invoke server actions like `rename`, interact with UI state like `set_filter`, or trigger a data re-fetch with `refresh`.
-
-## How it works
-
-The architecture has three participants: the **server** (public provider), the **browser** (UI provider mounted into the server), and the **consumer surface** (extension chat or desktop app). Everything still speaks standard SLOP — no custom protocol extensions.
-
-**Server is the public provider.** Descriptor functions registered with `slop.register()` produce the data tree. The same server also hosts the browser UI mount channel and exposes the combined tree over `/slop`.
-
-**Browser runs a UI provider.** When `useSlopUI()` mounts, the browser's `@slop-ai/client` instance exposes UI state (route, filters, compose form) over a hidden outbound WebSocket to the app server. The adapter also registers a `refresh` affordance that calls `router.invalidate()` when invoked.
-
-**AI consumers subscribe to one provider.** The extension chat and desktop app both connect to the server's WebSocket provider. That one provider already includes the mounted `ui` subtree, so there is no separate `pm` entry for the TanStack Start app.
-
-### Data flow
-
-1. **Data actions:** An AI consumer invokes a data action (e.g. `create_project`). The server executes the handler, refreshes the tree, and the consumer sees the updated data via patches.
-
-2. **Data invalidation:** After a data action completes, the consumer invokes `refresh` on `ui/__adapter`. The adapter's refresh handler calls `router.invalidate()`, triggering TanStack Router to re-run loaders and re-render with fresh data.
-
-3. **UI actions:** An AI consumer invokes a UI action (e.g. `set_filter`) on the mounted `ui` subtree. The server forwards that invoke to the browser UI provider, which executes the handler locally (a React state setter) and streams the updated UI subtree back.
-
-## Next steps
-
-- Browse the full example at [`examples/full-stack/tanstack-start/`](https://github.com/slop-ai/slop/tree/main/examples/full-stack/tanstack-start)
-- See the [API Reference](/reference/core/) for the full node descriptor format
-- Read the [React guide](/guides/react/) for client-only SLOP usage without a meta-framework
+- [TanStack Start package API](/api/tanstack-start)
+- [Server provider API](/api/server)
+- [React guide](/guides/react)

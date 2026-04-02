@@ -13,43 +13,36 @@
 //! ```
 
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixListener;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::error::{Result, SlopError};
 use crate::server::{Connection, SlopServer};
 
-struct NdjsonConnection {
-    writer: Mutex<tokio::io::WriteHalf<tokio::net::UnixStream>>,
+enum ConnMessage {
+    Send(Value),
+    Close,
 }
 
-impl Connection for NdjsonConnection {
+struct ChannelConnection {
+    tx: mpsc::UnboundedSender<ConnMessage>,
+}
+
+impl Connection for ChannelConnection {
     fn send(&self, message: &Value) -> Result<()> {
-        let mut line = serde_json::to_string(message)?;
-        line.push('\n');
-        let mut writer = self.writer.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                writer
-                    .write_all(line.as_bytes())
-                    .await
-                    .map_err(|e| SlopError::Transport(e.to_string()))
-            })
-        })
+        self.tx
+            .send(ConnMessage::Send(message.clone()))
+            .map_err(|_| SlopError::Transport("connection closed".into()))
     }
 
     fn close(&self) -> Result<()> {
-        let mut writer = self.writer.lock().map_err(|e| SlopError::Transport(e.to_string()))?;
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let _ = writer.shutdown().await;
-                Ok(())
-            })
-        })
+        let _ = self.tx.send(ConnMessage::Close);
+        Ok(())
     }
 }
 
@@ -79,9 +72,27 @@ pub async fn listen(slop: &SlopServer, socket_path: &str) -> Result<JoinHandle<(
         while let Ok((stream, _)) = listener.accept().await {
             let slop = slop.clone();
             tokio::spawn(async move {
-                let (reader, writer) = tokio::io::split(stream);
-                let conn: Arc<dyn Connection> = Arc::new(NdjsonConnection {
-                    writer: Mutex::new(writer),
+                let (reader, mut writer) = tokio::io::split(stream);
+                let (tx, mut rx) = mpsc::unbounded_channel::<ConnMessage>();
+                let conn: Arc<dyn Connection> = Arc::new(ChannelConnection { tx });
+
+                // Spawn a writer task that drains the channel into the Unix socket
+                tokio::spawn(async move {
+                    while let Some(msg) = rx.recv().await {
+                        match msg {
+                            ConnMessage::Send(val) => {
+                                let mut line = serde_json::to_string(&val).unwrap_or_default();
+                                line.push('\n');
+                                if writer.write_all(line.as_bytes()).await.is_err() {
+                                    break;
+                                }
+                            }
+                            ConnMessage::Close => {
+                                let _ = writer.shutdown().await;
+                                break;
+                            }
+                        }
+                    }
                 });
 
                 slop.handle_connection(conn.clone());

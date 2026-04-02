@@ -88,12 +88,14 @@ impl Default for ActionOptions {
     }
 }
 
+type ActionHandlerFn = dyn Fn(&Value) -> Result<Option<Value>> + Send + Sync;
+
 struct Inner {
     id: String,
     name: String,
     static_registrations: HashMap<String, Value>,
     dynamic_registrations: HashMap<String, Box<dyn Fn() -> Value + Send + Sync>>,
-    action_handlers: HashMap<String, Arc<dyn Fn(&Value) -> Result<Option<Value>> + Send + Sync>>,
+    action_handlers: HashMap<String, Arc<ActionHandlerFn>>,
     action_metadata: HashMap<String, Value>,
     current_tree: SlopNode,
     current_handlers: HashMap<String, ActionHandler>,
@@ -660,8 +662,8 @@ fn resolve_handler_key(inner: &Inner, path: &str, action: &str) -> String {
     let root_prefix = format!("/{}/", inner.id);
     let clean = if path.starts_with(&root_prefix) {
         &path[root_prefix.len()..]
-    } else if path.starts_with('/') {
-        &path[1..]
+    } else if let Some(stripped) = path.strip_prefix('/') {
+        stripped
     } else {
         path
     };

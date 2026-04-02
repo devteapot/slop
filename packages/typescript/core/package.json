@@ -14,6 +14,13 @@
   "sideEffects": false,
   "license": "MIT",
   "description": "SLOP client library — let AI observe and interact with your app's state",
+  "homepage": "https://docs.slopai.dev/api/core",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/core"
+  },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"

@@ -73,7 +73,9 @@ export function bunHandler(
         try {
           const msg = JSON.parse(typeof message === "string" ? message : message.toString());
           slop.handleMessage(conn, msg);
-        } catch {}
+        } catch (e) {
+          console.warn("[slop] failed to parse WebSocket message:", e);
+        }
       },
 
       close(ws: any) {

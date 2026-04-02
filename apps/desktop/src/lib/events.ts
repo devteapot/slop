@@ -1,10 +1,13 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   ProviderSummary,
+  ProviderDiscoveredPayload,
+  ProviderRemovedPayload,
   ProviderStatusPayload,
   ChatMessagePayload,
   ChatProcessingPayload,
   WorkspaceSummary,
+  WorkspacesChangedPayload,
   ProfilesChangedPayload,
 } from "./types";
 
@@ -30,11 +33,11 @@ export async function setupEvents(handlers: EventHandlers) {
 
   if (handlers.onProviderDiscovered) {
     const h = handlers.onProviderDiscovered;
-    promises.push(listen("provider-discovered", (e) => h((e.payload as any).provider)));
+    promises.push(listen<ProviderDiscoveredPayload>("provider-discovered", (e) => h(e.payload.provider)));
   }
   if (handlers.onProviderRemoved) {
     const h = handlers.onProviderRemoved;
-    promises.push(listen("provider-removed", (e) => h(e.payload as any)));
+    promises.push(listen<ProviderRemovedPayload>("provider-removed", (e) => h(e.payload)));
   }
   if (handlers.onProviderStatus) {
     const h = handlers.onProviderStatus;
@@ -50,7 +53,7 @@ export async function setupEvents(handlers: EventHandlers) {
   }
   if (handlers.onWorkspacesChanged) {
     const h = handlers.onWorkspacesChanged;
-    promises.push(listen("workspaces-changed", (e) => h(e.payload as any)));
+    promises.push(listen<WorkspacesChangedPayload>("workspaces-changed", (e) => h(e.payload)));
   }
   if (handlers.onProfilesChanged) {
     const h = handlers.onProfilesChanged;

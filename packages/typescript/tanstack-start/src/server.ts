@@ -6,7 +6,12 @@ export { slopVitePlugin } from "./vite-plugin";
 import { createSlopServer as _createSlopServer, SlopServer } from "@slop-ai/server";
 import type { SlopServerOptions } from "@slop-ai/server";
 
-const instances = ((globalThis as any).__slop_instances ??= new Map<string, SlopServer>());
+declare global {
+  var __slop_instances: Map<string, SlopServer<unknown>> | undefined;
+  var __slop_shared_state: Map<string, Record<string, unknown>> | undefined;
+}
+
+const instances = (globalThis.__slop_instances ??= new Map<string, SlopServer<unknown>>());
 
 /**
  * Create a SLOP server instance, shared across Vite module environments.
@@ -45,9 +50,9 @@ export function createSlopServer<S = unknown>(options: SlopServerOptions<S>): Sl
  * In production (single module environment), this is effectively a no-op.
  */
 export function sharedState<T extends Record<string, any>>(id: string, initial: T): T {
-  const states = ((globalThis as any).__slop_shared_state ??= new Map<string, any>());
+  const states = (globalThis.__slop_shared_state ??= new Map<string, Record<string, unknown>>());
   const existing = states.get(id);
-  if (existing) return existing;
+  if (existing) return existing as T;
 
   states.set(id, initial);
   return initial;
@@ -77,7 +82,7 @@ export function sharedState<T extends Record<string, any>>(id: string, initial: 
  * ```
  */
 export function createSlopRefreshFn(slop: SlopServer) {
-  return async (next: any) => {
+  return async <T>(next: () => Promise<T>) => {
     const result = await next();
     slop.refresh();
     return result;

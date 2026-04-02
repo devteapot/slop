@@ -76,19 +76,29 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   /** Create a scoped server that prefixes all paths. */
   scope(prefix: string): SlopServer<unknown> {
     const parent = this;
-    return {
-      ...parent,
-      register(path: string, descriptorOrFn: DescriptorFn | NodeDescriptor) {
-        parent.register(`${prefix}/${path}`, descriptorOrFn);
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (prop === "register") {
+          return (path: string, descriptorOrFn: DescriptorFn | NodeDescriptor) => {
+            parent.register(`${prefix}/${path}`, descriptorOrFn);
+          };
+        }
+        if (prop === "unregister") {
+          return (path: string) => {
+            parent.unregister(`${prefix}/${path}`);
+          };
+        }
+        if (prop === "scope") {
+          return (subPrefix: string) => parent.scope(`${prefix}/${subPrefix}`);
+        }
+        if (prop === "refresh") {
+          return () => parent.refresh();
+        }
+
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
       },
-      unregister(path: string) {
-        parent.unregister(`${prefix}/${path}`);
-      },
-      scope(subPrefix: string) {
-        return parent.scope(`${prefix}/${subPrefix}`);
-      },
-      refresh() { parent.refresh(); },
-    } as unknown as SlopServer<unknown>;
+    });
   }
 
   /**
@@ -197,7 +207,11 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   /** Graceful shutdown. */
   stop(): void {
     for (const conn of this.connections) {
-      try { conn.close(); } catch {}
+      try {
+        conn.close();
+      } catch (e) {
+        console.warn("[slop] failed to close connection during shutdown:", e);
+      }
     }
     this.connections.clear();
     this.subscriptions = [];
@@ -207,7 +221,11 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   emitEvent(name: string, data?: unknown): void {
     const msg = { type: "event" as const, name, data };
     for (const conn of this.connections) {
-      try { conn.send(msg); } catch {}
+      try {
+        conn.send(msg);
+      } catch (e) {
+        console.warn(`[slop] failed to send event "${name}":`, e);
+      }
     }
   }
 

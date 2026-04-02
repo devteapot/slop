@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	slop "github.com/slop-ai/slop-go"
+	slop "github.com/devteapot/slop/packages/go/slop-ai"
 )
 
 func main() {
@@ -224,4 +224,3 @@ func findSeed() string {
 	}
 	return ""
 }
-

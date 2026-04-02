@@ -132,10 +132,7 @@ fn find_node_mut<'a>(root: &'a mut SlopNode, path: &str) -> Option<&'a mut SlopN
 }
 
 fn add_child(parent: &mut SlopNode, child: SlopNode) {
-    if parent.children.is_none() {
-        parent.children = Some(Vec::new());
-    }
-    let children = parent.children.as_mut().unwrap();
+    let children = parent.children.get_or_insert_with(Vec::new);
 
     if let Some(idx) = children.iter().position(|c| c.id == child.id) {
         let existing = &children[idx];
@@ -146,8 +143,7 @@ fn add_child(parent: &mut SlopNode, child: SlopNode) {
                 if !existing_children.is_empty() {
                     if new_child.children.is_none() {
                         new_child.children = Some(existing_children.clone());
-                    } else {
-                        let new_children = new_child.children.as_mut().unwrap();
+                    } else if let Some(new_children) = &mut new_child.children {
                         let new_ids: std::collections::HashSet<String> =
                             new_children.iter().map(|c| c.id.clone()).collect();
                         for ec in existing_children {

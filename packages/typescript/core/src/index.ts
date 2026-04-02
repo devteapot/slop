@@ -2,6 +2,9 @@
 export { ProviderBase } from "./provider";
 export type { SubscriptionFilter, OutputRequest } from "./provider";
 
+// Async action result marker
+export { AsyncActionResult } from "./types";
+
 // Re-export types
 export type {
   SlopClient,

@@ -116,7 +116,7 @@ export interface ScenarioResult {
 export interface BenchmarkReport {
   timestamp: string;
   platform: string;
-  mode: "scripted" | "agent";
+  mode: "scripted" | "agent" | "all";
   model: string;
   iterations: number;
   scenarios: ScenarioResult[];

@@ -102,14 +102,14 @@ func TestConnectionLifecycle(t *testing.T) {
 	}
 
 	// Subscribe
-	s.HandleMessage(conn, map[string]any{"type": "subscribe", "id": "sub-1"})
+	s.HandleMessage(context.Background(), conn, map[string]any{"type": "subscribe", "id": "sub-1"})
 	msgs = conn.Messages()
 	if msgs[1]["type"] != "snapshot" {
 		t.Fatalf("expected snapshot, got %v", msgs[1]["type"])
 	}
 
 	// Query
-	s.HandleMessage(conn, map[string]any{"type": "query", "id": "q-1"})
+	s.HandleMessage(context.Background(), conn, map[string]any{"type": "query", "id": "q-1"})
 	msgs = conn.Messages()
 	if msgs[2]["type"] != "snapshot" {
 		t.Fatalf("expected snapshot, got %v", msgs[2]["type"])
@@ -134,7 +134,7 @@ func TestInvoke(t *testing.T) {
 
 	conn := newMockConn()
 	s.HandleConnection(conn)
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type":   "invoke",
 		"id":     "inv-1",
 		"path":   "/app/counter",
@@ -164,7 +164,7 @@ func TestInvokeNotFound(t *testing.T) {
 	s := NewServer("app", "App")
 	conn := newMockConn()
 	s.HandleConnection(conn)
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type":   "invoke",
 		"id":     "inv-1",
 		"path":   "/app/missing",
@@ -224,7 +224,7 @@ func TestBroadcastOnChange(t *testing.T) {
 
 	conn := newMockConn()
 	s.HandleConnection(conn)
-	s.HandleMessage(conn, map[string]any{"type": "subscribe", "id": "sub-1"})
+	s.HandleMessage(context.Background(), conn, map[string]any{"type": "subscribe", "id": "sub-1"})
 	initial := len(conn.Messages())
 
 	s.Register("x", Node{Type: "group", Props: Props{"v": 2}})
@@ -251,7 +251,7 @@ func TestSubscribeWithDepthLimit(t *testing.T) {
 	s.HandleConnection(conn)
 
 	// Subscribe with depth 2 — should see parent and child, but grandchild truncated
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type":  "subscribe",
 		"id":    "sub-depth",
 		"path":  "/",
@@ -301,7 +301,7 @@ func TestSubscribeWithSalienceFilter(t *testing.T) {
 	conn := newMockConn()
 	s.HandleConnection(conn)
 
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type": "subscribe",
 		"id":   "sub-sal",
 		"path": "/",
@@ -336,7 +336,7 @@ func TestUnknownMessageError(t *testing.T) {
 	conn := newMockConn()
 	s.HandleConnection(conn)
 
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type": "frobnicate",
 		"id":   "bad-1",
 	})
@@ -368,7 +368,7 @@ func TestSubscribeBadPathError(t *testing.T) {
 	conn := newMockConn()
 	s.HandleConnection(conn)
 
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type": "subscribe",
 		"id":   "sub-bad",
 		"path": "/nonexistent/deep",
@@ -436,7 +436,7 @@ func TestQueryWithWindow(t *testing.T) {
 	s.HandleConnection(conn)
 
 	// Query with window [1, 2] on the list subtree — skip first, take 2
-	s.HandleMessage(conn, map[string]any{
+	s.HandleMessage(context.Background(), conn, map[string]any{
 		"type":   "query",
 		"id":     "q-win",
 		"path":   "/list",

@@ -1,5 +1,39 @@
 import type { LlmProfile } from "../../types";
 import type { ChatMessage, LlmTool } from "@slop-ai/consumer/browser";
+import { parseGeminiResponseParts } from "./parsers";
+
+interface GeminiTextPart {
+  text: string;
+}
+
+interface GeminiFunctionCallPart {
+  functionCall: {
+    name: string;
+    args: Record<string, unknown>;
+  };
+}
+
+interface GeminiFunctionResponsePart {
+  functionResponse: {
+    name: string;
+    response: {
+      content: string;
+    };
+  };
+}
+
+type GeminiPart = GeminiTextPart | GeminiFunctionCallPart | GeminiFunctionResponsePart;
+
+interface GeminiContent {
+  role: "user" | "model" | "function";
+  parts: GeminiPart[];
+}
+
+interface GeminiToolDeclaration {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
 
 function makeGeminiName(original: string): string {
   // Gemini limits function names to 64 chars, must be [a-zA-Z_][a-zA-Z0-9_]*
@@ -22,21 +56,43 @@ function fnv1a(str: string): string {
 }
 
 function convertSchemaForGemini(schema: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = { type: schema.type ?? "object" };
-  if (schema.properties) {
+  const result: Record<string, unknown> = {
+    type: typeof schema.type === "string" ? schema.type : "object",
+  };
+  if (schema.properties && typeof schema.properties === "object") {
     const props: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(schema.properties as Record<string, any>)) {
-      const prop: Record<string, unknown> = { type: val.type ?? "string" };
-      if (val.description) prop.description = val.description;
-      if (val.enum) prop.enum = val.enum;
-      if (val.items) prop.items = convertSchemaForGemini(val.items);
+    for (const [key, val] of Object.entries(schema.properties as Record<string, unknown>)) {
+      if (!val || typeof val !== "object") continue;
+      const propSchema = val as Record<string, unknown>;
+      const prop: Record<string, unknown> = {
+        type: typeof propSchema.type === "string" ? propSchema.type : "string",
+      };
+      if (typeof propSchema.description === "string") prop.description = propSchema.description;
+      if (propSchema.enum) prop.enum = propSchema.enum;
+      if (propSchema.items && typeof propSchema.items === "object") {
+        prop.items = convertSchemaForGemini(propSchema.items as Record<string, unknown>);
+      }
       props[key] = prop;
     }
     result.properties = props;
   }
-  if (schema.items) result.items = convertSchemaForGemini(schema.items as Record<string, unknown>);
+  if (schema.items && typeof schema.items === "object") {
+    result.items = convertSchemaForGemini(schema.items as Record<string, unknown>);
+  }
   if (schema.required) result.required = schema.required;
   return result;
+}
+
+function parseArguments(raw: string | undefined): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 export async function geminiChatCompletion(
@@ -74,8 +130,8 @@ export async function geminiChatCompletion(
   }
 
   // Build Gemini contents
-  const contents: any[] = [];
-  let systemInstruction: any = undefined;
+  const contents: GeminiContent[] = [];
+  let systemInstruction: { parts: GeminiTextPart[] } | undefined;
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
@@ -86,7 +142,7 @@ export async function geminiChatCompletion(
     if (msg.role === "user") {
       contents.push({ role: "user", parts: [{ text: msg.content }] });
     } else if (msg.role === "assistant") {
-      const parts: any[] = [];
+      const parts: GeminiPart[] = [];
       if (msg.content) parts.push({ text: msg.content });
       if (msg.tool_calls) {
         for (const tc of msg.tool_calls) {
@@ -94,7 +150,7 @@ export async function geminiChatCompletion(
           parts.push({
             functionCall: {
               name: gname,
-              args: JSON.parse(tc.function.arguments || "{}"),
+              args: parseArguments(tc.function.arguments),
             },
           });
         }
@@ -102,7 +158,7 @@ export async function geminiChatCompletion(
       contents.push({ role: "model", parts });
     } else if (msg.role === "tool") {
       // Batch consecutive tool messages into one function content
-      const responseParts: any[] = [];
+      const responseParts: GeminiPart[] = [];
       let j = i;
       while (j < messages.length && messages[j].role === "tool") {
         const toolMsg = messages[j];
@@ -122,7 +178,7 @@ export async function geminiChatCompletion(
   }
 
   // Build Gemini tool declarations
-  const geminiTools: any[] = [];
+  const geminiTools: { functionDeclarations: GeminiToolDeclaration[] }[] = [];
   if (tools.length > 0) {
     geminiTools.push({
       functionDeclarations: tools.map((t) => {
@@ -150,15 +206,18 @@ export async function geminiChatCompletion(
     throw new Error(`Gemini error ${res.status}: ${text.slice(0, 200)}`);
   }
 
-  const data = await res.json() as any;
-  const candidate = data.candidates?.[0];
-  if (!candidate?.content?.parts) {
+  const parts = parseGeminiResponseParts(await res.json());
+  if (parts.length === 0) {
     throw new Error("No response from Gemini");
   }
 
-  const parts = candidate.content.parts;
-  const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
-  const functionCalls = parts.filter((p: any) => p.functionCall);
+  const textParts = parts
+    .filter((part): part is { text: string } => typeof part.text === "string")
+    .map((part) => part.text);
+  const functionCalls = parts.filter(
+    (part): part is { functionCall: { name: string; args?: Record<string, unknown> } } =>
+      !!part.functionCall,
+  );
 
   const result: ChatMessage = {
     role: "assistant",
@@ -166,7 +225,7 @@ export async function geminiChatCompletion(
   };
 
   if (functionCalls.length > 0) {
-    result.tool_calls = functionCalls.map((fc: any) => {
+    result.tool_calls = functionCalls.map((fc) => {
       const geminiName: string = fc.functionCall.name ?? "";
 
       // Direct reverse lookup
@@ -192,13 +251,13 @@ export async function geminiChatCompletion(
 
       return {
         id: originalName,
-        type: "function" as const,
-        function: {
-          name: originalName,
-          arguments: JSON.stringify(fc.functionCall.args ?? {}),
-        },
-      };
-    });
+          type: "function" as const,
+          function: {
+            name: originalName,
+            arguments: JSON.stringify(fc.functionCall.args ?? {}),
+          },
+        };
+      });
   }
 
   return result;

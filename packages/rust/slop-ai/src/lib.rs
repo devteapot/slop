@@ -3,6 +3,13 @@
 //! Rust SDK for the [SLOP protocol](https://slopai.dev) — let AI observe and
 //! interact with your app's state.
 //!
+//! The crate includes:
+//!
+//! - `SlopServer` for publishing state and affordances
+//! - `SlopConsumer` for subscribing to providers when the `native` feature is enabled
+//! - transport adapters for WebSocket, Unix socket, stdio, and Axum
+//! - tree scaling and LLM tool helpers shared across integrations
+//!
 //! ## Quick start
 //!
 //! ```
@@ -18,6 +25,12 @@
 //!
 //! assert_eq!(slop.version(), 1);
 //! ```
+//!
+//! ## Documentation
+//!
+//! - Project docs: <https://docs.slopai.dev/api/rust>
+//! - Integration guide: <https://docs.slopai.dev/guides/rust>
+//! - crates.io docs: <https://docs.rs/slop-ai>
 
 pub mod descriptor;
 pub mod diff;

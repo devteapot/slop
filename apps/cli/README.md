@@ -5,13 +5,13 @@ A terminal UI for inspecting and debugging SLOP providers. Connect to any app th
 ## Setup
 
 ```bash
-cd cli && go build -o slop-inspect .
+cd apps/cli && go build -o slop-inspect .
 ```
 
 Or run directly:
 
 ```bash
-cd cli && go run .
+cd apps/cli && go run .
 ```
 
 ## Usage

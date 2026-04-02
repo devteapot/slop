@@ -1,0 +1,17 @@
+{
+  "name": "mcp-vs-slop-benchmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "bun run run.ts",
+    "bench:scripted": "bun run run.ts --mode scripted",
+    "bench:agent": "bun run run.ts --mode agent"
+  },
+  "dependencies": {
+    "@slop-ai/server": "workspace:*",
+    "@slop-ai/consumer": "workspace:*",
+    "@slop-ai/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@google/generative-ai": "^0.24.0"
+  }
+}

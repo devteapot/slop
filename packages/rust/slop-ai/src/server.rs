@@ -22,6 +22,7 @@ struct Subscription {
     id: String,
     path: String,
     depth: Option<usize>,
+    max_nodes: Option<usize>,
     filter_types: Option<Vec<String>>,
     filter_min_salience: Option<f64>,
     connection: Arc<dyn Connection>,
@@ -323,6 +324,7 @@ impl SlopServer {
                 let sub_id = msg_id;
                 let path = msg["path"].as_str().unwrap_or("/").to_string();
                 let depth = parse_depth(msg);
+                let max_nodes = msg.get("max_nodes").and_then(|v| v.as_u64()).map(|v| v as usize);
                 let filter_types = parse_filter_types(msg);
                 let filter_min_salience = msg.get("filter")
                     .and_then(|f| f.get("min_salience"))
@@ -332,7 +334,7 @@ impl SlopServer {
 
                 // Resolve subtree; send error if path not found
                 let output = get_output_tree(
-                    &inner.current_tree, &path, depth,
+                    &inner.current_tree, &path, depth, max_nodes,
                     filter_min_salience, filter_types.as_deref(),
                 );
 
@@ -360,6 +362,7 @@ impl SlopServer {
                             id: sub_id,
                             path,
                             depth,
+                            max_nodes,
                             filter_types,
                             filter_min_salience,
                             connection: Arc::clone(conn),
@@ -375,6 +378,7 @@ impl SlopServer {
             "query" => {
                 let path = msg["path"].as_str().unwrap_or("/").to_string();
                 let depth = parse_depth(msg);
+                let max_nodes = msg.get("max_nodes").and_then(|v| v.as_u64()).map(|v| v as usize);
                 let filter_types = parse_filter_types(msg);
                 let filter_min_salience = msg.get("filter")
                     .and_then(|f| f.get("min_salience"))
@@ -390,7 +394,7 @@ impl SlopServer {
 
                 let inner = self.inner.read().unwrap();
                 let output = get_output_tree(
-                    &inner.current_tree, &path, depth,
+                    &inner.current_tree, &path, depth, max_nodes,
                     filter_min_salience, filter_types.as_deref(),
                 );
 
@@ -621,6 +625,7 @@ fn broadcast_patches(inner: &mut Inner) {
             &inner.current_tree,
             &sub.path,
             sub.depth,
+            sub.max_nodes,
             sub.filter_min_salience,
             sub.filter_types.as_deref(),
         );
@@ -668,12 +673,13 @@ fn resolve_handler_key(inner: &Inner, path: &str, action: &str) -> String {
     }
 }
 
-/// Resolve a subtree at `path`, then apply depth/filter via `prepare_tree`.
+/// Resolve a subtree at `path`, then apply depth/filter/max_nodes via `prepare_tree`.
 /// Returns `None` if the path does not exist.
 fn get_output_tree(
     full_tree: &SlopNode,
     path: &str,
     depth: Option<usize>,
+    max_nodes: Option<usize>,
     min_salience: Option<f64>,
     types: Option<&[String]>,
 ) -> Option<SlopNode> {
@@ -685,9 +691,9 @@ fn get_output_tree(
 
     let opts = OutputTreeOptions {
         max_depth: depth,
+        max_nodes,
         min_salience,
         types: types.map(|t| t.to_vec()),
-        ..Default::default()
     };
     Some(prepare_tree(subtree, &opts))
 }

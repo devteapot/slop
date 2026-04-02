@@ -151,7 +151,12 @@ function buildName(
 export function formatTree(node: SlopNode, indent = 0): string {
   const pad = "  ".repeat(indent);
   const props = node.properties ?? {};
-  const label = (props.label ?? props.title ?? node.id) as string;
+  const meta = node.meta ?? {};
+  const displayName = (props.label ?? props.title) as string | undefined;
+  // Always show the node ID. If there's a human-readable label/title, show both.
+  const header = displayName && displayName !== node.id
+    ? `${node.id}: ${displayName}`
+    : node.id;
   const extra = Object.entries(props)
     .filter(([k]) => k !== "label" && k !== "title")
     .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
@@ -166,10 +171,33 @@ export function formatTree(node: SlopNode, indent = 0): string {
       }
       return s;
     }).join(", ");
-  let line = `${pad}[${node.type}] ${label}`;
+
+  let line = `${pad}[${node.type}] ${header}`;
   if (extra) line += ` (${extra})`;
+
+  // Show summary from meta (for stubs, lazy nodes, windowed collections)
+  if (meta.summary) line += `  — "${meta.summary}"`;
+
+  // Show salience when present
+  const salience = meta.salience as number | undefined;
+  if (salience != null) line += `  salience=${Math.round(salience * 100) / 100}`;
+
   if (affordances) line += `  actions: {${affordances}}`;
+
   const lines = [line];
+
+  // Show window/lazy indicators
+  const childCount = node.children?.length ?? 0;
+  const totalChildren = meta.total_children as number | undefined;
+  if (totalChildren != null && totalChildren > childCount) {
+    const window = meta.window as [number, number] | undefined;
+    if (window) {
+      lines.push(`${pad}  (showing ${childCount} of ${totalChildren})`);
+    } else if (childCount === 0) {
+      lines.push(`${pad}  (${totalChildren} ${totalChildren === 1 ? "child" : "children"} not loaded)`);
+    }
+  }
+
   for (const child of node.children ?? []) {
     lines.push(formatTree(child, indent + 1));
   }

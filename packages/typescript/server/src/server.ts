@@ -18,6 +18,7 @@ interface Subscription {
   id: string;
   path: string;
   depth: number;
+  max_nodes?: number;
   filter?: SubscriptionFilter;
   connection: Connection;
   /** Last output tree sent to this subscriber (for diffing). */
@@ -123,12 +124,14 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
         const outputTree = this.getOutputTree({
           path,
           depth: msg.depth ?? -1,
+          max_nodes: msg.max_nodes,
           filter: msg.filter,
         });
         const sub: Subscription = {
           id: msg.id,
           path,
           depth: msg.depth ?? -1,
+          max_nodes: msg.max_nodes,
           filter: msg.filter,
           connection: conn,
           lastTree: structuredClone(outputTree),
@@ -155,6 +158,7 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
         conn.send(this.snapshotMessage(msg.id, {
           path: msg.path,
           depth: msg.depth,
+          max_nodes: msg.max_nodes,
           filter: msg.filter,
           window: msg.window,
         }));
@@ -234,6 +238,7 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
         const newTree = this.getOutputTree({
           path: sub.path,
           depth: sub.depth,
+          max_nodes: sub.max_nodes,
           filter: sub.filter,
         });
 

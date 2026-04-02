@@ -25,6 +25,7 @@ export interface SubscriptionFilter {
 export interface OutputRequest {
   path?: string;
   depth?: number;
+  max_nodes?: number;
   filter?: SubscriptionFilter;
   window?: [number, number];
 }
@@ -177,7 +178,9 @@ export abstract class ProviderBase<S = unknown> {
       maxDepth: request?.depth != null && request.depth >= 0
         ? request.depth
         : this.options.maxDepth,
-      maxNodes: this.options.maxNodes,
+      maxNodes: request?.max_nodes != null && this.options.maxNodes != null
+        ? Math.min(request.max_nodes, this.options.maxNodes)
+        : request?.max_nodes ?? this.options.maxNodes,
       minSalience: request?.filter?.min_salience,
       types: request?.filter?.types,
     });

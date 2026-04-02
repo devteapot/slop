@@ -37,14 +37,22 @@ export class SlopConsumer extends Emitter {
     });
   }
 
-  async subscribe(path = "/", depth = 1): Promise<{ id: string; snapshot: SlopNode }> {
+  async subscribe(
+    path = "/",
+    depth = 1,
+    options?: { max_nodes?: number; filter?: { types?: string[]; min_salience?: number } },
+  ): Promise<{ id: string; snapshot: SlopNode }> {
     const id = `sub-${++this.subCounter}`;
     return new Promise((resolve, reject) => {
       this.pending.set(id, {
         resolve: (snapshot: SlopNode) => resolve({ id, snapshot }),
         reject,
       });
-      this.connection!.send({ type: "subscribe", id, path, depth });
+      this.connection!.send({
+        type: "subscribe", id, path, depth,
+        ...(options?.max_nodes != null && { max_nodes: options.max_nodes }),
+        ...(options?.filter && { filter: options.filter }),
+      });
     });
   }
 
@@ -53,11 +61,20 @@ export class SlopConsumer extends Emitter {
     this.connection?.send({ type: "unsubscribe", id });
   }
 
-  async query(path = "/", depth = 1): Promise<SlopNode> {
+  async query(
+    path = "/",
+    depth = 1,
+    options?: { max_nodes?: number; filter?: { types?: string[]; min_salience?: number }; window?: [number, number] },
+  ): Promise<SlopNode> {
     const id = `q-${++this.reqCounter}`;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.connection!.send({ type: "query", id, path, depth });
+      this.connection!.send({
+        type: "query", id, path, depth,
+        ...(options?.max_nodes != null && { max_nodes: options.max_nodes }),
+        ...(options?.filter && { filter: options.filter }),
+        ...(options?.window && { window: options.window }),
+      });
     });
   }
 

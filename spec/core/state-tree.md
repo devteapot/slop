@@ -172,6 +172,79 @@ When a collection has many children, the provider returns a **window** (a contig
 
 The consumer can request a different window via a `query` message (see [Messages](./messages.md)).
 
+## Consumer display format
+
+When rendering a state tree as text for LLM context (e.g. in a system prompt or tool result), consumers SHOULD use the following canonical format. A consistent format across SDKs ensures the AI can parse tree output regardless of which SDK produced it.
+
+### Format rules
+
+1. **Each node occupies one line**, indented by 2 spaces per depth level.
+2. **Header**: `[type] id` — always show the node type and stable ID. If the node has a `label` or `title` property that differs from the ID, append it: `[type] id: Display Name`.
+3. **Extra properties**: All properties except `label` and `title`, formatted as `key=value` in parentheses: `(count=3, unread=true)`. Values are JSON-encoded.
+4. **Meta summary**: When `meta.summary` is present, append `  — "summary text"` (em-dash, quoted).
+5. **Meta salience**: When `meta.salience` is present, append `  salience=0.85` (rounded to 2 decimal places).
+6. **Affordances**: Inline at end of line as `  actions: {action1(param: type), action2}`. Parameter types are extracted from the affordance's JSON Schema `params.properties`.
+7. **Windowing**: When `meta.total_children > len(children)`:
+   - If `meta.window` is set: add a child line `(showing N of M)`
+   - If no children are inline: add a child line `(M children not loaded)`
+8. **Children**: Recurse at `indent + 1`.
+
+### Example
+
+Given this tree:
+
+```jsonc
+{
+  "id": "store",
+  "type": "root",
+  "properties": { "label": "Pet Store" },
+  "meta": { "salience": 0.9 },
+  "affordances": [
+    { "action": "search", "params": { "type": "object", "properties": { "query": { "type": "string" } } } }
+  ],
+  "children": [
+    {
+      "id": "catalog",
+      "type": "collection",
+      "properties": { "label": "Catalog", "count": 142 },
+      "meta": {
+        "total_children": 142,
+        "window": [0, 25],
+        "summary": "142 products, 12 on sale"
+      },
+      "children": [
+        {
+          "id": "prod-1",
+          "type": "item",
+          "properties": { "label": "Rubber Duck", "price": 4.99, "in_stock": true },
+          "affordances": [
+            { "action": "add_to_cart", "params": { "type": "object", "properties": { "quantity": { "type": "number" } } } },
+            { "action": "view" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cart",
+      "type": "collection",
+      "properties": { "label": "Cart" },
+      "meta": { "total_children": 3, "summary": "3 items, $24.97" }
+    }
+  ]
+}
+```
+
+The canonical text output is:
+
+```
+[root] store: Pet Store  salience=0.9  actions: {search(query: string)}
+  [collection] catalog: Catalog (count=142)  — "142 products, 12 on sale"
+    (showing 1 of 142)
+    [item] prod-1: Rubber Duck (price=4.99, in_stock=true)  actions: {add_to_cart(quantity: number), view}
+  [collection] cart: Cart  — "3 items, $24.97"
+    (3 children not loaded)
+```
+
 ## Example: full state tree
 
 A code editor exposing its state:

@@ -157,3 +157,91 @@ This gives the AI a quick "what's going on?" read in minimal tokens, from which 
 - **Use `reason` generously.** It's cheap (one string) and extremely valuable for AI comprehension.
 - **Set `focus` based on actual user interaction**, not guesses. It should reflect what the user is looking at or typing into right now.
 - **`changed` should auto-clear.** It marks the *last* change, not all historical changes.
+
+## Tree optimization
+
+Tree optimization transforms the raw state tree into a right-sized snapshot for a consumer's context window. There are two distinct concerns:
+
+1. **Semantic metadata** — salience scores, pinned flags, focus, changed, urgency. These are intrinsically provider-side: only the app knows what's relevant right now.
+2. **Presentation constraints** — how much tree the consumer wants. Depth limits, node budgets, type filters, windowing. The consumer is best positioned to set these because it knows its own token budget.
+
+### Who controls what
+
+| Parameter | Set by | Rationale |
+|---|---|---|
+| `salience` | Provider | App-specific relevance scoring |
+| `pinned` | Provider | App knows which subtrees must survive compaction |
+| `focus`, `changed`, `urgency` | Provider | Real-time app state |
+| `depth` | Consumer | Controls resolution granularity |
+| `filter.min_salience` | Consumer | Token budget — "only show me what's important" |
+| `filter.types` | Consumer | Relevance — "I only care about these node types" |
+| `window` | Consumer | Pagination within large collections |
+| `max_nodes` | Consumer | Hard token budget cap |
+
+### Consumer-driven optimization
+
+Consumers request all presentation constraints via `subscribe` and `query` messages. The `max_nodes` field belongs in the consumer's request, not in the server's configuration:
+
+```jsonc
+{
+  "type": "subscribe",
+  "id": "sub-1",
+  "path": "/",
+  "depth": 2,
+  "max_nodes": 200,
+  "filter": {
+    "types": ["item", "notification"],
+    "min_salience": 0.3
+  }
+}
+```
+
+```jsonc
+{
+  "type": "query",
+  "id": "q-1",
+  "path": "/inbox",
+  "depth": -1,
+  "max_nodes": 100,
+  "window": [0, 50]
+}
+```
+
+When `max_nodes` is present, the provider applies auto-compaction after depth truncation and filtering, collapsing lowest-salience subtrees until the tree fits within the budget. Pinned nodes are never collapsed.
+
+The provider MAY enforce a global ceiling (e.g., never send more than 500 nodes regardless of what the consumer asks for), but the consumer's `max_nodes` takes precedence when it is more restrictive.
+
+### Optimization pipeline
+
+Providers MUST apply optimizations in this order:
+
+1. **Filter** — Remove nodes below `filter.min_salience` or not in `filter.types`. The root is never filtered.
+2. **Truncate** — Collapse nodes beyond `depth` into stubs with `meta.total_children` and `meta.summary`.
+3. **Compact** — If the tree still exceeds `max_nodes`, collapse lowest-salience subtrees first. Scoring: `score = salience - depth × 0.01 - childCount × 0.001`. Root children and pinned nodes are never collapsed.
+4. **Window** — For `query` messages with `window`, slice the requested node's children and set `meta.window` and `meta.total_children`.
+
+Each step is optional and only applies when the corresponding parameter is present.
+
+### Compaction behavior
+
+When a subtree is collapsed during compaction:
+
+- The node retains its `id`, `type`, `properties`, `affordances`, and `meta`
+- `children` is removed
+- `meta.total_children` is set to the original child count
+- `meta.summary` is preserved if already set, otherwise defaults to `"{N} children"`
+- The consumer can drill into collapsed nodes via a follow-up `query` with a deeper depth
+
+This ensures the AI always knows *something was there* and can explore further if needed.
+
+### Why consumer-driven
+
+Different consumers have different budgets. A CLI agent with 8k context needs a very compact tree. A desktop agent with 200k context can handle the full thing. A browser extension might sit somewhere in between. If the server decides the budget, it's guessing — and guessing wrong either wastes tokens or hides relevant state.
+
+By letting the consumer declare its budget, the server can serve every consumer optimally from the same tree. The server's job reduces to: compute accurate salience, mark pinned nodes, and respect whatever budget the consumer requests.
+
+### Interaction with subscriptions
+
+When a consumer subscribes with `max_nodes`, the provider MUST respect the budget in subsequent patch cycles. Each broadcast re-applies the stored `max_nodes` when computing the per-subscription output tree, then diffs against the last sent tree. This keeps the consumer's view within budget as the tree evolves.
+
+The consumer can adjust its budget by unsubscribing and re-subscribing with a new `max_nodes`.

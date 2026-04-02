@@ -1,7 +1,9 @@
 package slop
 
 import (
+	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 )
@@ -175,34 +177,56 @@ func disambiguate(entries []toolEntry) []string {
 
 
 // FormatTree formats the tree as readable text for LLM context.
-// Each node shows its type, label, extra properties, and available actions.
+// Each node shows its type, ID, label, extra properties, meta, and available actions.
 func FormatTree(node WireNode, indent int) string {
 	prefix := strings.Repeat("  ", indent)
 	var b strings.Builder
 
-	// [type] label
-	label := ""
+	// Header: always show node ID; append label/title if different
+	displayName := ""
 	if node.Properties != nil {
 		if l, ok := node.Properties["label"].(string); ok {
-			label = l
+			displayName = l
+		}
+		if displayName == "" {
+			if t, ok := node.Properties["title"].(string); ok {
+				displayName = t
+			}
 		}
 	}
-	b.WriteString(fmt.Sprintf("%s[%s] %s", prefix, node.Type, label))
+	header := node.ID
+	if displayName != "" && displayName != node.ID {
+		header = node.ID + ": " + displayName
+	}
+	b.WriteString(fmt.Sprintf("%s[%s] %s", prefix, node.Type, header))
 
-	// Extra properties (skip label)
+	// Extra properties (skip label and title)
 	if node.Properties != nil {
 		var extras []string
 		for k, v := range node.Properties {
-			if k == "label" {
+			if k == "label" || k == "title" {
 				continue
 			}
-			extras = append(extras, fmt.Sprintf("%s=%v", k, v))
+			jv, err := json.Marshal(v)
+			if err != nil {
+				extras = append(extras, fmt.Sprintf("%s=%v", k, v))
+			} else {
+				extras = append(extras, fmt.Sprintf("%s=%s", k, string(jv)))
+			}
 		}
 		if len(extras) > 0 {
 			b.WriteString(" (")
 			b.WriteString(strings.Join(extras, ", "))
 			b.WriteString(")")
 		}
+	}
+
+	// Meta: summary and salience
+	if node.Meta != nil && node.Meta.Summary != "" {
+		b.WriteString(fmt.Sprintf("  — \"%s\"", node.Meta.Summary))
+	}
+	if node.Meta != nil && node.Meta.Salience != nil {
+		b.WriteString(fmt.Sprintf("  salience=%g", math.Round(*node.Meta.Salience*100)/100))
 	}
 
 	// Actions
@@ -212,7 +236,21 @@ func FormatTree(node WireNode, indent int) string {
 		for _, aff := range node.Affordances {
 			s := aff.Action
 			if aff.Params != nil {
-				s += fmt.Sprintf("(%v)", aff.Params)
+				if pm, ok := aff.Params.(map[string]any); ok {
+					if props, ok := pm["properties"].(map[string]any); ok {
+						var params []string
+						for pk, pv := range props {
+							if pvMap, ok := pv.(map[string]any); ok {
+								if pt, ok := pvMap["type"].(string); ok {
+									params = append(params, fmt.Sprintf("%s: %s", pk, pt))
+								}
+							}
+						}
+						if len(params) > 0 {
+							s += "(" + strings.Join(params, ", ") + ")"
+						}
+					}
+				}
 			}
 			acts = append(acts, s)
 		}
@@ -221,6 +259,20 @@ func FormatTree(node WireNode, indent int) string {
 	}
 
 	b.WriteString("\n")
+
+	// Windowing indicators
+	childCount := len(node.Children)
+	if node.Meta != nil && node.Meta.TotalChildren != nil && *node.Meta.TotalChildren > childCount {
+		if node.Meta.Window != nil {
+			b.WriteString(fmt.Sprintf("%s  (showing %d of %d)\n", prefix, childCount, *node.Meta.TotalChildren))
+		} else if childCount == 0 {
+			noun := "children"
+			if *node.Meta.TotalChildren == 1 {
+				noun = "child"
+			}
+			b.WriteString(fmt.Sprintf("%s  (%d %s not loaded)\n", prefix, *node.Meta.TotalChildren, noun))
+		}
+	}
 
 	for _, child := range node.Children {
 		b.WriteString(FormatTree(child, indent+1))

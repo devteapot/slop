@@ -104,6 +104,19 @@ The full specification is in [`spec/`](./spec/):
 - [Agent-Assisted Integration](./docs/guides/agent-scaffolding.md) — AI-powered SLOP scaffolding for existing codebases
 - [OpenClaw Integration](./docs/guides/openclaw.md) — control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
 
+## Benchmarks
+
+The [`benchmarks/mcp-vs-slop`](./benchmarks/mcp-vs-slop) suite compares SLOP and MCP head-to-head using an identical backing application (issue tracker). An LLM agent performs 12 scenarios through each protocol, measuring correctness, tool calls, latency, and cost.
+
+Key findings:
+
+- **Correctness:** SLOP passes 12/12 scenarios. MCP passes 8/12 — fails on scale (discovery budget exhaustion), safety (can't prevent invalid actions on closed issues), and complex reasoning (can't aggregate state across repos).
+- **Contextual affordances prevent invalid actions by design.** MCP's flat tool list always exposes `assign_issue` regardless of issue state. SLOP only shows actions valid for the current state.
+- **SLOP uses 75-90% fewer LLM round trips** on multi-entity tasks by front-loading state. The agent batches all actions in 2 turns instead of 8-21 discovery-then-act turns.
+- **Cost tradeoff is real.** SLOP's state tree uses more input tokens. For simple tasks MCP is cheaper. For complex tasks requiring cross-entity reasoning, SLOP is cheaper *and* correct where MCP fails.
+
+Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/guides-advanced/benchmarks/)
+
 ## SDKs
 
 | Language | Package | Install |
@@ -146,6 +159,8 @@ slop/
 │   ├── extension/                  # Chrome extension (SLOP consumer + AI chat)
 │   ├── desktop/                    # Tauri desktop app
 │   └── cli/                        # Go CLI inspector
+├── benchmarks/
+│   └── mcp-vs-slop/               # MCP vs SLOP benchmark suite
 ├── examples/
 │   ├── cli/                        # Task manager CLI in 4 languages (Bun, Python, Go, Rust)
 │   ├── spa/

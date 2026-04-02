@@ -12,6 +12,7 @@ type subscription struct {
 	id              string
 	path            string
 	depth           int
+	maxNodes        *int
 	filterTypes     []string
 	filterMinSal    *float64
 	connection      Connection
@@ -200,6 +201,13 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 			depth = int(d)
 		}
 
+		// Parse max_nodes
+		var maxNodes *int
+		if mn, ok := msg["max_nodes"].(float64); ok {
+			n := int(mn)
+			maxNodes = &n
+		}
+
 		// Parse filter
 		var filterTypes []string
 		var filterMinSal *float64
@@ -217,7 +225,7 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		}
 
 		s.mu.RLock()
-		outTree := s.getOutputTree(path, depth, filterTypes, filterMinSal)
+		outTree := s.getOutputTree(path, depth, maxNodes, filterTypes, filterMinSal)
 		ver := s.version
 		s.mu.RUnlock()
 
@@ -243,7 +251,7 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		s.mu.Lock()
 		initTree := cloneWireNode(*outTree)
 		s.subscriptions = append(s.subscriptions, subscription{
-			id: subID, path: path, depth: depth, connection: conn,
+			id: subID, path: path, depth: depth, maxNodes: maxNodes, connection: conn,
 			filterTypes:  filterTypes,
 			filterMinSal: filterMinSal,
 			lastTree:     &initTree,
@@ -272,9 +280,29 @@ func (s *Server) HandleMessage(conn Connection, msg map[string]any) {
 		if d, ok := msg["depth"].(float64); ok {
 			qDepth = int(d)
 		}
+		var qMaxNodes *int
+		if mn, ok := msg["max_nodes"].(float64); ok {
+			n := int(mn)
+			qMaxNodes = &n
+		}
+		// Parse filter for query
+		var qFilterTypes []string
+		var qFilterMinSal *float64
+		if filterMap, ok := msg["filter"].(map[string]any); ok {
+			if types, ok := filterMap["types"].([]any); ok {
+				for _, t := range types {
+					if s, ok := t.(string); ok {
+						qFilterTypes = append(qFilterTypes, s)
+					}
+				}
+			}
+			if ms, ok := filterMap["min_salience"].(float64); ok {
+				qFilterMinSal = &ms
+			}
+		}
 
 		s.mu.RLock()
-		outTree := s.getOutputTree(qPath, qDepth, nil, nil)
+		outTree := s.getOutputTree(qPath, qDepth, qMaxNodes, qFilterTypes, qFilterMinSal)
 		ver := s.version
 		s.mu.RUnlock()
 
@@ -374,7 +402,7 @@ func (s *Server) EmitEvent(name string, data any) {
 
 // getOutputTree returns a filtered/depth-limited subtree for output.
 // Returns nil if the path doesn't exist in the tree.
-func (s *Server) getOutputTree(path string, depth int, filterTypes []string, filterMinSalience *float64) *WireNode {
+func (s *Server) getOutputTree(path string, depth int, maxNodes *int, filterTypes []string, filterMinSalience *float64) *WireNode {
 	tree := cloneWireNode(s.currentTree)
 	var target *WireNode
 	if path == "/" || path == "" {
@@ -390,6 +418,7 @@ func (s *Server) getOutputTree(path string, depth int, filterTypes []string, fil
 	}
 
 	opts := OutputTreeOptions{
+		MaxNodes:    maxNodes,
 		MinSalience: filterMinSalience,
 		Types:       filterTypes,
 	}
@@ -528,7 +557,7 @@ func (s *Server) rebuild() {
 func (s *Server) broadcastPatches() {
 	for i := range s.subscriptions {
 		sub := &s.subscriptions[i]
-		outTree := s.getOutputTree(sub.path, sub.depth, sub.filterTypes, sub.filterMinSal)
+		outTree := s.getOutputTree(sub.path, sub.depth, sub.maxNodes, sub.filterTypes, sub.filterMinSal)
 		if outTree == nil {
 			continue
 		}

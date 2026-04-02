@@ -75,6 +75,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Agent-Assisted Integration', slug: 'guides-advanced/agent-scaffolding' },
 						{ label: 'OpenClaw Integration', slug: 'guides-advanced/openclaw' },
+						{ label: 'Benchmarks: MCP vs SLOP', slug: 'guides-advanced/benchmarks' },
 					],
 				},
 				{

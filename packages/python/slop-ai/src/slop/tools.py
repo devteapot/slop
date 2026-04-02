@@ -163,7 +163,14 @@ def format_tree(node: SlopNode, indent: int = 0) -> str:
     """Return a compact, human-readable representation of the tree."""
     pad = "  " * indent
     props = node.properties or {}
-    label = props.get("label") or props.get("title") or node.id
+    meta = node.meta
+
+    display_name = props.get("label") or props.get("title")
+    header = (
+        f"{node.id}: {display_name}"
+        if display_name and display_name != node.id
+        else node.id
+    )
 
     extra = ", ".join(
         f"{k}={json.dumps(v)}"
@@ -183,13 +190,26 @@ def format_tree(node: SlopNode, indent: int = 0) -> str:
         affordance_parts.append(s)
     affordances = ", ".join(affordance_parts)
 
-    line = f"{pad}[{node.type}] {label}"
+    line = f"{pad}[{node.type}] {header}"
     if extra:
         line += f" ({extra})"
+    if meta and meta.summary:
+        line += f'  \u2014 "{meta.summary}"'
+    if meta and meta.salience is not None:
+        line += f"  salience={round(meta.salience * 100) / 100}"
     if affordances:
         line += f"  actions: {{{affordances}}}"
 
     lines = [line]
+
+    child_count = len(node.children or [])
+    if meta and meta.total_children is not None and meta.total_children > child_count:
+        if meta.window:
+            lines.append(f"{pad}  (showing {child_count} of {meta.total_children})")
+        elif child_count == 0:
+            noun = "child" if meta.total_children == 1 else "children"
+            lines.append(f"{pad}  ({meta.total_children} {noun} not loaded)")
+
     for child in node.children or []:
         lines.append(format_tree(child, indent + 1))
     return "\n".join(lines)

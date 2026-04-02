@@ -26,6 +26,7 @@ Begin observing a subtree. The provider responds with a `snapshot` and then stre
   "id": "sub-1",
   "path": "/",              // Path to the subtree root (default: "/")
   "depth": 2,               // How deep to resolve (default: -1 = unlimited)
+  "max_nodes": 200,         // Maximum total nodes in the snapshot (optional)
   "filter": {               // Optional filters
     "types": ["item", "notification"],  // Only include these node types
     "min_salience": 0.5     // Only include nodes above this salience
@@ -58,6 +59,7 @@ One-shot read of a subtree. Like `subscribe` but returns a single `snapshot` wit
   "id": "q-1",
   "path": "/inbox/msg-42",
   "depth": -1,              // Full detail for this message
+  "max_nodes": 100,         // Maximum total nodes in the response (optional)
   "window": [0, 50]         // [offset, count] — start at item 0, return 50 items
 }
 ```

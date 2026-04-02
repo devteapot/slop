@@ -210,8 +210,9 @@ class SlopServer:
         if msg_type == "subscribe":
             path = msg.get("path", "/")
             depth = msg.get("depth", -1)
+            max_nodes = msg.get("max_nodes")
             filter_ = msg.get("filter")
-            output = self._get_output_tree(path=path, depth=depth, filter_=filter_)
+            output = self._get_output_tree(path=path, depth=depth, max_nodes=max_nodes, filter_=filter_)
             if output is None:
                 conn.send({
                     "type": "error",
@@ -228,6 +229,7 @@ class SlopServer:
                 depth=depth,
                 connection=conn,
                 last_tree=copy.deepcopy(output),
+                max_nodes=max_nodes,
                 filter_=filter_,
             ))
             conn.send({
@@ -246,9 +248,10 @@ class SlopServer:
         elif msg_type == "query":
             path = msg.get("path", "/")
             depth = msg.get("depth", -1)
+            max_nodes = msg.get("max_nodes")
             filter_ = msg.get("filter")
             window = msg.get("window")
-            output = self._get_output_tree(path=path, depth=depth, filter_=filter_)
+            output = self._get_output_tree(path=path, depth=depth, max_nodes=max_nodes, filter_=filter_)
             if output is None:
                 conn.send({
                     "type": "error",
@@ -435,9 +438,10 @@ class SlopServer:
         self,
         path: str = "/",
         depth: int | None = None,
+        max_nodes: int | None = None,
         filter_: dict[str, Any] | None = None,
     ) -> SlopNode | None:
-        """Resolve a subtree and apply depth/filter options."""
+        """Resolve a subtree and apply depth/filter/max_nodes options."""
         tree = self._current_tree
         if path != "/":
             subtree = get_subtree(tree, path)
@@ -447,11 +451,13 @@ class SlopServer:
 
         needs_prepare = (
             (depth is not None and depth >= 0)
+            or max_nodes is not None
             or (filter_ is not None)
         )
         if needs_prepare:
             opts = OutputTreeOptions(
                 max_depth=depth if (depth is not None and depth >= 0) else None,
+                max_nodes=max_nodes,
                 min_salience=filter_.get("min_salience") if filter_ else None,
                 types=filter_.get("types") if filter_ else None,
             )
@@ -463,7 +469,7 @@ class SlopServer:
         for sub in self._subscriptions:
             try:
                 new_tree = self._get_output_tree(
-                    path=sub.path, depth=sub.depth, filter_=sub.filter_,
+                    path=sub.path, depth=sub.depth, max_nodes=sub.max_nodes, filter_=sub.filter_,
                 )
                 if new_tree is None:
                     continue
@@ -481,7 +487,7 @@ class SlopServer:
 
 
 class _Subscription:
-    __slots__ = ("id", "path", "depth", "filter_", "connection", "last_tree")
+    __slots__ = ("id", "path", "depth", "max_nodes", "filter_", "connection", "last_tree")
 
     def __init__(
         self,
@@ -490,11 +496,13 @@ class _Subscription:
         depth: int,
         connection: Connection,
         last_tree: SlopNode,
+        max_nodes: int | None = None,
         filter_: dict[str, Any] | None = None,
     ) -> None:
         self.id = id
         self.path = path
         self.depth = depth
+        self.max_nodes = max_nodes
         self.filter_ = filter_
         self.connection = connection
         self.last_tree = last_tree

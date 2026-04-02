@@ -189,19 +189,33 @@ pub fn format_tree(node: &SlopNode, indent: usize) -> String {
 }
 
 fn write_node(node: &SlopNode, indent: usize, out: &mut String) {
-    let pad = " ".repeat(indent);
-    out.push_str(&format!("{pad}[{}] ({})", node.id, node.node_type));
+    let pad = "  ".repeat(indent);
 
+    // Header: [type] nodeId: label
+    let display_name = node.properties.as_ref().and_then(|p| {
+        p.get("label")
+            .or_else(|| p.get("title"))
+            .and_then(|v| v.as_str())
+    });
+    let header = match display_name {
+        Some(name) if name != node.id => format!("{}: {}", node.id, name),
+        _ => node.id.clone(),
+    };
+    out.push_str(&format!("{pad}[{}] {header}", node.node_type));
+
+    // Extra properties (skip label and title)
     if let Some(props) = &node.properties {
-        if !props.is_empty() {
-            let pairs: Vec<String> = props
-                .iter()
-                .map(|(k, v)| format!("{k}={v}"))
-                .collect();
-            out.push_str(&format!(" {{{}}}", pairs.join(", ")));
+        let pairs: Vec<String> = props
+            .iter()
+            .filter(|(k, _)| k.as_str() != "label" && k.as_str() != "title")
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect();
+        if !pairs.is_empty() {
+            out.push_str(&format!(" ({})", pairs.join(", ")));
         }
     }
 
+    // Meta: flags, summary, salience
     if let Some(meta) = &node.meta {
         let mut flags = Vec::new();
         if meta.pinned == Some(true) {
@@ -227,25 +241,66 @@ fn write_node(node: &SlopNode, indent: usize, out: &mut String) {
             out.push_str(&format!(" [{}]", flags.join(", ")));
         }
         if let Some(ref summary) = meta.summary {
-            out.push_str(&format!(" — {summary}"));
+            out.push_str(&format!("  \u{2014} \"{summary}\""));
+        }
+        if let Some(salience) = meta.salience {
+            out.push_str(&format!("  salience={}", (salience * 100.0).round() / 100.0));
+        }
+    }
+
+    // Affordances inline
+    if let Some(affs) = &node.affordances {
+        if !affs.is_empty() {
+            let acts: Vec<String> = affs
+                .iter()
+                .map(|aff| {
+                    let mut s = aff.action.clone();
+                    if let Some(ref params) = aff.params {
+                        if let Some(props) = params.get("properties").and_then(|p| p.as_object())
+                        {
+                            let param_strs: Vec<String> = props
+                                .iter()
+                                .map(|(k, v)| {
+                                    let typ =
+                                        v.get("type").and_then(|t| t.as_str()).unwrap_or("?");
+                                    format!("{k}: {typ}")
+                                })
+                                .collect();
+                            if !param_strs.is_empty() {
+                                s.push_str(&format!("({})", param_strs.join(", ")));
+                            }
+                        }
+                    }
+                    s
+                })
+                .collect();
+            out.push_str(&format!("  actions: {{{}}}", acts.join(", ")));
         }
     }
 
     out.push('\n');
 
-    if let Some(affs) = &node.affordances {
-        for aff in affs {
-            out.push_str(&format!("{pad}  -> {}", aff.action));
-            if let Some(ref label) = aff.label {
-                out.push_str(&format!(" ({label})"));
+    // Windowing indicators
+    if let Some(meta) = &node.meta {
+        let child_count = node.children.as_ref().map_or(0, |c| c.len());
+        if let Some(total) = meta.total_children {
+            if total > child_count {
+                if meta.window.is_some() {
+                    out.push_str(&format!(
+                        "{pad}  (showing {} of {})\n",
+                        child_count, total
+                    ));
+                } else if child_count == 0 {
+                    let noun = if total == 1 { "child" } else { "children" };
+                    out.push_str(&format!("{pad}  ({} {} not loaded)\n", total, noun));
+                }
             }
-            out.push('\n');
         }
     }
 
     if let Some(children) = &node.children {
         for child in children {
-            write_node(child, indent + 2, out);
+            write_node(child, indent + 1, out);
         }
     }
 }
@@ -270,6 +325,45 @@ mod tests {
                         {"action": "increment", "label": "Add one", "description": "Increment the counter"},
                         {"action": "reset", "dangerous": true}
                     ]
+                }
+            ]
+        }))
+        .unwrap()
+    }
+
+    /// Canonical test tree matching spec/core/state-tree.md "Consumer display format".
+    fn canonical_tree() -> SlopNode {
+        serde_json::from_value(json!({
+            "id": "store",
+            "type": "root",
+            "properties": {"label": "Pet Store"},
+            "meta": {"salience": 0.9},
+            "affordances": [
+                {"action": "search", "params": {"type": "object", "properties": {"query": {"type": "string"}}}}
+            ],
+            "children": [
+                {
+                    "id": "catalog",
+                    "type": "collection",
+                    "properties": {"label": "Catalog", "count": 142},
+                    "meta": {"total_children": 142, "window": [0, 25], "summary": "142 products, 12 on sale"},
+                    "children": [
+                        {
+                            "id": "prod-1",
+                            "type": "item",
+                            "properties": {"label": "Rubber Duck", "price": 4.99, "in_stock": true},
+                            "affordances": [
+                                {"action": "add_to_cart", "params": {"type": "object", "properties": {"quantity": {"type": "number"}}}},
+                                {"action": "view"}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": "cart",
+                    "type": "collection",
+                    "properties": {"label": "Cart"},
+                    "meta": {"total_children": 3, "summary": "3 items, $24.97"}
                 }
             ]
         }))
@@ -321,17 +415,62 @@ mod tests {
     }
 
     #[test]
-    fn test_format_tree_basic() {
-        let tree = sample_tree();
-        let text = format_tree(&tree, 0);
-        assert!(text.contains("[app] (root)"));
-        assert!(text.contains("[counter] (status)"));
-        assert!(text.contains("-> increment (Add one)"));
-        assert!(text.contains("count=5"));
+    fn test_format_tree_header_id_and_label() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("[root] store: Pet Store"), "missing root header:\n{text}");
+        assert!(text.contains("[collection] catalog: Catalog"), "missing catalog header:\n{text}");
+        assert!(text.contains("[item] prod-1: Rubber Duck"), "missing prod header:\n{text}");
     }
 
     #[test]
-    fn test_format_tree_with_meta() {
+    fn test_format_tree_header_id_only_when_no_label() {
+        let node = SlopNode::new("status", "status");
+        let text = format_tree(&node, 0);
+        assert!(text.contains("[status] status"), "missing id-only header:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_extra_props_exclude_label() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("count=142"), "missing count prop:\n{text}");
+        assert!(!text.contains("label="), "label= should be excluded:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_meta_summary_quoted() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("\"142 products, 12 on sale\""), "missing catalog summary:\n{text}");
+        assert!(text.contains("\"3 items, $24.97\""), "missing cart summary:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_meta_salience() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("salience=0.9"), "missing salience:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_affordances_inline_with_params() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("actions: {search(query: string)}"), "missing search:\n{text}");
+        assert!(text.contains("add_to_cart(quantity: number)"), "missing add_to_cart:\n{text}");
+        assert!(text.contains("view}"), "missing view:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_windowed_collection() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("(showing 1 of 142)"), "missing windowed indicator:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_lazy_collection() {
+        let text = format_tree(&canonical_tree(), 0);
+        assert!(text.contains("(3 children not loaded)"), "missing lazy indicator:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_with_meta_flags() {
         let mut tree = sample_tree();
         tree.meta = Some(NodeMeta {
             summary: Some("Root node".into()),
@@ -340,8 +479,19 @@ mod tests {
             ..NodeMeta::default()
         });
         let text = format_tree(&tree, 0);
-        assert!(text.contains("[focus, HIGH]"));
-        assert!(text.contains("Root node"));
+        assert!(text.contains("[focus, HIGH]"), "missing flags:\n{text}");
+        assert!(text.contains("\"Root node\""), "missing summary:\n{text}");
+    }
+
+    #[test]
+    fn test_format_tree_indentation() {
+        let text = format_tree(&canonical_tree(), 0);
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(lines[0].starts_with("[root]"), "root should be at indent 0");
+        let catalog = lines.iter().find(|l| l.contains("catalog")).unwrap();
+        assert!(catalog.starts_with("  [collection]"), "catalog should be at indent 1");
+        let prod = lines.iter().find(|l| l.contains("prod-1")).unwrap();
+        assert!(prod.starts_with("    [item]"), "prod-1 should be at indent 2");
     }
 
     #[test]

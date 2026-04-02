@@ -51,6 +51,9 @@ If the Chrome Web Store secrets are missing, the workflow still uploads the exte
 
 - `HOMEBREW_TAP_TOKEN`
 
+When this secret is configured, the `update-homebrew.yml` workflow updates
+`devteapot/homebrew-slop` automatically for each published `vX.Y.Z` release.
+
 ### Python
 
 - `PYPI_API_TOKEN`

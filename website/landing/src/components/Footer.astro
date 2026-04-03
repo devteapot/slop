@@ -1,0 +1,65 @@
+---
+---
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <img src="/logo.svg" alt="Sloppy" width="28" height="28" />
+      <span>SLOP</span>
+      <span class="footer-tagline">The agent interface for software</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/devteapot/slop">GitHub</a>
+      <a href="https://docs.slopai.dev">Docs</a>
+      <a href="https://www.npmjs.com/org/slop-ai">npm</a>
+    </div>
+    <div class="footer-meta">
+      <span>MIT License</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  footer {
+    padding: var(--space-10) 0;
+    background: var(--surface-container-low);
+  }
+  .footer-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    text-align: center;
+  }
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .footer-brand img {
+    border-radius: 6px;
+  }
+  .footer-tagline {
+    color: var(--text-tertiary);
+    font-weight: 400;
+    font-size: 0.875rem;
+    margin-left: var(--space-2);
+  }
+  .footer-links {
+    display: flex;
+    gap: var(--space-5);
+  }
+  .footer-links a {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+  .footer-links a:hover {
+    color: var(--text-primary);
+  }
+  .footer-meta {
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
+  }
+</style>

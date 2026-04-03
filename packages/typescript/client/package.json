@@ -1,0 +1,31 @@
+{
+  "name": "@slop-ai/client",
+  "version": "0.1.0",
+  "description": "SLOP browser provider — createSlop() + postMessage transport",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://docs.slopai.dev/api/client",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/client"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --format esm --external '@slop-ai/core' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@slop-ai/core": "workspace:*"
+  }
+}

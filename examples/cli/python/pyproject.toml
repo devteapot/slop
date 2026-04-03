@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tsk"
+version = "0.1.0"
+description = "A task manager CLI that doubles as a SLOP provider"
+requires-python = ">=3.10"
+dependencies = ["slop-ai"]
+
+[project.scripts]
+tsk = "tsk.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

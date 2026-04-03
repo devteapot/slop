@@ -1,0 +1,16 @@
+{
+  "name": "pomodoro-electron",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "dependencies": {
+    "@slop-ai/server": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

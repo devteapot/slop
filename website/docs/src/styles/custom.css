@@ -1,0 +1,73 @@
+/* SLOP Docs — Custom Starlight theme matching DESIGN.md */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --sl-font: 'Space Grotesk', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', monospace;
+
+  --sl-color-accent-low: #1a2e0a;
+  --sl-color-accent: #91db37;
+  --sl-color-accent-high: #c5f08a;
+
+  --sl-color-white: #e8ecf4;
+  --sl-color-gray-1: #c9cdd5;
+  --sl-color-gray-2: #9ca3af;
+  --sl-color-gray-3: #6b7280;
+  --sl-color-gray-4: #374151;
+  --sl-color-gray-5: #1b1f2a;
+  --sl-color-gray-6: #111319;
+  --sl-color-black: #0c0e14;
+
+  --sl-color-bg-nav: rgba(17, 19, 25, 0.9);
+  --sl-color-bg-sidebar: #161a23;
+  --sl-color-hairline-light: rgba(173, 198, 255, 0.08);
+  --sl-color-hairline-shade: rgba(173, 198, 255, 0.12);
+
+  --sl-nav-height: 3.5rem;
+}
+
+/* Dark mode only (Starlight default) */
+[data-theme='dark'] {
+  --sl-color-bg: #111319;
+  --sl-color-bg-sidebar: #161a23;
+}
+
+/* Force dark mode */
+:root[data-theme='light'] {
+  --sl-color-bg: #111319;
+  --sl-color-bg-sidebar: #161a23;
+}
+
+/* Nav bar */
+header.header {
+  backdrop-filter: blur(12px);
+}
+
+/* Sidebar active link */
+[data-current] {
+  color: var(--sl-color-accent) !important;
+}
+
+/* Code blocks */
+pre {
+  background: #0c0e14 !important;
+  border-radius: 8px !important;
+}
+
+/* Links */
+.sl-markdown-content a {
+  color: var(--sl-color-accent);
+}
+
+/* Headings tighter tracking */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  letter-spacing: -0.02em;
+}
+
+/* Hide light mode toggle — force dark */
+starlight-theme-select {
+  display: none !important;
+}

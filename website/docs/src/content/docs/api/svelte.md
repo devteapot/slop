@@ -7,7 +7,7 @@ description: Svelte 5 composable for publishing rune-based state through SLOP
 bun add @slop-ai/client @slop-ai/svelte
 ```
 
-## `useSlop(client, path, descriptor)`
+## `useSlop(client, pathOrGetter, descriptorFactory)`
 
 The Svelte adapter is published as a `.svelte.ts` entrypoint so rune syntax stays intact for downstream compilation.
 

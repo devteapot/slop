@@ -27,16 +27,16 @@ export const slop = createSlop({
 The `useSlop` primitive registers a node on mount, updates it reactively, and unregisters it on cleanup.
 
 ```ts
-import { useSlop } from "@slop-ai/solid";
+import { action, useSlop } from "@slop-ai/solid";
 ```
 
-The signature is `useSlop(client, path, () => descriptor)` where the descriptor is wrapped in a function so Solid can track signal dependencies.
+The signature is `useSlop(client, pathOrGetter, descriptorFactory)` where the descriptor is wrapped in a function so Solid can track signal dependencies.
 
 ## Full Example
 
 ```tsx
 import { createSignal } from "solid-js";
-import { useSlop } from "@slop-ai/solid";
+import { action, useSlop } from "@slop-ai/solid";
 import { slop } from "./slop";
 
 interface Note {
@@ -51,27 +51,28 @@ export function Notes() {
   useSlop(slop, "/notes", () => ({
     type: "collection",
     props: { count: notes().length },
-    items: notes(),
     actions: {
-      create: {
-        params: { title: "string" },
-        handler: ({ title }: { title: string }) => {
-          setNotes((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), title, pinned: false },
-          ]);
-        },
-      },
-      togglePin: ({ id }: { id: string }) => {
-        setNotes((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
-        );
-      },
-      clearAll: {
-        handler: () => setNotes([]),
-        dangerous: true,
-      },
+      create: action({ title: "string" }, ({ title }) => {
+        setNotes((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), title, pinned: false },
+        ]);
+      }),
+      clear_all: action(() => setNotes([]), { dangerous: true }),
     },
+    items: notes().map((note) => ({
+      id: note.id,
+      props: { title: note.title, pinned: note.pinned },
+      actions: {
+        toggle_pin: action(() => {
+          setNotes((prev) =>
+            prev.map((entry) =>
+              entry.id === note.id ? { ...entry, pinned: !entry.pinned } : entry,
+            ),
+          );
+        }),
+      },
+    })),
   }));
 
   return (

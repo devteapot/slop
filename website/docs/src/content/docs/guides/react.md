@@ -27,16 +27,16 @@ export const slop = createSlop({
 The `useSlop` hook registers a node on mount, updates it on every render, and unregisters it on unmount.
 
 ```tsx
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 ```
 
-The signature is `useSlop(client, path, descriptor)` where `descriptor` is a plain object (React re-runs the hook on every render, so a function wrapper is not needed).
+The signature is `useSlop(client, pathOrGetter, descriptorFactory)`. React registers after commit, re-runs the descriptor factory on every render, and cleans up automatically on unmount.
 
 ## Full Example
 
 ```tsx
 import { useState } from "react";
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 import { slop } from "./slop";
 
 interface Note {
@@ -48,31 +48,32 @@ interface Note {
 export function Notes() {
   const [notes, setNotes] = useState<Note[]>([]);
 
-  useSlop(slop, "/notes", {
+  useSlop(slop, "/notes", () => ({
     type: "collection",
     props: { count: notes.length },
-    items: notes,
     actions: {
-      create: {
-        params: { title: "string" },
-        handler: ({ title }: { title: string }) => {
-          setNotes((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), title, pinned: false },
-          ]);
-        },
-      },
-      togglePin: ({ id }: { id: string }) => {
-        setNotes((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
-        );
-      },
-      clearAll: {
-        handler: () => setNotes([]),
-        dangerous: true,
-      },
+      create: action({ title: "string" }, ({ title }) => {
+        setNotes((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), title, pinned: false },
+        ]);
+      }),
+      clear_all: action(() => setNotes([]), { dangerous: true }),
     },
-  });
+    items: notes.map((note) => ({
+      id: note.id,
+      props: { title: note.title, pinned: note.pinned },
+      actions: {
+        toggle_pin: action(() => {
+          setNotes((prev) =>
+            prev.map((entry) =>
+              entry.id === note.id ? { ...entry, pinned: !entry.pinned } : entry,
+            ),
+          );
+        }),
+      },
+    })),
+  }));
 
   return (
     <ul>

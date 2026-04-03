@@ -37,7 +37,7 @@ export const slop = createSlop({ id: "my-app", name: "My App" });
 Place `useSlop` next to your state, not in JSX. Each call registers a node in the tree.
 
 ```tsx
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 import { slop } from "./slop";
 
 function TodoList() {
@@ -46,23 +46,23 @@ function TodoList() {
     { id: "2", title: "Build the MVP", done: false },
   ]);
 
-  useSlop(slop, "todos", {
+  useSlop(slop, "todos", () => ({
     type: "collection",
     props: { count: todos.length },
     items: todos.map(todo => ({
       id: todo.id,
       props: { title: todo.title, done: todo.done },
       actions: {
-        toggle: () => setTodos(prev =>
+        toggle: action(() => setTodos(prev =>
           prev.map(t => t.id === todo.id ? { ...t, done: !t.done } : t)
+        )),
+        delete: action(
+          () => setTodos(prev => prev.filter(t => t.id !== todo.id)),
+          { dangerous: true },
         ),
-        delete: {
-          handler: () => setTodos(prev => prev.filter(t => t.id !== todo.id)),
-          dangerous: true,
-        },
       },
     })),
-  });
+  }));
 
   return <ul>{todos.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
 }

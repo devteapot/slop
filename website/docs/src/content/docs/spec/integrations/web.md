@@ -309,7 +309,7 @@ import { slop } from "./slop";
 import { useSlop } from "@slop-ai/react";
 
 function InboxView() {
-  useSlop(slop, "inbox", { type: "view", props: { label: "Inbox" } });
+  useSlop(slop, "inbox", () => ({ type: "view", props: { label: "Inbox" } }));
 
   return (
     <div>
@@ -325,7 +325,7 @@ function InboxView() {
 function MessageList() {
   const [messages] = useMessages();
 
-  useSlop(slop, "inbox/messages", {
+  useSlop(slop, "inbox/messages", () => ({
     type: "collection",
     props: { count: messages.length },
     items: messages.map(m => ({
@@ -337,7 +337,7 @@ function MessageList() {
         delete: { handler: () => deleteMessage(m.id), dangerous: true },
       },
     })),
-  });
+  }));
 
   return <div>{messages.map(m => <MessageRow key={m.id} message={m} />)}</div>;
 }
@@ -348,10 +348,10 @@ function MessageList() {
 function UnreadBadge() {
   const count = useUnreadCount();
 
-  useSlop(slop, "inbox/unread", {
+  useSlop(slop, "inbox/unread", () => ({
     type: "status",
     props: { count },
-  });
+  }));
 
   return <span className="badge">{count}</span>;
 }
@@ -391,14 +391,14 @@ function MessageList({ slop: scope }) {
   const [messages] = useMessages();
 
   // Registers as "inbox/messages" internally — but this component doesn't know that
-  useSlop(scope, "messages", {
+  useSlop(scope, "messages", () => ({
     type: "collection",
     items: messages.map(m => ({
       id: m.id,
       props: { from: m.from, subject: m.subject },
       actions: { archive: () => archiveMessage(m.id) },
     })),
-  });
+  }));
 
   return <div>{messages.map(...)}</div>;
 }
@@ -413,7 +413,7 @@ function MessageList({ slop: scope }) {
 For components that own a full subtree, declare children inline in the descriptor:
 
 ```tsx
-useSlop(slop, "settings", {
+useSlop(slop, "settings", () => ({
   type: "view",
   children: {
     account: {
@@ -434,7 +434,7 @@ useSlop(slop, "settings", {
       },
     },
   },
-});
+}));
 ```
 
 All three patterns — path IDs, scoped clients, inline children — produce the same tree. Mix them based on component structure:
@@ -452,15 +452,20 @@ Each adapter is a thin wrapper that handles mount/update/unmount lifecycle. The 
 **React** (`@slop-ai/react`):
 
 ```tsx
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 
-export function useSlop(client: SlopClient, id: string, descriptor: NodeDescriptor) {
-  client.register(id, descriptor);  // register/update on every render
-
+export function useSlop(
+  client: SlopClient,
+  pathOrGetter: string | (() => string),
+  descriptorFactory: () => NodeDescriptor,
+) {
   useEffect(() => {
-    return () => client.unregister(id);  // unregister on unmount
-  }, [client, id]);
+    const path =
+      typeof pathOrGetter === "function" ? pathOrGetter() : pathOrGetter;
+    client.register(path, descriptorFactory());
+    return () => client.unregister(path);
+  });
 }
 ```
 

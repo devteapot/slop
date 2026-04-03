@@ -7,7 +7,7 @@ description: Vue composable for registering SLOP state from reactive components
 bun add @slop-ai/client @slop-ai/vue
 ```
 
-## `useSlop(client, path, descriptor)`
+## `useSlop(client, pathOrGetter, descriptorFactory)`
 
 `useSlop()` accepts either a static path string or a path factory, plus a descriptor factory that is tracked reactively.
 

@@ -27,17 +27,17 @@ export const slop = createSlop({
 The `useSlop` composable registers a node on mount, updates it reactively, and unregisters it on unmount.
 
 ```ts
-import { useSlop } from "@slop-ai/vue";
+import { action, useSlop } from "@slop-ai/vue";
 ```
 
-The signature is `useSlop(client, path, () => descriptor)` where the descriptor is wrapped in a function so Vue can track reactive dependencies.
+The signature is `useSlop(client, pathOrGetter, descriptorFactory)` where the descriptor is wrapped in a function so Vue can track reactive dependencies.
 
 ## Full Example
 
 ```vue
 <script setup lang="ts">
 import { ref } from "vue";
-import { useSlop } from "@slop-ai/vue";
+import { action, useSlop } from "@slop-ai/vue";
 import { slop } from "./slop";
 
 interface Note {
@@ -51,29 +51,29 @@ const notes = ref<Note[]>([]);
 useSlop(slop, "/notes", () => ({
   type: "collection",
   props: { count: notes.value.length },
-  items: notes.value,
   actions: {
-    create: {
-      params: { title: "string" },
-      handler: ({ title }: { title: string }) => {
-        notes.value.push({
-          id: crypto.randomUUID(),
-          title,
-          pinned: false,
-        });
-      },
-    },
-    togglePin: ({ id }: { id: string }) => {
-      const note = notes.value.find((n) => n.id === id);
-      if (note) note.pinned = !note.pinned;
-    },
-    clearAll: {
-      handler: () => {
-        notes.value = [];
-      },
-      dangerous: true,
-    },
+    create: action({ title: "string" }, ({ title }) => {
+      notes.value.push({
+        id: crypto.randomUUID(),
+        title,
+        pinned: false,
+      });
+    }),
+    clear_all: action(() => {
+      notes.value = [];
+    }, { dangerous: true }),
   },
+  items: notes.value.map((note) => ({
+    id: note.id,
+    props: { title: note.title, pinned: note.pinned },
+    actions: {
+      toggle_pin: action(() => {
+        notes.value = notes.value.map((entry) =>
+          entry.id === note.id ? { ...entry, pinned: !entry.pinned } : entry,
+        );
+      }),
+    },
+  })),
 }));
 </script>
 

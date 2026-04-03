@@ -7,7 +7,7 @@ description: SolidJS primitive for registering SLOP state from signals
 bun add @slop-ai/client @slop-ai/solid
 ```
 
-## `useSlop(client, path, descriptor)`
+## `useSlop(client, pathOrGetter, descriptorFactory)`
 
 `useSlop()` accepts a static or dynamic path plus a descriptor factory tracked by Solid's reactive system.
 

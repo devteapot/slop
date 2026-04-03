@@ -11,14 +11,14 @@
         <h3>App publishes semantic state</h3>
         <p>Your app exposes a curated view of what it is right now — not DOM elements, not raw internals, but <em>meaning</em>.</p>
         <div class="code-block">
-          <pre set:html={`<span class="fn">useSlop</span>(slop, <span class="string">"notes"</span>, {
+          <pre set:html={`<span class="fn">useSlop</span>(slop, <span class="string">"notes"</span>, () =&gt; ({
   type: <span class="string">"collection"</span>,
   props: { count: notes.length },
   items: notes.<span class="fn">map</span>(n =&gt; ({
     id: n.id,
     props: { title: n.title },
   })),
-});`} />
+}));`} />
         </div>
       </div>
 
@@ -43,11 +43,8 @@
         <div class="code-block">
           <pre set:html={`actions: {
   <span class="fn">toggle_pin</span>: () =&gt; togglePin(note.id),
-  <span class="fn">edit</span>: {
-    params: { title: <span class="string">"string"</span> },
-    handler: ({ title }) =&gt; updateNote(note.id, title),
-  },
-  <span class="fn">delete</span>: { handler: () =&gt; remove(note.id), dangerous: <span class="keyword">true</span> },
+  <span class="fn">edit</span>: action({ title: <span class="string">"string"</span> }, ({ title }) =&gt; updateNote(note.id, title)),
+  <span class="fn">delete</span>: action(() =&gt; remove(note.id), { dangerous: <span class="keyword">true</span> }),
 }`} />
         </div>
       </div>

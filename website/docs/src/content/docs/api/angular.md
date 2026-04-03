@@ -7,9 +7,9 @@ description: Angular integration for exposing signal-based component state throu
 bun add @slop-ai/client @slop-ai/angular
 ```
 
-## `useSlop(client, path, descriptor)`
+## `useSlop(client, pathOrGetter, descriptorFactory)`
 
-Call `useSlop()` inside an Angular injection context such as a constructor or field initializer.
+Call `useSlop()` inside an Angular 19+ injection context such as a constructor or field initializer.
 
 ```ts
 constructor() {

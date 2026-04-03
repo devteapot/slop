@@ -47,23 +47,23 @@ bun add @slop-ai/client @slop-ai/react
 
 ```tsx
 import { createSlop } from "@slop-ai/client";
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 
 const slop = createSlop({ id: "my-app", name: "My App" });
 
 function TaskList({ tasks }) {
-  useSlop(slop, "tasks", {
+  useSlop(slop, "tasks", () => ({
     type: "collection",
     props: { count: tasks.length },
     items: tasks.map(t => ({
       id: t.id,
       props: { title: t.title, done: t.done },
       actions: {
-        toggle: () => toggleTask(t.id),
-        delete: () => deleteTask(t.id),
+        toggle: action(() => toggleTask(t.id)),
+        delete: action(() => deleteTask(t.id), { dangerous: true }),
       },
     })),
-  });
+  }));
 
   return <ul>{tasks.map(t => <li key={t.id}>{t.title}</li>)}</ul>;
 }

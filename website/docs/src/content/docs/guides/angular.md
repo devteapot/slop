@@ -27,16 +27,16 @@ export const slop = createSlop({
 The `useSlop` function is called in the constructor. It registers a node using Angular signals for reactivity and unregisters it on destroy.
 
 ```ts
-import { useSlop } from "@slop-ai/angular";
+import { action, useSlop } from "@slop-ai/angular";
 ```
 
-The signature is `useSlop(client, path, () => descriptor)` where the descriptor function is re-evaluated whenever the signals it reads change.
+The signature is `useSlop(client, pathOrGetter, descriptorFactory)` where the descriptor function is re-evaluated whenever the signals it reads change.
 
 ## Full Example
 
 ```ts
 import { Component, signal, computed } from "@angular/core";
-import { useSlop } from "@slop-ai/angular";
+import { action, useSlop } from "@slop-ai/angular";
 import { slop } from "./slop";
 
 interface Note {
@@ -62,27 +62,28 @@ export class NotesComponent {
     useSlop(slop, "/notes", () => ({
       type: "collection",
       props: { count: this.notes().length },
-      items: this.notes(),
       actions: {
-        create: {
-          params: { title: "string" },
-          handler: ({ title }: { title: string }) => {
-            this.notes.update((prev) => [
-              ...prev,
-              { id: crypto.randomUUID(), title, pinned: false },
-            ]);
-          },
-        },
-        togglePin: ({ id }: { id: string }) => {
-          this.notes.update((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
-          );
-        },
-        clearAll: {
-          handler: () => this.notes.set([]),
-          dangerous: true,
-        },
+        create: action({ title: "string" }, ({ title }) => {
+          this.notes.update((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), title, pinned: false },
+          ]);
+        }),
+        clear_all: action(() => this.notes.set([]), { dangerous: true }),
       },
+      items: this.notes().map((note) => ({
+        id: note.id,
+        props: { title: note.title, pinned: note.pinned },
+        actions: {
+          toggle_pin: action(() => {
+            this.notes.update((prev) =>
+              prev.map((entry) =>
+                entry.id === note.id ? { ...entry, pinned: !entry.pinned } : entry,
+              ),
+            );
+          }),
+        },
+      })),
     }));
   }
 }

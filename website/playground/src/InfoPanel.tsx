@@ -11,11 +11,11 @@ const slop = createSlop({
 function TodoList() {
   const [todos, setTodos] = useState([...]);
 
-  useSlop(slop, "todos", {
+  useSlop(slop, "todos", () => ({
     type: "collection",
     props: { count: todos.length },
     items: todos.map(t => ({...})),
-  });
+  }));
 }`;
 
 const HIGHLIGHTED_EXAMPLE = highlight(EXAMPLE_CODE);

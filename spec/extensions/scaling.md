@@ -375,27 +375,27 @@ slop.register("/", {
 });
 
 // Active view — full detail (registered by the mounted page component)
-useSlop(slop, "profile", {
+useSlop(slop, "profile", () => ({
   type: "view",
   props: { name: "Alice", email: "alice@example.com" },
   actions: { edit_name: { params: { name: "string" }, handler: ... } },
-});
+}));
 
 // Inactive views — stubs with summaries (registered by the app shell)
-useSlop(slop, "cart", {
+useSlop(slop, "cart", () => ({
   type: "view",
   summary: "3 items, $127.49 — wireless mouse, USB-C cable, monitor stand",
-});
+}));
 
-useSlop(slop, "orders", {
+useSlop(slop, "orders", () => ({
   type: "view",
   summary: "12 recent orders, 1 in transit (arriving tomorrow)",
-});
+}));
 
-useSlop(slop, "shop", {
+useSlop(slop, "shop", () => ({
   type: "view",
   summary: "2.4M products across 30 categories",
-});
+}));
 ```
 
 The AI sees:

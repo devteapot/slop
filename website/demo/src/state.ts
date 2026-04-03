@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 import { slop } from "./slop";
 
 // --- Data model ---
@@ -192,7 +192,7 @@ export function useAppState() {
   // --- SLOP registration ---
 
   // Catalog node
-  useSlop(slop, "catalog", {
+  useSlop(slop, "catalog", () => ({
     type: "collection",
     props: {
       total: products.length,
@@ -201,15 +201,12 @@ export function useAppState() {
       category: categoryFilter,
     },
     actions: {
-      search: {
-        params: { query: "string" },
-        handler: (params: any) => search(params.query),
-      },
-      filter_category: {
-        params: { category: "string" },
-        handler: (params: any) => filterByCategory(params.category),
-      },
-      clear_filters: () => clearFilters(),
+      search: action({ query: "string" }, ({ query }) => search(query)),
+      filter_category: action(
+        { category: "string" },
+        ({ category }) => filterByCategory(category),
+      ),
+      clear_filters: action(() => clearFilters()),
     },
     items: filteredProducts.map((p) => ({
       id: p.id,
@@ -222,21 +219,22 @@ export function useAppState() {
         category: p.category,
       },
       actions: {
-        view_details: () => selectProduct(p.id),
-        add_to_cart: {
-          params: { quantity: { type: "number", description: "Quantity to add" } },
-          handler: (params: any) => addToCart(p.id, params.quantity ?? 1),
-        },
+        view_details: action(() => selectProduct(p.id)),
+        add_to_cart: action(
+          { quantity: { type: "number", description: "Quantity to add" } },
+          ({ quantity }) => addToCart(p.id, quantity ?? 1),
+        ),
       },
     })),
-  });
+  }));
 
   // Product detail node (only when a product is selected)
   useSlop(
     slop,
     "product",
-    selectedProduct
-      ? {
+    () =>
+      selectedProduct
+        ? {
           type: "view",
           props: {
             name: selectedProduct.name,
@@ -247,12 +245,11 @@ export function useAppState() {
             category: selectedProduct.category,
           },
           actions: {
-            add_to_cart: {
-              params: { quantity: { type: "number", description: "Quantity to add" } },
-              handler: (params: any) =>
-                addToCart(selectedProduct.id, params.quantity ?? 1),
-            },
-            back_to_catalog: () => navigate("catalog"),
+            add_to_cart: action(
+              { quantity: { type: "number", description: "Quantity to add" } },
+              ({ quantity }) => addToCart(selectedProduct.id, quantity ?? 1),
+            ),
+            back_to_catalog: action(() => navigate("catalog")),
           },
           children: {
             reviews: {
@@ -267,20 +264,15 @@ export function useAppState() {
                   : 0,
               },
               actions: {
-                add_review: {
-                  params: {
+                add_review: action(
+                  {
                     author: "string",
                     rating: { type: "number", description: "Rating 1-5" },
                     text: "string",
                   },
-                  handler: (params: any) =>
-                    addReview(
-                      selectedProduct.id,
-                      params.author,
-                      params.rating,
-                      params.text,
-                    ),
-                },
+                  ({ author, rating, text }) =>
+                    addReview(selectedProduct.id, author, rating, text),
+                ),
               },
               items: productReviews.map((r) => ({
                 id: r.id,
@@ -294,18 +286,18 @@ export function useAppState() {
             },
           },
         }
-      : { type: "view", props: { empty: true } },
+        : { type: "view", props: { empty: true } },
   );
 
   // Cart node
-  useSlop(slop, "cart", {
+  useSlop(slop, "cart", () => ({
     type: "collection",
     props: {
       itemCount: cart.length,
       total: +cartTotal.toFixed(2),
     },
     actions: {
-      clear_cart: { handler: () => clearCart(), dangerous: true },
+      clear_cart: action(() => clearCart(), { dangerous: true }),
     },
     items: cart.map((item) => {
       const product = products.find((p) => p.id === item.productId);
@@ -318,28 +310,28 @@ export function useAppState() {
           subtotal: +((product?.price ?? 0) * item.quantity).toFixed(2),
         },
         actions: {
-          update_quantity: {
-            params: { quantity: { type: "number", description: "New quantity" } },
-            handler: (params: any) => updateQuantity(item.productId, params.quantity),
-          },
-          remove: () => removeFromCart(item.productId),
+          update_quantity: action(
+            { quantity: { type: "number", description: "New quantity" } },
+            ({ quantity }) => updateQuantity(item.productId, quantity),
+          ),
+          remove: action(() => removeFromCart(item.productId)),
         },
       };
     }),
-  });
+  }));
 
   // Navigation node
-  useSlop(slop, "navigation", {
+  useSlop(slop, "navigation", () => ({
     type: "status",
     props: {
       currentView,
       selectedProduct: selectedProduct?.name ?? null,
     },
     actions: {
-      go_to_catalog: () => navigate("catalog"),
-      go_to_cart: () => navigate("cart"),
+      go_to_catalog: action(() => navigate("catalog")),
+      go_to_cart: action(() => navigate("cart")),
     },
-  });
+  }));
 
   return {
     products,

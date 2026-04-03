@@ -166,19 +166,19 @@ function MessageList() {
   };
 
   // --- SLOP integration ---
-  useSlop(slop, "inbox/messages", {
+  useSlop(slop, "inbox/messages", () => ({
     type: "collection",
     props: { count: messages.length, selected: selectedId },
     items: messages.filter(m => !m.archived).map(m => ({
       id: m.id,
       props: { from: m.from, subject: m.subject, unread: m.unread, date: m.date },
       actions: {
-        select: () => setSelectedId(m.id),
-        archive: () => handleArchive(m.id),
-        delete: { handler: () => handleDelete(m.id), dangerous: true },
+        select: action(() => setSelectedId(m.id)),
+        archive: action(() => handleArchive(m.id)),
+        delete: action(() => handleDelete(m.id), { dangerous: true }),
       },
     })),
-  });
+  }));
 
   return <div>{messages.map(m => <MessageRow key={m.id} message={m} />)}</div>;
 }
@@ -389,30 +389,27 @@ export const slop = createSlop({
 **`TodoList.tsx`** (modified — `useSlop` added):
 ```tsx
 import { slop } from "./slop";
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 import { useTodoStore } from "./store";
 
 function TodoList() {
   const { todos, addTodo, toggleTodo, removeTodo } = useTodoStore();
 
-  useSlop(slop, "todos", {
+  useSlop(slop, "todos", () => ({
     type: "collection",
     props: { count: todos.length },
     actions: {
-      create: {
-        params: { title: "string" },
-        handler: ({ title }) => addTodo(title),
-      },
+      create: action({ title: "string" }, ({ title }) => addTodo(title)),
     },
     items: todos.map(todo => ({
       id: todo.id,
       props: { title: todo.title, done: todo.done, created: todo.createdAt },
       actions: {
-        toggle: () => toggleTodo(todo.id),
-        delete: { handler: () => removeTodo(todo.id), dangerous: true },
+        toggle: action(() => toggleTodo(todo.id)),
+        delete: action(() => removeTodo(todo.id), { dangerous: true }),
       },
     })),
-  });
+  }));
 
   return (
     <ul>
@@ -425,21 +422,21 @@ function TodoList() {
 **`FilterBar.tsx`** (modified):
 ```tsx
 import { slop } from "./slop";
-import { useSlop } from "@slop-ai/react";
+import { action, useSlop } from "@slop-ai/react";
 
 function FilterBar() {
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
 
-  useSlop(slop, "filters", {
+  useSlop(slop, "filters", () => ({
     type: "group",
     props: { active: filter },
     actions: {
-      set_filter: {
-        params: { value: "string" },
-        handler: ({ value }) => setFilter(value as any),
-      },
+      set_filter: action(
+        { value: "string" },
+        ({ value }) => setFilter(value as "all" | "active" | "done"),
+      ),
     },
-  });
+  }));
 
   return <div>...</div>;
 }
@@ -454,10 +451,10 @@ function StatsBar() {
   const { todos } = useTodoStore();
   const done = todos.filter(t => t.done).length;
 
-  useSlop(slop, "stats", {
+  useSlop(slop, "stats", () => ({
     type: "status",
     props: { total: todos.length, done, remaining: todos.length - done },
-  });
+  }));
 
   return <div>{todos.length} items, {done} done</div>;
 }

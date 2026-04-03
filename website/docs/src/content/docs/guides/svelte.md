@@ -28,7 +28,7 @@ export const slop = createSlop({
 
 ```svelte
 <script lang="ts">
-  import { useSlop } from "@slop-ai/svelte";
+  import { action, useSlop } from "@slop-ai/svelte";
   import { slop } from "./slop";
 
   interface Note {
@@ -42,15 +42,23 @@ export const slop = createSlop({
   useSlop(slop, "notes", () => ({
     type: "collection",
     props: { count: notes.length },
+    actions: {
+      create: action({ title: "string" }, ({ title }) => {
+        notes = [...notes, { id: crypto.randomUUID(), title, pinned: false }];
+      }),
+      clear_all: action(() => {
+        notes = [];
+      }, { dangerous: true }),
+    },
     items: notes.map((note) => ({
       id: note.id,
       props: { title: note.title, pinned: note.pinned },
       actions: {
-        toggle_pin: () => {
+        toggle_pin: action(() => {
           notes = notes.map((entry) =>
             entry.id === note.id ? { ...entry, pinned: !entry.pinned } : entry,
           );
-        },
+        }),
       },
     })),
   }));

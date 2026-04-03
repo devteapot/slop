@@ -10,6 +10,8 @@
     "test": "for d in packages/typescript/*/; do if ls \"$d\"__tests__/*.test.* >/dev/null 2>&1; then echo \"Testing $d\" && (cd \"$d\" && bun test); fi; done",
     "clean": "for d in packages/typescript/*/; do (cd \"$d\" && rm -rf dist); done",
     "demo": "cd website/demo && bunx vite --port 3001",
+    "preflight": "bun run scripts/preflight.ts",
+    "preflight:list": "bun run scripts/preflight.ts --list",
     "release:sync-version": "bun run scripts/release/sync-version.ts",
     "release:publish-packages": "bun run scripts/release/publish-packages.ts",
     "release:publish-python": "bun run scripts/release/publish-python.ts",

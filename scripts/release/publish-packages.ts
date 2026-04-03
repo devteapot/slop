@@ -37,7 +37,7 @@ for (const pkg of packages) {
     continue;
   }
 
-  const tag = process.env.NPM_TAG ?? getNpmTag(version);
+  const tag = process.env.NPM_TAG || getNpmTag(version);
   const publishArgs = ["publish", "--access", "public", "--tag", tag, "--provenance"];
 
   runCommand("npm", publishArgs, pkg.dir);

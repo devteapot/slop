@@ -1,0 +1,100 @@
+---
+---
+<section class="problem">
+  <div class="container">
+    <span class="label">The Mismatch</span>
+    <h2>Today's agents still operate through interfaces made for humans</h2>
+
+    <div class="problem-grid">
+      <div class="card problem-card rival">
+        <h3>Vision (Screenshots)</h3>
+        <p>The agent drives the human UI and reconstructs meaning from pixels. Expensive, lossy, fragile.</p>
+        <ul>
+          <li>Tokens wasted on OCR</li>
+          <li>Layout changes break everything</li>
+          <li>Can't see what's off-screen</li>
+        </ul>
+      </div>
+      <div class="card problem-card rival">
+        <h3>Tool Calls (MCP)</h3>
+        <p>The agent can call functions, but it still lacks a live model of the program. Reads must be bolted on tool by tool.</p>
+        <ul>
+          <li>Read access requires bespoke tools</li>
+          <li>Global tools lose local context</li>
+          <li>Validity is discovered at runtime</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="solution-bridge">
+      <div class="solution-line"></div>
+      <p class="solution-text">SLOP adds an <strong>agent-facing interface</strong> — apps publish semantic state and contextual actions so agents can <strong>operate the program directly</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .problem h2 {
+    font-size: 2.25rem;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-8);
+  }
+  .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+  }
+  @media (max-width: 768px) {
+    .problem-grid { grid-template-columns: 1fr; }
+  }
+  .problem-card {
+    padding: var(--space-6);
+  }
+  .problem-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-4);
+  }
+  .problem-card p {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-4);
+    font-size: 0.9375rem;
+  }
+  .problem-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .problem-card li {
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+    padding-left: var(--space-4);
+    position: relative;
+  }
+  .problem-card li::before {
+    content: "×";
+    position: absolute;
+    left: 0;
+    color: #f87171;
+  }
+  .solution-bridge {
+    text-align: center;
+    margin-top: var(--space-10);
+  }
+  .solution-line {
+    width: 1px;
+    height: 40px;
+    background: var(--primary-dim);
+    margin: 0 auto var(--space-5);
+    background: linear-gradient(to bottom, transparent, var(--primary));
+  }
+  .solution-text {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  .solution-text strong {
+    color: var(--primary);
+  }
+</style>

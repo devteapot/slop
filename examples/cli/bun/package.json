@@ -1,0 +1,15 @@
+{
+  "name": "tsk",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "tsk": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "slop": "bun run src/index.ts --slop"
+  },
+  "dependencies": {
+    "@slop-ai/server": "workspace:*"
+  }
+}

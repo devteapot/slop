@@ -22,7 +22,7 @@
     "directory": "packages/typescript/core"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build": "rm -rf dist && bun build src/index.ts --outdir dist --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"
   }
 }

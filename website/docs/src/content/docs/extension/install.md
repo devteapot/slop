@@ -26,6 +26,24 @@ Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and
 - relays browser providers to the desktop app when the bridge is enabled
 - supports multiple LLM backends configured from the popup
 
+## Example workflows
+
+### Test a local SPA without leaving the page
+
+Open your app in Chrome, load the unpacked extension, and use the chat overlay directly in the page. This is useful when you want to verify that:
+
+- the page's provider is being discovered correctly
+- the current tree matches the visible UI
+- invoking affordances from chat produces the expected changes
+
+### Prototype with the accessibility adapter
+
+If the current page is not SLOP-native yet, use the popup's page scan to activate the accessibility adapter. That gives you a temporary provider-like view of the page so you can exercise the browser consumer before your native integration is finished.
+
+### Send browser state into the desktop app
+
+Enable the desktop bridge in the popup, then start the desktop app. The extension re-announces active providers after reconnects or service-worker restarts, which makes it practical to keep a browser tab attached to a larger multi-provider desktop workspace.
+
 ## Desktop bridge
 
 When enabled, the extension connects to the desktop bridge at `ws://localhost:9339` and re-announces active browser providers after reconnects or service-worker restarts.

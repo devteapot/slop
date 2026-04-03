@@ -249,6 +249,68 @@ jobs:
           releaseAssetNamePattern: SLOP.Desktop_[version]_[arch][ext]
           args: --target ${{ matrix.target }}
 
+  build-cli:
+    name: Build CLI
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - os: ubuntu-latest
+            goos: windows
+            goarch: amd64
+            suffix: windows-amd64.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/cli/go.mod
+
+      - name: Resolve version
+        id: release
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: echo "version=${TAG_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build CLI binary
+        working-directory: apps/cli
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build -ldflags="-s -w -X main.Version=${{ steps.release.outputs.version }}" \
+            -o "../../slop-cli-${{ matrix.suffix }}" .
+
+      - name: Upload CLI binary to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload "${{ github.event.release.tag_name }}"
+          "slop-cli-${{ matrix.suffix }}"
+          --clobber
+
   tag-go-module:
     name: Tag Go module release
     runs-on: ubuntu-latest

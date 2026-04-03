@@ -77,6 +77,7 @@ Local apps can register a descriptor in `~/.slop/providers/` so the desktop app,
 
 ## Related pages
 
+- [Full-stack apps](/guides/advanced/full-stack) — merging server + browser UI into one provider
 - [Server provider API](/api/server)
 - [TanStack Start guide](/guides/tanstack-start)
 - [Consumer guide](/guides/consumer)

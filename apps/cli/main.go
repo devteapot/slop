@@ -12,11 +12,19 @@ import (
 	"github.com/slop-ai/slop-cli/tui"
 )
 
+var Version = "dev"
+
 func main() {
 	connect := flag.String("connect", "", "connect directly to a provider address (ws:// or unix socket path)")
 	bridgeEnabled := flag.Bool("bridge", true, "enable extension bridge (server or client)")
 	bridgePort := flag.Int("bridge-port", bridge.DefaultPort, "bridge server port")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("slop-cli", Version)
+		return
+	}
 
 	var b bridge.Bridge
 	if *bridgeEnabled {

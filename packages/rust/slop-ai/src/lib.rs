@@ -32,7 +32,7 @@
 //! ## Quick start
 //!
 //! ```
-//! use slop_ai::SlopServer;
+//! use slop_ai::{SlopServer, ActionOptions};
 //! use serde_json::json;
 //!
 //! let slop = SlopServer::new("my-app", "My App");
@@ -42,12 +42,12 @@
 //!     "props": {"count": 0},
 //! }));
 //!
-//! slop.action("todos", "add", |params| {
+//! slop.action_with("todos", "add", |params| {
 //!     let text = params["text"].as_str().unwrap_or("untitled");
 //!     Ok(Some(json!({ "added": text })))
-//! });
+//! }, ActionOptions::new().label("Add todo"));
 //!
-//! assert_eq!(slop.version(), 1);
+//! assert_eq!(slop.version(), 2);
 //! ```
 //!
 //! ## Documentation

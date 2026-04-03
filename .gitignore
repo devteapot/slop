@@ -3,6 +3,9 @@ dist/
 artifacts/
 .astro/
 .DS_Store
+.env
+.env.*
+!.env.example
 .venv/
 __pycache__/
 *.egg-info/

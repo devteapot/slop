@@ -6,7 +6,7 @@ Applications expose a **semantic state tree** that AI can subscribe to, query at
 
 https://github.com/user-attachments/assets/738add8c-8c06-4e5c-a85d-1e81e7472354
 
-> An AI agent observing state, invoking actions, and updating the UI in real time. Run it yourself: `bun demo`
+> An AI agent observing state, invoking actions, and updating the UI in real time. Run it yourself: `bun run demo`
 
 ## Why
 
@@ -94,6 +94,9 @@ The full specification is in [`spec/`](./spec/):
 - [Adapters](./spec/integrations/adapters.md) — wrapping existing apps
 - [Web](./spec/integrations/web.md) — browser integration, postMessage, security tiers
 - [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
+### Status and limits
+
+- [Known Limitations & Future Work](./spec/limitations.md) — current gaps, reserved protocol areas, and roadmap notes
 ### SDK guides
 
 - [Development & Debugging](./docs/sdk/development.md) — `printTree()`, schema validation, message logging
@@ -166,8 +169,12 @@ slop/
 │   └── mcp-vs-slop/               # MCP vs SLOP benchmark suite
 ├── examples/
 │   ├── cli/                        # Task manager CLI in 4 languages (Bun, Python, Go, Rust)
-│   ├── spa/
-│   │   └── notes/                  # React SPA with in-browser SLOP
+│   ├── spa/                        # Client-only kanban board across 5 frameworks
+│   │   ├── react/
+│   │   ├── vue/
+│   │   ├── solid/
+│   │   ├── svelte/
+│   │   └── angular/
 │   └── full-stack/
 │       ├── tanstack-start/         # TanStack Start — server + UI mount
 │       └── python-react/           # Python FastAPI + React — cross-SDK
@@ -182,9 +189,9 @@ slop/
 
 Each example follows a **blueprint** — a language-agnostic spec defining the exact SLOP tree, affordances, and test scenarios. Multiple implementations of the same blueprint prove cross-language consistency.
 
-- **[Interactive Demo](./website/demo/)** — Three-panel demo: e-commerce store + AI agent + live state tree. Run with `bun demo`. Replay mode works without an API key; connect one for interactive mode.
+- **[Interactive Demo](./website/demo/)** — Three-panel demo: e-commerce store + AI agent + live state tree. Run with `bun run demo`. Replay mode works without an API key; connect one for interactive mode.
 - **[CLI Task Manager](./examples/cli/)** — `tsk`, a task manager with a `--slop` flag. Implementations in Bun, Python, Go, and Rust.
-- **[Notes SPA](./examples/spa/notes/)** — React app with in-browser SLOP provider via postMessage.
+- **[SPA Kanban Board](./examples/spa/react/)** — Canonical client-only example, implemented in React, Vue, Solid, Svelte, and Angular from the same blueprint.
 - **[TanStack Start](./examples/full-stack/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
 - **[Python + React](./examples/full-stack/python-react/)** — Python FastAPI backend + React SPA frontend. Cross-SDK integration with two independent providers.
 

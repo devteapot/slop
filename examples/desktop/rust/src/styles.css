@@ -1,0 +1,336 @@
+/* ── Tokens ── */
+:root {
+  --surface: #111319;
+  --surface-container-low: #191d27;
+  --surface-container: #1e2230;
+  --surface-container-highest: #2a2f3d;
+  --primary: #91db37;
+  --primary-container: #6ba020;
+  --secondary: #adc6ff;
+  --secondary-container: rgba(173, 198, 255, 0.15);
+  --on-surface: #e2e4e9;
+  --on-surface-variant: #8a8f9e;
+  --outline-variant: rgba(138, 143, 158, 0.15);
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-display);
+  background: var(--surface);
+  color: var(--on-surface);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 24px 28px;
+  gap: 24px;
+}
+
+/* ── Header ── */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  -webkit-app-region: drag;
+  padding-top: 8px;
+}
+
+.app-title {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--on-surface-variant);
+}
+
+.status-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  background: var(--surface-container-low);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.status-label.working {
+  color: var(--primary);
+  background: rgba(145, 219, 55, 0.1);
+}
+
+.status-label.break {
+  color: var(--secondary);
+  background: var(--secondary-container);
+}
+
+.status-label.paused {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
+}
+
+/* ── Timer Section ── */
+.timer-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 0;
+}
+
+.tag-display {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  min-height: 20px;
+  text-align: center;
+}
+
+.tag-display .tag-prefix {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--on-surface-variant);
+  opacity: 0.7;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.tag-display .tag-name {
+  color: var(--on-surface);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ── Timer Ring ── */
+.timer-ring-container {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-bg {
+  fill: none;
+  stroke: var(--surface-container);
+  stroke-width: 6;
+}
+
+.ring-progress {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.ring-progress.break-mode {
+  stroke: var(--secondary);
+}
+
+.timer-digits {
+  font-family: var(--font-mono);
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--on-surface);
+  letter-spacing: -0.02em;
+  z-index: 1;
+}
+
+.timer-digits.idle {
+  color: var(--on-surface-variant);
+  opacity: 0.5;
+}
+
+/* ── Controls ── */
+.timer-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  border: none;
+  cursor: pointer;
+  padding: 10px 20px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-container));
+  color: var(--surface);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 15px var(--primary);
+}
+
+.btn-secondary {
+  background: rgba(173, 198, 255, 0.12);
+  color: var(--secondary);
+  backdrop-filter: blur(12px);
+}
+
+.btn-secondary:hover {
+  background: rgba(173, 198, 255, 0.2);
+}
+
+.btn-danger {
+  background: rgba(255, 100, 100, 0.12);
+  color: #ff6464;
+  backdrop-filter: blur(12px);
+}
+
+.btn-danger:hover {
+  background: rgba(255, 100, 100, 0.2);
+}
+
+/* ── Start input ── */
+.start-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.start-input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+  border: none;
+  border-radius: 4px;
+  padding: 10px 14px;
+  width: 200px;
+  outline: none;
+}
+
+.start-input:focus {
+  box-shadow: 0 2px 0 0 var(--primary);
+}
+
+.start-input::placeholder {
+  color: var(--on-surface-variant);
+  opacity: 0.5;
+}
+
+/* ── Sessions ── */
+.sessions-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sessions-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-card {
+  background: var(--surface-container-low);
+  border-radius: 4px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.15s ease;
+}
+
+.session-card:hover {
+  background: var(--surface-container);
+}
+
+.session-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  min-width: 60px;
+}
+
+.session-tag {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-surface);
+  flex: 1;
+}
+
+.session-category {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+  opacity: 0.7;
+}
+
+.session-duration {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--on-surface-variant);
+}
+
+/* ── Empty state ── */
+.empty-state {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--on-surface-variant);
+  text-align: center;
+  padding: 24px;
+  opacity: 0.5;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-container-highest);
+  border-radius: 3px;
+}

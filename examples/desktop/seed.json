@@ -1,0 +1,46 @@
+{
+  "sessions": [
+    {
+      "id": "s-1",
+      "tag": "Morning standup",
+      "category": "meetings",
+      "started_at": "2026-04-01T10:00:00Z",
+      "ended_at": "2026-04-01T10:25:00Z",
+      "duration_sec": 1500,
+      "completed": true
+    },
+    {
+      "id": "s-2",
+      "tag": "Implement SLOP SDK",
+      "category": "work",
+      "started_at": "2026-04-01T12:30:00Z",
+      "ended_at": "2026-04-01T12:55:00Z",
+      "duration_sec": 1500,
+      "completed": true
+    },
+    {
+      "id": "s-3",
+      "tag": "Write docs",
+      "category": "docs",
+      "started_at": "2026-04-01T14:15:00Z",
+      "ended_at": "2026-04-01T14:40:00Z",
+      "duration_sec": 1500,
+      "completed": true
+    },
+    {
+      "id": "s-4",
+      "tag": "Code review",
+      "category": "work",
+      "started_at": "2026-04-01T15:45:00Z",
+      "ended_at": "2026-04-01T16:10:00Z",
+      "duration_sec": 1500,
+      "completed": true
+    }
+  ],
+  "settings": {
+    "work_duration_sec": 1500,
+    "short_break_sec": 300,
+    "long_break_sec": 900,
+    "long_break_interval": 4
+  }
+}

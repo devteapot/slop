@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POMODORO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <h1 class="app-title">POMODORO</h1>
+      <span class="status-label" id="status-label">IDLE</span>
+    </header>
+
+    <main class="timer-section">
+      <div class="tag-display" id="tag-display"></div>
+
+      <div class="timer-ring-container">
+        <svg class="timer-ring" viewBox="0 0 200 200">
+          <circle class="ring-bg" cx="100" cy="100" r="88" />
+          <circle class="ring-progress" id="ring-progress" cx="100" cy="100" r="88"
+            stroke-dasharray="553"
+            stroke-dashoffset="553" />
+        </svg>
+        <div class="timer-digits" id="timer-digits">00:00</div>
+      </div>
+
+      <div class="timer-controls" id="timer-controls"></div>
+    </main>
+
+    <section class="sessions-section">
+      <div class="sessions-header">
+        <span class="sessions-title" id="sessions-title">TODAY: 0 POMODOROS</span>
+      </div>
+      <div class="sessions-list" id="sessions-list"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

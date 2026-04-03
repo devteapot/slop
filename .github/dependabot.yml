@@ -1,0 +1,80 @@
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      js-workspace:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/website/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      docs-site:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/packages/python/slop-ai"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      python-sdk:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "cargo"
+    directory: "/packages/rust/slop-ai"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      rust-sdk:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/packages/go/slop-ai"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    groups:
+      go-sdk:
+        patterns:
+          - "*"

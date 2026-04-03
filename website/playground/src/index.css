@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-surface: #111319;
+  --color-surface-lowest: #0c0e14;
+  --color-surface-low: #161923;
+  --color-surface-container: #1c1f2b;
+  --color-surface-highest: #252836;
+  --color-surface-variant: #2a2d3a;
+  --color-primary: #91db37;
+  --color-primary-container: #6ba825;
+  --color-secondary: #adc6ff;
+  --color-secondary-container: #3d5a99;
+  --color-on-surface: #e1e3e8;
+  --color-on-surface-variant: #9a9daa;
+  --color-outline-variant: #3a3d4a;
+  --color-error: #f2836b;
+  --color-amber: #f0c040;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: color-mix(in srgb, var(--color-surface-variant) 60%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+/* Neon green flash for tree node changes */
+@keyframes flash-green {
+  0% {
+    background-color: color-mix(in srgb, var(--color-primary) 25%, transparent);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+}
+
+.flash-change {
+  animation: flash-green 1.5s ease-out forwards;
+}
+
+/* Syntax highlighting */
+.hl-keyword { color: #c792ea; }
+.hl-string { color: #c3e88d; }
+.hl-number { color: #f78c6c; }
+.hl-comment { color: #546e7a; font-style: italic; }
+.hl-property { color: #82aaff; }
+.hl-function { color: #82aaff; }
+
+/* CTA glow */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(145, 219, 55, 0.3); }
+  50% { box-shadow: 0 0 18px rgba(145, 219, 55, 0.5); }
+}
+
+.cta-glow {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 3px;
+}

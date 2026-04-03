@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="slop" content="postmessage" />
+  <title>SLOP Minimal Test</title>
+</head>
+<body>
+  <h1>SLOP Minimal Test</h1>
+  <pre id="log"></pre>
+  <script type="module">
+    import { createSlop } from "/node_modules/@slop-ai/client/dist/index.js";
+
+    const log = (msg) => {
+      document.getElementById("log").textContent += msg + "\n";
+      console.log(msg);
+    };
+
+    log("Creating SLOP client...");
+    const slop = createSlop({ id: "test", name: "Test", websocketUrl: true });
+    log("SLOP client created");
+
+    slop.register("/", {
+      type: "root",
+      props: { hello: "world" },
+      actions: {
+        test: { handler: () => log("action invoked!") },
+      },
+    });
+    log("Root registered");
+    log("Waiting for extension...");
+  </script>
+</body>
+</html>

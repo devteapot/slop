@@ -1,0 +1,142 @@
+---
+/**
+ * Roaming Sloppy — fixed to the side, appears when hero sloppy scrolls out.
+ * Pupils track the cursor. Eyes go red on problem-card hover.
+ */
+---
+
+<div class="sloppy-roaming" id="sloppy-roaming" aria-hidden="true">
+  <svg viewBox="0 0 153 158" fill="none" xmlns="http://www.w3.org/2000/svg" class="sloppy-svg">
+    <g>
+      <path d="M132.729 0.0454129C137.181 -1.06668 136.229 18.5454 132.229 26.0454C127.729 21.0459 118.729 12.0454 112.729 9.54541C124.229 7.04541 131.856 0.263339 132.729 0.0454129Z" fill="#4A8FE7"/>
+      <path d="M20.6714 0.0454129C16.2189 -1.06668 17.1714 18.5454 21.1714 26.0454C25.6714 21.0459 34.6714 12.0454 40.6714 9.54541C29.1714 7.04541 21.5439 0.263339 20.6714 0.0454129Z" fill="#4A8FE7"/>
+      <path d="M137.06 135.545C144.56 131.045 161.56 111.045 147.06 78.5454C147.06 101.545 142.06 118.045 131.06 133.045C130.56 133.545 133.236 137.84 137.06 135.545Z" fill="#2B80CF"/>
+      <path d="M15.6714 135.545C8.17144 131.045 -8.82856 111.045 5.67144 78.5454C5.67144 101.545 10.6714 118.045 21.6714 133.045C22.1714 133.545 19.4957 137.84 15.6714 135.545Z" fill="#2B80CF"/>
+      <path d="M147.576 79.0485C148.076 120.551 126.59 157.55 76.6268 157.545C26.6573 157.545 5.17174 120.551 5.6776 79.0485C4.17242 29.5514 36.1509 0.0516703 76.6268 0.551666C117.096 0.0516703 149.075 29.5514 147.576 79.0485Z" fill="#4A8FE7"/>
+      <path d="M71.1714 82.0454L76.6714 73.5454L82.1714 82.0454C82.1714 82.0454 80.1714 87.5454 76.6714 89.5454C73.1714 87.5454 71.1714 82.0454 71.1714 82.0454Z" fill="black"/>
+      <g>
+        <circle class="sloppy-iris" cx="47.1714" cy="60.0454" r="26.5" fill="#98F5A6"/>
+        <circle class="sloppy-iris" cx="106.171" cy="60.0454" r="26.5" fill="#98F5A6"/>
+        <path d="M47.1714 27.5454C65.1207 27.5454 79.6714 42.0962 79.6714 60.0454C79.6714 77.9947 65.1207 92.5454 47.1714 92.5454C29.2222 92.5454 14.6714 77.9947 14.6714 60.0454C14.6714 42.0962 29.2222 27.5454 47.1714 27.5454ZM47.1714 33.5454C32.5359 33.5454 20.6714 45.4099 20.6714 60.0454C20.6714 74.681 32.5359 86.5454 47.1714 86.5454C61.807 86.5454 73.6714 74.681 73.6714 60.0454C73.6714 45.4099 61.807 33.5454 47.1714 33.5454Z" fill="black"/>
+        <path d="M106.171 27.5454C124.121 27.5454 138.671 42.0962 138.671 60.0454C138.671 77.9947 124.121 92.5454 106.171 92.5454C88.2222 92.5454 73.6714 77.9947 73.6714 60.0454C73.6714 42.0962 88.2222 27.5454 106.171 27.5454ZM106.171 33.5454C91.5359 33.5454 79.6714 45.4099 79.6714 60.0454C79.6714 74.681 91.5359 86.5454 106.171 86.5454C120.807 86.5454 132.671 74.681 132.671 60.0454C132.671 45.4099 120.807 33.5454 106.171 33.5454Z" fill="black"/>
+        <g filter="url(#roam-filter-right)">
+          <path class="sloppy-iris" d="M132.671 60.0454C132.671 74.681 120.807 86.5454 106.171 86.5454C91.5359 86.5454 79.6714 74.681 79.6714 60.0454C79.6714 45.4099 91.5359 33.5454 106.171 33.5454C120.807 33.5454 132.671 45.4099 132.671 60.0454Z" fill="#98F5A6"/>
+        </g>
+        <g filter="url(#roam-filter-left)">
+          <path class="sloppy-iris" d="M73.6714 60.0454C73.6714 74.681 61.807 86.5454 47.1714 86.5454C32.5359 86.5454 20.6714 74.681 20.6714 60.0454C20.6714 45.4099 32.5359 33.5454 47.1714 33.5454C61.807 33.5454 73.6714 45.4099 73.6714 60.0454Z" fill="#98F5A6"/>
+        </g>
+        <g class="sloppy-pupil-group" data-eye="right">
+          <path d="M99.1714 50.5454C104.418 50.5454 108.671 54.7987 108.671 60.0454C108.671 65.2921 104.418 69.5454 99.1714 69.5454C93.9247 69.5454 89.6714 65.2921 89.6714 60.0454C89.6714 54.7987 93.9247 50.5454 99.1714 50.5454ZM101.671 53.5454C100.015 53.5454 98.6714 54.8886 98.6714 56.5454C98.6714 58.2023 100.015 59.5454 101.671 59.5454C103.328 59.5454 104.671 58.2023 104.671 56.5454C104.671 54.8886 103.328 53.5454 101.671 53.5454Z" fill="black"/>
+        </g>
+        <g class="sloppy-pupil-group" data-eye="left">
+          <path d="M55.1714 50.5454C60.4181 50.5454 64.6714 54.7987 64.6714 60.0454C64.6714 65.2921 60.4181 69.5454 55.1714 69.5454C49.9247 69.5454 45.6714 65.2921 45.6714 60.0454C45.6714 54.7987 49.9247 50.5454 55.1714 50.5454ZM57.6714 53.5454C56.0146 53.5454 54.6714 54.8886 54.6714 56.5454C54.6714 58.2023 56.0146 59.5454 57.6714 59.5454C59.3283 59.5454 60.6714 58.2023 60.6714 56.5454C60.6714 54.8886 59.3283 53.5454 57.6714 53.5454Z" fill="black"/>
+        </g>
+      </g>
+    </g>
+    <defs>
+      <filter id="roam-filter-right" x="59.6714" y="13.5454" width="93" height="93" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+        <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+        <feGaussianBlur stdDeviation="10" result="effect1_foregroundBlur"/>
+      </filter>
+      <filter id="roam-filter-left" x="0.671438" y="13.5454" width="93" height="93" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+        <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+        <feGaussianBlur stdDeviation="10" result="effect1_foregroundBlur"/>
+      </filter>
+    </defs>
+  </svg>
+</div>
+
+<style>
+  .sloppy-roaming {
+    position: fixed;
+    right: -120px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 90px;
+    z-index: 90;
+    cursor: pointer;
+    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.3));
+    transition: right 0.6s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+  }
+
+  .sloppy-roaming.visible {
+    right: -25px;
+    transform: translateY(-50%) rotate(-10deg);
+    pointer-events: auto;
+  }
+
+  .sloppy-roaming.dead {
+    right: -10px;
+    top: calc(100vh - 30px);
+    transform: translateY(0) rotate(180deg);
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: top 0.8s cubic-bezier(0.4, 0, 1, 1),
+                right 0.8s ease-out,
+                transform 0.8s ease-in,
+                opacity 0.6s ease 0.3s;
+  }
+
+  .sloppy-roaming.dismissed {
+    right: -120px;
+    opacity: 0;
+    transition: right 0.5s ease-in, opacity 0.5s ease-in;
+    pointer-events: none;
+  }
+
+  .sloppy-roaming .sloppy-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .sloppy-roaming .sloppy-iris {
+    transition: fill 0.3s ease;
+  }
+
+  .sloppy-roaming.angry .sloppy-iris {
+    fill: #f87171;
+  }
+
+  .sloppy-roaming .sloppy-pupil-group {
+    will-change: transform;
+    transition: transform 0.08s linear;
+  }
+
+  .sloppy-roaming.cross-eyed .sloppy-iris {
+    fill: #c4d94f;
+  }
+
+  .sloppy-roaming.cross-eyed {
+    animation: sloppy-roam-shake 0.3s ease-in-out infinite;
+  }
+
+  .sloppy-roaming.happy {
+    animation: sloppy-roam-jump 0.4s ease-in-out;
+  }
+
+  @keyframes sloppy-roam-shake {
+    0%, 100% { transform: translateY(-50%) rotate(-10deg); }
+    25% { transform: translateY(-50%) rotate(-11deg); }
+    75% { transform: translateY(-50%) rotate(-9deg); }
+  }
+
+  @keyframes sloppy-roam-jump {
+    0% { transform: translateY(-50%) rotate(-10deg); }
+    20% { transform: translateY(calc(-50% - 10px)) rotate(-10deg); }
+    40% { transform: translateY(-50%) rotate(-10deg); }
+    60% { transform: translateY(calc(-50% - 8px)) rotate(-10deg); }
+    80% { transform: translateY(-50%) rotate(-10deg); }
+    100% { transform: translateY(-50%) rotate(-10deg); }
+  }
+
+  @media (max-width: 768px) {
+    .sloppy-roaming {
+      display: none;
+    }
+  }
+</style>

@@ -1,8 +1,7 @@
 ---
-title: Python
-description: Add SLOP to Python apps with FastAPI, local transports, and consumer tooling
+title: "Python"
+description: "Add SLOP to Python apps with FastAPI, local transports, and consumer tooling"
 ---
-
 ## Install
 
 ```bash

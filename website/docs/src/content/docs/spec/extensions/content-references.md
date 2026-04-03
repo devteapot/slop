@@ -1,7 +1,6 @@
 ---
 title: "Content References"
 ---
-
 SLOP state trees are JSON. This works well for structured data — properties, collections, affordances. But some application state is **large, binary, or opaque**: document bodies, file contents, images, audio, video, database exports, logs.
 
 Inlining this content in the tree is wasteful, impractical, or impossible. Content references solve this by letting nodes **point to content** rather than contain it.
@@ -17,11 +16,7 @@ A code editor's state tree might include an open file:
   "properties": {
     "title": "main.ts",
     "language": "typescript",
-    "content": "import { createSlop } from '@slop-ai/client';
-
-export const slop = createSlop({
-  id: 'my-app',
-  ... (500 more lines)"
+    "content": "import { createSlop } from '@slop-ai/core';\n\nexport const slop = createSlop({\n  id: 'my-app',\n  ... (500 more lines)"
   }
 }
 ```
@@ -206,8 +201,7 @@ When the AI receives a state tree with content references, it sees:
 [document] main.ts (language="typescript", line_count=500, dirty=false)
   content: text/typescript, 12.4 KB
   summary: "TypeScript module. Exports SLOP client, defines app routes."
-  preview: "import { createSlop } from '@slop-ai/client';
-..."
+  preview: "import { createSlop } from '@slop-ai/core';\n..."
   actions: {read_content, write_content(content)}
 ```
 

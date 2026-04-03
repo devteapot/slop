@@ -1,5 +1,7 @@
-# OpenClaw Integration
-
+---
+title: "OpenClaw Integration"
+description: "Control SLOP-enabled applications through OpenClaw"
+---
 `@slop-ai/openclaw-plugin` lets OpenClaw discover SLOP-enabled apps on your machine and act on them through two tools:
 
 - `connected_apps`
@@ -58,3 +60,8 @@ app_action("kanban", "/", "add_card", { column: "backlog", title: "Ship docs" })
 ## Why the plugin uses two tools
 
 SLOP providers are dynamic. Their actions change with live state, and new providers can appear or disappear while OpenClaw is running. Using two stable meta-tools avoids a giant, ever-changing tool registry while still giving the model access to the full provider tree.
+
+## Related pages
+
+- [OpenClaw package API](/api/openclaw-plugin)
+- [Consumer SDK](/api/consumer)

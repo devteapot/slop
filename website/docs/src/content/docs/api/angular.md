@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/angular"
-description: Angular integration for exposing signal-based component state through SLOP
+description: "Angular integration for exposing signal-based component state through SLOP"
 ---
-
 ```bash
 bun add @slop-ai/client @slop-ai/angular
 ```

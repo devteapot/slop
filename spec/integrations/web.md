@@ -96,8 +96,8 @@ Layer 2: Transport (@slop-ai/client,     — postMessage, WebSocket, Unix socket
          @slop-ai/server)
 Layer 3: SPA adapters (@slop-ai/react,   — useSlop() hooks for component lifecycle
          vue, solid, angular, svelte)
-Layer 4: Meta-framework adapters         — Consumer-side tree merge, data invalidation,
-         (@slop-ai/next, nuxt, sveltekit)  framework-specific refresh, session routing
+Layer 4: Full-stack adapters             — UI mounting, refresh routing,
+         (@slop-ai/tanstack-start)         and framework-specific composition
 ```
 
 ```
@@ -109,24 +109,22 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 @slop-ai/solid          — useSlop() primitive (~10 lines)
 @slop-ai/angular        — useSlop() with signals (~15 lines)
 @slop-ai/svelte         — useSlop() with $effect runes (~15 lines, ships as .svelte.ts source)
-@slop-ai/next           — Next.js integration (server setup + UI sync + state composition)
-@slop-ai/nuxt           — Nuxt module (Nitro WebSocket + auto-sync + composables)
-@slop-ai/sveltekit      — SvelteKit integration (Vite plugin + load invalidation)
+@slop-ai/tanstack-start — TanStack Start integration (server setup + UI sync + state composition)
 (vanilla JS)            — use @slop-ai/client directly, no adapter needed
 ```
 
 `@slop-ai/core` is the engine — it owns tree assembly, diffing, descriptor-to-wire-format translation, typed schema, and helpers (`action`, `pick`, `omit`, `asyncAction`). It has no transport. `@slop-ai/client` and `@slop-ai/server` are thin shells that wrap the engine with a transport layer. Meta-framework adapters sit on top and handle the full developer experience for a specific framework.
 
 ```
-@slop-ai/next ──────────┐
-@slop-ai/nuxt ──────────┼──→ @slop-ai/server + @slop-ai/client
-@slop-ai/sveltekit ─────┘         ↑
-                            @slop-ai/core (shared engine)
-                                   ↑
-@slop-ai/react ──┐                 │
-@slop-ai/vue  ──┤                 │
-@slop-ai/solid ──┼─────────────────┘
-@slop-ai/angular─┘
+@slop-ai/tanstack-start ──→ @slop-ai/server + @slop-ai/client
+                                     ↑
+                               @slop-ai/core (shared engine)
+                                     ↑
+@slop-ai/react ──┐                   │
+@slop-ai/vue  ──┤                   │
+@slop-ai/solid ──┼───────────────────┘
+@slop-ai/angular─┤
+@slop-ai/svelte ─┘
 ```
 
 | | `@slop-ai/core` | `@slop-ai/client` | `@slop-ai/server` |
@@ -140,11 +138,11 @@ Layer 4: Meta-framework adapters         — Consumer-side tree merge, data inva
 
 | App type | Install | Layer |
 |---|---|---|
-| React/Vue/Solid SPA | `@slop-ai/client` + `@slop-ai/react` (or vue, solid, angular) | 2 + 3 |
+| React/Vue/Solid/Angular/Svelte SPA | `@slop-ai/client` + framework adapter | 2 + 3 |
 | Vanilla JS SPA | `@slop-ai/client` | 2 |
-| Next.js fullstack | `@slop-ai/next` (wraps server + client) | 4 |
-| Nuxt fullstack | `@slop-ai/nuxt` (Nuxt module) | 4 |
-| SvelteKit fullstack | `@slop-ai/sveltekit` (wraps server + client) | 4 |
+| TanStack Start fullstack | `@slop-ai/tanstack-start` | 4 |
+| Nuxt / custom Nitro app | `@slop-ai/server` + `@slop-ai/server/nitro` | 2 |
+| SvelteKit / custom Vite app | `@slop-ai/server` + `@slop-ai/server/vite` | 2 |
 | Express / Fastify / Hono | `@slop-ai/server` | 2 |
 | Electron / Tauri native app | `@slop-ai/server` (Unix socket transport) | 2 |
 | CLI tool | `@slop-ai/server` (stdio transport) | 2 |
@@ -189,7 +187,7 @@ The `createSlop` function accepts an optional `schema` that defines the tree's s
 
 ```ts
 // slop.ts
-import { createSlop } from "@slop-ai/core";
+import { createSlop } from "@slop-ai/client";
 
 const schema = {
   inbox: {
@@ -521,7 +519,7 @@ Component C: slop.register("inbox/unread", { type: "status", props: { count: 5 }
 
 ### Server-side developer integration
 
-Server-backed apps (Next.js, Nuxt, SvelteKit, Express) and native apps (Electron, Tauri, CLI tools) use `@slop-ai/server`. The server owns the canonical state and serves it over WebSocket, Unix socket, or stdio.
+Server-backed apps and native apps use `@slop-ai/server` directly unless a higher-level adapter wraps it. The server owns the canonical state and serves it over WebSocket, Unix socket, or stdio.
 
 #### The server client
 
@@ -557,7 +555,7 @@ On the client, framework reactivity (React renders, Vue `watchEffect`) automatic
 import { createSlopServer } from "@slop-ai/server";
 import { getTodos, addTodo, toggleTodo, deleteTodo } from "./state";
 
-const slop = createSlopServer({ id: "nextjs-todos", name: "Next.js Todos" });
+const slop = createSlopServer({ id: "server-todos", name: "Server Todos" });
 
 slop.register("todos", () => ({
   type: "collection",
@@ -638,7 +636,7 @@ All transports share the same provider instance — one state tree, multiple acc
 
 One-liner integrations for popular frameworks:
 
-**Nuxt (Nitro WebSocket handler):**
+**Custom Nitro app (for example Nuxt):**
 
 ```ts
 // server/routes/slop.ts
@@ -648,7 +646,7 @@ import { slop } from "../utils/slop";
 export default nitroHandler(slop);
 ```
 
-**SvelteKit (Vite plugin for dev + adapter-node for prod):**
+**Custom Vite app (for example SvelteKit in dev):**
 
 ```ts
 // vite.config.ts
@@ -756,13 +754,13 @@ slop.register("settings", () => ({ type: "view", ... }))
 
 ### Meta-framework adapters (Layer 4)
 
-Fullstack frameworks (Next.js, Nuxt, SvelteKit, TanStack Start) run code on both the server and in the browser. The cleanest SLOP model for these apps is:
+Full-stack apps that run code on both the server and in the browser — today concretely `@slop-ai/tanstack-start`, plus custom integrations built on the Nitro or Vite helpers — use the cleanest SLOP model:
 
 - the **server** remains the public WebSocket provider
 - the **browser UI** runs `@slop-ai/client`, but connects outbound to the app server
 - the server **mounts that browser tree under `ui`**
 
-Meta-framework adapters handle the framework-specific wiring: standing up the server provider, attaching the browser UI channel, and managing data invalidation when the AI mutates server state. The protocol stays standard SLOP throughout.
+Full-stack adapters handle the framework-specific wiring: standing up the server provider, attaching the browser UI channel, and managing data invalidation when the AI mutates server state. The protocol stays standard SLOP throughout.
 
 `ui` is a **convention for fullstack apps**, not a reserved protocol node. The core protocol allows any stable node IDs and subtree shapes. Using `/ui` simply gives adapters and consumers a predictable place for browser-owned state.
 
@@ -862,15 +860,13 @@ slop.register("__adapter", {
   actions: {
     refresh: () => {
       // Framework-specific invalidation
-      router.refresh();           // Next.js
-      // or: refreshNuxtData();   // Nuxt
-      // or: invalidateAll();     // SvelteKit
+      router.invalidate();        // TanStack Start
     },
   },
 });
 ```
 
-This is a standard `invoke` message — no protocol extension. The consumer just calls it when it detects the data provider changed after an action it routed.
+This is a standard `invoke` message — no protocol extension. The consumer just calls it when it detects the data provider changed after an action it routed. Custom integrations built on `@slop-ai/server/nitro` or `@slop-ai/server/vite` wire the same affordance to their framework's native invalidation primitive.
 
 #### What each adapter handles
 
@@ -882,13 +878,13 @@ This is a standard `invoke` message — no protocol extension. The consumer just
 | Discovery | Publishes the server WebSocket provider; browser UI connections stay internal to the adapter |
 | Configuration | Framework-specific module/plugin setup (one line in config) |
 
-Each framework implements these differently:
+Each integration implements these differently:
 
-| Framework | Server transport | Client refresh | Config |
+| Integration | Server transport | Client refresh | Config |
 |---|---|---|---|
-| Next.js | Custom server + `attachSlop` | `router.refresh()` | `withSlop()` in next.config |
-| Nuxt | Nitro WebSocket handler | `refreshNuxtData()` | `modules: ["@slop-ai/nuxt"]` |
-| SvelteKit | Vite plugin + adapter-node | `invalidateAll()` | `slopPlugin()` in vite.config |
+| TanStack Start | `createWebSocketHandler()` / `slopVitePlugin()` from `@slop-ai/tanstack-start/server` | `router.invalidate()` via `useSlopUI()` | `useSlopUI()` in the root layout plus server helpers |
+| Custom Nitro app | `nitroHandler()` from `@slop-ai/server/nitro` | App-specific invalidation | `export default nitroHandler(slop)` |
+| Custom Vite app | `slopPlugin()` from `@slop-ai/server/vite` | App-specific invalidation | `plugins: [slopPlugin(slop)]` |
 
 #### Developer experience
 
@@ -897,16 +893,32 @@ The developer writes two things: server state registrations and UI state registr
 **Server state** (data provider):
 
 ```ts
-// server/slop/todos.ts — registers on the per-session SlopServer
-export default defineSlopNode("todos", () => ({
+// src/server/slop.ts
+import { createSlopServer, sharedState } from "@slop-ai/tanstack-start/server";
+
+const state = sharedState("my-app", {
+  todos: [] as Array<{ id: string; title: string; done: boolean }>,
+});
+
+export const slop = createSlopServer({ id: "my-app", name: "My App" });
+
+slop.register("todos", () => ({
   type: "collection",
-  props: { count: getTodos().length },
-  items: getTodos().map(t => ({
+  props: { count: state.todos.length },
+  items: state.todos.map(t => ({
     id: t.id,
     props: { title: t.title, done: t.done },
     actions: {
-      toggle: () => toggleTodo(t.id),
-      delete: { handler: () => deleteTodo(t.id), dangerous: true },
+      toggle: () => {
+        const todo = state.todos.find((candidate) => candidate.id === t.id);
+        if (todo) todo.done = !todo.done;
+      },
+      delete: {
+        handler: () => {
+          state.todos = state.todos.filter((candidate) => candidate.id !== t.id);
+        },
+        dangerous: true,
+      },
     },
   })),
 }));
@@ -914,23 +926,36 @@ export default defineSlopNode("todos", () => ({
 
 **UI state** (browser provider):
 
-```vue
-<!-- pages/index.vue -->
-<script setup>
-const { data: todos } = useFetch("/api/todos");
+```tsx
+// src/routes/__root.tsx
+import { Outlet } from "@tanstack/react-router";
+import { useSlopUI } from "@slop-ai/tanstack-start";
 
-const filter = ref("all");
-useSlop("filters", () => ({
+export function RootLayout() {
+  useSlopUI();
+  return <Outlet />;
+}
+
+// src/routes/index.tsx
+import { useState } from "react";
+import { useSlop } from "@slop-ai/tanstack-start";
+
+export function TodosPage() {
+  const [filter, setFilter] = useState("all");
+
+  useSlop("filters", {
   type: "status",
-  props: { category: filter.value },
+  props: { category: filter },
   actions: {
     set_filter: {
       params: { category: "string" },
-      handler: (params) => { filter.value = params.category; },
+      handler: (params) => {
+        setFilter(params.category);
+      },
     },
   },
-}));
-</script>
+  });
+}
 ```
 
 No custom protocol messages. No `ui_` prefix convention. Each side is a standard SLOP provider. The adapter wires the browser UI back to the server automatically — the developer just writes `useSlop()` registrations and descriptor functions.

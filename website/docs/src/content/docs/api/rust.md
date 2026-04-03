@@ -1,8 +1,7 @@
 ---
 title: "slop-ai (Rust)"
-description: Rust crate reference for SLOP providers, consumers, and transport features
+description: "Rust crate reference for SLOP providers, consumers, and transport features"
 ---
-
 ```bash
 cargo add slop-ai
 ```

@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/core"
-description: Shared SLOP descriptor types, helpers, and tree utilities
+description: "Shared SLOP descriptor types, helpers, and tree utilities"
 ---
-
 `@slop-ai/core` is the shared package underneath the browser, server, and adapter SDKs. It does not create a transport or start a provider by itself. Instead, it exports the descriptor types, helper utilities, and tree-processing primitives used everywhere else.
 
 ```bash

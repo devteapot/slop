@@ -168,6 +168,7 @@ angryTriggers.forEach((el) => {
 
 const friendTriggers = document.querySelectorAll(".friend");
 let jumpCooldown = false;
+const jumpAnimationNames = new Set(["sloppy-jump", "sloppy-roam-jump"]);
 
 function triggerJump() {
   if (jumpCooldown) return;
@@ -183,6 +184,14 @@ function triggerJump() {
   setTimeout(() => {
     jumpCooldown = false;
   }, 2000);
+}
+
+for (const el of [heroSloppy, roamingSloppy]) {
+  el.addEventListener("animationend", (event) => {
+    if (jumpAnimationNames.has(event.animationName)) {
+      el.classList.remove("happy");
+    }
+  });
 }
 
 friendTriggers.forEach((el) => {

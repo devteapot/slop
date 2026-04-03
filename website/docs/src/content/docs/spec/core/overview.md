@@ -1,7 +1,6 @@
 ---
 title: "Overview & Concepts"
 ---
-
 ## The problem
 
 AI systems interact with software in two modes today:

@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/svelte"
-description: Svelte 5 composable for publishing rune-based state through SLOP
+description: "Svelte 5 composable for publishing rune-based state through SLOP"
 ---
-
 ```bash
 bun add @slop-ai/client @slop-ai/svelte
 ```

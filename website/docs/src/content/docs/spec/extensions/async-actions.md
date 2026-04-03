@@ -1,7 +1,6 @@
 ---
 title: "Async Actions"
 ---
-
 Some actions take seconds, minutes, or longer to complete — deployments, report generation, test runs, video processing, large file operations. The AI can't wait indefinitely for a result, and it needs to see progress, be able to cancel, and handle failures.
 
 SLOP handles async actions using **existing primitives**: the state tree and affordances. No new message types, no special transport — just a pattern built on what's already there.
@@ -66,7 +65,7 @@ The `accepted` status is analogous to HTTP `202 Accepted` — the request was va
 
 ### The `estimate` affordance field
 
-Affordances can declare their expected duration via the `estimate` field (already defined in [Affordances](../core/affordances.md)):
+Affordances can declare their expected duration via the `estimate` field (already defined in [Affordances](/spec/core/affordances)):
 
 ```jsonc
 {

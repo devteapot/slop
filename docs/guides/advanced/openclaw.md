@@ -1,7 +1,4 @@
----
-title: "OpenClaw Integration"
-description: Control SLOP-enabled applications through OpenClaw
----
+# OpenClaw Integration
 
 `@slop-ai/openclaw-plugin` lets OpenClaw discover SLOP-enabled apps on your machine and act on them through two tools:
 
@@ -64,5 +61,5 @@ SLOP providers are dynamic. Their actions change with live state, and new provid
 
 ## Related pages
 
-- [OpenClaw package API](/api/openclaw-plugin)
-- [Consumer SDK](/api/consumer)
+- [OpenClaw package API](../../api/openclaw-plugin.md)
+- [Consumer SDK](../../api/consumer.md)

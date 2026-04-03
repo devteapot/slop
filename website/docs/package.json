@@ -3,9 +3,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
+    "generate:content": "node ./scripts/generate-content.mjs",
+    "check:content": "node ./scripts/generate-content.mjs --check",
+    "dev": "bun run generate:content && astro dev",
+    "start": "bun run generate:content && astro dev",
+    "build": "bun run generate:content && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },

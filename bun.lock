@@ -204,8 +204,11 @@
       "dependencies": {
         "@slop-ai/core": "workspace:*",
       },
+      "devDependencies": {
+        "@angular/core": "^19.0.0",
+      },
       "peerDependencies": {
-        "@angular/core": ">=16.0.0",
+        "@angular/core": ">=19.0.0",
       },
     },
     "packages/typescript/client": {

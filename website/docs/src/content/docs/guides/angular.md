@@ -1,8 +1,7 @@
 ---
-title: Angular
-description: How to use SLOP with Angular to expose component state to AI agents.
+title: "Angular"
+description: "How to use SLOP with Angular to expose component state to AI agents."
 ---
-
 ## Installation
 
 ```bash

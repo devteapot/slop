@@ -1,7 +1,6 @@
 ---
 title: "Known Limitations & Future Work"
 ---
-
 SLOP v0.1 is designed to be useful now while leaving room to grow. This page documents known limitations of the current protocol and SDK, and the work planned to address them.
 
 ## Protocol limitations
@@ -16,7 +15,7 @@ This is intentional — session management is an application concern, and the pr
 
 **Impact:** Production multi-user web apps can't use server-side SLOP providers correctly — all users would see the same state. Client-only SPAs are unaffected (each browser tab is its own provider).
 
-**Path forward:** SDK-level session support — session-scoped descriptor functions, session-aware `refresh()`, and connection authentication helpers. See [Sessions & Multi-User](/docs/sdk/sessions.md) for the full architecture. No protocol changes are needed.
+**Path forward:** SDK-level session support — session-scoped descriptor functions, session-aware `refresh()`, and connection authentication helpers. See [Sessions & Multi-User](/sdk/sessions) for the full architecture. No protocol changes are needed.
 
 ### No backpressure signaling
 
@@ -74,7 +73,7 @@ When a consumer subscribes, the provider must accept it as-is. There's no mechan
 
 The `@slop-ai/server` and `slop-ai` (Python) SDKs create a single provider instance with a single state tree. There's no built-in way to render different trees per consumer based on user identity.
 
-**Workaround:** Create multiple `SlopServer` instances manually (one per session) and route WebSocket connections yourself. This works but doesn't scale well (see [Sessions & Multi-User](/docs/sdk/sessions.md) for the tradeoffs).
+**Workaround:** Create multiple `SlopServer` instances manually (one per session) and route WebSocket connections yourself. This works but doesn't scale well (see [Sessions & Multi-User](/sdk/sessions) for the tradeoffs).
 
 **Path forward:** Add session-aware descriptor functions `(session) => descriptor` and scoped refresh `refresh({ where: ... })` to the core engine.
 

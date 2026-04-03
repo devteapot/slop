@@ -1,7 +1,6 @@
 ---
 title: "Adapters"
 ---
-
 Most apps won't implement SLOP natively from day one. Adapters bridge existing applications to the SLOP protocol by translating their existing state representations into SLOP state trees.
 
 ## Adapter architecture
@@ -25,7 +24,7 @@ An adapter:
 
 ## Web apps
 
-Web integration is covered in detail in [Web Integration](./web.md). It defines three tiers:
+Web integration is covered in detail in [Web Integration](/spec/integrations/web). It defines three tiers:
 
 1. **SLOP-native** — the app implements SLOP directly (server-side via WebSocket, or client-side via postMessage)
 2. **Framework adapter** — an extension hooks into React/Vue/Svelte state

@@ -1,8 +1,7 @@
 ---
-title: Chrome Extension Privacy Policy
-description: Privacy policy for the SLOP Chrome extension
+title: "Chrome Extension Privacy Policy"
+description: "Privacy policy for the SLOP Chrome extension"
 ---
-
 _Effective date: 2026-04-03_
 
 This Privacy Policy explains how the SLOP Chrome extension handles data.

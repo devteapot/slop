@@ -1,7 +1,6 @@
 ---
 title: "Message Protocol"
 ---
-
 All SLOP communication consists of JSON messages exchanged between a consumer and a provider. Messages are categorized by direction.
 
 ## Message envelope
@@ -28,6 +27,7 @@ Begin observing a subtree. The provider responds with a `snapshot` and then stre
   "id": "sub-1",
   "path": "/",              // Path to the subtree root (default: "/")
   "depth": 2,               // How deep to resolve (default: -1 = unlimited)
+  "max_nodes": 200,         // Maximum total nodes in the snapshot (optional)
   "filter": {               // Optional filters
     "types": ["item", "notification"],  // Only include these node types
     "min_salience": 0.5     // Only include nodes above this salience
@@ -60,6 +60,7 @@ One-shot read of a subtree. Like `subscribe` but returns a single `snapshot` wit
   "id": "q-1",
   "path": "/inbox/msg-42",
   "depth": -1,              // Full detail for this message
+  "max_nodes": 100,         // Maximum total nodes in the response (optional)
   "window": [0, 50]         // [offset, count] — start at item 0, return 50 items
 }
 ```
@@ -84,7 +85,7 @@ Trigger an affordance on a node.
 
 ### `hello`
 
-Sent once after connection. See [Transport](./transport.md).
+Sent once after connection. See [Transport](/spec/core/transport).
 
 ```jsonc
 {
@@ -194,7 +195,7 @@ On error:
 
 ### Extended result statuses
 
-Extensions may define additional `status` values. The `accepted` status (defined in [Async Actions](../extensions/async-actions.md)) indicates the action has started asynchronously — analogous to HTTP 202. The `data` field will contain a `taskId` referencing a progress node in the state tree.
+Extensions may define additional `status` values. The `accepted` status (defined in [Async Actions](/spec/extensions/async-actions)) indicates the action has started asynchronously — analogous to HTTP 202. The `data` field will contain a `taskId` referencing a progress node in the state tree.
 
 Consumers that do not support async actions should treat `accepted` as `ok`.
 

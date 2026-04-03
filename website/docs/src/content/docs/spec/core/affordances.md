@@ -1,7 +1,6 @@
 ---
 title: "Affordances"
 ---
-
 Affordances are the action layer of SLOP. They describe what can be done, where it can be done, and how.
 
 ## What makes affordances different from tools
@@ -111,7 +110,7 @@ The consumer doesn't need conditional logic to know when merging is possible —
 
 ## Invoking affordances
 
-Affordances are invoked via the `invoke` message (see [Messages](./messages.md)):
+Affordances are invoked via the `invoke` message (see [Messages](/spec/core/messages)):
 
 ```jsonc
 {
@@ -172,3 +171,65 @@ Affordances should be placed on the node they operate on. This applies at every 
 App-level affordances (search, navigate, compose) should be placed on the **node they operate on** rather than the root. For example, `search` belongs on the collection it searches, `navigate` on a navigation context node. This keeps affordances co-located with the state they affect and ensures consistent behavior across SDK implementations.
 
 The root node carries the app's identity (`id`, `name`, `version`) and may hold truly global affordances like `logout`, but most actions belong on their target node.
+
+## Consumer tool-name conventions
+
+When an AI consumer converts affordances to LLM function tools (e.g., for OpenAI, Gemini, or Claude tool-use), it needs a tool name for each affordance. The protocol does not prescribe naming, but SDKs SHOULD follow this convention:
+
+### Short names: `{nodeId}__{action}`
+
+Tool names use the **node ID and action only**, not the full tree path. The LLM already has the full tree as context (via `formatTree` or equivalent) — encoding the path in the name is redundant and wastes tokens.
+
+```
+card_123__edit          ← 14 chars (short, readable)
+backlog__reorder        ← 16 chars
+```
+
+Since affordance `action` values are unique within a node, and node IDs are unique within their parent, the combination `{nodeId}__{action}` is usually globally unique. When it's not (two nodes share the same ID at different branches), prepend the parent ID:
+
+```
+board_1__backlog__reorder    ← board-1's backlog
+board_2__backlog__reorder    ← board-2's backlog
+```
+
+Continue prepending ancestors until unique.
+
+### Resolve map, not path encoding
+
+The `affordancesToTools` utility SHOULD return a resolve function (or map) alongside the tools. The consumer uses this to map a tool name back to the full `{ path, action }` needed for the `invoke` message. This keeps the encoding lossless without baking the path into the name.
+
+```
+Tool name:  card_123__edit
+Resolves to: { path: "/inbox/messages/card-123", action: "edit" }
+→ invoke message: { type: "invoke", path: "/inbox/messages/card-123", action: "edit" }
+```
+
+### Sanitization
+
+Node IDs and action names SHOULD be sanitized to `[a-zA-Z0-9_]` in tool names (replacing hyphens and other characters with underscores). This ensures compatibility with LLM providers that restrict function name characters (e.g., Gemini requires `[a-zA-Z_][a-zA-Z0-9_]*`, max 64 chars).
+
+### Multi-provider prefix
+
+When a consumer connects to multiple providers, tool names SHOULD be prefixed with the provider name to avoid collisions: `{providerName}__{nodeId}__{action}`.
+
+### Length limits and deep trees
+
+Some LLM providers impose function name length limits (e.g., Gemini: 64 characters). Short names stay well within limits for typical apps:
+
+| Scenario | Example | Length |
+|---|---|---|
+| Simple node + action | `card_123__edit` | 14 |
+| UUID node + action | `550e8400_e29b_41d4_a716_446655440000__edit` | 42 |
+| Multi-provider + UUID | `my_app__550e8400_e29b_41d4_a716_446655440000__edit` | 50 |
+| Disambiguated UUID + UUID parent | `550e8400_...440001__550e8400_...440000__edit` | **79** |
+
+The last case — UUID collision requiring a UUID parent prefix — exceeds 64 chars. This is rare (requires two sibling-level nodes with identical IDs at different branches, both with long IDs), but possible in deep trees with UUID-based identifiers.
+
+**Mitigation:** Consumer implementations SHOULD apply a hash-based truncation when sanitized names exceed the provider's limit. Truncate to `limit - 8` characters and append `_` plus a 7-character hash of the full name. This preserves uniqueness while respecting the limit:
+
+```
+fn_550e8400_e29b_41d4_a716_446655440001__550e8400_e29b → exceeds 64
+fn_550e8400_e29b_41d4_a716_446655440001__550e84_k3m7x9w → 64 chars, unique
+```
+
+**Provider guidance:** Prefer short, human-readable node IDs (e.g., `card-123`, `inbox`, `settings`) over UUIDs where possible. Short IDs produce better tool names, clearer tree output, and avoid length limit issues entirely.

@@ -1,8 +1,7 @@
 ---
-title: Go
-description: Add SLOP to Go services, daemons, CLI tools, and consumer workflows
+title: "Go"
+description: "Add SLOP to Go services, daemons, CLI tools, and consumer workflows"
 ---
-
 ## Install
 
 ```bash

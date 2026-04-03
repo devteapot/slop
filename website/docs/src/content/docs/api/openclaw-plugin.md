@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/openclaw-plugin"
-description: OpenClaw plugin for discovering and controlling SLOP-enabled applications
+description: "OpenClaw plugin for discovering and controlling SLOP-enabled applications"
 ---
-
 The OpenClaw plugin discovers local SLOP providers, mirrors their state, and exposes two OpenClaw tools:
 
 - `connected_apps`
@@ -29,5 +28,5 @@ The plugin watches `~/.slop/providers/` for provider descriptors and connects to
 
 ## Related pages
 
-- [OpenClaw integration guide](/guides-advanced/openclaw)
+- [OpenClaw integration guide](/guides/advanced/openclaw)
 - [Consumer SDK](/api/consumer)

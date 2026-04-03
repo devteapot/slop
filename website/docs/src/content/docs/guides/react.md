@@ -1,8 +1,7 @@
 ---
-title: React
-description: How to use SLOP with React to expose component state to AI agents.
+title: "React"
+description: "How to use SLOP with React to expose component state to AI agents."
 ---
-
 ## Installation
 
 ```bash

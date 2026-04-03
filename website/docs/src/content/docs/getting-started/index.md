@@ -1,8 +1,7 @@
 ---
-title: Quick Start
-description: Add SLOP to your app in 5 minutes
+title: "Quick Start"
+description: "Add SLOP to your app in 5 minutes"
 ---
-
 ## See it in action
 
 <video autoplay muted loop playsinline preload="metadata" poster="/hero-demo-poster.jpg" style="width: 100%; aspect-ratio: 1440 / 900; object-fit: cover; border-radius: 8px; margin-bottom: 1rem; background: #161a23;">

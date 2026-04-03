@@ -1,6 +1,4 @@
----
-title: "Benchmarks: MCP vs SLOP"
----
+# Benchmarks: MCP vs SLOP
 
 SLOP and MCP solve different problems with different architectures. MCP is **action-first** — it exposes a flat registry of tools that an AI agent can call. SLOP is **state-first** — it exposes a semantic state tree with contextual affordances that change based on the application's current state.
 

@@ -1,7 +1,6 @@
 ---
 title: "Desktop Integration"
 ---
-
 A desktop application can serve as a unified SLOP client — connecting to web apps, local apps, and CLI tools from a single interface. This document covers how a desktop client discovers and connects to SLOP providers, including web apps running in the browser.
 
 ## Direct connections (no browser extension needed)
@@ -16,7 +15,7 @@ Local applications expose SLOP providers on Unix sockets (e.g., `/tmp/slop/my-ap
 Desktop app ←—Unix socket—→ Local SLOP provider
 ```
 
-Discovery: read descriptor files from `~/.slop/providers/` and `/tmp/slop/providers/`. See [Transport & Discovery](../core/transport.md#local-discovery).
+Discovery: read descriptor files from `~/.slop/providers/` and `/tmp/slop/providers/`. See [Transport & Discovery](/spec/core/transport#local-discovery).
 
 ### WebSocket
 
@@ -188,7 +187,7 @@ Per-workspace, persisted to disk. These are providers the user has explicitly pi
 
 ### Local Apps
 
-Discovered via `~/.slop/providers/` and `/tmp/slop/providers/`. These appear automatically as local apps register or deregister. See [Transport & Discovery](../core/transport.md#local-discovery).
+Discovered via `~/.slop/providers/` and `/tmp/slop/providers/`. These appear automatically as local apps register or deregister. See [Transport & Discovery](/spec/core/transport#local-discovery).
 
 ### Browser Tabs
 

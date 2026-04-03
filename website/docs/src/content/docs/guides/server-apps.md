@@ -1,8 +1,7 @@
 ---
-title: Server & Native Apps
-description: Add SLOP to server-backed apps, desktop helpers, daemons, and CLI tools
+title: "Server & Native Apps"
+description: "Add SLOP to server-backed apps, desktop helpers, daemons, and CLI tools"
 ---
-
 Use a server-side SDK when your app owns the authoritative state outside the browser. These providers expose a public WebSocket, Unix socket, or stdio endpoint directly instead of relying on the browser extension.
 
 ## Choose the right package

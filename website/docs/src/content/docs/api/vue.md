@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/vue"
-description: Vue composable for registering SLOP state from reactive components
+description: "Vue composable for registering SLOP state from reactive components"
 ---
-
 ```bash
 bun add @slop-ai/client @slop-ai/vue
 ```

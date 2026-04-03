@@ -1,7 +1,6 @@
 ---
 title: "Scaling"
 ---
-
 SLOP is designed for AI consumption, and AI has a finite context window. A small todo app might fit entirely in context, but a large application — an email client, a project management tool, an IDE — has far more state than any AI can or should process at once.
 
 This document defines patterns for structuring SLOP trees so they scale to large applications without overwhelming the consumer.
@@ -180,7 +179,7 @@ This pattern is useful for:
 
 ## Salience-driven pruning
 
-The attention system (see [Attention & Salience](../core/attention.md)) can drive tree pruning at scale. Nodes with low salience can be omitted entirely from subscriptions that filter by `min_salience`.
+The attention system (see [Attention & Salience](/spec/core/attention)) can drive tree pruning at scale. Nodes with low salience can be omitted entirely from subscriptions that filter by `min_salience`.
 
 ```jsonc
 // Consumer subscribes with salience filter
@@ -445,3 +444,48 @@ The AI navigated the tree by invoking an affordance. The protocol didn't change.
 7. **Update salience with user context.** The focused item is 1.0. The notification that just fired is 1.0. The settings page the user hasn't visited in a week is 0.0.
 
 8. **Patch, don't replace, on navigation.** When the user changes views, collapse the old view and expand the new one via patches. Don't send a full snapshot.
+
+9. **Scope trees per session for multi-user apps.** Each user should see their own tree with their own data, permissions, and active view. This ensures view-scoped trees, salience, and windowing are all scoped to the correct user. See [Sessions & Multi-User](/sdk/sessions) for SDK implementation patterns.
+
+## Considerations and limitations
+
+### Affordance visibility on stub nodes
+
+By design, stub nodes include only `id`, `type`, and `meta` — no `properties`, `children`, or `affordances`. This means that when a consumer subscribes at a shallow depth, nodes beyond the depth limit lose their affordances. The consumer cannot act on a stub node without first querying it at a deeper depth to discover its available actions.
+
+This creates a tradeoff for AI agents that convert affordances to LLM tools (via `affordancesToTools()` or similar utilities):
+
+- **At full depth (`depth: -1`)**: The agent sees all affordances on all nodes. The tree may be large, consuming more of the LLM's context window, but the agent can act immediately without additional round trips.
+- **At shallow depth**: The tree is smaller and cheaper in tokens, but affordances on deeper nodes are invisible. The agent must perform **exploratory queries** to discover what actions are available before it can act.
+
+This is an intentional protocol decision — stubs are meant to be lightweight pointers, and affordances are a property of fully resolved nodes. However, it means that depth-based truncation is not purely a "pay less, same capability" optimization. It changes the agent's workflow from single-step (subscribe → act) to multi-step (subscribe → query → act).
+
+### Recommended approaches for token-conscious agents
+
+1. **Use `maxNodes` instead of depth truncation.** Node-budget compaction (`maxNodes`) collapses low-salience *subtrees* (e.g., comments, attachments) while preserving affordances on structurally important nodes (e.g., issues, items). This reduces tree size without losing actionability.
+
+2. **Combine shallow subscribe + targeted queries.** Subscribe at a shallow depth for an overview, then use `query` messages to drill into specific paths at full depth before acting. This is the protocol's intended workflow for medium-to-large apps (see "Recommended subscription patterns" above).
+
+3. **Leverage summaries for discovery.** Well-written `meta.summary` fields on stub nodes tell the agent *what* a node contains without resolving it. The agent can use summaries to decide which paths are worth querying deeper, avoiding unnecessary round trips.
+
+### Open question: affordance hints on stubs
+
+A potential future extension could add lightweight affordance hints to stub nodes — not the full affordance schema, but a list of available action names. This would let an agent know that a stub node *can* be acted on without resolving the full node:
+
+```jsonc
+// Hypothetical stub with affordance hints
+{
+  "id": "issue-42",
+  "type": "item",
+  "meta": {
+    "summary": "Fix auth token refresh (open, 2 comments)",
+    "total_children": 2,
+    "available_actions": ["close", "comment", "assign", "add_label"]
+  }
+}
+```
+
+This is not part of the current spec. It would need careful consideration around:
+- Whether action names alone are useful without parameter schemas
+- The additional bytes per stub node (cost vs benefit)
+- Interaction with salience filtering and `affordancesToTools()` conversion

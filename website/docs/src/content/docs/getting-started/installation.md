@@ -1,8 +1,7 @@
 ---
-title: Installation
-description: Install the right SLOP package for your app, agent, or tool
+title: "Installation"
+description: "Install the right SLOP package for your app, agent, or tool"
 ---
-
 ## TypeScript browser packages
 
 Most browser apps start with `@slop-ai/client`, then add the framework adapter that matches the UI layer.

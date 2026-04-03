@@ -1,8 +1,7 @@
 ---
-title: Desktop App
-description: Build and use the SLOP desktop app
+title: "Desktop App"
+description: "Build and use the SLOP desktop app"
 ---
-
 The SLOP desktop app is a multi-provider consumer workspace. It connects to local providers discovered from `~/.slop/providers/`, remote WebSocket providers, and browser providers bridged from the extension.
 
 ## Release builds

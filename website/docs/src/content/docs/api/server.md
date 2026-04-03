@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/server"
-description: Server-side SLOP provider for Node.js, Bun, local tools, and native apps
+description: "Server-side SLOP provider for Node.js, Bun, local tools, and native apps"
 ---
-
 The server package lets you expose application state and actions to AI consumers over SLOP. It handles tree assembly, diffing, patch broadcasting, and action dispatch. Pair it with a transport adapter to serve over WebSocket, Unix socket, or stdio.
 
 ```bash

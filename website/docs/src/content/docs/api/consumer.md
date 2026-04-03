@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/consumer"
-description: Consumer SDK for connecting to providers, mirroring state, and invoking actions
+description: "Consumer SDK for connecting to providers, mirroring state, and invoking actions"
 ---
-
 `@slop-ai/consumer` is the SDK for connecting to providers, subscribing to snapshots and patches, and invoking affordances from custom agents or tools.
 
 ```bash

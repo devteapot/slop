@@ -1,6 +1,4 @@
----
-title: "Agent-Assisted Integration"
----
+# Agent-Assisted Integration
 
 Adding SLOP to an existing application is the main adoption barrier. The developer must understand the protocol, design a tree schema, write `register()` calls in the right components, and wire up action handlers. This is mechanical work that follows clear patterns — a perfect fit for AI assistance.
 
@@ -309,7 +307,7 @@ A VS Code / JetBrains extension that adds:
 The analysis patterns documented in this spec are detailed enough that any AI coding assistant (Copilot, Cursor, Cline, Aider) can follow them. The developer pastes the prompt:
 
 ```
-Read the SLOP agent scaffolding guide at https://docs.slopai.dev/guides-advanced/agent-scaffolding/
+Read the SLOP agent scaffolding guide at https://docs.slopai.dev/guides/advanced/agent-scaffolding/
 and add SLOP integration to this component: [paste component]
 ```
 

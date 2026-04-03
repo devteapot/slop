@@ -48,6 +48,76 @@ jobs:
         working-directory: apps/extension
         run: bun run build
 
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install docs dependencies
+        working-directory: website/docs
+        run: bun install --frozen-lockfile
+
+      - name: Check generated docs content
+        working-directory: website/docs
+        run: bun run check:content
+
+      - name: Build docs site
+        working-directory: website/docs
+        run: bun run build
+
+  landing:
+    name: Landing Site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install landing dependencies
+        working-directory: website/landing
+        run: bun install --frozen-lockfile
+
+      - name: Build landing site
+        working-directory: website/landing
+        run: bun run build
+
+  demo:
+    name: Demo Site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build demo site
+        working-directory: website/demo
+        run: bun run build
+
+  playground:
+    name: Playground
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build playground
+        working-directory: website/playground
+        run: bun run build
+
   desktop-macos:
     name: Desktop macOS Smoke Build
     runs-on: macos-latest

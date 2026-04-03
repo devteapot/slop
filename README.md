@@ -101,8 +101,8 @@ The full specification is in [`spec/`](./spec/):
 
 ### Guides
 
-- [Agent-Assisted Integration](./docs/guides/agent-scaffolding.md) — AI-powered SLOP scaffolding for existing codebases
-- [OpenClaw Integration](./docs/guides/openclaw.md) — control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
+- [Agent-Assisted Integration](./docs/guides/advanced/agent-scaffolding.md) — AI-powered SLOP scaffolding for existing codebases
+- [OpenClaw Integration](./docs/guides/advanced/openclaw.md) — control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
 
 ## Benchmarks
 
@@ -115,7 +115,7 @@ Key findings:
 - **SLOP uses 75-90% fewer LLM round trips** on multi-entity tasks by front-loading state. The agent batches all actions in 2 turns instead of 8-21 discovery-then-act turns.
 - **Cost tradeoff is real.** SLOP's state tree uses more input tokens. For simple tasks MCP is cheaper. For complex tasks requiring cross-entity reasoning, SLOP is cheaper *and* correct where MCP fails.
 
-Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/guides-advanced/benchmarks/)
+Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/guides/advanced/benchmarks/)
 
 ## SDKs
 

@@ -1,8 +1,7 @@
 ---
-title: Consumer Guide
-description: Tools and SDKs for connecting to, inspecting, and testing SLOP providers
+title: "Consumer Guide"
+description: "Tools and SDKs for connecting to, inspecting, and testing SLOP providers"
 ---
-
 A SLOP consumer connects to a provider, subscribes to its state tree, and can invoke affordances. The repo ships three main consumer surfaces plus the reusable consumer SDKs.
 
 ## Which consumer should you use?

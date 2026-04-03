@@ -1,8 +1,7 @@
 ---
-title: Vue
-description: How to use SLOP with Vue to expose component state to AI agents.
+title: "Vue"
+description: "How to use SLOP with Vue to expose component state to AI agents."
 ---
-
 ## Installation
 
 ```bash

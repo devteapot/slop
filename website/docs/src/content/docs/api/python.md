@@ -1,8 +1,7 @@
 ---
 title: "slop-ai (Python)"
-description: Python package reference for SLOP providers, consumers, and transports
+description: "Python package reference for SLOP providers, consumers, and transports"
 ---
-
 ```bash
 pip install slop-ai[websocket]
 ```

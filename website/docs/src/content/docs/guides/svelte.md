@@ -1,8 +1,7 @@
 ---
-title: Svelte
-description: How to use SLOP with Svelte 5 to expose component state to AI agents
+title: "Svelte"
+description: "How to use SLOP with Svelte 5 to expose component state to AI agents"
 ---
-
 ## Installation
 
 ```bash

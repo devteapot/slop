@@ -1,8 +1,7 @@
 ---
 title: "TanStack Start"
-description: Use SLOP in TanStack Start with server state plus mounted UI state
+description: "Use SLOP in TanStack Start with server state plus mounted UI state"
 ---
-
 `@slop-ai/tanstack-start` is the full-stack adapter for TanStack Start. The server owns the public provider, and the browser UI provider connects back so the server can mount it under `ui`.
 
 See the working example in [examples/full-stack/tanstack-start](https://github.com/devteapot/slop/tree/main/examples/full-stack/tanstack-start).

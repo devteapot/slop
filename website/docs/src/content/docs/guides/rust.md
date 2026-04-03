@@ -1,8 +1,7 @@
 ---
-title: Rust
-description: Add SLOP to Rust apps — axum, CLI tools, daemons, WASM-ready
+title: "Rust"
+description: "Add SLOP to Rust apps — axum, CLI tools, daemons, WASM-ready"
 ---
-
 ## Install
 
 ```bash

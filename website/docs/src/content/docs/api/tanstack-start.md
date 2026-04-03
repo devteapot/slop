@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/tanstack-start"
-description: Full-stack SLOP adapter for TanStack Start applications
+description: "Full-stack SLOP adapter for TanStack Start applications"
 ---
-
 `@slop-ai/tanstack-start` bridges a server-owned provider and a browser-owned UI provider into one public SLOP surface.
 
 ```bash

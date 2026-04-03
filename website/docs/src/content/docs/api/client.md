@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/client"
-description: Browser-side SLOP provider for SPAs and in-page integrations
+description: "Browser-side SLOP provider for SPAs and in-page integrations"
 ---
-
 `@slop-ai/client` is the main entry point for browser applications. It creates a provider, manages browser transports, and publishes descriptors registered by your framework adapter or vanilla code.
 
 ```bash

@@ -1,8 +1,7 @@
 ---
-title: Vanilla JS
-description: How to use SLOP with plain JavaScript or TypeScript without a framework.
+title: "Vanilla JS"
+description: "How to use SLOP with plain JavaScript or TypeScript without a framework."
 ---
-
 ## Installation
 
 No adapter is needed. Use `@slop-ai/client` directly.

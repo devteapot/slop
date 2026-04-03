@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/react"
-description: React hook for registering SLOP state from components
+description: "React hook for registering SLOP state from components"
 ---
-
 `@slop-ai/react` provides a single hook, `useSlop()`, for registering component state with a browser-side SLOP provider.
 
 ```bash

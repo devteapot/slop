@@ -1,8 +1,7 @@
 ---
 title: "slop-ai (Go)"
-description: Go package reference for SLOP providers, consumers, and local transports
+description: "Go package reference for SLOP providers, consumers, and local transports"
 ---
-
 ```bash
 go get github.com/devteapot/slop/packages/go/slop-ai
 ```

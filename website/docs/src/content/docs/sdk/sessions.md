@@ -1,10 +1,11 @@
 ---
 title: "Sessions & Multi-User"
 ---
-
 SLOP's core protocol describes a single provider serving a single state tree. This works for SPAs (each browser tab is its own provider), CLI tools, and single-user desktop apps. But server-backed web apps serve many users simultaneously, and each user sees different state — different data, different permissions, different active views.
 
-This document defines how providers handle multiple users and how the protocol, SDK, and meta-framework adapters support session-scoped state.
+This document is partly descriptive and partly forward-looking: it shows the provider-per-session workaround you can build with the current SDKs, and it sketches the session-aware APIs the SDKs would need to make multi-user support first-class.
+
+> Status as of `0.1.0`: the shipped SDKs do **not** yet implement session-aware descriptors, session-filtered `refresh()`, or framework adapters that automate per-session tree rendering. Today, strict multi-user isolation means authenticating connections in your app/framework and routing each session to its own provider instance.
 
 ## The problem
 
@@ -239,7 +240,9 @@ Provider-per-session has the same per-session tree cost, plus ~50–100KB of eng
 
 The difference is meaningful but not dramatic. The dominant cost in both approaches is the rendered trees — and the spec's scaling features (view scoping, windowing, lazy subtrees) are what keep those small. **A provider that uses scaling features well will scale fine with either approach. A provider that dumps 10,000 nodes per session will struggle with both.**
 
-## Session-scoped trees: design
+## Session-scoped trees: proposed SDK design
+
+The examples in this section show the API shape the SDKs would need for first-class multi-user support. They are not current public APIs.
 
 ### Session-aware descriptors
 
@@ -418,7 +421,11 @@ function createSessionProvider(session: Session) {
 ### Session routing
 
 ```ts
+import { WebSocketServer, WebSocket } from "ws";
+import type { Connection, SlopServer } from "@slop-ai/server";
+
 const sessions = new Map<string, SlopServer>();
+const wss = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
   const session = authenticate(req);
@@ -431,28 +438,33 @@ server.on("upgrade", (req, socket, head) => {
   }
 
   wss.handleUpgrade(req, socket, head, (ws) => {
-    slop.handleConnection(ws);
+    const conn: Connection = {
+      send(message) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(message));
+        }
+      },
+      close() {
+        ws.close();
+      },
+    };
+
+    slop.handleConnection(conn);
+
+    ws.on("message", (data) => {
+      slop.handleMessage(conn, JSON.parse(data.toString()));
+    });
+
+    ws.on("close", () => {
+      slop.handleDisconnect(conn);
+    });
   });
 });
 ```
 
-### `attachSlopWithSessions` convenience
+### Helper ergonomics
 
-A wrapper that handles the session-to-provider map:
-
-```ts
-import { attachSlopWithSessions } from "@slop-ai/server/node";
-
-attachSlopWithSessions(httpServer, {
-  authenticate: (req) => {
-    const token = parseCookie(req.headers.cookie)?.session;
-    return token ? getSession(token) : null;
-  },
-  createProvider: (session) => createSessionProvider(session),
-  sessionTimeout: 60_000,  // grace period before cleanup
-  path: "/slop",
-});
-```
+An `attachSlopWithSessions()`-style helper would be a reasonable future addition, but no such wrapper ships today. Right now the session-to-provider map, idle cleanup, and authentication glue live in application code.
 
 ### Cross-session refresh
 
@@ -474,49 +486,21 @@ app.delete("/api/shared-resource/:id", (req, res) => {
 
 This is the main ergonomic cost of provider-per-session — the app must maintain a reverse index from users to sessions, and fan out refreshes manually.
 
-## Meta-framework adapters
+## Framework adapters today
 
-Meta-framework adapters handle session scoping automatically. The developer writes descriptor registrations; the adapter handles session management.
+No shipped framework adapter automates session scoping yet.
 
-### Session-scoped trees (default)
+- `@slop-ai/tanstack-start` composes a server-owned provider with browser-owned `ui` state and wires automatic refresh after server mutations, but multi-user session isolation is still application-owned.
+- `@slop-ai/server/nitro` and `@slop-ai/server/vite` expose transport helpers for Nitro and Vite integrations; they do not create per-session providers or inject session context into descriptors.
+- For multi-user apps today, authenticate in framework middleware or the WebSocket upgrade path and route each session to its own provider instance.
 
-```ts
-// server/utils/slop.ts — Nuxt example
-import { defineSlopConfig } from "@slop-ai/nuxt/server";
+The current framework-facing building blocks are:
 
-export default defineSlopConfig({
-  id: "my-app",
-  name: "My App",
+- `@slop-ai/tanstack-start` for full-stack TanStack Start apps
+- `@slop-ai/server/nitro` for custom Nitro apps
+- `@slop-ai/server/vite` for custom Vite integrations
 
-  // Descriptors receive session context
-  setup(slop) {
-    slop.register("todos", (session) => ({
-      type: "collection",
-      items: getTodosForUser(session.userId).map(...),
-    }));
-  },
-});
-```
-
-### Provider-per-session (opt-in)
-
-```ts
-export default defineSlopConfig({
-  id: "my-app",
-  name: "My App",
-  sessionMode: "provider-per-session",
-
-  // setup is called once per session with a fresh SlopServer
-  setup(slop, session) {
-    slop.register("todos", () => ({
-      type: "collection",
-      items: getTodosForUser(session.userId).map(...),
-    }));
-  },
-});
-```
-
-The only difference from the developer's perspective: with session-scoped trees, descriptors receive `session` as a parameter. With provider-per-session, `session` is available in the `setup` closure and descriptors are zero-argument.
+A future session-aware adapter layer should sit on top of those packages, keep the protocol unchanged, and hide the provider-per-session boilerplate. It should not rely on separate framework packages that do not exist in the repo today.
 
 ## Protocol implications
 

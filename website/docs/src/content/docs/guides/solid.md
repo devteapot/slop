@@ -1,8 +1,7 @@
 ---
-title: Solid
-description: How to use SLOP with SolidJS to expose component state to AI agents.
+title: "Solid"
+description: "How to use SLOP with SolidJS to expose component state to AI agents."
 ---
-
 ## Installation
 
 ```bash

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 artifacts/
+.astro/
 .DS_Store
 .venv/
 __pycache__/

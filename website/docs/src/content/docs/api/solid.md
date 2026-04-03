@@ -1,8 +1,7 @@
 ---
 title: "@slop-ai/solid"
-description: SolidJS primitive for registering SLOP state from signals
+description: "SolidJS primitive for registering SLOP state from signals"
 ---
-
 ```bash
 bun add @slop-ai/client @slop-ai/solid
 ```

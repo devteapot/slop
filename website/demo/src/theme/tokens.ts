@@ -1,0 +1,17 @@
+export const colors = {
+  surface: "#111319",
+  surface_container_lowest: "#0c0e14",
+  surface_container_low: "#161923",
+  surface_container: "#1c1f2b",
+  surface_container_highest: "#252836",
+  surface_variant: "#2a2d3a",
+  primary: "#91db37",
+  primary_container: "#6ba825",
+  secondary: "#adc6ff",
+  secondary_container: "#3d5a99",
+  on_surface: "#e1e3e8",
+  on_surface_variant: "#9a9daa",
+  outline_variant: "#3a3d4a",
+  error: "#f2836b",
+  amber: "#f0c040",
+} as const;

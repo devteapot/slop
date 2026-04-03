@@ -1,0 +1,197 @@
+---
+import Sloppy from './Sloppy.astro';
+import SloppyRoaming from './SloppyRoaming.astro';
+---
+<section class="hero">
+  <div class="container hero-center">
+    <div class="hero-logo">
+      <Sloppy />
+    </div>
+    <span class="label">Software Interface for AI Agents</span>
+    <h1>Keep the UI for humans.<br />Give agents state and actions.</h1>
+    <p class="subline">
+      SLOP lets apps publish semantic state and contextual actions directly,
+      so agents can control programs without screenshots, scraping, or
+      driving the human UI.
+    </p>
+    <div class="actions">
+      <a href="https://docs.slopai.dev/getting-started" class="btn btn-primary">Get Started</a>
+      <a href="https://playground.slopai.dev" class="btn btn-secondary">Try the Playground</a>
+      <a href="https://github.com/devteapot/slop" class="btn btn-ghost">
+        <img src="/github-invertocat-black.svg" alt="" aria-hidden="true" class="btn-icon btn-icon-github" />
+        <span>View on GitHub</span>
+      </a>
+    </div>
+    <div class="hero-visual">
+      <div class="demo-video">
+        <video autoplay muted loop playsinline preload="metadata" poster="/hero-demo-poster.jpg">
+          <source src="/hero-demo.mp4" type="video/mp4" />
+        </video>
+        <p class="demo-caption">
+          Agent reading semantic state and invoking actions directly, without
+          operating the human UI.
+          <a href="https://demo.slopai.dev" class="demo-link">Run it yourself →</a>
+        </p>
+      </div>
+      <div class="code-pair">
+        <div class="code-block">
+          <span class="code-label">Provider</span>
+          <pre set:html={`<span class="keyword">const</span> slop = <span class="fn">createSlop</span>({ id: <span class="string">"my-app"</span> });
+
+slop.<span class="fn">register</span>(<span class="string">"notes"</span>, () => ({
+  type: <span class="string">"collection"</span>,
+  items: notes.<span class="fn">map</span>(n => ({
+    id: n.id,
+    props: { title: n.title },
+    actions: { delete: () => <span class="fn">remove</span>(n.id) },
+  })),
+}));`} />
+        </div>
+        <div class="code-block">
+          <span class="code-label">Agent</span>
+          <pre set:html={`<span class="keyword">const</span> consumer = <span class="keyword">new</span> <span class="fn">SlopConsumer</span>(transport);
+<span class="keyword">await</span> consumer.<span class="fn">connect</span>();
+
+<span class="keyword">const</span> { snapshot } = <span class="keyword">await</span> consumer.<span class="fn">subscribe</span>(<span class="string">"/"</span>);
+<span class="comment">// { notes: { type: "collection", items: [...] } }</span>
+
+<span class="keyword">await</span> consumer.<span class="fn">invoke</span>(<span class="string">"/notes/note-1"</span>, <span class="string">"delete"</span>);`} />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<SloppyRoaming />
+<script>
+  import '../scripts/sloppy.ts';
+</script>
+
+<style>
+  .hero {
+    padding-top: 4rem;
+    padding-bottom: var(--space-10);
+    text-align: left;
+  }
+  @media (min-width: 1600px) {
+    .hero {
+      padding-top: 8rem;
+    }
+  }
+  .hero-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .hero-logo {
+    margin-bottom: var(--space-3);
+  }
+  .hero .label {
+    margin-bottom: var(--space-3);
+    display: inline-block;
+  }
+  h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    margin-bottom: var(--space-5);
+    color: var(--text-primary);
+  }
+  .subline {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin-bottom: var(--space-8);
+    line-height: 1.6;
+  }
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+    width: min(100%, 34rem);
+  }
+  .actions > :nth-child(-n + 2) {
+    width: 100%;
+    justify-content: center;
+  }
+  .actions > :nth-child(3) {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+  .hero-visual {
+    max-width: 1100px;
+    width: 100%;
+  }
+  .demo-video {
+    margin-bottom: var(--space-8);
+  }
+  .demo-video video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1440 / 900;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--surface-container-low);
+  }
+  .demo-caption {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    margin-top: var(--space-3);
+    text-align: center;
+  }
+  .demo-link {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .demo-link:hover {
+    text-decoration: underline;
+  }
+  .code-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+  @media (max-width: 768px) {
+    .actions {
+      grid-template-columns: 1fr;
+      width: min(100%, 22rem);
+    }
+    .actions > :nth-child(3) {
+      grid-column: auto;
+    }
+    .actions .btn {
+      justify-content: center;
+      width: 100%;
+    }
+    .code-pair { grid-template-columns: 1fr; }
+  }
+  .hero-visual .code-block {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    text-align: left;
+  }
+  .code-label {
+    display: block;
+    font-family: var(--font-machine);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-3);
+  }
+  .btn-icon {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+  }
+  .btn-icon-github {
+    opacity: 0.72;
+    filter: invert(1);
+  }
+  .btn-ghost:hover .btn-icon-github {
+    opacity: 0.9;
+  }
+</style>

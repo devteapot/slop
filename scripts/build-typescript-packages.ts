@@ -1,6 +1,6 @@
-import { getTypeScriptPackages, runCommand } from "./release/shared";
+import { getTypeScriptPackages, runCommand, sortPackagesForPublish } from "./release/shared";
 
-for (const pkg of getTypeScriptPackages()) {
+for (const pkg of sortPackagesForPublish(getTypeScriptPackages())) {
   if (!pkg.manifest.scripts?.build) {
     console.log(`Skipping ${pkg.manifest.name} (no build script)`);
     continue;

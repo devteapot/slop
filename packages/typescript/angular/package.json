@@ -23,5 +23,5 @@
   },
   "dependencies": { "@slop-ai/core": "workspace:*" },
   "peerDependencies": { "@angular/core": ">=19.0.0" },
-  "devDependencies": { "@angular/core": "^19.0.0" }
+  "devDependencies": { "@angular/core": "^21.2.7" }
 }

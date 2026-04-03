@@ -106,6 +106,9 @@ jobs:
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build TypeScript packages
+        run: bun run build
+
       - name: Build demo site
         working-directory: website/demo
         run: bun run build
@@ -121,6 +124,9 @@ jobs:
 
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile
+
+      - name: Build TypeScript packages
+        run: bun run build
 
       - name: Build playground
         working-directory: website/playground

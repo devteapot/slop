@@ -102,5 +102,6 @@ Consumers connect to the server provider once. That tree includes both:
 ## Next Steps
 
 - [TanStack Start package API](/api/tanstack-start)
+- [Full-stack pattern explained](/guides/advanced/full-stack)
 - [Server provider API](/api/server)
 - [React guide](/guides/react)

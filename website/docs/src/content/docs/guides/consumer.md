@@ -47,6 +47,34 @@ slop-inspect --connect /tmp/slop/my-app.sock
 slop-inspect --connect ws://localhost:3000/slop
 ```
 
+### Extension bridge
+
+The inspector can discover and control browser-based SLOP providers through the Chrome extension, just like the desktop app.
+
+When you launch the inspector, it automatically starts or connects to the extension bridge at `ws://127.0.0.1:9339/slop-bridge`:
+
+- **If the desktop app is not running**, the inspector starts its own bridge server. The extension connects to it and announces any browser providers it discovers.
+- **If the desktop app is already running**, the inspector connects as a bridge client and receives provider announcements through the desktop's bridge.
+
+Bridge providers appear in the discovery view with a `◆` marker. The status line shows the current bridge mode:
+
+| Status | Meaning |
+| --- | --- |
+| `Bridge: waiting for extension` | Server mode, no extension connected yet |
+| `Bridge: N extension(s)` | Server mode, extension connected |
+| `Bridge: connected to Desktop` | Client mode, piggybacking on the desktop bridge |
+| `Bridge: disconnected` | Client mode, lost connection to the desktop bridge |
+
+You can disable the bridge entirely with `--bridge=false`, or change the port with `--bridge-port`.
+
+```bash
+# Disable bridge (local providers only)
+slop-inspect --bridge=false
+
+# Use a different bridge port
+slop-inspect --bridge-port 9340
+```
+
 ### Example workflows
 
 #### Use it like Postman for affordances
@@ -212,11 +240,13 @@ If a page is not SLOP-native, open the extension popup and click **Scan this pag
 - testing the browser consumer before your app has a native provider
 - comparing a native provider against a fallback accessibility-derived view
 
-#### Bridge a browser provider into desktop
+#### Bridge a browser provider into desktop or CLI
 
-Run the desktop app, enable the extension's desktop bridge, and open a SLOP-enabled page. The browser provider is announced to the desktop workspace automatically, so you can inspect browser state alongside local sockets and remote WebSocket providers.
+Run the desktop app or CLI inspector, enable the extension's desktop bridge, and open a SLOP-enabled page. The browser provider is announced automatically, so you can inspect browser state alongside local sockets and remote WebSocket providers.
 
-The bridge endpoint is `ws://127.0.0.1:9339/slop-bridge`.
+The bridge endpoint is `ws://127.0.0.1:9339/slop-bridge`. Both the desktop app and CLI inspector can act as the bridge server, and the CLI can also connect as a client to the desktop's bridge.
+
+> **Known limitation — startup order:** The extension connects to whichever app holds port 9339. If the CLI starts first and takes the port, the desktop app cannot start its own bridge. The CLI prefers client mode (connecting to an existing bridge) to minimize this, but if it starts before the desktop app it will run as server. Restarting the CLI after the desktop app is running resolves this. A future improvement could add client-fallback to the desktop app or implement port handoff between the two.
 
 ## Building a custom consumer
 

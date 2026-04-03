@@ -1,0 +1,30 @@
+{
+  "name": "kanban-board-angular",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ng serve --port 4200",
+    "build": "ng build",
+    "preview": "ng serve --port 4200 --configuration production"
+  },
+  "dependencies": {
+    "@angular/common": "^19.0.0",
+    "@angular/compiler": "^19.0.0",
+    "@angular/core": "^19.0.0",
+    "@angular/forms": "^19.0.0",
+    "@angular/platform-browser": "^19.0.0",
+    "@slop-ai/angular": "workspace:*",
+    "@slop-ai/client": "workspace:*",
+    "@slop-ai/core": "workspace:*",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.6.0",
+    "zone.js": "^0.15.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^19.0.0",
+    "@angular/cli": "^19.0.0",
+    "@angular/compiler-cli": "^19.0.0",
+    "typescript": "~5.6.0"
+  }
+}

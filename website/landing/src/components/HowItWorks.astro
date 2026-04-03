@@ -1,0 +1,120 @@
+---
+---
+<section class="how-it-works friend">
+  <div class="container">
+    <span class="label">Agent Interface</span>
+    <h2>Three parts of an interface for agents</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>App publishes semantic state</h3>
+        <p>Your app exposes a curated view of what it is right now — not DOM elements, not raw internals, but <em>meaning</em>.</p>
+        <div class="code-block">
+          <pre set:html={`<span class="fn">useSlop</span>(slop, <span class="string">"notes"</span>, () =&gt; ({
+  type: <span class="string">"collection"</span>,
+  props: { count: notes.length },
+  items: notes.<span class="fn">map</span>(n =&gt; ({
+    id: n.id,
+    props: { title: n.title },
+  })),
+}));`} />
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Agent subscribes to the program</h3>
+        <p>The agent subscribes to the state tree and receives patches as things change. No screenshots, polling, or repeated read tools.</p>
+        <div class="code-block tree-view">
+          <pre>[root] My App
+  [collection] notes (count=3)
+    [item] Meeting notes
+    [item] Grocery list (pinned=true)
+    [item] App ideas
+  [status] stats (total=3, pinned=1)</pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Agent invokes contextual actions</h3>
+        <p>Actions live on the nodes they affect, so the agent sees what it can do in context and acts through the program directly.</p>
+        <div class="code-block">
+          <pre set:html={`actions: {
+  <span class="fn">toggle_pin</span>: () =&gt; togglePin(note.id),
+  <span class="fn">edit</span>: action({ title: <span class="string">"string"</span> }, ({ title }) =&gt; updateNote(note.id, title)),
+  <span class="fn">delete</span>: action(() =&gt; remove(note.id), { dangerous: <span class="keyword">true</span> }),
+}`} />
+        </div>
+      </div>
+    </div>
+
+    <div class="playground-cta">
+      <a href="https://playground.slopai.dev" class="btn btn-secondary">
+        Try it in the playground →
+      </a>
+      <span class="cta-hint">Edit descriptors, inspect the tree, invoke actions, and explore the agent-facing interface live</span>
+    </div>
+  </div>
+</section>
+
+<style>
+  .how-it-works h2 {
+    font-size: 2.25rem;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-10);
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+  }
+  @media (max-width: 1400px) {
+    .steps { grid-template-columns: 1fr; }
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .step-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface-container-high);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-machine);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .step h3 {
+    font-size: 1.25rem;
+  }
+  .step p {
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+  }
+  .step .code-block {
+    margin-top: var(--space-2);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+  }
+  .tree-view {
+    color: var(--secondary);
+  }
+  .playground-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-10);
+  }
+  .cta-hint {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+  }
+</style>

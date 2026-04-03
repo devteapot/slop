@@ -1,0 +1,26 @@
+[project]
+name = "contacts-api"
+version = "0.1.0"
+description = "SLOP contact manager example — Python FastAPI backend"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "slop-ai",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+contacts-api = "contacts_api.main:run"
+
+[tool.uv.sources]
+slop-ai = { path = "../../../../packages/python/slop-ai", editable = true }

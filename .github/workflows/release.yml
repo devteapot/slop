@@ -1,0 +1,289 @@
+name: Release Distribution
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-packages:
+    name: Publish npm packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Configure npm auth for Bun
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cat > "$HOME/.npmrc" <<EOF
+          registry=https://registry.npmjs.org/
+          //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+          EOF
+
+      - name: Sync release version
+        run: bun run release:sync-version "${{ github.event.release.tag_name }}"
+
+      - name: Publish packages
+        run: bun run release:publish-packages "${{ github.event.release.tag_name }}"
+        env:
+          NPM_TAG: ${{ github.event.release.prerelease && 'next' || '' }}
+
+  publish-python:
+    name: Publish Python package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Python build tools
+        run: python -m pip install --upgrade build twine
+
+      - name: Sync release version
+        run: bun run release:sync-version "${{ github.event.release.tag_name }}"
+
+      - name: Publish Python package
+        run: bun run release:publish-python "${{ github.event.release.tag_name }}"
+        env:
+          PYTHON_BIN: python
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+
+  publish-rust:
+    name: Publish Rust crate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Sync release version
+        run: bun run release:sync-version "${{ github.event.release.tag_name }}"
+
+      - name: Publish Rust crate
+        run: bun run release:publish-rust "${{ github.event.release.tag_name }}"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  build-extension:
+    if: ${{ !github.event.release.prerelease }}
+    name: Build Chrome extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+      CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+      CHROME_SERVICE_ACCOUNT_JSON: ${{ secrets.CHROME_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Resolve release version
+        id: release
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Sync release version
+        run: bun run release:sync-version "${{ github.event.release.tag_name }}"
+
+      - name: Build extension
+        working-directory: apps/extension
+        run: bun run build
+
+      - name: Stage extension bundle
+        run: bun run release:stage-extension "${{ github.event.release.tag_name }}"
+
+      - name: Zip extension bundle
+        run: |
+          mkdir -p artifacts
+          cd "artifacts/slop-extension-${{ steps.release.outputs.version }}"
+          zip -r "../slop-extension-${{ steps.release.outputs.version }}.zip" .
+
+      - name: Upload extension asset to GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload "${{ github.event.release.tag_name }}"
+          "artifacts/slop-extension-${{ steps.release.outputs.version }}.zip"
+          --clobber
+
+      - name: Publish extension to Chrome Web Store
+        if: env.CHROME_EXTENSION_ID != '' && env.CHROME_PUBLISHER_ID != '' && env.CHROME_SERVICE_ACCOUNT_JSON != ''
+        run: >
+          bun run release:publish-extension
+          "artifacts/slop-extension-${{ steps.release.outputs.version }}.zip"
+
+      - name: Note skipped Chrome Web Store publish
+        if: env.CHROME_EXTENSION_ID == '' || env.CHROME_PUBLISHER_ID == '' || env.CHROME_SERVICE_ACCOUNT_JSON == ''
+        run: echo "Chrome Web Store secrets not configured. Uploaded zip only."
+
+  build-desktop:
+    if: ${{ !github.event.release.prerelease }}
+    name: Build desktop app
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            patchelf \
+            wget
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Sync release version
+        run: bun run release:sync-version "${{ github.event.release.tag_name }}"
+
+      - name: Validate macOS signing secrets
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          test -n "$APPLE_CERTIFICATE"
+          test -n "$APPLE_CERTIFICATE_PASSWORD"
+          test -n "$APPLE_SIGNING_IDENTITY"
+          test -n "$APPLE_API_ISSUER"
+          test -n "$APPLE_API_KEY"
+          test -n "$APPLE_API_PRIVATE_KEY"
+
+      - name: Write App Store Connect key
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
+        with:
+          projectPath: apps/desktop
+          releaseId: ${{ github.event.release.id }}
+          tagName: ${{ github.event.release.tag_name }}
+          tauriScript: bun tauri
+          releaseAssetNamePattern: SLOP.Desktop_[version]_[arch][ext]
+          args: --target ${{ matrix.target }}
+
+  tag-go-module:
+    name: Tag Go module release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Resolve Go module tag
+        id: go
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          RELEASE_COMMIT="$(git rev-list -n 1 "$TAG_NAME")"
+          GO_TAG="packages/go/slop-ai/v${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_commit=$RELEASE_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "go_tag=$GO_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create Go module tag
+        run: |
+          if git rev-parse "${{ steps.go.outputs.go_tag }}" >/dev/null 2>&1; then
+            echo "Go tag already exists: ${{ steps.go.outputs.go_tag }}"
+            exit 0
+          fi
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "${{ steps.go.outputs.go_tag }}" "${{ steps.go.outputs.release_commit }}" -m "Go module release ${{ steps.go.outputs.go_tag }}"
+          git push origin "refs/tags/${{ steps.go.outputs.go_tag }}"

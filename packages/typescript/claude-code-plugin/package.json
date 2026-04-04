@@ -12,6 +12,9 @@
     "url": "https://github.com/devteapot/slop",
     "directory": "packages/typescript/claude-code-plugin"
   },
+  "scripts": {
+    "build": "cd ../claude-agent && bun run build:bundle && cp dist/cli.bundle.js ../claude-code-plugin/plugin/server/index.js"
+  },
   "dependencies": {
     "@slop-ai/claude-agent": "workspace:*"
   }

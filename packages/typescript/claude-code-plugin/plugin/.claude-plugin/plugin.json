@@ -1,8 +1,0 @@
-{
-  "name": "slop",
-  "version": "1.0.0",
-  "description": "Observe and control desktop and web applications via SLOP. Automatically injects application state into your prompts and provides tools to perform actions.",
-  "skills": "../skills/",
-  "hooks": "../hooks/hooks.json",
-  "mcpServers": "../.mcp.json"
-}

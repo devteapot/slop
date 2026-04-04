@@ -27769,19 +27769,11 @@ ${actionsText}`
     try {
       const result = await p.consumer.invoke(path, action, params ?? {});
       if (result.status === "ok") {
-        await new Promise((r) => setTimeout(r, 150));
-        const tree = p.consumer.getTree(p.subscriptionId);
-        const statePreview = tree ? formatTree(tree) : "(state unavailable)";
         return {
           content: [
             {
               type: "text",
-              text: `Done. ${action} on ${path} succeeded.` + (result.data ? ` Result: ${JSON.stringify(result.data)}` : "") + `
-
-Current state:
-\`\`\`
-${statePreview}
-\`\`\``
+              text: `Done. ${action} on ${path} succeeded.` + (result.data ? ` Result: ${JSON.stringify(result.data)}` : "")
             }
           ]
         };
@@ -27831,21 +27823,13 @@ ${statePreview}
         results.push(`ERROR: ${action} on ${path} — ${err.message}`);
       }
     }
-    await new Promise((r) => setTimeout(r, 150));
-    const tree = p.consumer.getTree(p.subscriptionId);
-    const statePreview = tree ? formatTree(tree) : "(state unavailable)";
     return {
       content: [
         {
           type: "text",
           text: `Batch complete: ${actions.length - failed}/${actions.length} succeeded.
 ` + results.join(`
-`) + `
-
-Current state:
-\`\`\`
-${statePreview}
-\`\`\``
+`)
         }
       ],
       isError: failed > 0

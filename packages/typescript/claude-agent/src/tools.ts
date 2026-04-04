@@ -128,10 +128,6 @@ export function createToolHandlers(discovery: DiscoveryService) {
       const result = await p.consumer.invoke(path, action, params ?? {});
 
       if (result.status === "ok") {
-        await new Promise((r) => setTimeout(r, 150));
-        const tree = p.consumer.getTree(p.subscriptionId);
-        const statePreview = tree ? formatTree(tree) : "(state unavailable)";
-
         return {
           content: [
             {
@@ -140,8 +136,7 @@ export function createToolHandlers(discovery: DiscoveryService) {
                 `Done. ${action} on ${path} succeeded.` +
                 (result.data
                   ? ` Result: ${JSON.stringify(result.data)}`
-                  : "") +
-                `\n\nCurrent state:\n\`\`\`\n${statePreview}\n\`\`\``,
+                  : ""),
             },
           ],
         };
@@ -200,19 +195,13 @@ export function createToolHandlers(discovery: DiscoveryService) {
       }
     }
 
-    // Wait once for state to settle, then show final tree
-    await new Promise((r) => setTimeout(r, 150));
-    const tree = p.consumer.getTree(p.subscriptionId);
-    const statePreview = tree ? formatTree(tree) : "(state unavailable)";
-
     return {
       content: [
         {
           type: "text",
           text:
             `Batch complete: ${actions.length - failed}/${actions.length} succeeded.\n` +
-            results.join("\n") +
-            `\n\nCurrent state:\n\`\`\`\n${statePreview}\n\`\`\``,
+            results.join("\n"),
         },
       ],
       isError: failed > 0,

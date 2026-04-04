@@ -10,7 +10,7 @@ The OpenClaw plugin discovers local SLOP providers, mirrors their state, and exp
 ## Install
 
 ```bash
-openclaw plugins install --link /path/to/slop/packages/typescript/openclaw-plugin
+openclaw plugins install --link /path/to/slop/packages/typescript/integrations/openclaw-plugin
 ```
 
 Or, when your OpenClaw environment supports registry installs:

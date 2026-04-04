@@ -1,8 +1,0 @@
-{
-  "name": "slop",
-  "description": "Observe and control desktop and web applications via the SLOP protocol. Auto-injects app state into prompts and provides tools to perform actions.",
-  "author": {
-    "name": "SLOP AI",
-    "email": "hello@slopai.dev"
-  }
-}

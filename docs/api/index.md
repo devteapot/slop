@@ -16,6 +16,7 @@ This page maps every published package in the repo to its primary use case and t
 | `@slop-ai/server` | server, desktop, and CLI providers | `bun add @slop-ai/server` | [API](/api/server), [Guide](/guides/server-apps) |
 | `@slop-ai/consumer` | custom agents, inspectors, and bridges | `bun add @slop-ai/consumer` | [API](/api/consumer), [Guide](/guides/consumer) |
 | `@slop-ai/tanstack-start` | TanStack Start full-stack adapter | `bun add @slop-ai/server @slop-ai/tanstack-start` | [API](/api/tanstack-start), [Guide](/guides/tanstack-start) |
+| `@slop-ai/discovery` | auto-discovery, bridge, relay, AI tool formatting | `bun add @slop-ai/discovery` | [SDK docs](/sdk/discovery) |
 | `@slop-ai/openclaw-plugin` | OpenClaw integration | `bun add @slop-ai/openclaw-plugin` | [API](./openclaw-plugin.md), [Guide](../guides/advanced/openclaw.md) |
 
 ## Other SDKs

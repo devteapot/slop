@@ -11,7 +11,7 @@ This repo uses a single SemVer release tag for everything that ships:
 
 Create GitHub releases with tags like `v0.2.0` (stable) or `v0.2.0-rc.1` (pre-release). The release workflows use that tag as the source of truth and sync the version into:
 
-- `packages/typescript/*/package.json`
+- `packages/typescript/{sdk,adapters,integrations}/*/package.json`
 - `packages/python/slop-ai/pyproject.toml`
 - `packages/rust/slop-ai/Cargo.toml`
 - `apps/extension/package.json`

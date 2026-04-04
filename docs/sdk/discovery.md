@@ -33,7 +33,7 @@ Integrations (Claude Code plugin, OpenClaw plugin, VS Code extension, custom age
 
 ### Local providers
 
-Applications register themselves by writing a JSON descriptor file to `~/.slop/providers/`:
+Applications register themselves by writing a JSON descriptor file to one of two directories:
 
 ```json
 {
@@ -49,10 +49,15 @@ Applications register themselves by writing a JSON descriptor file to `~/.slop/p
 }
 ```
 
+| Directory | Purpose |
+|---|---|
+| `~/.slop/providers/` | Persistent user-level providers (desktop apps, daemons) |
+| `/tmp/slop/providers/` | Session-level ephemeral providers (dev servers, CLI tools) |
+
 The discovery layer:
 
-1. Scans `~/.slop/providers/*.json` on startup
-2. Watches the directory for changes (file add/remove)
+1. Scans both directories for `*.json` files on startup
+2. Watches both directories for changes (file add/remove)
 3. Re-scans periodically (every 15 seconds) as a fallback
 4. Removes providers whose descriptor files disappear
 
@@ -193,6 +198,22 @@ Converts all affordances in a state tree into LLM tool definitions:
 - Returns a `resolve(toolName)` function that maps tool names back to `{ path, action }` for `invoke`
 - Tool descriptions include the node path, action label, and `[DANGEROUS]` flag
 
+### `createDynamicTools(discovery)`
+
+Builds namespaced tool definitions from all connected providers' affordances. Each tool name is prefixed with the provider's ID to avoid cross-app collisions:
+
+```
+kanban__backlog__add_card     → invoke("/columns/backlog", "add_card", ...)
+kanban__col_1__move_card      → invoke("/columns/col-1", "move_card", ...)
+chat__messages__send          → invoke("/messages", "send", ...)
+```
+
+Returns a `DynamicToolSet` with:
+- `tools` — array of `DynamicToolEntry` objects (name, description, inputSchema, providerId, path, action)
+- `resolve(toolName)` — maps a dynamic tool name back to `{ providerId, path, action }` for dispatch
+
+This function is called on every state change to rebuild the tool list. Integrations that support dynamic tool registration (like MCP's `notifications/tools/list_changed`) use this to expose affordances as first-class tools. See [Dynamic tool injection](#dynamic-tool-injection) below.
+
 ## State Change Notifications
 
 The discovery layer fires a state change callback on:
@@ -207,7 +228,7 @@ Consumers can use this to maintain a cache, update a UI, or trigger context inje
 
 | Language | Consumer SDK | Discovery Layer | Status |
 |---|---|---|---|
-| TypeScript | `@slop-ai/consumer` | `@slop-ai/claude-agent` (to be renamed `@slop-ai/discovery`) | Bridge client + server, relay, auto-connect, state cache |
+| TypeScript | `@slop-ai/consumer` | `@slop-ai/discovery` | Bridge client + server, relay, auto-connect, state cache |
 | Python | `slop-ai` | — | Planned |
 | Go | `slop-ai` | `apps/cli/bridge` + `apps/cli/provider` (to be extracted) | Bridge client + server exist in CLI, not packaged as library |
 | Rust | `slop-ai` | `apps/desktop/src-tauri/src/bridge` (to be extracted) | Bridge server exists in Desktop, not packaged as library |
@@ -216,7 +237,7 @@ Consumers can use this to maintain a cache, update a UI, or trigger context inje
 
 A complete discovery layer implementation provides:
 
-- [ ] Local provider scanning (`~/.slop/providers/`)
+- [ ] Local provider scanning (`~/.slop/providers/` + `/tmp/slop/providers/`)
 - [ ] Directory watching with periodic fallback scan
 - [ ] Bridge client (connect to existing bridge)
 - [ ] Bridge server (host bridge if none exists)
@@ -230,6 +251,75 @@ A complete discovery layer implementation provides:
 - [ ] Exponential backoff reconnection
 - [ ] Connection timeout (10 seconds)
 - [ ] State change callback
+- [ ] Dynamic tool generation (`createDynamicTools()` equivalent)
+- [ ] State injection for host context (hook or prompt prepend)
+
+## Integrations
+
+Both the Claude Code and OpenClaw plugins follow the same design principles:
+
+- **State injection** — Provider state is injected into the model's context before each turn, not fetched via tool calls
+- **Minimal tool usage** — Tools are used only for connecting to apps and performing actions, never for reading state
+- **Shared discovery** — Both import `@slop-ai/discovery` for provider scanning, bridge, and relay
+
+Where they differ is **action dispatch**, due to host platform limitations.
+
+### Dynamic tool injection
+
+When a host supports runtime tool registration, the discovery layer can expose each affordance as a first-class tool. `createDynamicTools(discovery)` generates namespaced tool definitions from all connected providers:
+
+```
+kanban__backlog__add_card({title: "Ship docs"})    ← model calls this directly
+```
+
+Instead of:
+
+```
+app_action(app="kanban", path="/columns/backlog", action="add_card", params={title: "Ship docs"})
+```
+
+Dynamic tools have proper parameter schemas from the provider's affordance definitions. They are rebuilt on every state change (affordance added/removed, provider connect/disconnect).
+
+**Host support:**
+
+| Host | Dynamic tools | Mechanism | Limitation |
+|---|---|---|---|
+| Claude Code (MCP) | Yes | `notifications/tools/list_changed` — server notifies client when tool list changes | None |
+| OpenClaw | No | `api.registerTool()` is one-time during `register()` | No runtime tool registration API; tools must be declared in the plugin manifest |
+
+Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. The model knows exact paths and action names from state injection, so it gets the call right without guessing.
+
+### Claude Code plugin (`claude-slop-connect`)
+
+| Component | Purpose |
+|---|---|
+| **MCP Server** (`slop-bridge`) | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery/claude`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `connected_apps` (connect), `app_action_batch` (bulk ops). |
+| **Hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message — no MCP fetch needed. Also lists discovered-but-not-connected apps. |
+| **Skill** (`slop-connect`) | Teaches Claude the discover → connect → inspect → act workflow. |
+
+Design details:
+
+- **Dynamic tools** — When `connected_apps("kanban")` connects a provider, affordances are registered as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
+- **Live state in context** — The MCP server writes provider state to `/tmp/claude-slop-connect/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
+- **Staleness protection** — The state file includes a `lastUpdated` timestamp. The hook skips injection if the file is older than 30 seconds.
+- **Multi-app** — Multiple providers can be connected simultaneously. Dynamic tools from different apps are distinguished by their app ID prefix.
+
+See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
+
+### OpenClaw plugin (`@slop-ai/openclaw-plugin`)
+
+| Component | Purpose |
+|---|---|
+| **Tools** | `connected_apps` (connect/list), `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
+| **Hook** (`before_prompt_build`) | Injects connected providers' state trees as `prependContext` on every inference turn |
+
+Design details:
+
+- **Meta-tool pattern** — OpenClaw's plugin SDK requires tools to be declared upfront in `openclaw.plugin.json` and registered once. Dynamic tool registration is not supported. Actions go through `app_action(app, path, action, params)` instead of per-app tools.
+- **State injection** — The `before_prompt_build` hook returns `{ prependContext: stateMarkdown }`, which OpenClaw prepends to the conversation before inference. No file-based IPC needed (in-process).
+- **Discovery** — Uses `@slop-ai/discovery` with bridge support. Discovers local providers, session providers, and browser tabs via extension bridge.
+
+See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 
 ## Related
 
@@ -237,3 +327,4 @@ A complete discovery layer implementation provides:
 - [Transport spec](../../spec/core/transport.md) — wire protocol and discovery mechanisms
 - [Adapters spec](../../spec/integrations/adapters.md) — bridging non-SLOP apps
 - [Consumer guide](/guides/consumer) — usage patterns and example workflows
+- [Claude Code guide](/guides/advanced/claude-code) — Claude Code plugin setup and usage

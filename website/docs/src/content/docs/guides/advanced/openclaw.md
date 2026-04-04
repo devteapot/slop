@@ -16,7 +16,7 @@ Any SLOP provider registered on the machine becomes available to OpenClaw withou
 From a local checkout:
 
 ```bash
-openclaw plugins install --link /path/to/slop/packages/typescript/openclaw-plugin
+openclaw plugins install --link /path/to/slop/packages/typescript/integrations/openclaw-plugin
 ```
 
 When your OpenClaw setup supports registry installs:

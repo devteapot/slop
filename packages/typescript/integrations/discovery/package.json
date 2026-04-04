@@ -1,0 +1,47 @@
+{
+  "name": "@slop-ai/discovery",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SLOP discovery layer — discover, connect, and control local and browser applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "slop-discovery": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./claude": {
+      "import": "./dist/claude.js",
+      "types": "./dist/claude.d.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://docs.slopai.dev/api/discovery",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/integrations/discovery"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts src/claude.ts src/cli.ts --outdir dist --format esm --target node --external '@slop-ai/consumer' --external '@anthropic-ai/claude-agent-sdk' --external '@modelcontextprotocol/sdk' --external 'zod' --external 'ws' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build:bundle": "bun build src/cli.ts --outfile dist/cli.bundle.js --format esm --target node",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@slop-ai/consumer": "workspace:*",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0"
+  }
+}

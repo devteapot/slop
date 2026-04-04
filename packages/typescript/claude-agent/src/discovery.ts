@@ -44,6 +44,8 @@ export interface DiscoveryOptions {
   logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void };
   /** Auto-connect all discovered providers instead of lazy-connecting */
   autoConnect?: boolean;
+  /** Start a bridge server if no existing bridge is found (default: true) */
+  hostBridge?: boolean;
 }
 
 export interface DiscoveryService {
@@ -67,6 +69,7 @@ export function createDiscoveryService(
       : { logger: optionsOrLogger as any };
   const log = opts.logger ?? { info: console.error, error: console.error };
   const autoConnect = opts.autoConnect ?? false;
+  const hostBridge = opts.hostBridge ?? true;
   const providers = new Map<string, ConnectedProvider>();
   const lastAccessed = new Map<string, number>();
   const reconnectAttempts = new Map<string, number>();
@@ -272,7 +275,15 @@ export function createDiscoveryService(
       client.stop();
     }
 
-    // 2. No bridge running — start our own server
+    // 2. If hosting is disabled, just start client with retry loop
+    if (!hostBridge) {
+      logger.info("[slop-bridge] No bridge found, will keep retrying as client");
+      const retryClient = createBridgeClient(logger);
+      retryClient.start();
+      return retryClient;
+    }
+
+    // 3. No bridge running — start our own server
     const server = createBridgeServer(logger);
     try {
       await server.start();
@@ -282,7 +293,7 @@ export function createDiscoveryService(
       server.stop();
     }
 
-    // 3. Retry as client (port race fallback)
+    // 4. Retry as client (port race fallback)
     logger.info("[slop-bridge] Port taken, retrying as client");
     const retryClient = createBridgeClient(logger);
     retryClient.start();

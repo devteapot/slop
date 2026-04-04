@@ -5,10 +5,10 @@ import {
   SlopConsumer,
   WebSocketClientTransport,
   NodeSocketClientTransport,
-  formatTree,
-  type SlopNode,
   type ClientTransport,
 } from "@slop-ai/consumer";
+import { createBridgeClient, type BridgeClient, type BridgeProvider } from "./bridge-client";
+import { BridgeRelayTransport } from "./relay-transport";
 
 const PROVIDERS_DIR = join(homedir(), ".slop", "providers");
 const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
@@ -18,12 +18,16 @@ export interface ProviderDescriptor {
   name: string;
   slop_version: string;
   transport: {
-    type: "unix" | "ws" | "stdio";
+    type: "unix" | "ws" | "stdio" | "relay";
     path?: string;
     url?: string;
   };
   pid?: number;
   capabilities: string[];
+  /** Bridge provider key (for browser tab providers) */
+  providerKey?: string;
+  /** Source: "local" from ~/.slop/providers/, "bridge" from extension */
+  source?: "local" | "bridge";
 }
 
 export interface ConnectedProvider {
@@ -55,7 +59,10 @@ export function createDiscoveryService(
   let watcher: FSWatcher | null = null;
   let scanTimer: ReturnType<typeof setInterval> | null = null;
   let idleTimer: ReturnType<typeof setInterval> | null = null;
-  let lastDescriptors: ProviderDescriptor[] = [];
+  let lastLocalDescriptors: ProviderDescriptor[] = [];
+  let bridge: BridgeClient | null = null;
+
+  // --- Local discovery (file-based) ---
 
   function readDescriptors(): ProviderDescriptor[] {
     if (!existsSync(PROVIDERS_DIR)) return [];
@@ -64,7 +71,9 @@ export function createDiscoveryService(
       if (!file.endsWith(".json")) continue;
       try {
         const content = readFileSync(join(PROVIDERS_DIR, file), "utf-8");
-        descriptors.push(JSON.parse(content));
+        const desc = JSON.parse(content);
+        desc.source = "local";
+        descriptors.push(desc);
       } catch (e: any) {
         log.error(`[slop] Failed to parse ${file}: ${e.message}`);
       }
@@ -72,12 +81,51 @@ export function createDiscoveryService(
     return descriptors;
   }
 
+  // --- Bridge discovery (browser tabs via extension) ---
+
+  function getBridgeDescriptors(): ProviderDescriptor[] {
+    if (!bridge?.running()) return [];
+    return bridge.providers().map(bridgeProviderToDescriptor);
+  }
+
+  function bridgeProviderToDescriptor(bp: BridgeProvider): ProviderDescriptor {
+    // WS providers from the bridge can be connected directly
+    // postMessage providers need the relay transport
+    const transport =
+      bp.transport === "ws" && bp.url
+        ? { type: "ws" as const, url: bp.url }
+        : { type: "relay" as const };
+
+    return {
+      id: bp.providerKey,
+      name: bp.name,
+      slop_version: "1.0",
+      transport,
+      capabilities: [],
+      providerKey: bp.providerKey,
+      source: "bridge",
+    };
+  }
+
+  // --- Merged discovery ---
+
+  function getAllDescriptors(): ProviderDescriptor[] {
+    return [...lastLocalDescriptors, ...getBridgeDescriptors()];
+  }
+
+  // --- Transport creation ---
+
   function createTransport(desc: ProviderDescriptor): ClientTransport | null {
     const t = desc.transport;
     if (t.type === "unix" && t.path) return new NodeSocketClientTransport(t.path);
     if (t.type === "ws" && t.url) return new WebSocketClientTransport(t.url);
+    if (t.type === "relay" && desc.providerKey && bridge) {
+      return new BridgeRelayTransport(bridge, desc.providerKey);
+    }
     return null;
   }
+
+  // --- Connection management ---
 
   async function connectProvider(desc: ProviderDescriptor): Promise<ConnectedProvider | null> {
     if (providers.has(desc.id) && providers.get(desc.id)!.status === "connected") {
@@ -117,7 +165,8 @@ export function createDiscoveryService(
         lastAccessed.delete(desc.id);
 
         // Exponential backoff reconnection (only if descriptor still exists)
-        if (lastDescriptors.some(d => d.id === desc.id)) {
+        const allDescs = getAllDescriptors();
+        if (allDescs.some(d => d.id === desc.id)) {
           const attempt = (reconnectAttempts.get(desc.id) ?? 0) + 1;
           reconnectAttempts.set(desc.id, attempt);
           const delay = Math.min(3000 * Math.pow(2, attempt - 1), MAX_RECONNECT_DELAY);
@@ -138,21 +187,19 @@ export function createDiscoveryService(
     }
   }
 
-  function scan() {
-    lastDescriptors = readDescriptors();
-    const currentIds = new Set(providers.keys());
-    const scannedIds = new Set(lastDescriptors.map(d => d.id));
+  // --- Scan & cleanup ---
 
-    // Discovery only — no auto-connect. Just clean up stale providers.
-    for (const id of currentIds) {
-      if (!scannedIds.has(id)) {
-        const entry = providers.get(id);
-        if (entry) {
-          log.info(`[slop] Provider ${entry.name} unregistered, disconnecting`);
-          entry.consumer.disconnect();
-          providers.delete(id);
-          lastAccessed.delete(id);
-        }
+  function scan() {
+    lastLocalDescriptors = readDescriptors();
+    const allIds = new Set(getAllDescriptors().map(d => d.id));
+
+    // Clean up connected providers whose descriptors are gone
+    for (const [id, entry] of providers) {
+      if (!allIds.has(id)) {
+        log.info(`[slop] Provider ${entry.name} unregistered, disconnecting`);
+        entry.consumer.disconnect();
+        providers.delete(id);
+        lastAccessed.delete(id);
       }
     }
   }
@@ -171,17 +218,20 @@ export function createDiscoveryService(
     }
   }
 
+  // --- Lookup ---
+
   function findDescriptor(idOrName: string): ProviderDescriptor | null {
+    const all = getAllDescriptors();
     return (
-      lastDescriptors.find(d => d.id === idOrName) ??
-      lastDescriptors.find(d => d.name.toLowerCase().includes(idOrName.toLowerCase())) ??
+      all.find(d => d.id === idOrName) ??
+      all.find(d => d.name.toLowerCase().includes(idOrName.toLowerCase())) ??
       null
     );
   }
 
   return {
     getDiscovered() {
-      return lastDescriptors;
+      return getAllDescriptors();
     },
 
     getProviders() {
@@ -222,6 +272,7 @@ export function createDiscoveryService(
     },
 
     start() {
+      // Start local file discovery
       scan();
 
       try {
@@ -232,12 +283,20 @@ export function createDiscoveryService(
 
       scanTimer = setInterval(scan, 15000);
       idleTimer = setInterval(checkIdle, 60000);
+
+      // Start bridge client (connects to Desktop or standalone bridge)
+      bridge = createBridgeClient(log);
+      bridge.onProviderChange(() => {
+        log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
+      });
+      bridge.start();
     },
 
     stop() {
       if (watcher) { watcher.close(); watcher = null; }
       if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
       if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+      if (bridge) { bridge.stop(); bridge = null; }
       for (const [, entry] of providers) {
         entry.consumer.disconnect();
       }

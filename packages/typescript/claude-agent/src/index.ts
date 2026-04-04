@@ -46,7 +46,26 @@ export function createSlopAgentTools(discovery: ReturnType<typeof createDiscover
     async (args) => handlers.appAction({ ...args, params: args.params as Record<string, unknown> | undefined }),
   );
 
-  return [connectedApps, appAction];
+  const appActionBatch = tool(
+    "app_action_batch",
+    "Perform MULTIPLE actions on an application in a single call. Much faster than calling app_action " +
+      "repeatedly. Use this when you need to add multiple items, make several changes, or perform any " +
+      "sequence of actions.",
+    {
+      app: z.string().describe("App name or ID (from connected_apps)"),
+      actions: z.array(z.object({
+        path: z.string().describe("Path to act on"),
+        action: z.string().describe("Action to perform"),
+        params: z.record(z.unknown()).optional().describe("Action parameters"),
+      })).describe("Array of actions to perform sequentially"),
+    },
+    async (args) => handlers.appActionBatch({
+      app: args.app,
+      actions: args.actions.map(a => ({ ...a, params: a.params as Record<string, unknown> | undefined })),
+    }),
+  );
+
+  return [connectedApps, appAction, appActionBatch];
 }
 
 /**

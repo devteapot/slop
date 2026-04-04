@@ -49,6 +49,22 @@ server.tool(
     }),
 );
 
+server.tool(
+  "app_action_batch",
+  "Perform MULTIPLE actions on an application in a single call. Much faster than calling app_action " +
+    "repeatedly. Use this when you need to add multiple items, make several changes, or perform any " +
+    "sequence of actions. Each action has a path, action name, and optional params.",
+  {
+    app: z.string().describe("App name or ID (from connected_apps)"),
+    actions: z.string().describe("JSON array of actions, e.g. '[{\"path\":\"/\",\"action\":\"add\",\"params\":{\"title\":\"Item 1\"}},{\"path\":\"/\",\"action\":\"add\",\"params\":{\"title\":\"Item 2\"}}]'"),
+  },
+  async (args) =>
+    handlers.appActionBatch({
+      app: args.app,
+      actions: JSON.parse(args.actions),
+    }),
+);
+
 discovery.start();
 
 const transport = new StdioServerTransport();

@@ -164,5 +164,60 @@ export function createToolHandlers(discovery: DiscoveryService) {
     }
   }
 
-  return { connectedApps, appAction };
+  async function appActionBatch(args: {
+    app: string;
+    actions: { path: string; action: string; params?: Record<string, unknown> }[];
+  }): Promise<ToolResult> {
+    const { app, actions } = args;
+
+    const p = await discovery.ensureConnected(app);
+    if (!p) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `App "${app}" not found or could not connect. Use connected_apps to see available apps.`,
+          },
+        ],
+      };
+    }
+
+    const results: string[] = [];
+    let failed = 0;
+
+    for (const { path, action, params } of actions) {
+      try {
+        const result = await p.consumer.invoke(path, action, params ?? {});
+        if (result.status === "ok") {
+          results.push(`OK: ${action} on ${path}`);
+        } else {
+          failed++;
+          results.push(`FAIL: ${action} on ${path} — [${result.error?.code}] ${result.error?.message}`);
+        }
+      } catch (err: any) {
+        failed++;
+        results.push(`ERROR: ${action} on ${path} — ${err.message}`);
+      }
+    }
+
+    // Wait once for state to settle, then show final tree
+    await new Promise((r) => setTimeout(r, 150));
+    const tree = p.consumer.getTree(p.subscriptionId);
+    const statePreview = tree ? formatTree(tree) : "(state unavailable)";
+
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `Batch complete: ${actions.length - failed}/${actions.length} succeeded.\n` +
+            results.join("\n") +
+            `\n\nCurrent state:\n\`\`\`\n${statePreview}\n\`\`\``,
+        },
+      ],
+      isError: failed > 0,
+    };
+  }
+
+  return { connectedApps, appAction, appActionBatch };
 }

@@ -1,17 +1,15 @@
 /**
- * Claude-specific integrations for SLOP discovery.
+ * Optional helpers for `@anthropic-ai/claude-agent-sdk` (`tool()`, `createSdkMcpServer`).
  *
- * Agent SDK tool definitions, MCP server wrapper, and state cache
- * for use with Claude Code plugins and the Claude Agent SDK.
+ * Use when wiring SLOP discovery into Anthropic Agent `query()` or MCP-from-SDK flows.
+ * Host-agnostic tool logic (`createToolHandlers`, `createDynamicTools`, discovery, bridge)
+ * is exported from `@slop-ai/discovery` — not from this entry point.
  */
 
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { createDiscoveryService } from "./discovery";
 import { createToolHandlers } from "./tools";
-
-export { createToolHandlers, createDynamicTools, type ToolResult, type DynamicToolSet, type DynamicToolEntry } from "./tools";
-export { createStateCache, type StateCache } from "./state-cache";
 
 /**
  * Create Agent SDK tool definitions for use with `query()`.
@@ -73,8 +71,7 @@ export function createSlopAgentTools(discovery: ReturnType<typeof createDiscover
 /**
  * Create an MCP server config for use with Agent SDK's `query()`.
  *
- * - Claude Desktop: use the CLI entry point (`slop-discovery` / `npx @slop-ai/discovery`).
- * - Programmatic: pass `server` to `query()` via `mcpServers`.
+ * Programmatic use: pass `server` to `query()` via `mcpServers`.
  */
 export function createSlopMcpServer(options?: {
   name?: string;

@@ -1,6 +1,6 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { createDiscoveryService, type DiscoveryService } from "@slop-ai/discovery";
-import { createToolHandlers } from "@slop-ai/discovery/claude";
+import { createToolHandlers } from "@slop-ai/discovery";
 import { formatTree } from "@slop-ai/consumer";
 import { registerSlopTools } from "./tools";
 

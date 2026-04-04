@@ -1,5 +1,7 @@
-# Discovery & Bridge
-
+---
+title: "Discovery & Bridge"
+description: "Provider scanning, extension bridge, relay transport, auto-connect, state formatting"
+---
 SLOP consumers need to find and connect to providers. A consumer SDK handles the wire protocol (subscribe, query, invoke). The **discovery layer** sits above it and handles everything else: finding providers, managing connections, bridging browser tabs, and formatting state for AI consumption.
 
 This document specifies the discovery layer's behavior in a language-agnostic way. Each SDK implements the same semantics in its own idioms.
@@ -333,7 +335,7 @@ See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 ## Related
 
 - [Consumer SDK API](/api/consumer) — protocol client reference
-- [Transport spec](../../spec/core/transport.md) — wire protocol and discovery mechanisms
-- [Adapters spec](../../spec/integrations/adapters.md) — bridging non-SLOP apps
+- [Transport spec](/spec/core/transport) — wire protocol and discovery mechanisms
+- [Adapters spec](/spec/integrations/adapters) — bridging non-SLOP apps
 - [Consumer guide](/guides/consumer) — usage patterns and example workflows
 - [Claude Code guide](/guides/advanced/claude-code) — Claude Code plugin setup and usage

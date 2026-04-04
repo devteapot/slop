@@ -105,7 +105,7 @@ The workaround is the **meta-tool pattern**: three stable tools (`connected_apps
 
 If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTools()` or `api.updateToolList()`), the plumbing is already in place:
 
-- `createDynamicTools(discovery)` from `@slop-ai/discovery/claude` generates namespaced tool definitions from all connected providers
+- `createDynamicTools(discovery)` from `@slop-ai/discovery` generates namespaced tool definitions from all connected providers
 - Each tool maps to `{ providerId, path, action }` via a `resolve()` function
 - The same helper is already used by the Claude Code MCP server
 

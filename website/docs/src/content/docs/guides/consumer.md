@@ -310,5 +310,7 @@ The same pattern works well for a headless regression check: connect, subscribe 
 ## Next Steps
 
 - [Consumer package API](/api/consumer)
+- [Discovery & Bridge](/sdk/discovery) — auto-discovery, extension bridge, relay transport, and state formatting for AI integrations
+- [Claude Code integration](/guides/advanced/claude-code) — Claude Code plugin for SLOP app discovery and control
 - [Desktop app docs](/desktop/install)
 - [Chrome extension docs](/extension/install)

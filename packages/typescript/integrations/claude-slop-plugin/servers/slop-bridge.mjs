@@ -21,7 +21,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createDiscoveryService } from "@slop-ai/discovery";
-import { createToolHandlers, createDynamicTools } from "@slop-ai/discovery/claude";
+import { createToolHandlers, createDynamicTools } from "@slop-ai/discovery";
 import { formatTree } from "@slop-ai/consumer";
 import fs from "node:fs";
 import path from "node:path";

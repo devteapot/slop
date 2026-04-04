@@ -7,9 +7,17 @@ export { createToolHandlers } from "./tools";
 export {
   createDiscoveryService,
   type DiscoveryService,
+  type DiscoveryOptions,
   type ProviderDescriptor,
   type ConnectedProvider,
 } from "./discovery";
+export {
+  type Bridge,
+  type BridgeProvider,
+  type RelayHandler,
+  createBridgeClient,
+} from "./bridge-client";
+export { createBridgeServer } from "./bridge-server";
 
 /**
  * Create Agent SDK tool definitions for use with `query()`.

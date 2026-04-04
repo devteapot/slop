@@ -7,7 +7,8 @@ import {
   NodeSocketClientTransport,
   type ClientTransport,
 } from "@slop-ai/consumer";
-import { createBridgeClient, type BridgeClient, type BridgeProvider } from "./bridge-client";
+import { createBridgeClient, type Bridge, type BridgeProvider } from "./bridge-client";
+import { createBridgeServer } from "./bridge-server";
 import { BridgeRelayTransport } from "./relay-transport";
 
 const PROVIDERS_DIR = join(homedir(), ".slop", "providers");
@@ -74,7 +75,7 @@ export function createDiscoveryService(
   let scanTimer: ReturnType<typeof setInterval> | null = null;
   let idleTimer: ReturnType<typeof setInterval> | null = null;
   let lastLocalDescriptors: ProviderDescriptor[] = [];
-  let bridge: BridgeClient | null = null;
+  let bridge: Bridge | null = null;
   let stateChangeCallback: (() => void) | null = null;
 
   // --- Local discovery (file-based) ---
@@ -257,6 +258,37 @@ export function createDiscoveryService(
 
   // --- Lookup ---
 
+  async function initBridge(
+    logger: { info: (...args: any[]) => void; error: (...args: any[]) => void },
+  ): Promise<Bridge> {
+    // 1. Try connecting as a client (Desktop or another consumer hosts the bridge)
+    const client = createBridgeClient(logger);
+    try {
+      await client.connectOnce();
+      client.start(); // enable retry loop for future disconnects
+      logger.info("[slop-bridge] Connected as client to existing bridge");
+      return client;
+    } catch {
+      client.stop();
+    }
+
+    // 2. No bridge running — start our own server
+    const server = createBridgeServer(logger);
+    try {
+      await server.start();
+      return server;
+    } catch {
+      // Port race — another process just took it
+      server.stop();
+    }
+
+    // 3. Retry as client (port race fallback)
+    logger.info("[slop-bridge] Port taken, retrying as client");
+    const retryClient = createBridgeClient(logger);
+    retryClient.start();
+    return retryClient;
+  }
+
   function findDescriptor(idOrName: string): ProviderDescriptor | null {
     const all = getAllDescriptors();
     return (
@@ -325,20 +357,20 @@ export function createDiscoveryService(
       scanTimer = setInterval(scan, 15000);
       idleTimer = setInterval(checkIdle, 60000);
 
-      // Start bridge client (connects to Desktop or standalone bridge)
-      bridge = createBridgeClient(log);
-      bridge.onProviderChange(() => {
-        log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
-        if (autoConnect) {
-          // Auto-connect newly discovered bridge providers
-          for (const desc of getBridgeDescriptors()) {
-            if (!providers.has(desc.id)) {
-              connectProvider(desc).catch(() => {});
+      // Start bridge: try client first, fall back to server
+      initBridge(log).then((b) => {
+        bridge = b;
+        bridge.onProviderChange(() => {
+          log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
+          if (autoConnect) {
+            for (const desc of getBridgeDescriptors()) {
+              if (!providers.has(desc.id)) {
+                connectProvider(desc).catch(() => {});
+              }
             }
           }
-        }
+        });
       });
-      bridge.start();
     },
 
     stop() {

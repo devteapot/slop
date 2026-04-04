@@ -32,4 +32,5 @@ This page maps every published package in the repo to its primary use case and t
 - Building a server-backed or native app: start with [`@slop-ai/server`](/api/server).
 - Building a full-stack TanStack Start app: use [`@slop-ai/tanstack-start`](/api/tanstack-start).
 - Building an agent, bridge, or test harness: use [`@slop-ai/consumer`](/api/consumer).
+- Building an AI tool integration with auto-discovery: use the [discovery layer](/sdk/discovery) on top of the consumer SDK.
 - Working outside TypeScript: use the language-specific SDK pages for [Python](/api/python), [Go](/api/go), or [Rust](/api/rust).

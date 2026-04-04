@@ -6,6 +6,8 @@ The [protocol spec](../../spec/) defines what flows over the wire. These guides 
 
 ## Documents
 
+- **[Discovery & Bridge](./discovery.md)** — Provider scanning, extension bridge client/server, relay transport, auto-connect, state formatting. Language-agnostic specification for the discovery layer that sits above the consumer SDK.
+
 - **[Development & Debugging](./development.md)** — `printTree()`, wire-format inspection, schema validation, message logging, common debugging scenarios.
 
 - **[Sessions & Multi-User](./sessions.md)** — How SDKs handle multi-user server apps. Covers session-scoped trees vs provider-per-session, scaling tradeoffs, session-aware descriptors, scoped refresh, and meta-framework adapter patterns.

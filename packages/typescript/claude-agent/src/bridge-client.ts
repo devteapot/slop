@@ -3,6 +3,10 @@ import WebSocket from "ws";
 const BRIDGE_URL = "ws://127.0.0.1:9339/slop-bridge";
 const RECONNECT_INTERVAL = 5000;
 
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
 export interface BridgeProvider {
   providerKey: string;
   tabId: number;
@@ -14,7 +18,8 @@ export interface BridgeProvider {
 
 export type RelayHandler = (message: Record<string, unknown>) => void;
 
-export interface BridgeClient {
+/** Common interface for both bridge client and bridge server. */
+export interface Bridge {
   running(): boolean;
   providers(): BridgeProvider[];
   onProviderChange(fn: () => void): void;
@@ -25,9 +30,32 @@ export interface BridgeClient {
   stop(): void;
 }
 
+// ---------------------------------------------------------------------------
+// Shared message parsing
+// ---------------------------------------------------------------------------
+
+export function parseBridgeProvider(msg: Record<string, unknown>): BridgeProvider | null {
+  const providerKey = msg.providerKey as string;
+  if (!providerKey) return null;
+
+  const provider = msg.provider as Record<string, unknown> | undefined;
+  return {
+    providerKey,
+    tabId: (msg.tabId as number) ?? 0,
+    id: (provider?.id as string) ?? providerKey,
+    name: (provider?.name as string) ?? "Tab",
+    transport: (provider?.transport as "ws" | "postmessage") ?? "postmessage",
+    url: provider?.url as string | undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Bridge Client
+// ---------------------------------------------------------------------------
+
 export function createBridgeClient(
   logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void },
-): BridgeClient {
+): Bridge & { connectOnce(): Promise<void> } {
   const log = logger ?? { info: console.error, error: console.error };
 
   let ws: WebSocket | null = null;
@@ -38,19 +66,23 @@ export function createBridgeClient(
   const providerMap = new Map<string, BridgeProvider>();
   const relaySubscribers = new Map<string, RelayHandler[]>();
 
-  function connect() {
+  function doConnect(
+    onSuccess?: () => void,
+    onFailure?: (err: Error) => void,
+  ) {
     if (ws) return;
 
     try {
       ws = new WebSocket(BRIDGE_URL);
-    } catch {
-      scheduleReconnect();
+    } catch (e: any) {
+      onFailure?.(e);
       return;
     }
 
     ws.on("open", () => {
       isRunning = true;
       log.info("[slop-bridge] Connected to extension bridge");
+      onSuccess?.();
     });
 
     ws.on("message", (data: WebSocket.Data) => {
@@ -63,7 +95,6 @@ export function createBridgeClient(
     ws.on("close", () => {
       isRunning = false;
       ws = null;
-      // Remove all bridge providers on disconnect
       if (providerMap.size > 0) {
         providerMap.clear();
         changeCallback?.();
@@ -71,7 +102,8 @@ export function createBridgeClient(
       scheduleReconnect();
     });
 
-    ws.on("error", () => {
+    ws.on("error", (err: Error) => {
+      onFailure?.(err);
       // Error will trigger close, which handles reconnect
     });
   }
@@ -80,7 +112,7 @@ export function createBridgeClient(
     if (reconnectTimer) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      connect();
+      doConnect();
     }, RECONNECT_INTERVAL);
   }
 
@@ -89,20 +121,9 @@ export function createBridgeClient(
 
     switch (type) {
       case "provider-available": {
-        const providerKey = msg.providerKey as string;
-        if (!providerKey) return;
-
-        const provider = msg.provider as Record<string, unknown> | undefined;
-        const bp: BridgeProvider = {
-          providerKey,
-          tabId: (msg.tabId as number) ?? 0,
-          id: (provider?.id as string) ?? providerKey,
-          name: (provider?.name as string) ?? `Tab`,
-          transport: (provider?.transport as "ws" | "postmessage") ?? "postmessage",
-          url: provider?.url as string | undefined,
-        };
-
-        providerMap.set(providerKey, bp);
+        const bp = parseBridgeProvider(msg);
+        if (!bp) return;
+        providerMap.set(bp.providerKey, bp);
         log.info(`[slop-bridge] Provider available: ${bp.name} (${bp.providerKey})`);
         changeCallback?.();
         break;
@@ -111,15 +132,8 @@ export function createBridgeClient(
       case "provider-unavailable": {
         const providerKey = msg.providerKey as string;
         if (!providerKey) return;
-
         providerMap.delete(providerKey);
-
-        // Close relay channels for this provider
-        const subs = relaySubscribers.get(providerKey);
-        if (subs) {
-          relaySubscribers.delete(providerKey);
-        }
-
+        relaySubscribers.delete(providerKey);
         log.info(`[slop-bridge] Provider unavailable: ${providerKey}`);
         changeCallback?.();
         break;
@@ -129,12 +143,9 @@ export function createBridgeClient(
         const providerKey = msg.providerKey as string;
         const message = msg.message as Record<string, unknown>;
         if (!providerKey || !message) return;
-
         const subs = relaySubscribers.get(providerKey);
         if (subs) {
-          for (const handler of subs) {
-            handler(message);
-          }
+          for (const handler of subs) handler(message);
         }
         break;
       }
@@ -142,6 +153,13 @@ export function createBridgeClient(
   }
 
   return {
+    /** Single connection attempt — resolves on open, rejects on error. */
+    connectOnce(): Promise<void> {
+      return new Promise((resolve, reject) => {
+        doConnect(resolve, reject);
+      });
+    },
+
     running() {
       return isRunning;
     },
@@ -175,7 +193,7 @@ export function createBridgeClient(
     },
 
     start() {
-      connect();
+      doConnect();
     },
 
     stop() {

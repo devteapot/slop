@@ -1,5 +1,5 @@
 import type { ClientTransport, Connection, SlopMessage, MessageHandler } from "@slop-ai/consumer";
-import type { BridgeClient, RelayHandler } from "./bridge-client";
+import type { Bridge, RelayHandler } from "./bridge-client";
 
 /**
  * ClientTransport that routes SLOP messages through the extension bridge
@@ -7,7 +7,7 @@ import type { BridgeClient, RelayHandler } from "./bridge-client";
  */
 export class BridgeRelayTransport implements ClientTransport {
   constructor(
-    private bridge: BridgeClient,
+    private bridge: Bridge,
     private providerKey: string,
   ) {}
 

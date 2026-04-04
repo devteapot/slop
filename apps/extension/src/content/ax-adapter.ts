@@ -4,6 +4,11 @@
  * Walks the DOM + ARIA attributes to build a SLOP tree from any webpage.
  * No app cooperation needed — works on any site.
  *
+ * Snapshot heuristics are aligned with vercel-labs/agent-browser's snapshot
+ * pipeline (interactive roles, cursor-interactive elements, ref ids, name
+ * sanitization). We cannot use CDP Accessibility.getFullAXTree from a content
+ * script; this stays a DOM+ARIA implementation of the same ideas.
+ *
  * Triggered by "Scan this page" in the extension popup.
  */
 
@@ -21,14 +26,111 @@ interface SlopNode {
 // --- Element → ID mapping (for invoke resolution) ---
 
 const elementMap = new Map<string, Element>();
-let idCounter = 0;
+let refCounter = 0;
+
+/** Matches agent-browser snapshot.rs INVISIBLE_CHARS (screen-reader noise). */
+const INVISIBLE_CHARS = /[\uFEFF\u200B\u200C\u200D\u2060\u00A0]/g;
+
+function sanitizeAccessibleString(s: string): string {
+  return s.replace(INVISIBLE_CHARS, "").trim();
+}
+
+/**
+ * Roles that agent-browser treats as interactive for refs (snapshot.rs INTERACTIVE_ROLES).
+ * Used to classify native ARIA roles and to skip them in the cursor-interactive pass.
+ */
+const AB_INTERACTIVE_ROLES = new Set([
+  "button",
+  "link",
+  "textbox",
+  "checkbox",
+  "radio",
+  "combobox",
+  "listbox",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "searchbox",
+  "slider",
+  "spinbutton",
+  "switch",
+  "tab",
+  "treeitem",
+]);
+
+interface CursorElementInfo {
+  kind: "clickable" | "editable" | "focusable";
+  hints: string[];
+  text: string;
+}
+
+/**
+ * Elements that behave interactively but may lack proper roles (cursor:pointer, onclick, etc.).
+ * Ported from agent-browser find_cursor_interactive_elements (snapshot.rs).
+ */
+function findCursorInteractiveElements(root: HTMLElement): Map<Element, CursorElementInfo> {
+  const out = new Map<Element, CursorElementInfo>();
+  const interactiveTags = new Set([
+    "a",
+    "button",
+    "input",
+    "select",
+    "textarea",
+    "details",
+    "summary",
+  ]);
+
+  const all = root.querySelectorAll("*");
+  for (let i = 0; i < all.length; i++) {
+    const el = all[i];
+    if (!(el instanceof HTMLElement)) continue;
+    if (el.closest("[hidden], [aria-hidden=\"true\"]")) continue;
+
+    const tagName = el.tagName.toLowerCase();
+    if (interactiveTags.has(tagName)) continue;
+
+    const roleAttr = el.getAttribute("role")?.toLowerCase();
+    if (roleAttr && AB_INTERACTIVE_ROLES.has(roleAttr)) continue;
+
+    const computedStyle = getComputedStyle(el);
+    const hasCursorPointer = computedStyle.cursor === "pointer";
+    const hasOnClick = el.hasAttribute("onclick") || (el as HTMLElement & { onclick?: unknown }).onclick != null;
+    const tabIndex = el.getAttribute("tabindex");
+    const hasTabIndex = tabIndex !== null && tabIndex !== "-1";
+    const ce = el.getAttribute("contenteditable");
+    const isEditable = ce === "" || ce === "true";
+
+    if (!hasCursorPointer && !hasOnClick && !hasTabIndex && !isEditable) continue;
+
+    if (hasCursorPointer && !hasOnClick && !hasTabIndex && !isEditable) {
+      const parent = el.parentElement;
+      if (parent && getComputedStyle(parent).cursor === "pointer") continue;
+    }
+
+    const text = sanitizeAccessibleString((el.textContent || "").slice(0, 100));
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+
+    const kind: CursorElementInfo["kind"] =
+      hasCursorPointer || hasOnClick ? "clickable" : isEditable ? "editable" : "focusable";
+    const hints: string[] = [];
+    if (hasCursorPointer) hints.push("cursor:pointer");
+    if (hasOnClick) hints.push("onclick");
+    if (hasTabIndex) hints.push("tabindex");
+    if (isEditable) hints.push("contenteditable");
+
+    out.set(el, { kind, hints, text });
+  }
+  return out;
+}
 
 function getElementId(el: Element): string {
   if (el.id) {
     elementMap.set(el.id, el);
     return el.id;
   }
-  const id = `ax-${el.tagName.toLowerCase()}-${idCounter++}`;
+  const id = `e${refCounter++}`;
   elementMap.set(id, el);
   return id;
 }
@@ -75,16 +177,25 @@ function getRole(el: Element): string {
 
   const tag = el.tagName;
 
-  // Input subtypes
+  // Input subtypes (aligned with common ARIA roles from agent-browser / AX)
   if (tag === "INPUT") {
     const type = (el as HTMLInputElement).type;
     if (type === "checkbox" || type === "radio") return type;
-    if (type === "submit" || type === "button") return "button";
+    if (type === "submit" || type === "button" || type === "reset") return "button";
     if (type === "search") return "searchbox";
+    if (type === "range") return "slider";
+    if (type === "number") return "spinbutton";
+    if (type === "color") return "textbox";
     return "textbox";
   }
 
   return IMPLICIT_ROLES[tag] ?? "";
+}
+
+function roleFromCursorHint(cursor: CursorElementInfo | undefined): string {
+  if (!cursor) return "";
+  if (cursor.kind === "editable") return "textbox";
+  return "button";
 }
 
 const ROLE_TO_SLOP: Record<string, string> = {
@@ -110,6 +221,12 @@ const ROLE_TO_SLOP: Record<string, string> = {
   combobox: "field",
   checkbox: "field",
   radio: "field",
+  slider: "field",
+  spinbutton: "field",
+  switch: "field",
+  listbox: "field",
+  option: "item",
+  treeitem: "item",
   form: "form",
   heading: "status",
   status: "notification",
@@ -123,35 +240,38 @@ function roleToSlopType(role: string): string {
 
 // --- Accessible name ---
 
-function getAccessibleName(el: Element): string {
+function getAccessibleName(el: Element, cursorFallback?: CursorElementInfo): string {
   const ariaLabel = el.getAttribute("aria-label");
-  if (ariaLabel) return ariaLabel;
+  if (ariaLabel) return sanitizeAccessibleString(ariaLabel);
 
   const labelledBy = el.getAttribute("aria-labelledby");
   if (labelledBy) {
     const parts = labelledBy.split(/\s+/).map(id => document.getElementById(id)?.textContent?.trim()).filter(Boolean);
-    if (parts.length) return parts.join(" ");
+    if (parts.length) return sanitizeAccessibleString(parts.join(" "));
   }
 
   // For inputs, check associated label
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
-    if (el.labels?.length) return el.labels[0].textContent?.trim() ?? "";
+    if (el.labels?.length) return sanitizeAccessibleString(el.labels[0].textContent?.trim() ?? "");
     const placeholder = el.getAttribute("placeholder");
-    if (placeholder) return placeholder;
+    if (placeholder) return sanitizeAccessibleString(placeholder);
   }
 
   // For images
   if (el instanceof HTMLImageElement) {
-    return el.alt || el.title || "";
+    const n = el.alt || el.title || "";
+    if (n) return sanitizeAccessibleString(n);
   }
 
   // For links and buttons, use text content
   if (["A", "BUTTON"].includes(el.tagName)) {
-    return el.textContent?.trim()?.slice(0, 100) ?? "";
+    return sanitizeAccessibleString(el.textContent?.trim()?.slice(0, 100) ?? "");
   }
 
   const title = el.getAttribute("title");
-  if (title) return title;
+  if (title) return sanitizeAccessibleString(title);
+
+  if (cursorFallback?.text) return sanitizeAccessibleString(cursorFallback.text);
 
   return "";
 }
@@ -186,20 +306,25 @@ function getDescription(el: Element): string {
 
 // --- Affordance extraction ---
 
-function getAffordances(el: Element, role: string): SlopNode["affordances"] {
+function getAffordances(
+  el: Element,
+  role: string,
+  cursor: CursorElementInfo | undefined,
+): SlopNode["affordances"] {
   const affordances: NonNullable<SlopNode["affordances"]> = [];
+  const name = getAccessibleName(el, cursor);
 
   if (["button", "link", "menuitem", "tab"].includes(role)) {
     const label = role === "link"
       ? `Navigate to ${(el as HTMLAnchorElement).href?.slice(0, 60) ?? "link"}`
-      : getAccessibleName(el) || "Click";
+      : name || "Click";
     affordances.push({ action: "click", label });
   }
 
   if (["textbox", "searchbox"].includes(role)) {
     affordances.push({
       action: "fill",
-      label: `Enter text in ${getAccessibleName(el) || "field"}`,
+      label: `Enter text in ${name || "field"}`,
       params: { type: "object", properties: { value: { type: "string" } }, required: ["value"] },
     });
   }
@@ -209,13 +334,25 @@ function getAffordances(el: Element, role: string): SlopNode["affordances"] {
     affordances.push({ action: "toggle", label: checked ? "Uncheck" : "Check" });
   }
 
+  if (role === "slider" || role === "spinbutton") {
+    affordances.push({
+      action: "fill",
+      label: `Set value for ${name || role}`,
+      params: { type: "object", properties: { value: { type: "string" } }, required: ["value"] },
+    });
+  }
+
+  if (role === "switch") {
+    affordances.push({ action: "toggle", label: name || "Toggle" });
+  }
+
   if (role === "combobox") {
     const options = el instanceof HTMLSelectElement
       ? Array.from(el.options).map(o => o.value)
       : [];
     affordances.push({
       action: "select",
-      label: `Select option in ${getAccessibleName(el) || "dropdown"}`,
+      label: `Select option in ${name || "dropdown"}`,
       params: {
         type: "object",
         properties: { value: { type: "string", ...(options.length && { enum: options }) } },
@@ -230,6 +367,22 @@ function getAffordances(el: Element, role: string): SlopNode["affordances"] {
 
   if (role === "form") {
     affordances.push({ action: "submit", label: "Submit form" });
+  }
+
+  // Cursor-only interactive (div with onclick, etc.)
+  if (affordances.length === 0 && cursor) {
+    if (cursor.kind === "editable" || role === "textbox") {
+      affordances.push({
+        action: "fill",
+        label: `Enter text in ${name || "field"}`,
+        params: { type: "object", properties: { value: { type: "string" } }, required: ["value"] },
+      });
+    } else {
+      affordances.push({
+        action: "click",
+        label: name || `Click (${cursor.kind})`,
+      });
+    }
   }
 
   return affordances.length > 0 ? affordances : undefined;
@@ -256,7 +409,9 @@ function shouldSkip(el: Element): boolean {
 
 // --- Is semantically meaningful ---
 
-function isMeaningful(el: Element, role: string): boolean {
+function isMeaningful(el: Element, role: string, cursorMap: ReadonlyMap<Element, CursorElementInfo>): boolean {
+  if (cursorMap.has(el)) return true;
+
   // Has a mapped ARIA role
   if (role && ROLE_TO_SLOP[role]) return true;
 
@@ -283,12 +438,14 @@ const MAX_DEPTH = 8;
 const MAX_NODES = 300;
 let nodeCount = 0;
 
-function walkElement(el: Element, depth: number): SlopNode | null {
+function walkElement(el: Element, depth: number, cursorMap: ReadonlyMap<Element, CursorElementInfo>): SlopNode | null {
   if (nodeCount >= MAX_NODES) return null;
   if (shouldSkip(el)) return null;
 
-  const role = getRole(el);
-  const meaningful = isMeaningful(el, role);
+  const cursor = cursorMap.get(el);
+  const rawRole = getRole(el);
+  const role = rawRole || roleFromCursorHint(cursor);
+  const meaningful = isMeaningful(el, rawRole, cursorMap);
 
   // Only meaningful nodes count toward depth limit
   // Non-meaningful wrappers (divs, custom elements) are free
@@ -297,7 +454,7 @@ function walkElement(el: Element, depth: number): SlopNode | null {
   // Walk children
   const childNodes: SlopNode[] = [];
   for (const child of el.children) {
-    const node = walkElement(child, meaningful ? depth + 1 : depth);
+    const node = walkElement(child, meaningful ? depth + 1 : depth, cursorMap);
     if (node) childNodes.push(node);
   }
 
@@ -317,9 +474,9 @@ function walkElement(el: Element, depth: number): SlopNode | null {
 
   nodeCount++;
 
-  const name = getAccessibleName(el);
+  const name = getAccessibleName(el, cursor);
   const desc = getDescription(el);
-  const affordances = getAffordances(el, role);
+  const affordances = getAffordances(el, role, cursor);
   const id = getElementId(el);
 
   const props: Record<string, unknown> = {};
@@ -336,13 +493,20 @@ function walkElement(el: Element, depth: number): SlopNode | null {
   if (["textbox", "searchbox"].includes(role)) {
     props.value = (el as HTMLInputElement).value || "";
   }
-  if (role === "checkbox" || role === "radio") {
+  if (role === "checkbox" || role === "radio" || role === "switch") {
     props.checked = (el as HTMLInputElement).checked;
+  }
+  if (role === "slider" || role === "spinbutton") {
+    props.value = String((el as HTMLInputElement).value ?? "");
   }
   if (role === "img" && el instanceof HTMLImageElement) {
     props.src = el.src;
     props.alt = el.alt;
   }
+
+  const meta: Record<string, unknown> | undefined = cursor
+    ? { cursor: cursor.kind, cursorHints: cursor.hints }
+    : undefined;
 
   const node: SlopNode = {
     id,
@@ -350,24 +514,103 @@ function walkElement(el: Element, depth: number): SlopNode | null {
     ...(Object.keys(props).length > 0 && { properties: props }),
     ...(childNodes.length > 0 && { children: childNodes }),
     ...(affordances && { affordances }),
+    ...(meta && { meta }),
   };
 
   return node;
 }
 
-export function buildAxTree(): SlopNode {
+export interface AxBuildOptions {
+  /**
+   * `full` — hierarchical tree (default).
+   * `interactive` — flat list of nodes with affordances only (agent-browser `--interactive`-style; smaller payloads).
+   */
+  mode?: "full" | "interactive";
+}
+
+function buildSlopNodeForElement(
+  el: Element,
+  cursor: CursorElementInfo | undefined,
+): SlopNode | null {
+  const rawRole = getRole(el);
+  const role = rawRole || roleFromCursorHint(cursor);
+  const affordances = getAffordances(el, role, cursor);
+  if (!affordances) return null;
+
+  const name = getAccessibleName(el, cursor);
+  const desc = getDescription(el);
+  const id = getElementId(el);
+
+  const props: Record<string, unknown> = {};
+  if (name) props.label = name;
+  if (desc) props.description = desc;
+
+  if (role === "heading") {
+    props.level = parseInt(el.tagName[1]) || 2;
+  }
+  if (role === "link" && el instanceof HTMLAnchorElement) {
+    props.href = el.href;
+  }
+  if (["textbox", "searchbox"].includes(role)) {
+    props.value = (el as HTMLInputElement).value || "";
+  }
+  if (role === "checkbox" || role === "radio" || role === "switch") {
+    props.checked = (el as HTMLInputElement).checked;
+  }
+  if (role === "slider" || role === "spinbutton") {
+    props.value = String((el as HTMLInputElement).value ?? "");
+  }
+  if (role === "img" && el instanceof HTMLImageElement) {
+    props.src = el.src;
+    props.alt = el.alt;
+  }
+
+  const meta: Record<string, unknown> | undefined = cursor
+    ? { cursor: cursor.kind, cursorHints: cursor.hints }
+    : undefined;
+
+  return {
+    id,
+    type: roleToSlopType(role),
+    ...(Object.keys(props).length > 0 && { properties: props }),
+    affordances,
+    ...(meta && { meta }),
+  };
+}
+
+/** Flat snapshot: only elements with affordances, document order (cf. agent-browser interactive snapshot). */
+function buildInteractiveFlat(cursorMap: ReadonlyMap<Element, CursorElementInfo>): SlopNode {
   elementMap.clear();
-  idCounter = 0;
+  refCounter = 0;
   nodeCount = 0;
 
-  // Always start from body — let the walker find meaningful elements
-  // at any depth (non-meaningful wrappers don't count toward depth limit)
-  const root = document.body;
+  const candidates = new Set<Element>();
+  for (const el of document.querySelectorAll(
+    "a[href], button, input, textarea, select, summary, [role], [tabindex]:not([tabindex=\"-1\"])",
+  )) {
+    if (!(el instanceof HTMLElement)) continue;
+    if (shouldSkip(el)) continue;
+    candidates.add(el);
+  }
+  for (const el of cursorMap.keys()) {
+    if (!shouldSkip(el)) candidates.add(el);
+  }
+
+  const sorted = Array.from(candidates).sort((a, b) => {
+    const p = a.compareDocumentPosition(b);
+    if (p & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (p & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+    return 0;
+  });
 
   const children: SlopNode[] = [];
-  for (const child of root.children) {
-    const node = walkElement(child, 1);
-    if (node) children.push(node);
+  for (const el of sorted) {
+    if (nodeCount >= MAX_NODES) break;
+    const cursor = cursorMap.get(el);
+    const node = buildSlopNodeForElement(el, cursor);
+    if (!node) continue;
+    nodeCount++;
+    children.push(node);
   }
 
   return {
@@ -375,7 +618,48 @@ export function buildAxTree(): SlopNode {
     type: "root",
     properties: { label: document.title },
     ...(children.length > 0 && { children }),
-    meta: { summary: `${nodeCount} elements scanned from ${document.title}` },
+    meta: {
+      summary: `${nodeCount} interactive elements from ${document.title}`,
+      snapshotMode: "interactive",
+    },
+  };
+}
+
+export function buildAxTree(options?: AxBuildOptions): SlopNode {
+  const cursorMap = document.body
+    ? findCursorInteractiveElements(document.body)
+    : new Map<Element, CursorElementInfo>();
+
+  if (options?.mode === "interactive") {
+    return buildInteractiveFlat(cursorMap);
+  }
+
+  elementMap.clear();
+  refCounter = 0;
+  nodeCount = 0;
+
+  // Always start from body — let the walker find meaningful elements
+  // at any depth (non-meaningful wrappers don't count toward depth limit)
+  const root = document.body;
+
+  const children: SlopNode[] = [];
+  if (root) {
+    for (const child of root.children) {
+      const node = walkElement(child, 1, cursorMap);
+      if (node) children.push(node);
+    }
+  }
+
+  return {
+    id: "ax-root",
+    type: "root",
+    properties: { label: document.title },
+    ...(children.length > 0 && { children }),
+    meta: {
+      summary: `${nodeCount} elements scanned from ${document.title}`,
+      snapshotMode: "full",
+      cursorInteractiveCount: cursorMap.size,
+    },
   };
 }
 
@@ -421,7 +705,12 @@ export function executeAction(nodeId: string, action: string, params?: Record<st
       case "fill": {
         const value = (params?.value as string) ?? "";
         if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-          el.value = value;
+          if (el.type === "number" || el.type === "range") {
+            const n = Number(value);
+            el.value = Number.isFinite(n) ? String(n) : value;
+          } else {
+            el.value = value;
+          }
           el.dispatchEvent(new Event("input", { bubbles: true }));
           el.dispatchEvent(new Event("change", { bubbles: true }));
         }

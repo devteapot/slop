@@ -39,19 +39,33 @@ export interface ConnectedProvider {
   status: "connected" | "connecting" | "disconnected";
 }
 
+export interface DiscoveryOptions {
+  logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void };
+  /** Auto-connect all discovered providers instead of lazy-connecting */
+  autoConnect?: boolean;
+}
+
 export interface DiscoveryService {
   getDiscovered(): ProviderDescriptor[];
   getProviders(): ConnectedProvider[];
   getProvider(id: string): ConnectedProvider | null;
   ensureConnected(idOrName: string): Promise<ConnectedProvider | null>;
+  /** Register a callback fired on connect, disconnect, and state patch */
+  onStateChange(fn: () => void): void;
   start(): void;
   stop(): void;
 }
 
 export function createDiscoveryService(
-  logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void }
+  optionsOrLogger?: DiscoveryOptions | { info: (...args: any[]) => void; error: (...args: any[]) => void }
 ): DiscoveryService {
-  const log = logger ?? { info: console.error, error: console.error };
+  // Support both old signature (logger) and new (options)
+  const opts: DiscoveryOptions =
+    optionsOrLogger && ("autoConnect" in optionsOrLogger || "logger" in optionsOrLogger)
+      ? optionsOrLogger as DiscoveryOptions
+      : { logger: optionsOrLogger as any };
+  const log = opts.logger ?? { info: console.error, error: console.error };
+  const autoConnect = opts.autoConnect ?? false;
   const providers = new Map<string, ConnectedProvider>();
   const lastAccessed = new Map<string, number>();
   const reconnectAttempts = new Map<string, number>();
@@ -61,6 +75,7 @@ export function createDiscoveryService(
   let idleTimer: ReturnType<typeof setInterval> | null = null;
   let lastLocalDescriptors: ProviderDescriptor[] = [];
   let bridge: BridgeClient | null = null;
+  let stateChangeCallback: (() => void) | null = null;
 
   // --- Local discovery (file-based) ---
 
@@ -163,12 +178,18 @@ export function createDiscoveryService(
       lastAccessed.set(desc.id, Date.now());
       reconnectAttempts.delete(desc.id);
       log.info(`[slop] Connected to ${entry.name} (${desc.id}) via ${desc.transport.type}`);
+      stateChangeCallback?.();
+
+      entry.consumer.on("patch", () => {
+        stateChangeCallback?.();
+      });
 
       entry.consumer.on("disconnect", () => {
         log.info(`[slop] Disconnected from ${entry.name}`);
         entry.status = "disconnected";
         providers.delete(desc.id);
         lastAccessed.delete(desc.id);
+        stateChangeCallback?.();
 
         // Exponential backoff reconnection (only if descriptor still exists)
         const allDescs = getAllDescriptors();
@@ -208,6 +229,16 @@ export function createDiscoveryService(
         lastAccessed.delete(id);
       }
     }
+
+    // Auto-connect new providers when in plugin mode
+    if (autoConnect) {
+      const allDescs = getAllDescriptors();
+      for (const desc of allDescs) {
+        if (!providers.has(desc.id)) {
+          connectProvider(desc).catch(() => {});
+        }
+      }
+    }
   }
 
   function checkIdle() {
@@ -236,6 +267,10 @@ export function createDiscoveryService(
   }
 
   return {
+    onStateChange(fn: () => void) {
+      stateChangeCallback = fn;
+    },
+
     getDiscovered() {
       return getAllDescriptors();
     },
@@ -294,6 +329,14 @@ export function createDiscoveryService(
       bridge = createBridgeClient(log);
       bridge.onProviderChange(() => {
         log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
+        if (autoConnect) {
+          // Auto-connect newly discovered bridge providers
+          for (const desc of getBridgeDescriptors()) {
+            if (!providers.has(desc.id)) {
+              connectProvider(desc).catch(() => {});
+            }
+          }
+        }
       });
       bridge.start();
     },

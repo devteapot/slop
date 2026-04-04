@@ -229,6 +229,13 @@
         "@types/ws": "^8.5.0",
       },
     },
+    "packages/typescript/claude-code-plugin": {
+      "name": "@slop-ai/claude-code-plugin",
+      "version": "0.1.0",
+      "dependencies": {
+        "@slop-ai/claude-agent": "workspace:*",
+      },
+    },
     "packages/typescript/client": {
       "name": "@slop-ai/client",
       "version": "0.1.0",
@@ -1029,6 +1036,8 @@
     "@slop-ai/angular": ["@slop-ai/angular@workspace:packages/typescript/angular"],
 
     "@slop-ai/claude-agent": ["@slop-ai/claude-agent@workspace:packages/typescript/claude-agent"],
+
+    "@slop-ai/claude-code-plugin": ["@slop-ai/claude-code-plugin@workspace:packages/typescript/claude-code-plugin"],
 
     "@slop-ai/client": ["@slop-ai/client@workspace:packages/typescript/client"],
 

@@ -4,9 +4,20 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { createDiscoveryService } from "./discovery";
 import { createToolHandlers } from "./tools";
+import { createStateCache, type StateCache } from "./state-cache";
 
-const discovery = createDiscoveryService();
+const pluginDataDir = process.env.CLAUDE_PLUGIN_DATA;
+const isPluginMode = !!pluginDataDir;
+
+const discovery = createDiscoveryService({
+  autoConnect: isPluginMode,
+});
 const handlers = createToolHandlers(discovery);
+
+let cache: StateCache | null = null;
+if (pluginDataDir) {
+  cache = createStateCache(pluginDataDir, discovery);
+}
 
 const server = new McpServer({
   name: "slop",
@@ -16,9 +27,12 @@ const server = new McpServer({
 // @ts-expect-error — MCP SDK's server.tool() has excessively deep type instantiation with Zod
 server.tool(
   "connected_apps",
-  "View applications running on this computer that you can observe and control. " +
-    "Call without arguments to list all available apps. " +
-    "Call with an app name or ID to connect (if needed) and see its full current state and every action you can perform.",
+  isPluginMode
+    ? "View applications running on this computer. Usually state is already in context — " +
+      "use this only to refresh state or connect to a newly discovered app."
+    : "View applications running on this computer that you can observe and control. " +
+      "Call without arguments to list all available apps. " +
+      "Call with an app name or ID to connect (if needed) and see its full current state and every action you can perform.",
   {
     app: z
       .string()
@@ -30,10 +44,13 @@ server.tool(
 
 server.tool(
   "app_action",
-  "Perform an action on an application — add items, edit content, toggle state, " +
-    "delete entries, move things around, start/stop processes, etc. " +
-    "IMPORTANT: Always call connected_apps with the app name FIRST to see the exact state tree, " +
-    "node paths, action names, and parameter values. Do not guess — use the exact IDs shown.",
+  isPluginMode
+    ? "Perform an action on an application. Use the exact paths, action names, and " +
+      "parameter values from the application state shown in context."
+    : "Perform an action on an application — add items, edit content, toggle state, " +
+      "delete entries, move things around, start/stop processes, etc. " +
+      "IMPORTANT: Always call connected_apps with the app name FIRST to see the exact state tree, " +
+      "node paths, action names, and parameter values. Do not guess — use the exact IDs shown.",
   {
     app: z.string().describe("App name or ID (from connected_apps)"),
     path: z.string().describe("Path to the item to act on, e.g. '/' for root, '/todos/todo-1'"),
@@ -66,15 +83,18 @@ server.tool(
 );
 
 discovery.start();
+cache?.start();
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
 process.on("SIGINT", () => {
+  cache?.stop();
   discovery.stop();
   process.exit(0);
 });
 process.on("SIGTERM", () => {
+  cache?.stop();
   discovery.stop();
   process.exit(0);
 });

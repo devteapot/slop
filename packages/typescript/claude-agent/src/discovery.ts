@@ -51,7 +51,7 @@ export interface DiscoveryService {
 export function createDiscoveryService(
   logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void }
 ): DiscoveryService {
-  const log = logger ?? { info: console.log, error: console.error };
+  const log = logger ?? { info: console.error, error: console.error };
   const providers = new Map<string, ConnectedProvider>();
   const lastAccessed = new Map<string, number>();
   const reconnectAttempts = new Map<string, number>();
@@ -149,7 +149,13 @@ export function createDiscoveryService(
     providers.set(desc.id, entry);
 
     try {
-      const hello = await entry.consumer.connect();
+      const CONNECT_TIMEOUT = 10_000;
+      const hello = await Promise.race([
+        entry.consumer.connect(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Connection timed out after 10s")), CONNECT_TIMEOUT),
+        ),
+      ]);
       entry.name = hello.provider.name;
       const { id: subId } = await entry.consumer.subscribe("/", -1);
       entry.subscriptionId = subId;

@@ -28,7 +28,7 @@ export interface BridgeClient {
 export function createBridgeClient(
   logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void },
 ): BridgeClient {
-  const log = logger ?? { info: console.log, error: console.error };
+  const log = logger ?? { info: console.error, error: console.error };
 
   let ws: WebSocket | null = null;
   let isRunning = false;

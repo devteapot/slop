@@ -10,7 +10,7 @@
 
 import fs from "node:fs";
 
-const STATE_FILE = "/tmp/claude-slop-connect/state.json";
+const STATE_FILE = "/tmp/claude-slop-plugin/state.json";
 const STALE_THRESHOLD = 30_000; // 30 seconds
 
 try {

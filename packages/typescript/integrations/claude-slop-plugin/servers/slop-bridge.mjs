@@ -30,7 +30,7 @@ import path from "node:path";
 // Constants
 // ---------------------------------------------------------------------------
 
-const STATE_DIR = "/tmp/claude-slop-connect";
+const STATE_DIR = "/tmp/claude-slop-plugin";
 const STATE_FILE = path.join(STATE_DIR, "state.json");
 
 // ---------------------------------------------------------------------------

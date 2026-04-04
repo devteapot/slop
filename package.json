@@ -4,7 +4,22 @@
   "description": "State Layer for Observable Programs — a protocol for AI to observe and interact with application state",
   "license": "MIT",
   "repository": "https://github.com/devteapot/slop",
-  "workspaces": ["packages/typescript/sdk/*", "packages/typescript/adapters/*", "packages/typescript/integrations/*", "packages/typescript/integrations/claude-slop-connect/servers", "website/demo", "examples/cli/*", "examples/spa/*", "examples/full-stack/*", "examples/full-stack/*/frontend", "examples/desktop/*", "website/playground", "apps/extension", "apps/desktop", "benchmarks/mcp-vs-slop"],
+  "workspaces": [
+    "packages/typescript/sdk/*",
+    "packages/typescript/adapters/*",
+    "packages/typescript/integrations/*",
+    "packages/typescript/integrations/claude-slop-plugin/servers",
+    "website/demo",
+    "examples/cli/*",
+    "examples/spa/*",
+    "examples/full-stack/*",
+    "examples/full-stack/*/frontend",
+    "examples/desktop/*",
+    "website/playground",
+    "apps/extension",
+    "apps/desktop",
+    "benchmarks/mcp-vs-slop"
+  ],
   "scripts": {
     "build": "bun run scripts/build-typescript-packages.ts",
     "test": "for d in packages/typescript/*/*/; do if ls \"$d\"__tests__/*.test.* >/dev/null 2>&1; then echo \"Testing $d\" && (cd \"$d\" && bun test); fi; done",

@@ -1,6 +1,6 @@
 # Claude Code Integration
 
-`claude-slop-connect` is a Claude Code plugin that lets Claude discover, observe, and control SLOP-enabled applications in real time.
+`claude-slop-plugin` is a Claude Code plugin that lets Claude discover, observe, and control SLOP-enabled applications in real time.
 
 ## What it does
 
@@ -15,13 +15,13 @@ Copy or symlink the plugin directory into your Claude Code plugins:
 
 ```bash
 # From the repo root
-cp -r packages/typescript/integrations/claude-slop-connect ~/.claude/plugins/claude-slop-connect
+cp -r packages/typescript/integrations/claude-slop-plugin ~/.claude/plugins/claude-slop-plugin
 ```
 
 Then install the MCP server dependencies:
 
 ```bash
-cd ~/.claude/plugins/claude-slop-connect/servers
+cd ~/.claude/plugins/claude-slop-plugin/servers
 bun install
 bun run build
 ```

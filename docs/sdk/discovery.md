@@ -289,7 +289,7 @@ Dynamic tools have proper parameter schemas from the provider's affordance defin
 
 Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. The model knows exact paths and action names from state injection, so it gets the call right without guessing.
 
-### Claude Code plugin (`claude-slop-connect`)
+### Claude Code plugin (`claude-slop-plugin`)
 
 | Component | Purpose |
 |---|---|
@@ -300,7 +300,7 @@ Hosts without dynamic tool support fall back to the **meta-tool pattern**: stabl
 Design details:
 
 - **Dynamic tools** — When `connected_apps("kanban")` connects a provider, affordances are registered as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
-- **Live state in context** — The MCP server writes provider state to `/tmp/claude-slop-connect/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
+- **Live state in context** — The MCP server writes provider state to `/tmp/claude-slop-plugin/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
 - **Staleness protection** — The state file includes a `lastUpdated` timestamp. The hook skips injection if the file is older than 30 seconds.
 - **Multi-app** — Multiple providers can be connected simultaneously. Dynamic tools from different apps are distinguished by their app ID prefix.
 

@@ -1,4 +1,4 @@
-# claude-slop-connect
+# claude-slop-plugin
 
 Connect Claude to any SLOP-enabled application — local native apps and web apps alike. Discovers providers, subscribes to live state trees, and exposes app affordances as tools so Claude can see and act on your apps in real time.
 
@@ -68,7 +68,7 @@ Ask Claude to interact with a SLOP-enabled app:
 1. The MCP server uses `createDiscoveryService` from `@slop-ai/claude-agent` to discover SLOP providers from the local filesystem and the browser extension bridge.
 2. When Claude calls `connected_apps` with an app name, the SDK lazy-connects via the appropriate transport (WebSocket, Unix socket, or extension relay) and subscribes to the state tree.
 3. `createToolHandlers` from the SDK provides the logic for all three tools — listing apps, invoking actions, and batch actions.
-4. The `UserPromptSubmit` hook reads a shared state file (`/tmp/claude-slop-connect/state.json`) that the MCP server updates whenever state changes, injecting live state into Claude's context.
+4. The `UserPromptSubmit` hook reads a shared state file (`/tmp/claude-slop-plugin/state.json`) that the MCP server updates whenever state changes, injecting live state into Claude's context.
 5. State formatting uses `formatTree` from `@slop-ai/consumer` for consistent, readable output.
 
 ## Architecture

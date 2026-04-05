@@ -1,10 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import { rmSync } from "node:fs";
-import WebSocket from "ws";
 import { createDiscoveryService } from "../src/discovery";
+import type { Bridge, BridgeProvider, RelayHandler } from "../src/bridge-client";
 import {
-  closeWebSocket,
-  connectWebSocket,
   createMockSlopProviderServer,
   createTempDir,
   delay,
@@ -65,56 +63,36 @@ describe("createDiscoveryService", () => {
 
   test("bridge provider removals prune immediately", async () => {
     debugLog("start", "bridge provider removals prune immediately");
-    const port = await getFreePort();
-    const bridgeUrl = `ws://127.0.0.1:${port}/slop-bridge`;
+    const bridge = new FakeBridge();
     const service = createDiscoveryService({
-      hostBridge: true,
-      bridgeUrl,
-      bridgeDialTimeoutMs: 20,
-      bridgeRetryDelayMs: 20,
+      bridge,
+      enableBridge: false,
+      watchProviders: false,
       scanIntervalMs: 1000,
       watchDebounceMs: 20,
     });
 
-    let extension: WebSocket | null = null;
-
     try {
       service.start();
-      debugLog("service started", "bridge prune", { bridgeUrl });
+      debugLog("service started", "bridge prune");
 
-      await waitUntil(async () => {
-        try {
-          extension = await connectWebSocket(bridgeUrl);
-          return true;
-        } catch {
-          return false;
-        }
-      }, { timeoutMs: 1000, intervalMs: 20 });
-
-      extension!.send(JSON.stringify({
-        type: "provider-available",
-        tabId: 1,
+      bridge.setProviders([{
         providerKey: "browser-app",
-        provider: {
-          id: "browser-app",
-          name: "Browser App",
-          transport: "postmessage",
-        },
-      }));
+        tabId: 1,
+        id: "browser-app",
+        name: "Browser App",
+        transport: "postmessage",
+      }]);
 
       await waitUntil(() => service.getDiscovered().some((provider) => provider.id === "browser-app"));
       debugLog("bridge provider discovered");
 
-      extension!.send(JSON.stringify({
-        type: "provider-unavailable",
-        providerKey: "browser-app",
-      }));
+      bridge.setProviders([]);
 
       await waitUntil(() => !service.getDiscovered().some((provider) => provider.id === "browser-app"));
       debugLog("bridge provider pruned");
     } finally {
       debugLog("cleanup start", "bridge prune");
-      await closeWebSocket(extension);
       service.stop();
       debugLog("cleanup done", "bridge prune");
     }
@@ -222,3 +200,45 @@ describe("createDiscoveryService", () => {
     }
   });
 });
+
+class FakeBridge implements Bridge {
+  private currentProviders: BridgeProvider[] = [];
+  private changeCallback: (() => void) | null = null;
+  private relaySubscribers = new Map<string, RelayHandler[]>();
+
+  setProviders(providers: BridgeProvider[]) {
+    this.currentProviders = providers;
+    this.changeCallback?.();
+  }
+
+  running(): boolean {
+    return true;
+  }
+
+  providers(): BridgeProvider[] {
+    return this.currentProviders;
+  }
+
+  onProviderChange(fn: () => void): void {
+    this.changeCallback = fn;
+  }
+
+  subscribeRelay(providerKey: string): RelayHandler[] {
+    const handlers = this.relaySubscribers.get(providerKey) ?? [];
+    this.relaySubscribers.set(providerKey, handlers);
+    return handlers;
+  }
+
+  unsubscribeRelay(providerKey: string, handler: RelayHandler): void {
+    const handlers = this.relaySubscribers.get(providerKey);
+    if (!handlers) return;
+    const index = handlers.indexOf(handler);
+    if (index >= 0) handlers.splice(index, 1);
+  }
+
+  send(): void {}
+
+  start(): void {}
+
+  stop(): void {}
+}

@@ -71,6 +71,8 @@ export interface DiscoveryOptions {
   enableBridge?: boolean;
   /** Disable provider directory watchers and rely on periodic scans only */
   watchProviders?: boolean;
+  /** Inject a bridge implementation directly instead of starting one */
+  bridge?: Bridge;
   /** Start a bridge server if no existing bridge is found (default: true) */
   hostBridge?: boolean;
   providersDirs?: string[];
@@ -108,6 +110,7 @@ export function createDiscoveryService(
     autoConnect,
     enableBridge,
     watchProviders,
+    bridge: bridgeOverride,
     hostBridge,
     providersDirs,
     bridgeUrl,
@@ -568,8 +571,15 @@ export function createDiscoveryService(
       scanTimer = unrefTimer(setInterval(scan, scanIntervalMs));
       idleTimer = unrefTimer(setInterval(checkIdle, idleCheckIntervalMs));
 
-      // Start bridge: try client first, fall back to server
-      if (enableBridge) {
+      // Start bridge: use provided bridge, or try client first and fall back to server.
+      if (bridgeOverride) {
+        bridge = bridgeOverride;
+        bridge.start();
+        bridge.onProviderChange(() => {
+          log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
+          scan();
+        });
+      } else if (enableBridge) {
         initBridge(log).then((b) => {
           if (!started || lifecycleVersion !== generation) {
             b.stop();
@@ -623,6 +633,7 @@ function normalizeOptions(options: DiscoveryOptions = {}) {
     autoConnect: options.autoConnect ?? false,
     enableBridge: options.enableBridge ?? true,
     watchProviders: options.watchProviders ?? true,
+    bridge: options.bridge ?? null,
     hostBridge: options.hostBridge ?? true,
     providersDirs: options.providersDirs ?? DEFAULT_PROVIDERS_DIRS,
     bridgeUrl,

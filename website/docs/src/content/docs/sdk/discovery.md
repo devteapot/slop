@@ -289,32 +289,32 @@ Consumers can use this to maintain a cache, update a UI, or trigger context inje
 | Language | Consumer SDK | Core discovery module | Current status |
 |---|---|---|---|
 | TypeScript | `@slop-ai/consumer` | `@slop-ai/discovery` | Reference implementation for phase 1, plus host-specific helpers outside the shared contract |
-| Python | `slop-ai` | `slop_ai.discovery` | Planned |
+| Python | `slop-ai` | `slop_ai.discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
 | Go | `slop-ai` | `github.com/devteapot/slop/packages/go/slop-ai/discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
-| Rust | `slop-ai` | `slop_ai::discovery` | Planned extraction from `apps/desktop`, then normalization to the TypeScript contract |
+| Rust | `slop-ai` | `slop_ai::discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
 
 ### Phase 1 capability matrix
 
 | Capability | TypeScript | Python | Go | Rust |
 |---|---|---|---|---|
-| Local provider scanning | Shipped | Planned | Shipped | Partial |
-| Descriptor validation and pruning | Shipped | Planned | Shipped | Partial |
-| Directory watch + 15s fallback scan | Shipped | Planned | Shipped | Partial |
-| Bridge client | Shipped | Planned | Shipped | Planned |
-| Bridge server | Shipped | Planned | Shipped | Partial |
-| Client-first / server-fallback startup | Shipped | Planned | Shipped | Planned |
-| Relay transport | Shipped | Planned | Shipped | Partial |
-| Discovery service / connection orchestration | Shipped | Planned | Shipped | Partial |
-| Lazy connect + `ensureConnected()` | Shipped | Planned | Shipped | Partial |
-| Auto-connect mode | Shipped | Planned | Shipped | Planned |
-| Idle timeout | Shipped | Planned | Shipped | Planned |
-| Reconnect backoff | Shipped | Planned | Shipped | Planned |
-| Connection timeout | Shipped | Planned | Shipped | Partial |
-| State change callback | Shipped | Planned | Shipped | Partial |
+| Local provider scanning | Shipped | Shipped | Shipped | Shipped |
+| Descriptor validation and pruning | Shipped | Shipped | Shipped | Shipped |
+| Directory watch + 15s fallback scan | Shipped | Shipped | Shipped | Shipped |
+| Bridge client | Shipped | Shipped | Shipped | Shipped |
+| Bridge server | Shipped | Shipped | Shipped | Shipped |
+| Client-first / server-fallback startup | Shipped | Shipped | Shipped | Shipped |
+| Relay transport | Shipped | Shipped | Shipped | Shipped |
+| Discovery service / connection orchestration | Shipped | Shipped | Shipped | Shipped |
+| Lazy connect + `ensureConnected()` | Shipped | Shipped | Shipped | Shipped |
+| Auto-connect mode | Shipped | Shipped | Shipped | Shipped |
+| Idle timeout | Shipped | Shipped | Shipped | Shipped |
+| Reconnect backoff | Shipped | Shipped | Shipped | Shipped |
+| Connection timeout | Shipped | Shipped | Shipped | Shipped |
+| State change callback | Shipped | Shipped | Shipped | Shipped |
 | `formatTree()` | Shipped | Shipped | Shipped | Shipped |
 | `affordancesToTools()` | Shipped | Shipped | Shipped | Shipped |
-| `createToolHandlers()` | Shipped | Planned | Shipped | Planned |
-| `createDynamicTools()` | Shipped | Planned | Shipped | Planned |
+| `createToolHandlers()` | Shipped | Shipped | Shipped | Shipped |
+| `createDynamicTools()` | Shipped | Shipped | Shipped | Shipped |
 | Host wrappers and prompt injection glue | Shipped | Out of scope | Out of scope | Out of scope |
 | State cache / shared file helpers | Shipped | Out of scope | Out of scope | Out of scope |
 

@@ -42,9 +42,36 @@ app.add_middleware(SlopMiddleware, slop=slop)
 ## Included modules
 
 - `slop_ai.SlopServer` and `slop_ai.SlopConsumer`
+- `slop_ai.discovery` for provider scanning, bridge relay, lazy/auto-connect, and AI-facing tool helpers
 - `slop_ai.pick`, `slop_ai.omit`, `slop_ai.normalize_descriptor`
 - `slop_ai.transports.asgi`, `.websocket`, `.unix`, `.stdio`
 - scaling helpers such as `prepare_tree`, `truncate_tree`, and `auto_compact`
+
+## Discovery layer
+
+The Python SDK now includes the core discovery layer in `slop_ai.discovery`:
+
+```python
+import asyncio
+
+from slop_ai.discovery import DiscoveryOptions, create_discovery_service
+
+
+async def main() -> None:
+    service = create_discovery_service(DiscoveryOptions())
+    await service.start()
+    try:
+        provider = await service.ensure_connected("my-app")
+        if provider is not None:
+            print(provider.name)
+    finally:
+        await service.stop()
+
+
+asyncio.run(main())
+```
+
+Install `slop-ai[websocket]` when discovery needs browser bridge support or direct WebSocket providers.
 
 ## Documentation
 

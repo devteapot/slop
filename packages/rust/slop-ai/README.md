@@ -51,3 +51,23 @@ slop.register("todos", json!({
 - Project API page: https://docs.slopai.dev/api/rust
 - Rust guide: https://docs.slopai.dev/guides/rust
 - docs.rs: https://docs.rs/slop-ai
+
+## Discovery layer
+
+The Rust SDK now includes the core discovery layer in `slop_ai::discovery` under the default `native` feature set:
+
+```rust
+use slop_ai::discovery::{DiscoveryService, DiscoveryServiceOptions};
+
+#[tokio::main]
+async fn main() {
+    let service = DiscoveryService::new(DiscoveryServiceOptions::default());
+    service.start().await;
+
+    if let Ok(Some(provider)) = service.ensure_connected("my-app").await {
+        println!("{}", provider.name);
+    }
+
+    service.stop().await;
+}
+```

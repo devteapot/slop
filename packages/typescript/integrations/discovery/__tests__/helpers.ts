@@ -54,14 +54,21 @@ export async function getFreePort(): Promise<number> {
   });
 }
 
-export async function connectWebSocket(url: string): Promise<WebSocket> {
+export async function connectWebSocket(url: string, timeoutMs = 200): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
+    const timer = setTimeout(() => {
+      ws.terminate();
+      reject(new Error(`Timed out connecting to ${url}`));
+    }, timeoutMs);
+
     const handleOpen = () => {
+      clearTimeout(timer);
       ws.off("error", handleError);
       resolve(ws);
     };
     const handleError = (error: Error) => {
+      clearTimeout(timer);
       ws.off("open", handleOpen);
       reject(error);
     };

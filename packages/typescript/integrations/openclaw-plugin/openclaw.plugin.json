@@ -8,6 +8,6 @@
     "properties": {}
   },
   "contracts": {
-    "tools": ["connected_apps", "app_action", "app_action_batch"]
+    "tools": ["list_apps", "connect_app", "disconnect_app", "app_action", "app_action_batch"]
   }
 }

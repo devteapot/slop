@@ -5,7 +5,7 @@ description: >
   Use when the user asks to "connect to an app", "open an app", "interact with",
   "use", "control", or "check" a local application, or when the user mentions
   a specific app that might be SLOP-enabled (e.g., "check my kanban board",
-  "look at my editor", "what's in my inbox"). Also triggers on "discover apps",
+  "look at my editor", "what's in my inbox"). Also triggers on "list apps",
   "list providers", "available apps", or "SLOP".
 ---
 
@@ -17,11 +17,16 @@ you always see the latest state, available actions, paths, and parameter schemas
 
 ## Tools
 
-### `connected_apps`
+### `list_apps`
 
-Lists all discovered applications, or connects to a specific app.
+Lists all available applications.
 
 - **No arguments** — lists all available apps (local native + web), their connection status, and action counts.
+
+### `connect_app`
+
+Connects to a specific app and returns its full state tree.
+
 - **`app: "name or id"`** — connects to the app (if not already connected) and returns its full state tree.
 
 ### `disconnect_app`
@@ -50,15 +55,15 @@ Use this for bulk operations: adding multiple items, making several edits, or an
 
 ## Workflow
 
-### 1. Discover and list apps
+### 1. List available apps
 
-Call `connected_apps` (no arguments) to see what's available. Apps are auto-discovered from:
+Call `list_apps` to see what's available. Apps are auto-discovered from:
 - `~/.slop/providers/` — local native apps
 - The SLOP browser extension bridge — web apps running in the browser
 
 ### 2. Connect
 
-Call `connected_apps` with an app name or ID. This connects and returns the full state tree.
+Call `connect_app` with an app name or ID. This connects and returns the full state tree.
 
 ### 3. Read state from context
 
@@ -145,7 +150,7 @@ Some actions take time (deploys, report generation). When you invoke one:
 
 - **Dangerous actions** — actions marked `[DANGEROUS]` require user confirmation. Always ask the user first.
 - **State is live** — the tree updates in real time via patches. What you see is current.
-- **Inspect before acting** — always call `connected_apps` with an app name before using `app_action` so you have the current state.
+- **Inspect before acting** — always call `connect_app` with an app name before using `app_action` so you have the current state.
 - **Batch for speed** — use `app_action_batch` for multiple actions instead of calling `app_action` sequentially.
 - **Summaries are valuable** — stub nodes with summaries often tell you enough without loading full details.
 

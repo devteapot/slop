@@ -3,8 +3,9 @@
 /**
  * slop-bridge (mcp-proxy) — MCP server that bridges SLOP providers to Claude.
  *
- * Four static tools:
- *   - connected_apps: discover and connect to SLOP providers
+ * Five static tools:
+ *   - list_apps: list available SLOP providers
+ *   - connect_app: explicitly connect to a SLOP provider
  *   - disconnect_app: explicitly disconnect from a provider
  *   - app_action: perform a single action on an app node
  *   - app_action_batch: perform multiple actions in one call
@@ -107,11 +108,20 @@ discovery.onStateChange(() => {
 
 const TOOLS = [
   {
-    name: "connected_apps",
+    name: "list_apps",
     description:
-      "Connect to an application to see its state and actions, or list all available apps. " +
-      "Once connected, the app's state tree is injected into context automatically on every message. " +
-      "Call with an app name to connect; call without arguments to list all.",
+      "List all available applications for connection. " +
+      "Shows which apps are already connected and how many actions they expose.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "connect_app",
+    description:
+      "Connect to an application to see its state and actions. " +
+      "Once connected, the app's state tree is injected into context automatically on every message.",
     inputSchema: {
       type: "object",
       properties: {
@@ -150,7 +160,7 @@ const TOOLS = [
       properties: {
         app: {
           type: "string",
-          description: "App name or ID (from connected_apps or context)",
+          description: "App name or ID (from connect_app or context)",
         },
         path: {
           type: "string",
@@ -180,7 +190,7 @@ const TOOLS = [
       properties: {
         app: {
           type: "string",
-          description: "App name or ID (from connected_apps or context)",
+          description: "App name or ID (from connect_app or context)",
         },
         actions: {
           type: "array",
@@ -227,8 +237,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case "connected_apps":
-        return await handlers.connectedApps(args);
+      case "list_apps":
+        return await handlers.listApps();
+
+      case "connect_app":
+        return await handlers.connectApp(args);
 
       case "disconnect_app":
         return await handlers.disconnectApp(args);

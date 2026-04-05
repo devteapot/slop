@@ -35,16 +35,16 @@ This variant dynamically registers tools for each connected app. To avoid approv
 }
 ```
 
-This allows all tools from the plugin's MCP server — both the lifecycle tools (`connected_apps`, `disconnect_app`) and every dynamic affordance tool from connected apps.
+This allows all tools from the plugin's MCP server — both the lifecycle tools (`list_apps`, `connect_app`, `disconnect_app`) and every dynamic affordance tool from connected apps.
 
 ## Comparison with `slop-mcp-proxy`
 
 | | **slop-native** (this) | **slop-mcp-proxy** |
 |---|---|---|
-| Tool count | Grows with connected affordances | Fixed (4 tools) |
+| Tool count | Grows with connected affordances | Fixed (5 tools) |
 | Affordance invocation | Per-affordance tool (e.g. `excalidraw__zoom_to_fit`) | Generic `app_action(app, path, action, params)` |
 | Schema validation | MCP validates per-tool JSON Schema | Model reads schemas from injected state |
-| Token cost | Higher (N tool definitions) | Lower (4 tool definitions) |
+| Token cost | Higher (N tool definitions) | Lower (5 tool definitions) |
 | Best fit | Direct, ergonomic tool calling | Lowest-overhead integration surface |
 
 ### Local apps
@@ -67,7 +67,7 @@ Both types appear seamlessly in discovery results and work identically once conn
 
 Ask Claude to interact with a SLOP-enabled app:
 
-- "What apps are available?" — discovers local + web providers
+- "What apps are available?" — lists local + web providers
 - "Connect to my kanban board" — connects, injects state, registers action tools
 - "Add three tasks to my todo list" — Claude calls the app's tools directly
 - "Disconnect from the kanban board" — removes tools and state
@@ -78,7 +78,8 @@ Ask Claude to interact with a SLOP-enabled app:
 
 | Tool | Purpose |
 |------|---------|
-| `connected_apps` | List all discovered apps, or connect to a specific app. Connecting triggers state injection and dynamic tool registration. |
+| `list_apps` | List all available apps and show which ones are already connected. |
+| `connect_app` | Connect to a specific app. Connecting triggers state injection and dynamic tool registration. |
 | `disconnect_app` | Explicitly disconnect from an app. Removes its tools and stops state updates. |
 
 ### Dynamic affordance tools (per-app, after connecting)
@@ -103,13 +104,13 @@ Claude calls these directly — no proxy through meta-tools needed. Tools are re
 | Component | Purpose |
 |-----------|---------|
 | **MCP Server** (`slop-bridge`) | Discovery + connection lifecycle. Registers dynamic affordance tools via `tools/list_changed`. |
-| **Skill** (`slop-connect`) | Teaches Claude the SLOP workflow: discover, connect, read state, act |
+| **Skill** (`slop-connect`) | Teaches Claude the SLOP workflow: list, connect, read state, act |
 | **Hook** (`UserPromptSubmit`) | Injects connected providers' state into Claude's context each turn |
 
 ## How it works
 
 1. The MCP server uses `createDiscoveryService` from `@slop-ai/discovery` to discover SLOP providers from the local filesystem and the browser extension bridge.
-2. When Claude calls `connected_apps` with an app name, the service lazy-connects via the appropriate transport (WebSocket, Unix socket, or extension relay) and subscribes to the state tree.
+2. When Claude calls `connect_app` with an app name, the service lazy-connects via the appropriate transport (WebSocket, Unix socket, or extension relay) and subscribes to the state tree.
 3. `createDynamicTools` from `@slop-ai/discovery` converts each connected app's affordances into namespaced MCP tools. The server notifies Claude via `tools/list_changed`.
 4. Claude calls affordance tools directly (e.g. `excalidraw__elements__add_rectangle`). The server resolves each tool name to a provider + path + action and invokes it.
 5. The `UserPromptSubmit` hook reads a shared state file (`/tmp/claude-slop-plugin/state.json`) that the MCP server updates whenever state changes, injecting live state into Claude's context.
@@ -138,7 +139,7 @@ Browser SPAs ──postMessage──Extension─────────┤
 
 All dynamic affordance tools remain registered for the lifetime of the connection. Apps with many distinct action+schema combinations can consume significant context tokens (~128 tokens per tool) even when Claude isn't actively interacting with the app.
 
-**Planned improvement: idle tool deregistration.** Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive — the hook still injects the state tree each turn so Claude retains awareness of the app. When Claude needs to act again, a single `connected_apps("appname")` call re-registers the tools instantly from the cached state (no reconnection needed).
+**Planned improvement: idle tool deregistration.** Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive — the hook still injects the state tree each turn so Claude retains awareness of the app. When Claude needs to act again, a single `connect_app("appname")` call re-registers the tools instantly from the cached state (no reconnection needed).
 
 This gives the best of both worlds: direct tool calls with zero overhead during active use, freed context when idle.
 

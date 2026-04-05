@@ -5,7 +5,7 @@ description: "Connect Claude Code to SLOP-enabled applications with dynamic or g
 SLOP ships two Claude Code integrations:
 
 - `claude-slop-native` — direct-tool variant. Connected app affordances become first-class MCP tools, so Claude calls app-specific tools directly.
-- `claude-slop-mcp-proxy` — generic-action variant. Claude reads the injected state tree and uses four stable tools: `connected_apps`, `disconnect_app`, `app_action`, and `app_action_batch`.
+- `claude-slop-mcp-proxy` — generic-action variant. Claude reads the injected state tree and uses five stable tools: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
 
 Use `claude-slop-native` by default for the best Claude Code UX. Use `claude-slop-mcp-proxy` when you want a fixed, low-overhead tool catalog.
 
@@ -81,20 +81,22 @@ Each dynamic tool has proper parameter schemas from the provider's affordance de
 
 Dynamic tools are rebuilt on every state change. When affordances appear or disappear (e.g., a node gains a new action, or a provider disconnects), the tool list updates automatically.
 
-Two tools remain static and always available:
+Three lifecycle tools remain static and always available:
 
 | Tool | When to use |
 |---|---|
-| `connected_apps` | Connect to an app or list all discovered apps |
+| `list_apps` | List all available apps and show which ones are already connected |
+| `connect_app` | Connect to an app and trigger dynamic tool registration |
 | `disconnect_app` | Remove an app and its dynamic tools when you're done |
 
 ### `claude-slop-mcp-proxy`: fixed generic tools
 
-This variant keeps a stable four-tool surface:
+This variant keeps a stable five-tool surface:
 
 | Tool | When to use |
 |---|---|
-| `connected_apps` | Connect to an app or list all discovered apps |
+| `list_apps` | List all available apps and show which ones are already connected |
+| `connect_app` | Connect to an app and inject its current state |
 | `disconnect_app` | Remove an app from injected context |
 | `app_action` | Invoke one affordance by `app`, `path`, `action`, and `params` |
 | `app_action_batch` | Invoke multiple affordances in one call |
@@ -113,10 +115,10 @@ Claude reads the current state tree from context, then constructs `app_action` o
 
 ```
 User: What apps are available?
-→ Claude sees the injected state and responds directly, no tool call needed
+→ Claude can answer from injected state, or call list_apps when it needs a fresh availability snapshot
 
 User: Connect to the kanban board
-→ Claude calls connected_apps("kanban")
+→ Claude calls connect_app("kanban")
 
 User: Add a card to the backlog (native)
 → Claude calls kanban__backlog__add_card({title: "..."}) directly

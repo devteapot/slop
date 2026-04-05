@@ -34,7 +34,7 @@ try {
   if (hasProviders) {
     output += `${data.providers.length} app(s) connected. `;
     output +=
-      "Use app_action or app_action_batch to act on apps. Call connected_apps with an app name to refresh full state and available actions.\n\n";
+      "Use app_action or app_action_batch to act on apps. Call connect_app to refresh full state and available actions.\n\n";
 
     for (const provider of data.providers) {
       output += `### ${provider.name} (${provider.id})\n\n`;
@@ -51,7 +51,7 @@ try {
     for (const app of data.available) {
       output += `- **${app.name}** (id: \`${app.id}\`, ${app.transport}, ${app.source})\n`;
     }
-    output += "\nCall connected_apps with an app name to connect.\n";
+    output += "\nCall connect_app with an app name to connect.\n";
   }
 
   process.stdout.write(output);

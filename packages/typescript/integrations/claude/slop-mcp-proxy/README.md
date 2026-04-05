@@ -1,6 +1,6 @@
 # claude-slop-mcp-proxy
 
-Claude Code plugin for SLOP — generic-action variant. Connect Claude to SLOP-enabled apps while keeping a fixed four-tool MCP surface.
+Claude Code plugin for SLOP — generic-action variant. Connect Claude to SLOP-enabled apps while keeping a fixed five-tool MCP surface.
 
 ## What it does
 
@@ -36,7 +36,7 @@ bun install
 
 ### Auto-allow permissions
 
-To avoid approving the same four tools repeatedly, add this to your project's `.claude/settings.local.json`:
+To avoid approving the same five tools repeatedly, add this to your project's `.claude/settings.local.json`:
 
 ```json
 {
@@ -48,15 +48,16 @@ To avoid approving the same four tools repeatedly, add this to your project's `.
 }
 ```
 
-This allows the plugin's fixed tool set: `connected_apps`, `disconnect_app`, `app_action`, and `app_action_batch`.
+This allows the plugin's fixed tool set: `discover_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
 
 ## Tools
 
-This plugin provides **4 static MCP tools**:
+This plugin provides **5 static MCP tools**:
 
 | Tool | Purpose |
 |------|---------|
-| `connected_apps` | Discover and connect to SLOP apps |
+| `discover_apps` | Discover SLOP apps and show which ones are already connected |
+| `connect_app` | Connect to a specific SLOP app |
 | `disconnect_app` | Disconnect from an app |
 | `app_action` | Perform a single action on an app node |
 | `app_action_batch` | Perform multiple actions in one call |
@@ -67,10 +68,10 @@ App state is injected into context on every user message via a `UserPromptSubmit
 
 | | **slop-mcp-proxy** (this) | **slop-native** |
 |---|---|---|
-| Tool count | Fixed (4 tools) | Grows with affordances |
+| Tool count | Fixed (5 tools) | Grows with affordances |
 | Affordance invocation | Generic `app_action(app, path, action, params)` | Per-affordance tool (e.g. `excalidraw__zoom_to_fit`) |
 | Schema validation | Model reads schemas from injected state | MCP validates per-tool JSON Schema |
-| Token cost | Low (4 tool definitions) | Higher (N tool definitions) |
+| Token cost | Low (5 tool definitions) | Higher (N tool definitions) |
 | Best fit | Lowest-overhead integration surface | Direct, ergonomic tool calling |
 
 ## Usage

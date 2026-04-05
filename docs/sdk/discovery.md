@@ -302,14 +302,14 @@ Hosts without dynamic tool support fall back to the **meta-tool pattern**: stabl
 
 | Variant | Purpose |
 |---|---|
-| **`claude-slop-native`** | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `connected_apps`, `disconnect_app`. |
-| **`claude-slop-mcp-proxy`** | Wraps `createDiscoveryService` from `@slop-ai/discovery`, but keeps a fixed tool catalog: `connected_apps`, `disconnect_app`, `app_action`, `app_action_batch`. |
+| **`claude-slop-native`** | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `discover_apps`, `connect_app`, `disconnect_app`. |
+| **`claude-slop-mcp-proxy`** | Wraps `createDiscoveryService` from `@slop-ai/discovery`, but keeps a fixed tool catalog: `discover_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`. |
 | **Shared hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message — no MCP fetch needed. Also lists discovered-but-not-connected apps. |
 | **Shared skill** (`slop-connect`) | Teaches Claude the discover → connect → inspect → act workflow. |
 
 Design details:
 
-- **Native direct tools** — When `connected_apps("kanban")` connects a provider, `claude-slop-native` registers affordances as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
+- **Native direct tools** — When `connect_app("kanban")` connects a provider, `claude-slop-native` registers affordances as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
 - **MCP proxy fallback** — `claude-slop-mcp-proxy` does not register dynamic tools. Instead, Claude reads state from context and calls `app_action(app, path, action, params)` or `app_action_batch(...)`.
 - **Live state in context** — Both variants write provider state to `/tmp/claude-slop-plugin/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
 - **Staleness protection** — The state file includes a `lastUpdated` timestamp. The hook skips injection if the file is older than 30 seconds.
@@ -321,7 +321,7 @@ See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
 
 | Component | Purpose |
 |---|---|
-| **Tools** | `connected_apps` (connect/list), `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
+| **Tools** | `discover_apps` (list), `connect_app` (connect/inspect), `disconnect_app`, `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
 | **Hook** (`before_prompt_build`) | Injects connected providers' state trees as `prependContext` on every inference turn |
 
 Design details:

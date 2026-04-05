@@ -3,26 +3,35 @@ import type { DiscoveryService } from "@slop-ai/discovery";
 import type { ToolResult } from "@slop-ai/discovery";
 
 interface ToolHandlers {
-  connectedApps(args: { app?: string }): Promise<ToolResult>;
+  discoverApps(): Promise<ToolResult>;
+  connectApp(args: { app: string }): Promise<ToolResult>;
   disconnectApp(args: { app: string }): Promise<ToolResult>;
 }
 
 export function registerSlopTools(api: any, discovery: DiscoveryService, handlers: ToolHandlers) {
   api.registerTool({
-    name: "connected_apps",
+    name: "discover_apps",
+    description:
+      "List the applications currently discoverable on this computer and whether they are already connected.",
+    parameters: Type.Object({}),
+    async execute(_id: string) {
+      return handlers.discoverApps();
+    },
+  });
+
+  api.registerTool({
+    name: "connect_app",
     description:
       "Connect to an application and see its full state tree and every action you can perform. " +
       "State for already-connected apps is injected into context automatically — " +
-      "use this only to connect new apps or refresh state.",
+      "use this to connect a new app or refresh detailed state.",
     parameters: Type.Object({
-      app: Type.Optional(
-        Type.String({
-          description: "App name or ID to connect and inspect. Omit to list all apps.",
-        }),
-      ),
+      app: Type.String({
+        description: "App name or ID to connect and inspect.",
+      }),
     }),
-    async execute(_id: string, args: { app?: string }) {
-      return handlers.connectedApps(args);
+    async execute(_id: string, args: { app: string }) {
+      return handlers.connectApp(args);
     },
   });
 
@@ -49,7 +58,7 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
       "Use the exact paths, action names, and parameter values from the application state shown in context.",
     parameters: Type.Object({
       app: Type.String({
-        description: "App name or ID (from connected_apps or context)",
+        description: "App name or ID (from connect_app or context)",
       }),
       path: Type.String({
         description: "Path to the item to act on, e.g. '/' for root, '/todos/todo-1'",
@@ -109,7 +118,7 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
       "sequence of actions.",
     parameters: Type.Object({
       app: Type.String({
-        description: "App name or ID (from connected_apps or context)",
+        description: "App name or ID (from connect_app or context)",
       }),
       actions: Type.Array(
         Type.Object({

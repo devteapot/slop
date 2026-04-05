@@ -1,8 +1,10 @@
 # OpenClaw Integration
 
-`@slop-ai/openclaw-plugin` lets OpenClaw discover SLOP-enabled apps on your machine and act on them through three tools:
+`@slop-ai/openclaw-plugin` lets OpenClaw discover SLOP-enabled apps on your machine and act on them through five tools:
 
-- `connected_apps`
+- `discover_apps`
+- `connect_app`
+- `disconnect_app`
 - `app_action`
 - `app_action_batch`
 
@@ -42,7 +44,7 @@ The plugin registers a `before_prompt_build` hook that injects connected provide
 ```
 ## SLOP Apps
 
-1 app(s) connected. Use app_action to act on apps.
+1 app(s) connected. Use app_action or app_action_batch to act on them. Call connect_app to refresh state or disconnect_app when you're done.
 
 ### Kanban Board (kanban-app)
 ```
@@ -61,7 +63,9 @@ The model knows what state exists and what actions are available without calling
 
 | Tool | Purpose |
 |---|---|
-| `connected_apps` | Connect to an app and see its full state tree, or list all discovered apps |
+| `discover_apps` | List all discovered apps and show which ones are already connected |
+| `connect_app` | Connect to an app and see its full state tree |
+| `disconnect_app` | Disconnect from an app and stop injecting its state |
 | `app_action` | Perform a single action: `app_action(app, path, action, params)` |
 | `app_action_batch` | Perform multiple actions in one call |
 
@@ -80,12 +84,14 @@ All three transport types (Unix socket, WebSocket, postMessage relay) are suppor
 ```text
 # Model sees kanban state in context via before_prompt_build injection
 
-connected_apps("kanban")        # Connect and get full state + actions
+discover_apps()                 # List available apps
+connect_app("kanban")           # Connect and get full state + actions
 app_action("kanban", "/columns/backlog", "add_card", { title: "Ship docs" })
 app_action_batch("kanban", [
   { path: "/columns/backlog", action: "add_card", params: { title: "Task 1" } },
   { path: "/columns/backlog", action: "add_card", params: { title: "Task 2" } },
 ])
+disconnect_app("kanban")       # Stop tracking the app when you're done
 ```
 
 ## Why meta-tools instead of dynamic tools
@@ -99,7 +105,7 @@ OpenClaw's plugin SDK does not support runtime tool registration. Tools must be:
 
 There is no `api.unregisterTool()` or `api.updateTools()` API. This means the plugin cannot add per-app tools when providers connect or remove them when providers disconnect.
 
-The workaround is the **meta-tool pattern**: three stable tools (`connected_apps`, `app_action`, `app_action_batch`) that resolve actions dynamically at runtime. The model knows the exact paths and action names from the state injection, so it gets the call right on the first try.
+The workaround is the **meta-tool pattern**: five stable tools (`discover_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`) that resolve actions dynamically at runtime. The model knows the exact paths and action names from the state injection, so it gets the call right on the first try.
 
 ### What would be needed for dynamic tools in OpenClaw
 
@@ -117,7 +123,9 @@ If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTool
 | Available apps in context | Yes (discovered + connected) | Yes (discovered + connected) |
 | Action tools | Dynamic per-app tools (`kanban__add_card`) | Meta-tools (`app_action`) |
 | Batch actions | `app_action_batch` | `app_action_batch` |
-| Connect tool | `connected_apps` | `connected_apps` |
+| Discover tool | `discover_apps` | `discover_apps` |
+| Connect tool | `connect_app` | `connect_app` |
+| Disconnect tool | `disconnect_app` | `disconnect_app` |
 | Discovery | `@slop-ai/discovery` | `@slop-ai/discovery` |
 | Bridge support | Yes | Yes |
 | Staleness protection | 30s timestamp check | Not needed (in-process) |
@@ -131,4 +139,4 @@ Both approaches give the model full context about available state and actions. T
 - [OpenClaw package API](../../api/openclaw-plugin.md)
 - [Consumer SDK](../../api/consumer.md)
 - [Discovery & Bridge](/sdk/discovery) — shared discovery layer
-- [Claude Code integration](./claude-code.md) — comparison integration
+- [Claude Code integration](/guides/advanced/claude-code) — comparison integration

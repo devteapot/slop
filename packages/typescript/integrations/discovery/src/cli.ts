@@ -24,22 +24,27 @@ const server = new McpServer({
   version: "0.1.0",
 });
 
+server.tool(
+  "discover_apps",
+  "View applications running on this computer that you can observe and control. " +
+    "Lists all discovered apps and shows which ones are already connected.",
+  {},
+  async () => handlers.discoverApps(),
+);
+
 // @ts-expect-error — MCP SDK's server.tool() has excessively deep type instantiation with Zod
 server.tool(
-  "connected_apps",
+  "connect_app",
   isPluginMode
-    ? "View applications running on this computer. Usually state is already in context — " +
-      "use this only to refresh state or connect to a newly discovered app."
-    : "View applications running on this computer that you can observe and control. " +
-      "Call without arguments to list all available apps. " +
-      "Call with an app name or ID to connect (if needed) and see its full current state and every action you can perform.",
+    ? "Connect to a discovered application and refresh its full current state. " +
+      "Use this when you need to inspect a newly discovered app or refresh the active app state."
+    : "Connect to an application running on this computer and see its full current state and every action you can perform.",
   {
     app: z
       .string()
-      .optional()
-      .describe("App name or ID to get detailed state for. Omit to list all apps."),
+      .describe("App name or ID to connect and inspect."),
   },
-  async (args) => handlers.connectedApps(args),
+  async (args) => handlers.connectApp(args),
 );
 
 server.tool(

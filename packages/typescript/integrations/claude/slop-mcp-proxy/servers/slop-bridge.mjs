@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * slop-bridge (native) — MCP server that bridges SLOP providers to Claude.
+ * slop-bridge (mcp-proxy) — MCP server that bridges SLOP providers to Claude.
  *
  * Four static tools:
  *   - connected_apps: discover and connect to SLOP providers

@@ -1,5 +1,7 @@
-# Claude Code Integration
-
+---
+title: "Claude Code Integration"
+description: "Connect Claude Code to SLOP-enabled applications with dynamic or generic action tools"
+---
 SLOP ships two Claude Code integrations:
 
 - `claude-slop-native` — direct-tool variant. Connected app affordances become first-class MCP tools, so Claude calls app-specific tools directly.

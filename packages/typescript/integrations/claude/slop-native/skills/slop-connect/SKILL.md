@@ -22,7 +22,7 @@ If the user is prompted to approve every tool call, suggest they add this to `.c
 ```json
 {
   "permissions": {
-    "allow": ["mcp__plugin_claude-slop-plugin_slop-bridge__*"]
+    "allow": ["mcp__plugin_claude-slop-native_slop-bridge__*"]
   }
 }
 ```

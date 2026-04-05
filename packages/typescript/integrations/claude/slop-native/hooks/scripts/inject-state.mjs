@@ -34,7 +34,7 @@ try {
   if (hasProviders) {
     output += `${data.providers.length} app(s) connected. `;
     output +=
-      "Use app_action to act on apps. Call connected_apps with an app name to see full state and actions.\n\n";
+      "Use the app-specific tools registered for each connected app to act on them directly. Call connected_apps with an app name to refresh state and tool registration if needed.\n\n";
 
     for (const provider of data.providers) {
       output += `### ${provider.name} (${provider.id})\n\n`;

@@ -62,13 +62,13 @@ export function parseBridgeProvider(msg: Record<string, unknown>): BridgeProvide
 // ---------------------------------------------------------------------------
 
 export function createBridgeClient(
-  optionsOrLogger?: BridgeClientOptions | Logger,
+  options: BridgeClientOptions = {},
 ): Bridge & { connectOnce(): Promise<void> } {
   const {
     logger: log,
     url,
     reconnectIntervalMs,
-  } = normalizeOptions(optionsOrLogger);
+  } = normalizeOptions(options);
 
   let ws: WebSocket | null = null;
   let isRunning = false;
@@ -250,12 +250,7 @@ export function createBridgeClient(
   };
 }
 
-function normalizeOptions(optionsOrLogger?: BridgeClientOptions | Logger): Required<BridgeClientOptions> {
-  const options =
-    optionsOrLogger && ("url" in optionsOrLogger || "logger" in optionsOrLogger || "reconnectIntervalMs" in optionsOrLogger)
-      ? optionsOrLogger as BridgeClientOptions
-      : { logger: optionsOrLogger as Logger | undefined };
-
+function normalizeOptions(options: BridgeClientOptions = {}): Required<BridgeClientOptions> {
   return {
     logger: options.logger ?? { info: console.error, error: console.error },
     url: options.url ?? DEFAULT_BRIDGE_URL,

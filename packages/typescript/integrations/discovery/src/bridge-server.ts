@@ -23,14 +23,14 @@ export interface BridgeServerOptions {
  * tracks provider announcements, and relays SLOP messages for postMessage providers.
  */
 export function createBridgeServer(
-  optionsOrLogger?: BridgeServerOptions | Logger,
+  options: BridgeServerOptions = {},
 ): Bridge & { start(): Promise<void> } {
   const {
     logger: log,
     host,
     port,
     path,
-  } = normalizeOptions(optionsOrLogger);
+  } = normalizeOptions(options);
 
   let wss: WebSocketServer | null = null;
   let isRunning = false;
@@ -216,12 +216,7 @@ export function createBridgeServer(
   };
 }
 
-function normalizeOptions(optionsOrLogger?: BridgeServerOptions | Logger): Required<BridgeServerOptions> {
-  const options =
-    optionsOrLogger && ("host" in optionsOrLogger || "port" in optionsOrLogger || "path" in optionsOrLogger || "logger" in optionsOrLogger)
-      ? optionsOrLogger as BridgeServerOptions
-      : { logger: optionsOrLogger as Logger | undefined };
-
+function normalizeOptions(options: BridgeServerOptions = {}): Required<BridgeServerOptions> {
   return {
     logger: options.logger ?? { info: console.error, error: console.error },
     host: options.host ?? DEFAULT_BRIDGE_HOST,

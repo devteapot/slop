@@ -96,11 +96,9 @@ export interface DiscoveryService {
 }
 
 export function createDiscoveryService(
-  optionsOrLogger?: DiscoveryOptions | Logger,
+  options: DiscoveryOptions = {},
 ): DiscoveryService {
-  // Support both old signature (logger) and new (options).
-  // TODO: deprecate the logger-only overload after downstream integrations migrate.
-  const opts = normalizeOptions(optionsOrLogger);
+  const opts = normalizeOptions(options);
   const {
     log,
     autoConnect,
@@ -606,11 +604,7 @@ export function createDiscoveryService(
   };
 }
 
-function normalizeOptions(optionsOrLogger?: DiscoveryOptions | Logger) {
-  const options: DiscoveryOptions =
-    optionsOrLogger && isDiscoveryOptions(optionsOrLogger)
-      ? optionsOrLogger
-      : { logger: optionsOrLogger as Logger | undefined };
+function normalizeOptions(options: DiscoveryOptions = {}) {
   const bridgeUrl = options.bridgeUrl ?? DEFAULT_BRIDGE_URL;
   const bridgeConfig = resolveBridgeConfig(bridgeUrl);
 
@@ -633,25 +627,6 @@ function normalizeOptions(optionsOrLogger?: DiscoveryOptions | Logger) {
     bridgeDialTimeoutMs: options.bridgeDialTimeoutMs ?? DEFAULT_BRIDGE_DIAL_TIMEOUT_MS,
     bridgeRetryDelayMs: options.bridgeRetryDelayMs ?? DEFAULT_BRIDGE_RETRY_DELAY_MS,
   };
-}
-
-function isDiscoveryOptions(optionsOrLogger: DiscoveryOptions | Logger): optionsOrLogger is DiscoveryOptions {
-  return (
-    "autoConnect" in optionsOrLogger ||
-    "hostBridge" in optionsOrLogger ||
-    "logger" in optionsOrLogger ||
-    "providersDirs" in optionsOrLogger ||
-    "bridgeUrl" in optionsOrLogger ||
-    "idleTimeoutMs" in optionsOrLogger ||
-    "idleCheckIntervalMs" in optionsOrLogger ||
-    "connectTimeoutMs" in optionsOrLogger ||
-    "scanIntervalMs" in optionsOrLogger ||
-    "watchDebounceMs" in optionsOrLogger ||
-    "reconnectBaseDelayMs" in optionsOrLogger ||
-    "maxReconnectDelayMs" in optionsOrLogger ||
-    "bridgeDialTimeoutMs" in optionsOrLogger ||
-    "bridgeRetryDelayMs" in optionsOrLogger
-  );
 }
 
 function resolveBridgeConfig(bridgeUrl: string) {

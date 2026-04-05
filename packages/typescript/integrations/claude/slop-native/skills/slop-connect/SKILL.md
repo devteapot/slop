@@ -12,41 +12,51 @@ description: >
 # Connecting to SLOP Apps
 
 SLOP (Semantic Live Observable Protocol) lets apps expose their live state and actions to you.
-When connected to a SLOP app, its **state tree** is injected into your context on every message —
-you always see the latest state, available actions, paths, and parameter schemas.
+When connected to a SLOP app, you receive its **state tree** (what the app is right now) and
+its affordances become **first-class tools** that you call directly.
+
+## Permissions
+
+If the user is prompted to approve every tool call, suggest they add this to `.claude/settings.local.json`:
+
+```json
+{
+  "permissions": {
+    "allow": ["mcp__plugin_claude-slop-plugin_slop-bridge__*"]
+  }
+}
+```
+
+This auto-allows all tools from this plugin — lifecycle tools and dynamic app affordance tools.
 
 ## Tools
 
-### `connected_apps`
+### Lifecycle tools (always available)
+
+#### `connected_apps`
 
 Lists all discovered applications, or connects to a specific app.
 
 - **No arguments** — lists all available apps (local native + web), their connection status, and action counts.
-- **`app: "name or id"`** — connects to the app (if not already connected) and returns its full state tree.
+- **`app: "name or id"`** — connects to the app (if not already connected) and returns its full state tree. **Connecting also registers all app affordances as dynamic tools.**
 
-### `disconnect_app`
+#### `disconnect_app`
 
-Disconnect from an app. Stops state updates and removes it from context.
+Explicitly disconnect from an app. Removes its dynamic tools and stops state updates.
 
 - **`app: "name or id"`** — the app to disconnect from.
 
-### `app_action`
+### Dynamic affordance tools (per-app, after connecting)
 
-Perform a single action on an app. Read the state tree in your context to find the correct paths, action names, and parameter schemas.
+When you connect to an app, its affordances are registered as first-class tools. For example, connecting to Excalidraw might give you:
 
-- **`app`** — app name or ID
-- **`path`** — path to the node to act on (e.g. `"/"`, `"/todos/todo-1"`, `"/canvas"`)
-- **`action`** — action name (e.g. `"add_card"`, `"toggle"`, `"delete"`)
-- **`params`** — action parameters as key-value pairs (optional, depends on the action schema)
+- `excalidraw__canvas__zoom_to_fit()`
+- `excalidraw__elements__add_rectangle(x, y, width, height, stroke_color, background_color)`
+- `excalidraw__elements__add_text(x, y, text, font_size)`
 
-### `app_action_batch`
+**Call these directly** — they are real tools with proper parameter schemas. No need to use meta-tools or assemble path/action/params manually.
 
-Perform multiple actions in a single call. Much faster than calling `app_action` repeatedly.
-
-- **`app`** — app name or ID
-- **`actions`** — array of `{ path, action, params }` objects to execute sequentially
-
-Use this for bulk operations: adding multiple items, making several edits, or any multi-step workflow.
+You can call multiple affordance tools **in parallel** in a single response for maximum speed.
 
 ## Workflow
 
@@ -58,46 +68,21 @@ Call `connected_apps` (no arguments) to see what's available. Apps are auto-disc
 
 ### 2. Connect
 
-Call `connected_apps` with an app name or ID. This connects and returns the full state tree.
+Call `connected_apps` with an app name or ID. This connects and returns the full state tree. Dynamic tools are registered automatically — you'll see them available for use.
 
-### 3. Read state from context
+### 3. Act
 
-After connecting, the app's state tree appears in your context automatically on every message.
-The state tree shows you:
-- All nodes with their types, properties, and paths
-- Available actions on each node with parameter signatures
-- Salience hints indicating what's important right now
+Use the dynamic affordance tools directly. The state tree in your context shows you what tools are available, their parameters, and the current state of every node.
 
-**Use this information to construct `app_action` calls.** The paths and action names in context
-are exactly what you pass to the tool.
+Call multiple tools in parallel when performing batch operations.
 
-### 4. Act
+### 4. State stays current
 
-Call `app_action` with the `app`, `path`, `action`, and `params` from the state tree.
+Connected apps' state is automatically injected into your context on every user message via a hook. You always see the latest state without needing to re-fetch.
 
-Example — adding a card to a kanban board:
-```
-app_action(app="kanban", path="/columns/todo", action="add_card", params={"title": "Fix bug", "priority": "high"})
-```
+### 5. Disconnect
 
-For multiple actions, use `app_action_batch`:
-```
-app_action_batch(app="kanban", actions=[
-  {"path": "/columns/todo", "action": "add_card", "params": {"title": "Task 1"}},
-  {"path": "/columns/todo", "action": "add_card", "params": {"title": "Task 2"}},
-  {"path": "/columns/done/card-5", "action": "archive"}
-])
-```
-
-### 5. State stays current
-
-Connected apps' state is automatically injected into your context on every user message via a hook.
-You always see the latest state without needing to re-fetch.
-
-### 6. Disconnect
-
-When you're done with an app, call `disconnect_app` to stop state updates. Only disconnect when
-explicitly asked — the connection persists across messages.
+When you're done with an app, call `disconnect_app` to remove its tools and stop state updates. Only disconnect when explicitly asked — the connection persists across messages.
 
 ## Reading the State Tree
 
@@ -113,7 +98,7 @@ Key elements:
 - **Type** — semantic role: `root`, `view`, `collection`, `item`, `document`, `form`, `field`, `control`, `status`, `notification`, `context`
 - **Salience** — 0 to 1, how important this node is right now. Focus on high-salience nodes.
 - **Summary** — quoted text giving an overview of collapsed subtrees
-- **Actions** — affordances available on that node, with parameter signatures. **These are the action names and params you use with `app_action`.**
+- **Actions** — affordances available on that node, with parameter signatures
 - **Windowing** — `(showing N of M)` means a large collection is partially loaded
 
 ### Content references
@@ -128,8 +113,7 @@ Invoke the `read_content` action on that node to load the full content.
 
 ## Multi-App Workflows
 
-Connect to multiple apps simultaneously. Each app's state appears separately in context with
-its own namespace. Use the `app` parameter in `app_action` to target the right app.
+Connect to multiple apps simultaneously. Call `connected_apps` with each app name to connect. Each app's affordances are registered as separate namespaced tools, so there are no collisions.
 
 Example: connect to both a kanban board and a chat app, then create a card from a chat message.
 
@@ -145,8 +129,8 @@ Some actions take time (deploys, report generation). When you invoke one:
 
 - **Dangerous actions** — actions marked `[DANGEROUS]` require user confirmation. Always ask the user first.
 - **State is live** — the tree updates in real time via patches. What you see is current.
-- **Inspect before acting** — always call `connected_apps` with an app name before using `app_action` so you have the current state.
-- **Batch for speed** — use `app_action_batch` for multiple actions instead of calling `app_action` sequentially.
+- **Inspect before acting** — always call `connected_apps` with an app name before using affordance tools so you have the current state and know which tools are available.
+- **Parallel calls** — use parallel tool calls for batch operations instead of calling sequentially.
 - **Summaries are valuable** — stub nodes with summaries often tell you enough without loading full details.
 
 For more details on the SLOP protocol, see `references/protocol-overview.md`.

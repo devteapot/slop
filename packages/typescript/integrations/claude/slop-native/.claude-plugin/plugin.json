@@ -1,9 +1,9 @@
 {
   "name": "claude-slop-native",
   "version": "0.1.0",
-  "description": "Connect Claude to any SLOP-enabled application using generic action tools. Discovers local providers, subscribes to live state trees, and injects app state into context — lightweight alternative to per-affordance MCP tool proxying.",
+  "description": "Connect Claude to any SLOP-enabled application. Discovers local providers, subscribes to live state trees, and exposes app affordances as first-class tools — so Claude can see and act on your apps in real time.",
   "author": {
     "name": "Diego"
   },
-  "keywords": ["slop", "integration", "state", "affordances", "real-time", "native"]
+  "keywords": ["slop", "integration", "state", "affordances", "real-time"]
 }

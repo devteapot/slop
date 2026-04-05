@@ -281,7 +281,7 @@
       },
     },
     "packages/typescript/integrations/claude/slop-mcp-proxy/servers": {
-      "name": "slop-bridge",
+      "name": "slop-bridge-mcp-proxy",
       "version": "0.1.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.12.1",
@@ -2513,7 +2513,7 @@
 
     "slice-ansi": ["slice-ansi@5.0.0", "", { "dependencies": { "ansi-styles": "^6.0.0", "is-fullwidth-code-point": "^4.0.0" } }, "sha512-FC+lgizVPfie0kkhqUScwRu1O/lF6NOgJmlCgK+/LYxDCTk8sGelYaHDhFcDN+Sn3Cv+3VSa4Byeo+IMCzpMgQ=="],
 
-    "slop-bridge": ["slop-bridge@workspace:packages/typescript/integrations/claude/slop-mcp-proxy/servers"],
+    "slop-bridge-mcp-proxy": ["slop-bridge-mcp-proxy@workspace:packages/typescript/integrations/claude/slop-mcp-proxy/servers"],
 
     "slop-bridge-native": ["slop-bridge-native@workspace:packages/typescript/integrations/claude/slop-native/servers"],
 

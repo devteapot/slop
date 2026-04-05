@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * slop-bridge — MCP server that bridges SLOP providers to Claude.
+ * slop-bridge (native) — MCP server that bridges SLOP providers to Claude.
  *
- * Two meta-tools for lifecycle:
+ * Four static tools:
  *   - connected_apps: discover and connect to SLOP providers
  *   - disconnect_app: explicitly disconnect from a provider
+ *   - app_action: perform a single action on an app node
+ *   - app_action_batch: perform multiple actions in one call
  *
- * All app actions are exposed as dynamic per-app tools via MCP tools/list_changed.
- * When a provider connects, its affordances become first-class tools
- * (e.g. `excalidraw__elements__add_rectangle`). The model calls them directly.
+ * No dynamic per-affordance tools. The model reads affordance info from
+ * injected context (via the UserPromptSubmit hook) and uses the generic
+ * app_action tool to invoke them.
  *
  * State is written to a shared file for the context-injection hook.
  */
@@ -21,7 +23,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createDiscoveryService } from "@slop-ai/discovery";
-import { createToolHandlers, createDynamicTools } from "@slop-ai/discovery";
+import { createToolHandlers } from "@slop-ai/discovery";
 import { formatTree } from "@slop-ai/consumer";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,12 +50,6 @@ const log = {
 
 const discovery = createDiscoveryService({ logger: log, autoConnect: false });
 const handlers = createToolHandlers(discovery);
-
-// ---------------------------------------------------------------------------
-// Dynamic tools — rebuilt on every state change
-// ---------------------------------------------------------------------------
-
-let dynamicToolSet = createDynamicTools(discovery);
 
 // ---------------------------------------------------------------------------
 // State file management (for hook-based context injection)
@@ -100,28 +96,21 @@ function writeStateFile() {
   }
 }
 
-// Update state file + dynamic tools whenever state changes
+// Update state file whenever state changes
 discovery.onStateChange(() => {
-  const prevCount = dynamicToolSet.tools.length;
-  dynamicToolSet = createDynamicTools(discovery);
   writeStateFile();
-
-  // Notify Claude that the tool list changed (new/removed affordances)
-  if (dynamicToolSet.tools.length !== prevCount) {
-    server.sendToolListChanged().catch(() => {});
-  }
 });
 
 // ---------------------------------------------------------------------------
-// Static MCP Tool definitions (lifecycle only)
+// Static MCP Tool definitions
 // ---------------------------------------------------------------------------
 
-const STATIC_TOOLS = [
+const TOOLS = [
   {
     name: "connected_apps",
     description:
-      "Connect to an application to enable its tools, or list all available apps. " +
-      "Once connected, per-app action tools appear automatically (e.g. kanban__add_card). " +
+      "Connect to an application to see its state and actions, or list all available apps. " +
+      "Once connected, the app's state tree is injected into context automatically on every message. " +
       "Call with an app name to connect; call without arguments to list all.",
     inputSchema: {
       type: "object",
@@ -137,7 +126,7 @@ const STATIC_TOOLS = [
   {
     name: "disconnect_app",
     description:
-      "Disconnect from an application. Removes its action tools and stops state updates. " +
+      "Disconnect from an application. Stops state updates and removes it from context. " +
       "Use when you're done interacting with an app.",
     inputSchema: {
       type: "object",
@@ -150,6 +139,70 @@ const STATIC_TOOLS = [
       required: ["app"],
     },
   },
+  {
+    name: "app_action",
+    description:
+      "Perform an action on an application — add items, edit content, toggle state, " +
+      "delete entries, move things around, start/stop processes, etc. " +
+      "Use the exact paths, action names, and parameter values from the application state shown in context.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        app: {
+          type: "string",
+          description: "App name or ID (from connected_apps or context)",
+        },
+        path: {
+          type: "string",
+          description: "Path to the item to act on, e.g. '/' for root, '/todos/todo-1'",
+        },
+        action: {
+          type: "string",
+          description: "Action to perform, e.g. 'add_card', 'toggle', 'delete'",
+        },
+        params: {
+          type: "object",
+          description: "Action parameters as key-value pairs (optional)",
+          additionalProperties: true,
+        },
+      },
+      required: ["app", "path", "action"],
+    },
+  },
+  {
+    name: "app_action_batch",
+    description:
+      "Perform MULTIPLE actions on an application in a single call. Much faster than calling " +
+      "app_action repeatedly. Use this when you need to add multiple items, make several changes, " +
+      "or perform any sequence of actions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        app: {
+          type: "string",
+          description: "App name or ID (from connected_apps or context)",
+        },
+        actions: {
+          type: "array",
+          description: "Array of actions to perform sequentially",
+          items: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to act on" },
+              action: { type: "string", description: "Action to perform" },
+              params: {
+                type: "object",
+                description: "Action parameters",
+                additionalProperties: true,
+              },
+            },
+            required: ["path", "action"],
+          },
+        },
+      },
+      required: ["app", "actions"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -158,22 +211,13 @@ const STATIC_TOOLS = [
 
 const server = new Server(
   { name: "slop-bridge", version: "0.1.0" },
-  { capabilities: { tools: { listChanged: true } } }
+  { capabilities: { tools: {} } }
 );
 
-// --- List tools (static + dynamic) ---
+// --- List tools (static only) ---
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  const dynamic = dynamicToolSet.tools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    inputSchema: {
-      type: "object",
-      ...t.inputSchema,
-    },
-  }));
-
-  return { tools: [...STATIC_TOOLS, ...dynamic] };
+  return { tools: TOOLS };
 });
 
 // --- Call tool ---
@@ -182,93 +226,91 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
 
   try {
-    // Static tools
     switch (name) {
-      case "connected_apps": {
-        const result = await handlers.connectedApps(args);
-        // After connecting a new app, rebuild dynamic tools
-        dynamicToolSet = createDynamicTools(discovery);
-        server.sendToolListChanged().catch(() => {});
-        return result;
-      }
+      case "connected_apps":
+        return await handlers.connectedApps(args);
 
-      case "disconnect_app": {
-        const result = await handlers.disconnectApp(args);
-        // After disconnecting, rebuild dynamic tools (removes app's tools)
-        dynamicToolSet = createDynamicTools(discovery);
-        server.sendToolListChanged().catch(() => {});
-        return result;
-      }
-    }
+      case "disconnect_app":
+        return await handlers.disconnectApp(args);
 
-    // Dynamic tools — resolve to provider invoke
-    const resolved = dynamicToolSet.resolve(name);
-    if (resolved) {
-      const provider = discovery.getProvider(resolved.providerId);
-      if (!provider) {
-        return {
-          content: [{ type: "text", text: `App disconnected. Call connected_apps to reconnect.` }],
-          isError: true,
-        };
-      }
-
-      // For grouped tools (path === null), extract `target` from args
-      let invokePath = resolved.path;
-      let invokeArgs = args ?? {};
-
-      if (invokePath === null) {
-        const { target, ...rest } = invokeArgs;
-        if (!target || typeof target !== "string") {
+      case "app_action": {
+        const p = await discovery.ensureConnected(args.app);
+        if (!p) {
           return {
-            content: [{ type: "text", text: `Missing required "target" parameter. Specify the path to the target node (see state tree for valid paths).` }],
+            content: [{ type: "text", text: `App "${args.app}" not found or could not connect.` }],
             isError: true,
           };
         }
-        if (resolved.targets && !resolved.targets.includes(target)) {
-          return {
-            content: [{ type: "text", text: `Invalid target "${target}". Valid targets: ${resolved.targets.join(", ")}. Check the state tree for current paths.` }],
-            isError: true,
-          };
-        }
-        invokePath = target;
-        invokeArgs = rest;
-      }
-
-      try {
-        const result = await provider.consumer.invoke(
-          invokePath,
-          resolved.action,
-          invokeArgs,
-        );
-
-        if (result.status === "ok") {
+        try {
+          const result = await p.consumer.invoke(
+            args.path,
+            args.action,
+            args.params ?? {},
+          );
+          if (result.status === "ok") {
+            return {
+              content: [{
+                type: "text",
+                text: `Done. ${args.action} on ${args.path} succeeded.` +
+                  (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+              }],
+            };
+          }
           return {
             content: [{
               type: "text",
-              text: `Done.` + (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+              text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
             }],
+            isError: true,
+          };
+        } catch (err) {
+          return {
+            content: [{ type: "text", text: `Error: ${err.message}` }],
+            isError: true,
           };
         }
+      }
 
+      case "app_action_batch": {
+        const p = await discovery.ensureConnected(args.app);
+        if (!p) {
+          return {
+            content: [{ type: "text", text: `App "${args.app}" not found or could not connect.` }],
+            isError: true,
+          };
+        }
+        const results = [];
+        let failed = 0;
+        for (const { path: actionPath, action, params } of args.actions) {
+          try {
+            const result = await p.consumer.invoke(actionPath, action, params ?? {});
+            if (result.status === "ok") {
+              results.push(`OK: ${action} on ${actionPath}`);
+            } else {
+              failed++;
+              results.push(`FAIL: ${action} on ${actionPath} — [${result.error?.code}] ${result.error?.message}`);
+            }
+          } catch (err) {
+            failed++;
+            results.push(`ERROR: ${action} on ${actionPath} — ${err.message}`);
+          }
+        }
         return {
           content: [{
             type: "text",
-            text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
+            text: `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
+              results.join("\n"),
           }],
-          isError: true,
-        };
-      } catch (err) {
-        return {
-          content: [{ type: "text", text: `Error: ${err.message}` }],
-          isError: true,
+          isError: failed > 0,
         };
       }
-    }
 
-    return {
-      content: [{ type: "text", text: `Unknown tool: ${name}` }],
-      isError: true,
-    };
+      default:
+        return {
+          content: [{ type: "text", text: `Unknown tool: ${name}` }],
+          isError: true,
+        };
+    }
   } catch (err) {
     return {
       content: [{ type: "text", text: `Error: ${err.message}` }],
@@ -282,16 +324,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  // Start discovery (local filesystem + bridge client)
   discovery.start();
   log.info("Discovery started (local + bridge)");
 
-  // Connect MCP over stdio
   const transport = new StdioServerTransport();
   await server.connect(transport);
   log.info("MCP server running on stdio");
 
-  // Cleanup on exit
   process.on("SIGINT", () => {
     discovery.stop();
     try { fs.unlinkSync(STATE_FILE); } catch {}

@@ -7,7 +7,7 @@ export interface MergedContext {
   singleProvider: boolean;
   providerNames: Array<{ name: string; index: number }>;
   /** Resolve a tool name (possibly provider-prefixed) back to path + action. */
-  resolve(toolName: string): { providerIndex: number; path: string; action: string } | null;
+  resolve(toolName: string): { providerIndex: number; path: string | null; action: string; targets?: string[] } | null;
 }
 
 export interface ProviderTreeInfo {

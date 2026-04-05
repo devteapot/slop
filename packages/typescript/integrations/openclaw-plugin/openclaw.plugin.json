@@ -1,0 +1,13 @@
+{
+  "id": "slop",
+  "name": "App Control",
+  "description": "Observe and control desktop and web applications running on this computer",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "contracts": {
+    "tools": ["connected_apps", "app_action", "app_action_batch"]
+  }
+}

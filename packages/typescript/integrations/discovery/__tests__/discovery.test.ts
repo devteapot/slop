@@ -12,7 +12,7 @@ import {
   writeDescriptor,
 } from "./helpers";
 
-const DEBUG_DISCOVERY_TESTS = process.env.SLOP_DEBUG_DISCOVERY_TESTS !== "0";
+const DEBUG_DISCOVERY_TESTS = process.env.SLOP_DEBUG_DISCOVERY_TESTS === "1";
 
 function debugLog(...args: unknown[]) {
   if (DEBUG_DISCOVERY_TESTS) {

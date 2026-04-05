@@ -11,7 +11,7 @@ A SLOP consumer connects to a provider, reads its state tree, and can invoke aff
 | CLI Inspector | Connects to one provider, mirrors the live tree, logs snapshots and patches, and lets you invoke affordances manually | protocol debugging, smoke tests, manual QA | `apps/cli` |
 | Desktop app | Groups providers into workspaces, shows their trees, and runs chat across connected providers | multi-provider testing, desktop workflows, cross-app debugging | `apps/desktop` |
 | Chrome extension | Detects browser providers, opens an on-page chat UI, and can bridge browser state into the desktop app | browser and SPA testing, in-page AI workflows | `apps/extension` |
-| Consumer SDKs | Lets you build scripts, agents, and automated tests on top of subscribe/query/invoke | custom automation, CI checks, tool calling | `packages/typescript/consumer`, `packages/python/slop-ai`, `packages/go/slop-ai`, `packages/rust/slop-ai` |
+| Consumer SDKs | Lets you build scripts, agents, and automated tests on top of subscribe/query/invoke | custom automation, CI checks, tool calling | `packages/typescript/sdk/consumer`, `packages/python/slop-ai`, `packages/go/slop-ai`, `packages/rust/slop-ai` |
 
 ## CLI Inspector
 
@@ -310,5 +310,7 @@ The same pattern works well for a headless regression check: connect, subscribe 
 ## Next Steps
 
 - [Consumer package API](/api/consumer)
+- [Discovery & Bridge](/sdk/discovery) — auto-discovery, extension bridge, relay transport, and state formatting for AI integrations
+- [Claude Code integration](/guides/advanced/claude-code) — Claude Code plugin for SLOP app discovery and control
 - [Desktop app docs](/desktop/install)
 - [Chrome extension docs](/extension/install)

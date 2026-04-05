@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,7 +23,8 @@ export type WorkspacePackage = {
 };
 
 export const repoRoot = resolve(fileURLToPath(new URL("../../", import.meta.url)));
-const packageRoot = join(repoRoot, "packages", "typescript");
+const packageBase = join(repoRoot, "packages", "typescript");
+const packageGroups = ["sdk", "adapters", "integrations"];
 
 export function getReleaseVersion(input: string | undefined): string {
   const raw = input?.trim();
@@ -111,10 +112,16 @@ function escapeRegExp(value: string): string {
 }
 
 export function getTypeScriptPackages(): WorkspacePackage[] {
-  const packageDirs = readdirSync(packageRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(packageRoot, entry.name))
-    .sort();
+  const packageDirs: string[] = [];
+  for (const group of packageGroups) {
+    const groupDir = join(packageBase, group);
+    const entries = readdirSync(groupDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(groupDir, entry.name))
+      .filter((dir) => existsSync(join(dir, "package.json")));
+    packageDirs.push(...entries);
+  }
+  packageDirs.sort();
 
   const manifests = packageDirs.map((dir) => {
     const manifestPath = join(dir, "package.json");

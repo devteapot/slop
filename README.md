@@ -124,17 +124,18 @@ Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/
 
 | Language | Package | Install |
 |----------|---------|---------|
-| TypeScript | [`@slop-ai/core`](./packages/typescript/core) | `bun add @slop-ai/core` |
-| Browser | [`@slop-ai/client`](./packages/typescript/client) | `bun add @slop-ai/client` |
-| React | [`@slop-ai/react`](./packages/typescript/react) | `bun add @slop-ai/react` |
-| Vue | [`@slop-ai/vue`](./packages/typescript/vue) | `bun add @slop-ai/vue` |
-| Solid | [`@slop-ai/solid`](./packages/typescript/solid) | `bun add @slop-ai/solid` |
-| Angular | [`@slop-ai/angular`](./packages/typescript/angular) | `bun add @slop-ai/angular` |
-| Svelte | [`@slop-ai/svelte`](./packages/typescript/svelte) | `bun add @slop-ai/svelte` |
-| Server (Node/Bun) | [`@slop-ai/server`](./packages/typescript/server) | `bun add @slop-ai/server` |
-| Consumer | [`@slop-ai/consumer`](./packages/typescript/consumer) | `bun add @slop-ai/consumer` |
-| TanStack Start | [`@slop-ai/tanstack-start`](./packages/typescript/tanstack-start) | `bun add @slop-ai/tanstack-start` |
-| OpenClaw | [`@slop-ai/openclaw-plugin`](./packages/typescript/openclaw-plugin) | `bun add @slop-ai/openclaw-plugin` |
+| TypeScript | [`@slop-ai/core`](./packages/typescript/sdk/core) | `bun add @slop-ai/core` |
+| Browser | [`@slop-ai/client`](./packages/typescript/sdk/client) | `bun add @slop-ai/client` |
+| React | [`@slop-ai/react`](./packages/typescript/adapters/react) | `bun add @slop-ai/react` |
+| Vue | [`@slop-ai/vue`](./packages/typescript/adapters/vue) | `bun add @slop-ai/vue` |
+| Solid | [`@slop-ai/solid`](./packages/typescript/adapters/solid) | `bun add @slop-ai/solid` |
+| Angular | [`@slop-ai/angular`](./packages/typescript/adapters/angular) | `bun add @slop-ai/angular` |
+| Svelte | [`@slop-ai/svelte`](./packages/typescript/adapters/svelte) | `bun add @slop-ai/svelte` |
+| Server (Node/Bun) | [`@slop-ai/server`](./packages/typescript/sdk/server) | `bun add @slop-ai/server` |
+| Consumer | [`@slop-ai/consumer`](./packages/typescript/sdk/consumer) | `bun add @slop-ai/consumer` |
+| TanStack Start | [`@slop-ai/tanstack-start`](./packages/typescript/adapters/tanstack-start) | `bun add @slop-ai/tanstack-start` |
+| Discovery | [`@slop-ai/discovery`](./packages/typescript/integrations/discovery) | `bun add @slop-ai/discovery` |
+| OpenClaw | [`@slop-ai/openclaw-plugin`](./packages/typescript/integrations/openclaw-plugin) | `bun add @slop-ai/openclaw-plugin` |
 | Python | [`slop-ai`](./packages/python/slop-ai) | `pip install slop-ai` |
 | Rust | [`slop-ai`](./packages/rust/slop-ai) | `cargo add slop-ai` |
 | Go | [`slop-ai`](./packages/go/slop-ai) | `go get github.com/devteapot/slop/packages/go/slop-ai` |
@@ -147,17 +148,22 @@ slop/
 ├── docs/sdk/                       # SDK architecture & implementation guides
 ├── packages/
 │   ├── typescript/
-│   │   ├── core/                   # @slop-ai/core — types, tree assembly, diffing
-│   │   ├── client/                 # @slop-ai/client — browser provider (postMessage)
-│   │   ├── server/                 # @slop-ai/server — server provider (WebSocket, Unix, stdio)
-│   │   ├── consumer/               # @slop-ai/consumer — connect to providers, subscribe, invoke
-│   │   ├── react/                  # @slop-ai/react — useSlop hook
-│   │   ├── vue/                    # @slop-ai/vue — useSlop composable
-│   │   ├── solid/                  # @slop-ai/solid — useSlop primitive
-│   │   ├── angular/                # @slop-ai/angular — useSlop with signals
-│   │   ├── svelte/                 # @slop-ai/svelte — useSlop for Svelte 5 runes
-│   │   ├── tanstack-start/         # @slop-ai/tanstack-start — SSR adapter
-│   │   └── openclaw-plugin/        # @slop-ai/openclaw-plugin — OpenClaw integration
+│   │   ├── sdk/
+│   │   │   ├── core/               # @slop-ai/core — types, tree assembly, diffing
+│   │   │   ├── client/             # @slop-ai/client — browser provider (postMessage)
+│   │   │   ├── server/             # @slop-ai/server — server provider (WebSocket, Unix, stdio)
+│   │   │   └── consumer/           # @slop-ai/consumer — connect, subscribe, invoke
+│   │   ├── adapters/
+│   │   │   ├── react/              # @slop-ai/react — useSlop hook
+│   │   │   ├── vue/                # @slop-ai/vue — useSlop composable
+│   │   │   ├── solid/              # @slop-ai/solid — useSlop primitive
+│   │   │   ├── angular/            # @slop-ai/angular — useSlop with signals
+│   │   │   ├── svelte/             # @slop-ai/svelte — useSlop for Svelte 5 runes
+│   │   │   └── tanstack-start/     # @slop-ai/tanstack-start — SSR adapter
+│   │   └── integrations/
+│   │       ├── discovery/          # @slop-ai/discovery — provider discovery + agent tool helpers
+│   │       ├── claude-slop-plugin/ # Claude Code plugin (MCP bridge, hooks, skills)
+│   │       └── openclaw-plugin/    # @slop-ai/openclaw-plugin — OpenClaw integration
 │   ├── python/slop-ai/             # Python SDK
 │   ├── rust/slop-ai/               # Rust SDK
 │   └── go/slop-ai/                 # Go SDK
@@ -175,6 +181,11 @@ slop/
 │   │   ├── solid/
 │   │   ├── svelte/
 │   │   └── angular/
+│   ├── desktop/                    # Pomodoro desktop provider (same blueprint, multiple stacks)
+│   │   ├── typescript/           # Electron (JS main/renderer) + Unix socket provider
+│   │   ├── python/
+│   │   ├── go/
+│   │   └── rust/                   # Tauri
 │   └── full-stack/
 │       ├── tanstack-start/         # TanStack Start — server + UI mount
 │       └── python-react/           # Python FastAPI + React — cross-SDK
@@ -194,6 +205,7 @@ Each example follows a **blueprint** — a language-agnostic spec defining the e
 - **[SPA Kanban Board](./examples/spa/react/)** — Canonical client-only example, implemented in React, Vue, Solid, Svelte, and Angular from the same blueprint.
 - **[TanStack Start](./examples/full-stack/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
 - **[Python + React](./examples/full-stack/python-react/)** — Python FastAPI backend + React SPA frontend. Cross-SDK integration with two independent providers.
+- **[Desktop Pomodoro (TypeScript)](./examples/desktop/typescript/)** — Electron app as a SLOP provider (Unix socket + `~/.slop/providers/`). Implementations also exist in [Python](./examples/desktop/python/), [Go](./examples/desktop/go/), and [Rust/Tauri](./examples/desktop/rust/).
 
 ## Known limitations
 

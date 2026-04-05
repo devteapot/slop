@@ -10,8 +10,8 @@
       "types": "./dist/index.d.ts"
     },
     "./browser": {
-      "import": "./src/browser.ts",
-      "types": "./src/browser.ts"
+      "import": "./dist/browser.js",
+      "types": "./dist/browser.d.ts"
     }
   },
   "files": ["src", "dist"],
@@ -21,7 +21,7 @@
   "homepage": "https://docs.slopai.dev/api/consumer",
   "bugs": "https://github.com/devteapot/slop/issues",
   "scripts": {
-    "build": "rm -rf dist && bunx tsc",
+    "build": "bun build src/index.ts src/browser.ts --outdir dist --target node --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"
   },
   "repository": {

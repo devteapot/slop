@@ -4,14 +4,6 @@ import { tmpdir } from "node:os";
 import net from "node:net";
 import WebSocket, { WebSocketServer } from "ws";
 
-const DEBUG_DISCOVERY_TESTS = process.env.SLOP_DEBUG_DISCOVERY_TESTS === "1";
-
-function debugLog(...args: unknown[]) {
-  if (DEBUG_DISCOVERY_TESTS) {
-    console.error("[discovery.helper]", ...args);
-  }
-}
-
 export function createTempDir(prefix: string): string {
   return mkdtempSync(join(tmpdir(), `${prefix}-`));
 }
@@ -63,24 +55,20 @@ export async function getFreePort(): Promise<number> {
 }
 
 export async function connectWebSocket(url: string, timeoutMs = 200): Promise<WebSocket> {
-  debugLog("connectWebSocket:start", { url, timeoutMs });
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     const timer = setTimeout(() => {
-      debugLog("connectWebSocket:timeout", { url });
       ws.terminate();
       reject(new Error(`Timed out connecting to ${url}`));
     }, timeoutMs);
 
     const handleOpen = () => {
       clearTimeout(timer);
-      debugLog("connectWebSocket:open", { url });
       ws.off("error", handleError);
       resolve(ws);
     };
     const handleError = (error: Error) => {
       clearTimeout(timer);
-      debugLog("connectWebSocket:error", { url, message: error.message });
       ws.off("open", handleOpen);
       reject(error);
     };
@@ -93,18 +81,14 @@ export async function closeWebSocket(ws: WebSocket | null | undefined) {
   if (!ws) return;
   if (ws.readyState === WebSocket.CLOSED) return;
 
-  debugLog("closeWebSocket:start", { readyState: ws.readyState });
-
   await new Promise<void>((resolve) => {
     const timer = setTimeout(() => {
-      debugLog("closeWebSocket:terminate");
       ws.terminate();
       resolve();
     }, 100);
 
     ws.once("close", () => {
       clearTimeout(timer);
-      debugLog("closeWebSocket:closed");
       resolve();
     });
 
@@ -113,7 +97,6 @@ export async function closeWebSocket(ws: WebSocket | null | undefined) {
 }
 
 export async function closeWebSocketServer(server: WebSocketServer) {
-  debugLog("closeWebSocketServer:start", { clients: server.clients.size });
   for (const client of server.clients) {
     client.terminate();
   }
@@ -121,7 +104,6 @@ export async function closeWebSocketServer(server: WebSocketServer) {
     const timer = setTimeout(() => resolve(), 100);
     server.close((error) => {
       clearTimeout(timer);
-      debugLog("closeWebSocketServer:closed", { error: error?.message });
       if (error) reject(error);
       else resolve();
     });
@@ -140,7 +122,6 @@ export async function createMockSlopProviderServer(options: {
     providerName = "Test Provider",
     helloDelayMs = 0,
   } = options;
-  debugLog("createMockSlopProviderServer:start", { port, providerId, providerName, helloDelayMs });
   const clients = new Set<WebSocket>();
   let connectionCount = 0;
 
@@ -199,12 +180,10 @@ export async function createMockSlopProviderServer(options: {
     url: `ws://127.0.0.1:${port}/slop`,
     getConnectionCount: () => connectionCount,
     async close() {
-      debugLog("createMockSlopProviderServer:close:start", { port, clients: clients.size });
       for (const client of clients) {
         client.terminate();
       }
       await closeWebSocketServer(wss);
-      debugLog("createMockSlopProviderServer:close:done", { port });
     },
   };
 }

@@ -1,23 +1,33 @@
+import { SlopConsumer as SlopConsumerImpl } from "./consumer";
+import { StateMirror as StateMirrorImpl } from "./state-mirror";
+import { WebSocketClientTransport as WebSocketClientTransportImpl } from "./transport-ws";
+import { PostMessageClientTransport as PostMessageClientTransportImpl } from "./transport-pm";
+import { NodeSocketClientTransport as NodeSocketClientTransportImpl } from "./transport-node-socket";
+import { affordancesToTools as affordancesToToolsImpl, formatTree as formatTreeImpl } from "./tools";
+import { Emitter as EmitterImpl } from "./emitter";
+
 // Consumer
-export { SlopConsumer } from "./consumer";
-export { StateMirror } from "./state-mirror";
+export const SlopConsumer = SlopConsumerImpl;
+export const StateMirror = StateMirrorImpl;
+export type SlopConsumer = InstanceType<typeof SlopConsumerImpl>;
+export type StateMirror = InstanceType<typeof StateMirrorImpl>;
 
 // Transports
-export { WebSocketClientTransport } from "./transport-ws";
-export { PostMessageClientTransport } from "./transport-pm";
-export { NodeSocketClientTransport } from "./transport-node-socket";
+export const WebSocketClientTransport = WebSocketClientTransportImpl;
+export const PostMessageClientTransport = PostMessageClientTransportImpl;
+export const NodeSocketClientTransport = NodeSocketClientTransportImpl;
+export type WebSocketClientTransport = InstanceType<typeof WebSocketClientTransportImpl>;
+export type PostMessageClientTransport = InstanceType<typeof PostMessageClientTransportImpl>;
+export type NodeSocketClientTransport = InstanceType<typeof NodeSocketClientTransportImpl>;
 
 // LLM tool utilities
-export {
-  affordancesToTools,
-  formatTree,
-  type LlmTool,
-  type ToolSet,
-  type ChatMessage,
-} from "./tools";
+export const affordancesToTools = affordancesToToolsImpl;
+export const formatTree = formatTreeImpl;
+export type { LlmTool, ToolSet, ChatMessage } from "./tools";
 
 // Emitter (for custom transports)
-export { Emitter } from "./emitter";
+export const Emitter = EmitterImpl;
+export type Emitter = InstanceType<typeof EmitterImpl>;
 
 // Types
 export type {

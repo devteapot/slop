@@ -3,6 +3,7 @@ import { rmSync } from "node:fs";
 import WebSocket from "ws";
 import { createDiscoveryService } from "../src/discovery";
 import {
+  closeWebSocket,
   connectWebSocket,
   createMockSlopProviderServer,
   createTempDir,
@@ -92,7 +93,7 @@ describe("createDiscoveryService", () => {
 
       await waitUntil(() => !service.getDiscovered().some((provider) => provider.id === "browser-app"));
     } finally {
-      extension?.close();
+      await closeWebSocket(extension);
       service.stop();
     }
   });

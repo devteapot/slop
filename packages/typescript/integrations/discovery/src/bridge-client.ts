@@ -240,7 +240,7 @@ export function createBridgeClient(
         reconnectTimer = null;
       }
       if (ws) {
-        ws.close();
+        ws.terminate();
         ws = null;
       }
       isRunning = false;

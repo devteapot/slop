@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { createBridgeServer } from "../src/bridge-server";
-import { connectWebSocket, getFreePort, waitUntil } from "./helpers";
+import { closeWebSocket, connectWebSocket, getFreePort, waitUntil } from "./helpers";
 
 describe("createBridgeServer", () => {
   test("replays providers to newly connected clients", async () => {
@@ -28,10 +28,10 @@ describe("createBridgeServer", () => {
         expect(replay.type).toBe("provider-available");
         expect(replay.providerKey).toBe("browser-app");
       } finally {
-        second.close();
+        await closeWebSocket(second);
       }
     } finally {
-      first.close();
+      await closeWebSocket(first);
       server.stop();
     }
   });
@@ -55,8 +55,8 @@ describe("createBridgeServer", () => {
       first.send(JSON.stringify({ type: "relay-close", providerKey: "browser-app" }));
       await waitUntil(() => received.some((message) => message.type === "relay-close"));
     } finally {
-      first.close();
-      second.close();
+      await closeWebSocket(first);
+      await closeWebSocket(second);
       server.stop();
     }
   });

@@ -57,8 +57,49 @@ export async function getFreePort(): Promise<number> {
 export async function connectWebSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
-    ws.once("open", () => resolve(ws));
-    ws.once("error", reject);
+    const handleOpen = () => {
+      ws.off("error", handleError);
+      resolve(ws);
+    };
+    const handleError = (error: Error) => {
+      ws.off("open", handleOpen);
+      reject(error);
+    };
+    ws.once("open", handleOpen);
+    ws.once("error", handleError);
+  });
+}
+
+export async function closeWebSocket(ws: WebSocket | null | undefined) {
+  if (!ws) return;
+  if (ws.readyState === WebSocket.CLOSED) return;
+
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(() => {
+      ws.terminate();
+      resolve();
+    }, 100);
+
+    ws.once("close", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+
+    ws.close();
+  });
+}
+
+export async function closeWebSocketServer(server: WebSocketServer) {
+  for (const client of server.clients) {
+    client.terminate();
+  }
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(), 100);
+    server.close((error) => {
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    });
   });
 }
 
@@ -135,12 +176,7 @@ export async function createMockSlopProviderServer(options: {
       for (const client of clients) {
         client.terminate();
       }
-      await new Promise<void>((resolve, reject) => {
-        wss.close((error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
+      await closeWebSocketServer(wss);
     },
   };
 }

@@ -204,11 +204,14 @@ export function createBridgeServer(
 
     stop() {
       isRunning = false;
-      for (const sink of sinks) sink.close();
+      for (const sink of sinks) sink.terminate();
       sinks.clear();
       providerMap.clear();
       relaySubscribers.clear();
       if (wss) {
+        for (const client of wss.clients) {
+          client.terminate();
+        }
         wss.close();
         wss = null;
       }

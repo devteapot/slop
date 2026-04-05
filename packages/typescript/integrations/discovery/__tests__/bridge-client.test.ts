@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { WebSocketServer } from "ws";
 import { createBridgeClient } from "../src/bridge-client";
-import { delay, getFreePort, waitUntil } from "./helpers";
+import { closeWebSocketServer, delay, getFreePort, waitUntil } from "./helpers";
 
 describe("createBridgeClient", () => {
   test("mirrors provider announcements", async () => {
@@ -38,7 +38,7 @@ describe("createBridgeClient", () => {
       expect(client.running()).toBe(true);
     } finally {
       client.stop();
-      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+      await closeWebSocketServer(server);
     }
   });
 
@@ -66,7 +66,7 @@ describe("createBridgeClient", () => {
       expect(connectionCount).toBe(1);
     } finally {
       client.stop();
-      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+      await closeWebSocketServer(server);
     }
   });
 
@@ -89,7 +89,7 @@ describe("createBridgeClient", () => {
       expect(connectionCount).toBe(0);
     } finally {
       client.stop();
-      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+      await closeWebSocketServer(server);
     }
   });
 });

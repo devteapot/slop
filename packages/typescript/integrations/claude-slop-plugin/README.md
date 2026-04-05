@@ -73,12 +73,18 @@ Ask Claude to interact with a SLOP-enabled app:
 
 ### Dynamic affordance tools (per-app, after connecting)
 
-When an app connects, its affordances are registered as first-class MCP tools via `tools/list_changed`. For example, connecting to an Excalidraw whiteboard might register:
+When an app connects, its affordances are registered as first-class MCP tools via `tools/list_changed`.
 
-- `excalidraw__canvas__zoom_to_fit`
-- `excalidraw__canvas__toggle_theme`
-- `excalidraw__elements__add_rectangle(x, y, width, height, ...)`
-- `excalidraw__elements__add_text(x, y, text, font_size)`
+Affordances that share the same `action` name and identical `params` schema are **grouped** into a single tool with a `target` parameter, rather than registering one tool per node. For example, if an Excalidraw whiteboard has 200 elements each with `delete` and `set_property` actions, this produces 2 grouped tools instead of 400 individual ones:
+
+- `excalidraw__delete(target="/elements/rect-1")` — 200 targets
+- `excalidraw__set_property(target="/elements/rect-1", key, value)` — 200 targets
+- `excalidraw__canvas__zoom_to_fit` — singleton (only on canvas node)
+- `excalidraw__canvas__toggle_theme` — singleton
+
+Singleton affordances (unique action on a single node) keep the `{nodeId}__{action}` naming with a fixed path. Grouped tools use just the `{action}` name and require the caller to specify which node via `target`. The LLM picks the correct target path from the state tree (injected on every turn via the hook).
+
+If two groups of nodes share the same action name but have different param schemas (e.g. `edit` on cards takes `title` while `edit` on comments takes `body`), they remain separate tools with disambiguated names.
 
 Claude calls these directly — no proxy through meta-tools needed. Tools are removed when the app disconnects.
 
@@ -115,6 +121,16 @@ Browser SPAs ──postMessage──Extension─────────┤
                    ├── createToolHandlers (lifecycle tool logic)
                    └── createBridgeClient/Server (extension relay)
 ```
+
+## Known limitations
+
+### Tool context cost while idle
+
+All dynamic affordance tools remain registered for the lifetime of the connection. Apps with many distinct action+schema combinations can consume significant context tokens (~128 tokens per tool) even when Claude isn't actively interacting with the app.
+
+**Planned improvement: idle tool deregistration.** Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive — the hook still injects the state tree each turn so Claude retains awareness of the app. When Claude needs to act again, a single `connected_apps("appname")` call re-registers the tools instantly from the cached state (no reconnection needed).
+
+This gives the best of both worlds: direct tool calls with zero overhead during active use, freed context when idle.
 
 ## Requirements
 

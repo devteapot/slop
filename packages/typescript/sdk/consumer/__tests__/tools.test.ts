@@ -3,7 +3,7 @@ import { affordancesToTools, formatTree } from "../src/tools";
 import type { SlopNode } from "../src/types";
 
 describe("affordancesToTools", () => {
-  test("returns ToolSet with short nodeId__action names", () => {
+  test("singleton affordances keep nodeId__action naming", () => {
     const tree: SlopNode = {
       id: "root", type: "root",
       affordances: [{ action: "create", label: "Create" }],
@@ -19,7 +19,7 @@ describe("affordancesToTools", () => {
     expect(toolSet.tools[1].function.description).toContain("DANGEROUS");
   });
 
-  test("resolve maps tool name back to path + action", () => {
+  test("resolve maps singleton tool name back to path + action", () => {
     const tree: SlopNode = {
       id: "root", type: "root",
       children: [{
@@ -31,32 +31,108 @@ describe("affordancesToTools", () => {
       }],
     };
     const toolSet = affordancesToTools(tree);
-    expect(toolSet.tools[0].function.description).toContain("/inbox/msg-1");
-    expect(toolSet.resolve("msg_1__archive")).toEqual({ path: "/inbox/msg-1", action: "archive" });
+    const resolved = toolSet.resolve("msg_1__archive");
+    expect(resolved).toEqual({ path: "/inbox/msg-1", action: "archive" });
   });
 
-  test("disambiguates colliding node IDs with parent prefix", () => {
+  test("groups same action + schema into one tool with target param", () => {
     const tree: SlopNode = {
       id: "root", type: "root",
       children: [
-        { id: "board-1", type: "view", children: [
-          { id: "backlog", type: "collection", affordances: [{ action: "reorder" }] },
-        ]},
-        { id: "board-2", type: "view", children: [
-          { id: "backlog", type: "collection", affordances: [{ action: "reorder" }] },
+        { id: "backlog", type: "collection", children: [
+          { id: "card-1", type: "item", affordances: [{ action: "edit", label: "Edit card", params: { type: "object", properties: { title: { type: "string" } } } }] },
+          { id: "card-2", type: "item", affordances: [{ action: "edit", label: "Edit card", params: { type: "object", properties: { title: { type: "string" } } } }] },
+          { id: "card-3", type: "item", affordances: [{ action: "edit", label: "Edit card", params: { type: "object", properties: { title: { type: "string" } } } }] },
         ]},
       ],
     };
     const toolSet = affordancesToTools(tree);
+    // Should be 1 grouped tool, not 3 individual ones
+    expect(toolSet.tools).toHaveLength(1);
+    expect(toolSet.tools[0].function.name).toBe("edit");
+    expect(toolSet.tools[0].function.description).toContain("3 targets");
+
+    // Should have target param added
+    const params = toolSet.tools[0].function.parameters as any;
+    expect(params.properties.target).toBeDefined();
+    expect(params.required).toContain("target");
+    // Original params preserved
+    expect(params.properties.title).toBeDefined();
+  });
+
+  test("grouped tool resolve returns null path with targets list", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        { id: "backlog", type: "collection", children: [
+          { id: "card-1", type: "item", affordances: [{ action: "delete" }] },
+          { id: "card-2", type: "item", affordances: [{ action: "delete" }] },
+        ]},
+      ],
+    };
+    const toolSet = affordancesToTools(tree);
+    const resolved = toolSet.resolve("delete");
+    expect(resolved).not.toBeNull();
+    expect(resolved!.path).toBeNull();
+    expect(resolved!.action).toBe("delete");
+    expect(resolved!.targets).toEqual(["/backlog/card-1", "/backlog/card-2"]);
+  });
+
+  test("different schemas with same action produce separate tools", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        { id: "cards", type: "collection", children: [
+          { id: "card-1", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { title: { type: "string" } } } }] },
+          { id: "card-2", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { title: { type: "string" } } } }] },
+        ]},
+        { id: "comments", type: "collection", children: [
+          { id: "comment-1", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { body: { type: "string" } } } }] },
+          { id: "comment-2", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { body: { type: "string" } } } }] },
+        ]},
+      ],
+    };
+    const toolSet = affordancesToTools(tree);
+    // Two groups: edit(title) and edit(body) — disambiguated names
     expect(toolSet.tools).toHaveLength(2);
     const names = toolSet.tools.map(t => t.function.name);
-    expect(names[0]).not.toBe(names[1]); // different names
-    expect(names).toContain("board_1__backlog__reorder");
-    expect(names).toContain("board_2__backlog__reorder");
+    expect(names[0]).not.toBe(names[1]);
+    // Both should be resolvable
+    expect(toolSet.resolve(names[0])).not.toBeNull();
+    expect(toolSet.resolve(names[1])).not.toBeNull();
+  });
 
-    // Both resolve correctly
-    expect(toolSet.resolve("board_1__backlog__reorder")).toEqual({ path: "/board-1/backlog", action: "reorder" });
-    expect(toolSet.resolve("board_2__backlog__reorder")).toEqual({ path: "/board-2/backlog", action: "reorder" });
+  test("groups across different parent containers", () => {
+    // Cards in backlog AND done should merge (same action + schema)
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        { id: "backlog", type: "collection", children: [
+          { id: "card-1", type: "item", affordances: [{ action: "move" }] },
+        ]},
+        { id: "done", type: "collection", children: [
+          { id: "card-2", type: "item", affordances: [{ action: "move" }] },
+        ]},
+      ],
+    };
+    const toolSet = affordancesToTools(tree);
+    expect(toolSet.tools).toHaveLength(1);
+    expect(toolSet.tools[0].function.name).toBe("move");
+    const resolved = toolSet.resolve("move");
+    expect(resolved!.targets).toEqual(["/backlog/card-1", "/done/card-2"]);
+  });
+
+  test("dangerous flag propagates if any entry in group is dangerous", () => {
+    const tree: SlopNode = {
+      id: "root", type: "root",
+      children: [
+        { id: "a", type: "item", affordances: [{ action: "purge", dangerous: true }] },
+        { id: "b", type: "item", affordances: [{ action: "purge" }] },
+      ],
+    };
+    const toolSet = affordancesToTools(tree);
+    expect(toolSet.tools).toHaveLength(1);
+    expect(toolSet.tools[0].function.description).toContain("DANGEROUS");
   });
 });
 

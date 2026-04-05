@@ -201,7 +201,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    // Dynamic tools ��� resolve to provider invoke
+    // Dynamic tools — resolve to provider invoke
     const resolved = dynamicToolSet.resolve(name);
     if (resolved) {
       const provider = discovery.getProvider(resolved.providerId);
@@ -212,11 +212,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      // For grouped tools (path === null), extract `target` from args
+      let invokePath = resolved.path;
+      let invokeArgs = args ?? {};
+
+      if (invokePath === null) {
+        const { target, ...rest } = invokeArgs;
+        if (!target || typeof target !== "string") {
+          return {
+            content: [{ type: "text", text: `Missing required "target" parameter. Specify the path to the target node (see state tree for valid paths).` }],
+            isError: true,
+          };
+        }
+        if (resolved.targets && !resolved.targets.includes(target)) {
+          return {
+            content: [{ type: "text", text: `Invalid target "${target}". Valid targets: ${resolved.targets.join(", ")}. Check the state tree for current paths.` }],
+            isError: true,
+          };
+        }
+        invokePath = target;
+        invokeArgs = rest;
+      }
+
       try {
         const result = await provider.consumer.invoke(
-          resolved.path,
+          invokePath,
           resolved.action,
-          args ?? {},
+          invokeArgs,
         );
 
         if (result.status === "ok") {

@@ -18,46 +18,119 @@ export interface ChatMessage {
 
 export interface ToolSet {
   tools: LlmTool[];
-  /** Resolve a tool name back to the full path + action for `invoke`. */
-  resolve(toolName: string): { path: string; action: string } | null;
+  /**
+   * Resolve a tool name back to invoke coordinates.
+   *
+   * For singleton tools: returns `{ path: "/some/path", action: "delete" }`
+   * For grouped tools: returns `{ path: null, action: "delete", targets: ["/a", "/b", ...] }`
+   *   — caller must extract `target` from args and use it as the path.
+   */
+  resolve(toolName: string): { path: string | null; action: string; targets?: string[] } | null;
 }
 
 /**
  * Walk the state tree and collect all affordances as LLM tools.
  *
- * Tool names use `{nodeId}__{action}` — short and LLM-friendly.
- * When two nodes share the same ID (different branches), parent IDs
- * are prepended until names are unique.
+ * Affordances that share the same `action` name AND identical `params` schema
+ * are **grouped** into a single tool with a `target` parameter. This avoids
+ * registering N tools when N nodes share the same action (e.g. 500 cards each
+ * with `edit`). Instead, one `edit` tool is registered and the caller supplies
+ * the node path via `target`.
  *
- * Returns a `ToolSet` with the tools and a `resolve()` function that
- * maps tool names back to `{ path, action }` for `invoke` messages.
+ * **Why group by action + schema (not node type or label)?**
+ * SLOP's `invoke(path, action, params)` already includes the path — the
+ * provider dispatches internally based on path + action. From the consumer
+ * side, `delete` IS one operation; the `target` path differentiates
+ * "delete card" from "delete comment". The LLM has the state tree in context
+ * and can pick the correct path.
+ *
+ * Singleton affordances (unique action on a single node) keep the original
+ * `{nodeId}__{action}` naming with a fixed path.
+ *
+ * Returns a `ToolSet` with the tools and a `resolve()` function that maps
+ * tool names back to invoke coordinates.
  */
 export function affordancesToTools(node: SlopNode, path = ""): ToolSet {
-  // Phase 1: collect all affordances with their raw short names
-  const entries: { shortName: string; path: string; action: string; ancestors: string[]; aff: any }[] = [];
+  // Phase 1: collect all affordances with their raw data
+  const entries: AffordanceEntry[] = [];
   collectAffordances(node, path, [], entries);
 
-  // Phase 2: disambiguate collisions by prepending ancestors
-  const nameMap = disambiguate(entries);
+  // Phase 2: group by action + canonical param schema
+  const groups = groupByActionAndSchema(entries);
 
-  // Phase 3: build LlmTool array + resolve map
-  const resolveMap = new Map<string, { path: string; action: string }>();
+  // Phase 3: build tools + resolve map
+  const resolveMap = new Map<string, { path: string | null; action: string; targets?: string[] }>();
   const tools: LlmTool[] = [];
 
-  for (const entry of entries) {
-    const toolName = nameMap.get(entry)!;
-    resolveMap.set(toolName, { path: entry.path || "/", action: entry.action });
-    tools.push({
-      type: "function",
-      function: {
-        name: toolName,
+  // Detect action-name collisions across groups (same action, different schemas)
+  const actionNameCounts = new Map<string, number>();
+  for (const group of groups) {
+    const action = sanitize(group[0].action);
+    actionNameCounts.set(action, (actionNameCounts.get(action) ?? 0) + 1);
+  }
+
+  // Track which action names we've used for disambiguation
+  const actionNameUsed = new Map<string, number>();
+
+  for (const group of groups) {
+    const first = group[0];
+    const safeAction = sanitize(first.action);
+
+    if (group.length === 1) {
+      // Singleton — keep original naming: {nodeId}__{action}
+      const safeId = sanitize(first.nodeId);
+      const toolName = `${safeId}__${safeAction}`;
+      resolveMap.set(toolName, { path: first.path || "/", action: first.action });
+      tools.push({
+        type: "function",
+        function: {
+          name: toolName,
+          description: buildDescription(first),
+          parameters: first.aff.params ? first.aff.params : { type: "object", properties: {} },
+        },
+      });
+    } else {
+      // Grouped — one tool with `target` parameter
+      let toolName = safeAction;
+
+      // Disambiguate if multiple groups share the same action name (different schemas)
+      if ((actionNameCounts.get(safeAction) ?? 0) > 1) {
+        const idx = actionNameUsed.get(safeAction) ?? 0;
+        actionNameUsed.set(safeAction, idx + 1);
+        if (idx > 0) {
+          // Use first entry's nodeId for disambiguation
+          toolName = `${safeAction}__${sanitize(first.nodeId)}`;
+        }
+      }
+
+      const targets = group.map((e) => e.path || "/");
+      const baseParams = first.aff.params
+        ? JSON.parse(JSON.stringify(first.aff.params))
+        : { type: "object", properties: {} };
+
+      // Add `target` as a required parameter
+      if (!baseParams.properties) baseParams.properties = {};
+      baseParams.properties.target = {
+        type: "string",
         description:
-          `${entry.aff.label ?? entry.aff.action}${entry.aff.description ? ": " + entry.aff.description : ""}` +
-          ` (on ${entry.path || "/"})` +
-          (entry.aff.dangerous ? " [DANGEROUS - confirm first]" : ""),
-        parameters: entry.aff.params ? entry.aff.params : { type: "object", properties: {} },
-      },
-    });
+          `Path to the target node (e.g. ${targets[0]}).` +
+          ` See the state tree for valid paths.`,
+      };
+      if (!baseParams.required) baseParams.required = [];
+      baseParams.required = ["target", ...baseParams.required];
+
+      const isDangerous = group.some((e) => e.aff.dangerous);
+
+      resolveMap.set(toolName, { path: null, action: first.action, targets });
+      tools.push({
+        type: "function",
+        function: {
+          name: toolName,
+          description: buildGroupDescription(group, isDangerous),
+          parameters: baseParams,
+        },
+      });
+    }
   }
 
   return {
@@ -68,9 +141,44 @@ export function affordancesToTools(node: SlopNode, path = ""): ToolSet {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Internal types
+// ---------------------------------------------------------------------------
+
+interface AffordanceEntry {
+  nodeId: string;
+  nodeType: string;
+  path: string;
+  action: string;
+  ancestors: string[];
+  aff: any;
+  schemaKey: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 /** Sanitize an ID segment for use in tool names (alphanumeric + underscore only). */
 function sanitize(s: string): string {
   return s.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+/** Build a canonical key for a param schema (order-independent). */
+function canonicalSchemaKey(params: any): string {
+  if (!params) return "";
+  return JSON.stringify(sortKeysDeep(params));
+}
+
+/** Recursively sort object keys for deterministic stringification. */
+function sortKeysDeep(obj: any): any {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(sortKeysDeep);
+  const sorted: Record<string, any> = {};
+  for (const key of Object.keys(obj).sort()) {
+    sorted[key] = sortKeysDeep(obj[key]);
+  }
+  return sorted;
 }
 
 /** Recursively collect all affordances from the tree. */
@@ -78,17 +186,17 @@ function collectAffordances(
   node: SlopNode,
   path: string,
   ancestors: string[],
-  out: { shortName: string; path: string; action: string; ancestors: string[]; aff: any }[],
+  out: AffordanceEntry[],
 ): void {
-  const safeId = sanitize(node.id);
   for (const aff of node.affordances ?? []) {
-    const safeAction = sanitize(aff.action);
     out.push({
-      shortName: `${safeId}__${safeAction}`,
+      nodeId: node.id,
+      nodeType: node.type,
       path,
       action: aff.action,
       ancestors: ancestors.map(sanitize),
       aff,
+      schemaKey: canonicalSchemaKey(aff.params),
     });
   }
   for (const child of node.children ?? []) {
@@ -96,54 +204,43 @@ function collectAffordances(
   }
 }
 
-/** Resolve name collisions by prepending ancestor IDs until unique. */
-function disambiguate(
-  entries: { shortName: string; ancestors: string[]; [k: string]: any }[],
-): Map<any, string> {
-  const result = new Map<any, string>();
-
-  // Group by short name to find collisions
-  const groups = new Map<string, typeof entries>();
+/**
+ * Group affordance entries by action + param schema.
+ *
+ * Entries with identical `action` name AND identical canonical param schema
+ * are placed in the same group. Different schemas produce separate groups,
+ * even if the action name is the same (e.g. `edit` on cards vs `edit` on
+ * comments with different param shapes).
+ */
+function groupByActionAndSchema(entries: AffordanceEntry[]): AffordanceEntry[][] {
+  const groups = new Map<string, AffordanceEntry[]>();
   for (const entry of entries) {
-    const list = groups.get(entry.shortName) ?? [];
+    const key = `${entry.action}\0${entry.schemaKey}`;
+    const list = groups.get(key) ?? [];
     list.push(entry);
-    groups.set(entry.shortName, list);
+    groups.set(key, list);
   }
-
-  for (const [shortName, group] of groups) {
-    if (group.length === 1) {
-      // No collision — use short name
-      result.set(group[0], shortName);
-    } else {
-      // Collision — prepend ancestors until unique
-      for (const entry of group) {
-        let name = shortName;
-        for (let i = entry.ancestors.length - 1; i >= 0; i--) {
-          name = `${entry.ancestors[i]}__${name}`;
-          // Check if this name is now unique among the collision group
-          const sameName = group.filter(
-            (e) => e !== entry && buildName(e, entry.ancestors.length - 1 - i) === name,
-          );
-          if (sameName.length === 0) break;
-        }
-        result.set(entry, name);
-      }
-    }
-  }
-
-  return result;
+  return Array.from(groups.values());
 }
 
-/** Build a disambiguated name by prepending N ancestor levels. */
-function buildName(
-  entry: { shortName: string; ancestors: string[] },
-  ancestorLevels: number,
-): string {
-  let name = entry.shortName;
-  for (let i = entry.ancestors.length - 1; i >= entry.ancestors.length - 1 - ancestorLevels && i >= 0; i--) {
-    name = `${entry.ancestors[i]}__${name}`;
-  }
-  return name;
+/** Build description for a singleton tool. */
+function buildDescription(entry: AffordanceEntry): string {
+  let desc =
+    `${entry.aff.label ?? entry.aff.action}` +
+    `${entry.aff.description ? ": " + entry.aff.description : ""}` +
+    ` (on ${entry.path || "/"})`;
+  if (entry.aff.dangerous) desc += " [DANGEROUS - confirm first]";
+  return desc;
+}
+
+/** Build description for a grouped tool. */
+function buildGroupDescription(group: AffordanceEntry[], isDangerous: boolean): string {
+  const first = group[0];
+  let desc = first.aff.label ?? first.aff.action;
+  if (first.aff.description) desc += `: ${first.aff.description}`;
+  desc += ` (${group.length} targets)`;
+  if (isDangerous) desc += " [DANGEROUS - confirm first]";
+  return desc;
 }
 
 

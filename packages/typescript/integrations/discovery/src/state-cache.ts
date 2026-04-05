@@ -20,8 +20,10 @@ function formatProviderState(p: ConnectedProvider): string {
     .map((t) => {
       const resolved = toolSet.resolve(t.function.name);
       const action = resolved?.action ?? t.function.name;
-      const path = resolved?.path ?? "/";
-      return `  - **${action}** on \`${path}\`: ${t.function.description}`;
+      const pathInfo = resolved?.path
+        ? `on \`${resolved.path}\``
+        : `${resolved?.targets?.length ?? 0} targets`;
+      return `  - **${action}** ${pathInfo}: ${t.function.description}`;
     })
     .join("\n");
 

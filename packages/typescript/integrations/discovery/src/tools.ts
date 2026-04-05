@@ -17,35 +17,45 @@ function sanitizePrefix(s: string): string {
 }
 
 export interface DynamicToolEntry {
-  /** Full MCP tool name, e.g. "kanban__backlog__add_card" */
+  /** Full MCP tool name, e.g. "kanban__delete" or "kanban__board__clear" */
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
   /** Provider this tool belongs to */
   providerId: string;
-  /** SLOP path + action for invoke */
-  path: string;
+  /** SLOP path for invoke (null for grouped tools — path comes from args.target) */
+  path: string | null;
   action: string;
+  /** Valid target paths for grouped tools */
+  targets?: string[];
 }
 
 export interface DynamicToolSet {
   /** All dynamic tool entries across all connected providers */
   tools: DynamicToolEntry[];
-  /** Resolve a dynamic tool name to { providerId, path, action } or null */
-  resolve(toolName: string): { providerId: string; path: string; action: string } | null;
+  /** Resolve a dynamic tool name to invoke coordinates, or null */
+  resolve(toolName: string): {
+    providerId: string;
+    path: string | null;
+    action: string;
+    targets?: string[];
+  } | null;
 }
 
 /**
  * Build dynamic tool definitions from all connected providers' affordances.
  *
  * Each tool name is prefixed with the app's sanitized ID to avoid cross-app collisions:
- *   `{appPrefix}__{nodeId}__{action}`
+ *   `{appPrefix}__{action}` (grouped) or `{appPrefix}__{nodeId}__{action}` (singleton)
+ *
+ * Grouped tools share the same action + param schema across multiple nodes.
+ * They include a `target` parameter so the caller specifies which node to act on.
  *
  * Returns a DynamicToolSet with all tools and a resolve function.
  */
 export function createDynamicTools(discovery: DiscoveryService): DynamicToolSet {
   const entries: DynamicToolEntry[] = [];
-  const resolveMap = new Map<string, { providerId: string; path: string; action: string }>();
+  const resolveMap = new Map<string, { providerId: string; path: string | null; action: string; targets?: string[] }>();
 
   for (const provider of discovery.getProviders()) {
     const tree = provider.consumer.getTree(provider.subscriptionId);
@@ -67,12 +77,14 @@ export function createDynamicTools(discovery: DiscoveryService): DynamicToolSet 
         providerId: provider.id,
         path: resolved.path,
         action: resolved.action,
+        targets: resolved.targets,
       });
 
       resolveMap.set(dynamicName, {
         providerId: provider.id,
         path: resolved.path,
         action: resolved.action,
+        targets: resolved.targets,
       });
     }
   }
@@ -164,8 +176,10 @@ export function createToolHandlers(discovery: DiscoveryService) {
       .map((t) => {
         const resolved = toolSet.resolve(t.function.name);
         const action = resolved?.action ?? t.function.name;
-        const path = resolved?.path ?? "/";
-        return `  - **${action}** on \`${path}\`: ${t.function.description}`;
+        const pathInfo = resolved?.path
+          ? `on \`${resolved.path}\``
+          : `${resolved?.targets?.length ?? 0} targets`;
+        return `  - **${action}** ${pathInfo}: ${t.function.description}`;
       })
       .join("\n");
 

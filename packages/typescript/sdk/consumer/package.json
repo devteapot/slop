@@ -10,8 +10,8 @@
       "types": "./dist/index.d.ts"
     },
     "./browser": {
-      "import": "./dist/browser.js",
-      "types": "./dist/browser.d.ts"
+      "import": "./src/browser.ts",
+      "types": "./src/browser.ts"
     }
   },
   "files": ["src", "dist"],

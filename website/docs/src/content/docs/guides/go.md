@@ -89,6 +89,31 @@ _, _ = consumer.Invoke(context.Background(), "/status", "restart", nil)
 fmt.Println(hello["provider"], subID, snapshot.ID)
 ```
 
+## Discovery layer
+
+The Go SDK also includes the core discovery layer in the `discovery` subpackage:
+
+```go
+import (
+	"context"
+	"fmt"
+
+	"github.com/devteapot/slop/packages/go/slop-ai/discovery"
+)
+
+svc := discovery.NewService(discovery.ServiceOptions{})
+svc.Start(context.Background())
+defer svc.Stop()
+
+provider, err := svc.EnsureConnected(context.Background(), "my-app")
+if err != nil {
+	panic(err)
+}
+if provider != nil {
+	fmt.Println(provider.Name)
+}
+```
+
 ## Next Steps
 
 - [Go package API](/api/go)

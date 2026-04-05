@@ -40,6 +40,55 @@ Integrations (Claude Code plugin, OpenClaw plugin, VS Code extension, custom age
 
 Integrations that only need discovery + MCP (e.g. `slop-bridge` with the MCP SDK) import from the **default** export and do not need `anthropic-agent-sdk`.
 
+## Phase 1: Core Discovery Layer
+
+The current cross-SDK parity target is the **core discovery layer**. The TypeScript implementation is the behavioral reference, but other SDKs do **not** need to copy its package topology.
+
+- TypeScript reference files: `packages/typescript/integrations/discovery/src/discovery.ts`, `bridge-client.ts`, `bridge-server.ts`, `relay-transport.ts`, and `tools.ts`
+- Python target module: `slop_ai.discovery`
+- Go target package: `github.com/devteapot/slop/packages/go/slop-ai/discovery`
+- Rust target module: `slop_ai::discovery`
+
+Python, Go, and Rust keep discovery inside their existing SDK artifact. Only TypeScript publishes discovery as a separate package.
+
+### Phase 1 scope
+
+Phase 1 includes:
+
+- Local provider scanning (`~/.slop/providers/` + `/tmp/slop/providers/`)
+- Descriptor validation and pruning when descriptors disappear
+- Directory watching with periodic fallback scan
+- Bridge client
+- Bridge server
+- "Try client first, fall back to server" bridge startup
+- Relay transport for `postmessage` providers
+- Discovery service / connection orchestration
+- Lazy connect with `ensureConnected()`
+- Auto-connect mode
+- Idle timeout (5 minutes default)
+- Exponential backoff reconnection
+- Connection timeout (10 seconds)
+- State change callback
+- `formatTree()`
+- `affordancesToTools()`
+- `createToolHandlers()`
+- `createDynamicTools()`
+
+Phase 1 explicitly excludes:
+
+- Host-specific wrappers such as `cli.ts` and `anthropic-agent-sdk.ts`
+- Prompt/hook integration glue for Claude Code, Codex, OpenClaw, or other hosts
+- File-cache helpers such as `createStateCache()`
+
+### Status labels
+
+| Label | Meaning |
+|---|---|
+| `Shipped` | Implemented in the SDK artifact with the current contract |
+| `Partial` | Code exists, but only in app code or with behavior drift from the contract |
+| `Planned` | Not implemented yet |
+| `Out of scope` | Intentionally excluded from phase 1 |
+
 ## Provider Discovery
 
 ### Local providers
@@ -237,16 +286,62 @@ Consumers can use this to maintain a cache, update a UI, or trigger context inje
 
 ## SDK Implementations
 
-| Language | Consumer SDK | Discovery Layer | Status |
+| Language | Consumer SDK | Core discovery module | Current status |
 |---|---|---|---|
-| TypeScript | `@slop-ai/consumer` | `@slop-ai/discovery` | Bridge client + server, relay, auto-connect, state cache |
-| Python | `slop-ai` | — | Planned |
-| Go | `slop-ai` | `apps/cli/bridge` + `apps/cli/provider` (to be extracted) | Bridge client + server exist in CLI, not packaged as library |
-| Rust | `slop-ai` | `apps/desktop/src-tauri/src/bridge` (to be extracted) | Bridge server exists in Desktop, not packaged as library |
+| TypeScript | `@slop-ai/consumer` | `@slop-ai/discovery` | Reference implementation for phase 1, plus host-specific helpers outside the shared contract |
+| Python | `slop-ai` | `slop_ai.discovery` | Planned |
+| Go | `slop-ai` | `github.com/devteapot/slop/packages/go/slop-ai/discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
+| Rust | `slop-ai` | `slop_ai::discovery` | Planned extraction from `apps/desktop`, then normalization to the TypeScript contract |
+
+### Phase 1 capability matrix
+
+| Capability | TypeScript | Python | Go | Rust |
+|---|---|---|---|---|
+| Local provider scanning | Shipped | Planned | Shipped | Partial |
+| Descriptor validation and pruning | Shipped | Planned | Shipped | Partial |
+| Directory watch + 15s fallback scan | Shipped | Planned | Shipped | Partial |
+| Bridge client | Shipped | Planned | Shipped | Planned |
+| Bridge server | Shipped | Planned | Shipped | Partial |
+| Client-first / server-fallback startup | Shipped | Planned | Shipped | Planned |
+| Relay transport | Shipped | Planned | Shipped | Partial |
+| Discovery service / connection orchestration | Shipped | Planned | Shipped | Partial |
+| Lazy connect + `ensureConnected()` | Shipped | Planned | Shipped | Partial |
+| Auto-connect mode | Shipped | Planned | Shipped | Planned |
+| Idle timeout | Shipped | Planned | Shipped | Planned |
+| Reconnect backoff | Shipped | Planned | Shipped | Planned |
+| Connection timeout | Shipped | Planned | Shipped | Partial |
+| State change callback | Shipped | Planned | Shipped | Partial |
+| `formatTree()` | Shipped | Shipped | Shipped | Shipped |
+| `affordancesToTools()` | Shipped | Shipped | Shipped | Shipped |
+| `createToolHandlers()` | Shipped | Planned | Shipped | Planned |
+| `createDynamicTools()` | Shipped | Planned | Shipped | Planned |
+| Host wrappers and prompt injection glue | Shipped | Out of scope | Out of scope | Out of scope |
+| State cache / shared file helpers | Shipped | Out of scope | Out of scope | Out of scope |
+
+### Known donor-code drift
+
+The Go CLI and Rust Desktop codebases are useful donor implementations, but they are **not** the behavioral contract. New SDK modules should match the TypeScript phase-1 semantics above, even when that means changing extracted code.
+
+#### Go donor drift (`apps/cli`)
+
+- `apps/cli/bridge/server.go` forwards `provider-available`, `provider-unavailable`, and `slop-relay`, but does not yet forward `relay-open` and `relay-close`
+- `apps/cli/bridge/client.go` does not maintain a reconnect loop after bridge disconnects
+- `apps/cli/main.go` tries client first, but on bind failure it disables the bridge instead of retrying as a client after a port race
+- `apps/cli/bridge/relay.go` opens the relay and returns immediately; it does not yet match the TypeScript relay handshake retry and early-message buffering behavior
+- `apps/cli/tui/discovery.go` refreshes via TUI polling instead of a reusable discovery service with directory watchers, pruning, idle timeout, and reconnect backoff
+- `apps/cli/provider/discovery.go` filters dead PIDs today; extraction should keep only behavior that is explicitly part of the shared contract
+
+#### Rust donor drift (`apps/desktop/src-tauri`)
+
+- `apps/desktop/src-tauri/src/bridge/mod.rs` is coupled to `tauri::AppHandle`, app events, and desktop registry state, so it cannot be extracted as-is into the SDK
+- `apps/desktop/src-tauri/src/provider/mod.rs` sends `relay-open` and a single `connect`, but does not yet match the TypeScript relay handshake retry and early-message buffering behavior
+- `apps/desktop/src-tauri/src/provider/discovery.rs` only scans descriptor files; it does not yet implement the full watcher, fallback-rescan, validation, and pruning behavior
+- `apps/desktop/src-tauri/src/provider/mod.rs` ingests discovered and bridge providers additively; extraction should also handle descriptor disappearance and bridge provider removal using the shared contract
+- The desktop app currently hosts a bridge server, but it does not provide a reusable bridge client or the full client-first / server-fallback startup flow
 
 ### Implementation checklist for new SDKs
 
-A complete discovery layer implementation provides:
+A complete phase-1 discovery layer implementation provides:
 
 - [ ] Local provider scanning (`~/.slop/providers/` + `/tmp/slop/providers/`)
 - [ ] Directory watching with periodic fallback scan
@@ -263,7 +358,8 @@ A complete discovery layer implementation provides:
 - [ ] Connection timeout (10 seconds)
 - [ ] State change callback
 - [ ] Dynamic tool generation (`createDynamicTools()` equivalent)
-- [ ] State injection for host context (hook or prompt prepend)
+
+Host-specific wrappers and prompt injection are intentionally outside phase 1.
 
 ## Integrations
 

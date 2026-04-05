@@ -293,10 +293,29 @@ Dynamic tools have proper parameter schemas from the provider's affordance defin
 
 | Host | Dynamic tools | Mechanism | Limitation |
 |---|---|---|---|
+| Codex | No (current plugin) | Stable MCP tools + `UserPromptSubmit` hook-based state injection | No runtime tool registration; actions still go through meta-tools |
 | Claude Code (MCP) | Yes | `notifications/tools/list_changed` — server notifies client when tool list changes | None |
 | OpenClaw | No | `api.registerTool()` is one-time during `register()` | No runtime tool registration API; tools must be declared in the plugin manifest |
 
-Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. The model knows exact paths and action names from state injection, so it gets the call right without guessing.
+Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. Depending on the host, the model learns the exact paths and action names from prompt-time state injection or from an explicit `connect_app` inspection step.
+
+### Codex plugin (`packages/typescript/integrations/codex/slop`)
+
+| Component | Purpose |
+|---|---|
+| **Tools** | `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch` |
+| **Hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' trees into Codex on every user message |
+| **Skill** (`slop-connect`) | Teaches Codex the connect-once → inspect → act workflow |
+
+Design details:
+
+- **Fixed tool surface** — The Codex plugin exposes the same stable five-tool catalog as the OpenClaw plugin.
+- **Hook-based state injection** — The bridge writes provider state to `/tmp/codex-slop-plugin/state.json` on every state change. The `UserPromptSubmit` hook reads that file and injects fresh markdown into future turns.
+- **Immediate snapshot on connect** — `connect_app` still returns the current tree and actions right away, so Codex can act in the same turn it first connects.
+- **Discovery** — Uses `@slop-ai/discovery` with local descriptor watching plus browser bridge support.
+- **Multi-app** — Multiple providers can remain connected concurrently; `app_action` and `app_action_batch` resolve against the requested app ID.
+
+See [Codex guide](/guides/advanced/codex) for setup and usage.
 
 ### Claude Code integrations (`claude-slop-native`, `claude-slop-mcp-proxy`)
 
@@ -338,4 +357,5 @@ See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 - [Transport spec](../../spec/core/transport.md) — wire protocol and discovery mechanisms
 - [Adapters spec](../../spec/integrations/adapters.md) — bridging non-SLOP apps
 - [Consumer guide](/guides/consumer) — usage patterns and example workflows
+- [Codex guide](/guides/advanced/codex) — Codex plugin setup and usage
 - [Claude Code guide](/guides/advanced/claude-code) — Claude Code plugin setup and usage

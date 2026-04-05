@@ -136,6 +136,7 @@ Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/
 | TanStack Start | [`@slop-ai/tanstack-start`](./packages/typescript/adapters/tanstack-start) | `bun add @slop-ai/tanstack-start` |
 | Discovery | [`@slop-ai/discovery`](./packages/typescript/integrations/discovery) | `bun add @slop-ai/discovery` |
 | OpenClaw | [`@slop-ai/openclaw-plugin`](./packages/typescript/integrations/openclaw-plugin) | `bun add @slop-ai/openclaw-plugin` |
+| Codex | [`slop` plugin](./packages/typescript/integrations/codex/slop) | `cp -r packages/typescript/integrations/codex/slop ~/.codex/plugins/slop` |
 | Python | [`slop-ai`](./packages/python/slop-ai) | `pip install slop-ai` |
 | Rust | [`slop-ai`](./packages/rust/slop-ai) | `cargo add slop-ai` |
 | Go | [`slop-ai`](./packages/go/slop-ai) | `go get github.com/devteapot/slop/packages/go/slop-ai` |
@@ -162,7 +163,8 @@ slop/
 │   │   │   └── tanstack-start/     # @slop-ai/tanstack-start — SSR adapter
 │   │   └── integrations/
 │   │       ├── discovery/          # @slop-ai/discovery — provider discovery + agent tool helpers
-│   │       ├── claude-slop-plugin/ # Claude Code plugin (MCP bridge, hooks, skills)
+│   │       ├── claude/             # Claude Code plugins (native + MCP proxy)
+│   │       ├── codex/              # Codex plugin (MCP bridge + skill)
 │   │       └── openclaw-plugin/    # @slop-ai/openclaw-plugin — OpenClaw integration
 │   ├── python/slop-ai/             # Python SDK
 │   ├── rust/slop-ai/               # Rust SDK

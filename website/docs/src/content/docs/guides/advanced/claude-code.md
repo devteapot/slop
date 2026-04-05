@@ -165,4 +165,5 @@ All three integrations share the same underlying `@slop-ai/discovery` package. `
 
 - [Discovery & Bridge](/sdk/discovery) — the discovery layer this plugin builds on
 - [Consumer guide](/guides/consumer) — other SLOP consumers (CLI, Desktop, Extension)
+- [Codex integration](/guides/advanced/codex) — fixed-tool Codex plugin for SLOP app discovery and control
 - [OpenClaw integration](/guides/advanced/openclaw) — similar integration for OpenClaw

@@ -48,7 +48,7 @@ export default definePluginEntry({
   description:
     "Observe and control desktop and web applications running on this computer. " +
     "Applications that support external control are discovered automatically and " +
-    "become available through discover_apps, connect_app, app_action, app_action_batch, and disconnect_app tools.",
+    "become available through list_apps, connect_app, app_action, app_action_batch, and disconnect_app tools.",
   register(api) {
     const discovery = createDiscoveryService({ logger: api.logger });
     const handlers = createToolHandlers(discovery);

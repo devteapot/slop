@@ -98,7 +98,7 @@ export function createDynamicTools(discovery: DiscoveryService): DynamicToolSet 
 }
 
 export function createToolHandlers(discovery: DiscoveryService) {
-  async function discoverApps(): Promise<ToolResult> {
+  async function listApps(): Promise<ToolResult> {
     const discovered = discovery.getDiscovered();
     if (discovered.length === 0) {
       return {
@@ -203,7 +203,7 @@ export function createToolHandlers(discovery: DiscoveryService) {
         content: [
           {
             type: "text",
-            text: `App "${app}" is not connected. Use discover_apps to see available apps.`,
+            text: `App "${app}" is not connected. Use list_apps to see available apps.`,
           },
         ],
       };
@@ -218,5 +218,5 @@ export function createToolHandlers(discovery: DiscoveryService) {
     };
   }
 
-  return { discoverApps, connectApp, disconnectApp };
+  return { listApps, connectApp, disconnectApp };
 }

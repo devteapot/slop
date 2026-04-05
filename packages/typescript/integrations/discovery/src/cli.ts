@@ -25,11 +25,11 @@ const server = new McpServer({
 });
 
 server.tool(
-  "discover_apps",
+  "list_apps",
   "View applications running on this computer that you can observe and control. " +
-    "Lists all discovered apps and shows which ones are already connected.",
+    "Lists all available apps and shows which ones are already connected.",
   {},
-  async () => handlers.discoverApps(),
+  async () => handlers.listApps(),
 );
 
 // @ts-expect-error — MCP SDK's server.tool() has excessively deep type instantiation with Zod

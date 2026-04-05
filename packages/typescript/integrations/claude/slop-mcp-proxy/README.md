@@ -48,7 +48,7 @@ To avoid approving the same five tools repeatedly, add this to your project's `.
 }
 ```
 
-This allows the plugin's fixed tool set: `discover_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
+This allows the plugin's fixed tool set: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
 
 ## Tools
 
@@ -56,7 +56,7 @@ This plugin provides **5 static MCP tools**:
 
 | Tool | Purpose |
 |------|---------|
-| `discover_apps` | Discover SLOP apps and show which ones are already connected |
+| `list_apps` | List available SLOP apps and show which ones are already connected |
 | `connect_app` | Connect to a specific SLOP app |
 | `disconnect_app` | Disconnect from an app |
 | `app_action` | Perform a single action on an app node |
@@ -78,7 +78,7 @@ App state is injected into context on every user message via a `UserPromptSubmit
 
 Ask Claude to interact with a SLOP-enabled app:
 
-- "What apps are available?" — discovers local + web providers
+- "What apps are available?" — lists local + web providers
 - "Connect to my kanban board" — connects and injects the current state tree
 - "Add three tasks to my todo list" — Claude uses `app_action_batch`
 - "Disconnect from the kanban board" — removes the app from injected context

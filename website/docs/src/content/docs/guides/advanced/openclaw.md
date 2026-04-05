@@ -4,7 +4,7 @@ description: "Control SLOP-enabled applications through OpenClaw"
 ---
 `@slop-ai/openclaw-plugin` lets OpenClaw discover SLOP-enabled apps on your machine and act on them through five tools:
 
-- `discover_apps`
+- `list_apps`
 - `connect_app`
 - `disconnect_app`
 - `app_action`
@@ -65,7 +65,7 @@ The model knows what state exists and what actions are available without calling
 
 | Tool | Purpose |
 |---|---|
-| `discover_apps` | List all discovered apps and show which ones are already connected |
+| `list_apps` | List all available apps and show which ones are already connected |
 | `connect_app` | Connect to an app and see its full state tree |
 | `disconnect_app` | Disconnect from an app and stop injecting its state |
 | `app_action` | Perform a single action: `app_action(app, path, action, params)` |
@@ -86,7 +86,7 @@ All three transport types (Unix socket, WebSocket, postMessage relay) are suppor
 ```text
 # Model sees kanban state in context via before_prompt_build injection
 
-discover_apps()                 # List available apps
+list_apps()                     # List available apps
 connect_app("kanban")           # Connect and get full state + actions
 app_action("kanban", "/columns/backlog", "add_card", { title: "Ship docs" })
 app_action_batch("kanban", [
@@ -107,7 +107,7 @@ OpenClaw's plugin SDK does not support runtime tool registration. Tools must be:
 
 There is no `api.unregisterTool()` or `api.updateTools()` API. This means the plugin cannot add per-app tools when providers connect or remove them when providers disconnect.
 
-The workaround is the **meta-tool pattern**: five stable tools (`discover_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`) that resolve actions dynamically at runtime. The model knows the exact paths and action names from the state injection, so it gets the call right on the first try.
+The workaround is the **meta-tool pattern**: five stable tools (`list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`) that resolve actions dynamically at runtime. The model knows the exact paths and action names from the state injection, so it gets the call right on the first try.
 
 ### What would be needed for dynamic tools in OpenClaw
 
@@ -125,7 +125,7 @@ If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTool
 | Available apps in context | Yes (discovered + connected) | Yes (discovered + connected) |
 | Action tools | Dynamic per-app tools (`kanban__add_card`) | Meta-tools (`app_action`) |
 | Batch actions | `app_action_batch` | `app_action_batch` |
-| Discover tool | `discover_apps` | `discover_apps` |
+| List tool | `list_apps` | `list_apps` |
 | Connect tool | `connect_app` | `connect_app` |
 | Disconnect tool | `disconnect_app` | `disconnect_app` |
 | Discovery | `@slop-ai/discovery` | `@slop-ai/discovery` |

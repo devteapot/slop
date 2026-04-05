@@ -14,19 +14,19 @@ import { createToolHandlers } from "./tools";
 /**
  * Create Agent SDK tool definitions for use with `query()`.
  *
- * Returns lifecycle tools only (discover_apps, connect_app, disconnect_app).
+ * Returns lifecycle tools only (list_apps, connect_app, disconnect_app).
  * Dynamic affordance tools should be wired via MCP's tools/list_changed
  * using `createDynamicTools()` from the main export.
  */
 export function createSlopAgentTools(discovery: ReturnType<typeof createDiscoveryService>) {
   const handlers = createToolHandlers(discovery);
 
-  const discoverApps = tool(
-    "discover_apps",
+  const listApps = tool(
+    "list_apps",
     "View applications running on this computer that you can observe and control. " +
       "Lists all available apps and shows which ones are already connected.",
     {},
-    async () => handlers.discoverApps(),
+    async () => handlers.listApps(),
   );
 
   const connectApp = tool(
@@ -50,7 +50,7 @@ export function createSlopAgentTools(discovery: ReturnType<typeof createDiscover
     async (args) => handlers.disconnectApp(args),
   );
 
-  return [discoverApps, connectApp, disconnectApp];
+  return [listApps, connectApp, disconnectApp];
 }
 
 /**

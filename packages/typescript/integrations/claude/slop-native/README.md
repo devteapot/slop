@@ -35,7 +35,7 @@ This variant dynamically registers tools for each connected app. To avoid approv
 }
 ```
 
-This allows all tools from the plugin's MCP server — both the lifecycle tools (`discover_apps`, `connect_app`, `disconnect_app`) and every dynamic affordance tool from connected apps.
+This allows all tools from the plugin's MCP server — both the lifecycle tools (`list_apps`, `connect_app`, `disconnect_app`) and every dynamic affordance tool from connected apps.
 
 ## Comparison with `slop-mcp-proxy`
 
@@ -67,7 +67,7 @@ Both types appear seamlessly in discovery results and work identically once conn
 
 Ask Claude to interact with a SLOP-enabled app:
 
-- "What apps are available?" — discovers local + web providers
+- "What apps are available?" — lists local + web providers
 - "Connect to my kanban board" — connects, injects state, registers action tools
 - "Add three tasks to my todo list" — Claude calls the app's tools directly
 - "Disconnect from the kanban board" — removes tools and state
@@ -78,7 +78,7 @@ Ask Claude to interact with a SLOP-enabled app:
 
 | Tool | Purpose |
 |------|---------|
-| `discover_apps` | List all discovered apps and show which ones are already connected. |
+| `list_apps` | List all available apps and show which ones are already connected. |
 | `connect_app` | Connect to a specific app. Connecting triggers state injection and dynamic tool registration. |
 | `disconnect_app` | Explicitly disconnect from an app. Removes its tools and stops state updates. |
 
@@ -104,7 +104,7 @@ Claude calls these directly — no proxy through meta-tools needed. Tools are re
 | Component | Purpose |
 |-----------|---------|
 | **MCP Server** (`slop-bridge`) | Discovery + connection lifecycle. Registers dynamic affordance tools via `tools/list_changed`. |
-| **Skill** (`slop-connect`) | Teaches Claude the SLOP workflow: discover, connect, read state, act |
+| **Skill** (`slop-connect`) | Teaches Claude the SLOP workflow: list, connect, read state, act |
 | **Hook** (`UserPromptSubmit`) | Injects connected providers' state into Claude's context each turn |
 
 ## How it works

@@ -302,10 +302,10 @@ Hosts without dynamic tool support fall back to the **meta-tool pattern**: stabl
 
 | Variant | Purpose |
 |---|---|
-| **`claude-slop-native`** | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `discover_apps`, `connect_app`, `disconnect_app`. |
-| **`claude-slop-mcp-proxy`** | Wraps `createDiscoveryService` from `@slop-ai/discovery`, but keeps a fixed tool catalog: `discover_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`. |
+| **`claude-slop-native`** | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `list_apps`, `connect_app`, `disconnect_app`. |
+| **`claude-slop-mcp-proxy`** | Wraps `createDiscoveryService` from `@slop-ai/discovery`, but keeps a fixed tool catalog: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`. |
 | **Shared hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message — no MCP fetch needed. Also lists discovered-but-not-connected apps. |
-| **Shared skill** (`slop-connect`) | Teaches Claude the discover → connect → inspect → act workflow. |
+| **Shared skill** (`slop-connect`) | Teaches Claude the list → connect → inspect → act workflow. |
 
 Design details:
 
@@ -321,7 +321,7 @@ See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
 
 | Component | Purpose |
 |---|---|
-| **Tools** | `discover_apps` (list), `connect_app` (connect/inspect), `disconnect_app`, `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
+| **Tools** | `list_apps` (list), `connect_app` (connect/inspect), `disconnect_app`, `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
 | **Hook** (`before_prompt_build`) | Injects connected providers' state trees as `prependContext` on every inference turn |
 
 Design details:

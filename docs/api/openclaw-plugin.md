@@ -2,7 +2,7 @@
 
 The OpenClaw plugin discovers SLOP providers, injects their state into the prompt, and exposes five tools for interaction:
 
-- `discover_apps` — list discoverable apps
+- `list_apps` — list available apps
 - `connect_app` — connect and inspect an app
 - `disconnect_app` — stop tracking an app
 - `app_action` — perform a single action

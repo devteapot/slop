@@ -3,19 +3,19 @@ import type { DiscoveryService } from "@slop-ai/discovery";
 import type { ToolResult } from "@slop-ai/discovery";
 
 interface ToolHandlers {
-  discoverApps(): Promise<ToolResult>;
+  listApps(): Promise<ToolResult>;
   connectApp(args: { app: string }): Promise<ToolResult>;
   disconnectApp(args: { app: string }): Promise<ToolResult>;
 }
 
 export function registerSlopTools(api: any, discovery: DiscoveryService, handlers: ToolHandlers) {
   api.registerTool({
-    name: "discover_apps",
+    name: "list_apps",
     description:
-      "List the applications currently discoverable on this computer and whether they are already connected.",
+      "List the applications currently available on this computer and whether they are already connected.",
     parameters: Type.Object({}),
     async execute(_id: string) {
-      return handlers.discoverApps();
+      return handlers.listApps();
     },
   });
 

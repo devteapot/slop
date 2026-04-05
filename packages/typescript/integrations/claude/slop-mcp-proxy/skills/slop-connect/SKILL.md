@@ -5,7 +5,7 @@ description: >
   Use when the user asks to "connect to an app", "open an app", "interact with",
   "use", "control", or "check" a local application, or when the user mentions
   a specific app that might be SLOP-enabled (e.g., "check my kanban board",
-  "look at my editor", "what's in my inbox"). Also triggers on "discover apps",
+  "look at my editor", "what's in my inbox"). Also triggers on "list apps",
   "list providers", "available apps", or "SLOP".
 ---
 
@@ -17,9 +17,9 @@ you always see the latest state, available actions, paths, and parameter schemas
 
 ## Tools
 
-### `discover_apps`
+### `list_apps`
 
-Lists all discovered applications.
+Lists all available applications.
 
 - **No arguments** — lists all available apps (local native + web), their connection status, and action counts.
 
@@ -55,9 +55,9 @@ Use this for bulk operations: adding multiple items, making several edits, or an
 
 ## Workflow
 
-### 1. Discover and list apps
+### 1. List available apps
 
-Call `discover_apps` to see what's available. Apps are auto-discovered from:
+Call `list_apps` to see what's available. Apps are auto-discovered from:
 - `~/.slop/providers/` — local native apps
 - The SLOP browser extension bridge — web apps running in the browser
 

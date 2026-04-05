@@ -5,7 +5,7 @@ description: "Connect Claude Code to SLOP-enabled applications with dynamic or g
 SLOP ships two Claude Code integrations:
 
 - `claude-slop-native` — direct-tool variant. Connected app affordances become first-class MCP tools, so Claude calls app-specific tools directly.
-- `claude-slop-mcp-proxy` — generic-action variant. Claude reads the injected state tree and uses five stable tools: `discover_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
+- `claude-slop-mcp-proxy` — generic-action variant. Claude reads the injected state tree and uses five stable tools: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
 
 Use `claude-slop-native` by default for the best Claude Code UX. Use `claude-slop-mcp-proxy` when you want a fixed, low-overhead tool catalog.
 
@@ -85,7 +85,7 @@ Three lifecycle tools remain static and always available:
 
 | Tool | When to use |
 |---|---|
-| `discover_apps` | List all discovered apps and show which ones are already connected |
+| `list_apps` | List all available apps and show which ones are already connected |
 | `connect_app` | Connect to an app and trigger dynamic tool registration |
 | `disconnect_app` | Remove an app and its dynamic tools when you're done |
 
@@ -95,7 +95,7 @@ This variant keeps a stable five-tool surface:
 
 | Tool | When to use |
 |---|---|
-| `discover_apps` | List all discovered apps and show which ones are already connected |
+| `list_apps` | List all available apps and show which ones are already connected |
 | `connect_app` | Connect to an app and inject its current state |
 | `disconnect_app` | Remove an app from injected context |
 | `app_action` | Invoke one affordance by `app`, `path`, `action`, and `params` |
@@ -115,7 +115,7 @@ Claude reads the current state tree from context, then constructs `app_action` o
 
 ```
 User: What apps are available?
-→ Claude can answer from injected state, or call discover_apps when it needs a fresh discovery snapshot
+→ Claude can answer from injected state, or call list_apps when it needs a fresh availability snapshot
 
 User: Connect to the kanban board
 → Claude calls connect_app("kanban")

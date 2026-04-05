@@ -4,7 +4,7 @@
  * slop-bridge — MCP server that bridges SLOP providers to Claude.
  *
  * Three lifecycle tools:
- *   - discover_apps: list discovered SLOP providers
+ *   - list_apps: list available SLOP providers
  *   - connect_app: explicitly connect to a SLOP provider
  *   - disconnect_app: explicitly disconnect from a provider
  *
@@ -119,9 +119,9 @@ discovery.onStateChange(() => {
 
 const STATIC_TOOLS = [
   {
-    name: "discover_apps",
+    name: "list_apps",
     description:
-      "List all discovered applications available for connection. " +
+      "List all available applications for connection. " +
       "Shows which apps are already connected and how many actions they expose.",
     inputSchema: {
       type: "object",
@@ -194,8 +194,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     // Static tools
     switch (name) {
-      case "discover_apps": {
-        return await handlers.discoverApps();
+      case "list_apps": {
+        return await handlers.listApps();
       }
 
       case "connect_app": {

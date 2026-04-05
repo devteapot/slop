@@ -4,7 +4,7 @@ OpenClaw plugin for discovering and controlling SLOP-enabled apps.
 
 The plugin watches SLOP providers, subscribes to their trees, injects live state into the prompt, and exposes five OpenClaw tools:
 
-- `discover_apps` to list discoverable providers
+- `list_apps` to list available providers
 - `connect_app` to inspect a provider's current state and actions
 - `disconnect_app` to stop tracking an app
 - `app_action` to invoke a single affordance on a provider
@@ -54,7 +54,7 @@ The plugin connects to Unix socket, WebSocket, and browser-relayed providers aut
 ## Example
 
 ```text
-discover_apps()
+list_apps()
 connect_app("kanban")
 app_action("kanban", "/columns/backlog", "add_card", { title: "Ship docs" })
 app_action_batch("kanban", [

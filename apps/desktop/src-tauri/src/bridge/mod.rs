@@ -154,8 +154,18 @@ async fn handle_bridge_message(app: &AppHandle, value: &Value) {
             if let (Some(provider_key), Some(message)) =
                 (value["providerKey"].as_str(), value.get("message"))
             {
+                // Dispatch to internal subscribers (Desktop's own relay connections)
                 dispatch_relay(app, provider_key, message.clone()).await;
             }
+            // Rebroadcast to all sinks so external consumers receive relay
+            // responses from the extension, and the extension receives relay
+            // messages from external consumers (e.g. CLI, Claude agent)
+            let _ = bridge_send_value(app.clone(), value.clone()).await;
+        }
+        "relay-open" | "relay-close" => {
+            // Forward to all sinks so the extension receives relay control
+            // messages from external consumers
+            let _ = bridge_send_value(app.clone(), value.clone()).await;
         }
         "provider-available" => {
             let tab_id = value["tabId"].as_u64().unwrap_or(0);

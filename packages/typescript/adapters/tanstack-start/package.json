@@ -1,0 +1,49 @@
+{
+  "name": "@slop-ai/tanstack-start",
+  "version": "0.1.0",
+  "description": "SLOP Layer 4 adapter for TanStack Start — server setup, UI sync, state composition",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "sideEffects": false,
+  "license": "MIT",
+  "homepage": "https://docs.slopai.dev/api/tanstack-start",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/adapters/tanstack-start"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts src/server.ts --outdir dist --format esm --splitting --external '@slop-ai/core' --external '@slop-ai/client' --external '@slop-ai/server' --external ws --external react --external '@tanstack/react-start' --external '@tanstack/react-router' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@slop-ai/core": "workspace:*",
+    "@slop-ai/client": "workspace:*",
+    "@slop-ai/server": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/ws": "^8.5.0",
+    "@types/node": "^22.0.0",
+    "@tanstack/react-router": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@tanstack/react-start": ">=1.0.0",
+    "@tanstack/react-router": ">=1.0.0",
+    "react": ">=18.0.0"
+  }
+}

@@ -69,6 +69,8 @@ export interface DiscoveryOptions {
   autoConnect?: boolean;
   /** Disable bridge startup entirely (useful for environments that only need local discovery) */
   enableBridge?: boolean;
+  /** Disable provider directory watchers and rely on periodic scans only */
+  watchProviders?: boolean;
   /** Start a bridge server if no existing bridge is found (default: true) */
   hostBridge?: boolean;
   providersDirs?: string[];
@@ -105,6 +107,7 @@ export function createDiscoveryService(
     log,
     autoConnect,
     enableBridge,
+    watchProviders,
     hostBridge,
     providersDirs,
     bridgeUrl,
@@ -306,12 +309,12 @@ export function createDiscoveryService(
             );
             log.info(`[slop] Will reconnect to ${entry.name} in ${delay / 1000}s (attempt ${attempt})`);
             clearReconnectTimer(desc.id);
-            reconnectTimers.set(desc.id, setTimeout(() => {
+            reconnectTimers.set(desc.id, unrefTimer(setTimeout(() => {
               reconnectTimers.delete(desc.id);
               if (lifecycleVersion === generation && !providers.has(desc.id) && getAllDescriptors().some(d => d.id === desc.id)) {
                 void connectProvider(desc).catch(() => {});
               }
-            }, delay));
+            }, delay)));
           }
         });
 
@@ -442,10 +445,10 @@ export function createDiscoveryService(
     if (watchDebounceTimer) {
       clearTimeout(watchDebounceTimer);
     }
-    watchDebounceTimer = setTimeout(() => {
+    watchDebounceTimer = unrefTimer(setTimeout(() => {
       watchDebounceTimer = null;
       scan();
-    }, watchDebounceMs);
+    }, watchDebounceMs));
   }
 
   function clearReconnectTimer(id: string) {
@@ -552,16 +555,18 @@ export function createDiscoveryService(
       // Start local file discovery
       scan();
 
-      for (const dir of providersDirs) {
-        try {
-          if (existsSync(dir)) {
-            watchers.push(watch(dir, scheduleScan));
-          }
-        } catch {}
+      if (watchProviders) {
+        for (const dir of providersDirs) {
+          try {
+            if (existsSync(dir)) {
+              watchers.push(watch(dir, scheduleScan));
+            }
+          } catch {}
+        }
       }
 
-      scanTimer = setInterval(scan, scanIntervalMs);
-      idleTimer = setInterval(checkIdle, idleCheckIntervalMs);
+      scanTimer = unrefTimer(setInterval(scan, scanIntervalMs));
+      idleTimer = unrefTimer(setInterval(checkIdle, idleCheckIntervalMs));
 
       // Start bridge: try client first, fall back to server
       if (enableBridge) {
@@ -617,6 +622,7 @@ function normalizeOptions(options: DiscoveryOptions = {}) {
     log: options.logger ?? { info: console.error, error: console.error },
     autoConnect: options.autoConnect ?? false,
     enableBridge: options.enableBridge ?? true,
+    watchProviders: options.watchProviders ?? true,
     hostBridge: options.hostBridge ?? true,
     providersDirs: options.providersDirs ?? DEFAULT_PROVIDERS_DIRS,
     bridgeUrl,
@@ -655,6 +661,13 @@ function resolveBridgeConfig(bridgeUrl: string) {
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs)),
+    new Promise<never>((_, reject) => {
+      unrefTimer(setTimeout(() => reject(new Error(message)), timeoutMs));
+    }),
   ]);
+}
+
+function unrefTimer<T extends { unref?: () => unknown }>(timer: T): T {
+  timer.unref?.();
+  return timer;
 }

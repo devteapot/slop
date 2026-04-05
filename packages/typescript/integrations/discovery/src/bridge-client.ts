@@ -148,10 +148,10 @@ export function createBridgeClient(
 
   function scheduleReconnect() {
     if (!started || reconnectTimer) return;
-    reconnectTimer = setTimeout(() => {
+    reconnectTimer = unrefTimer(setTimeout(() => {
       reconnectTimer = null;
       void doConnect().catch(() => {});
-    }, reconnectIntervalMs);
+    }, reconnectIntervalMs));
   }
 
   function handleMessage(msg: Record<string, unknown>) {
@@ -256,4 +256,9 @@ function normalizeOptions(options: BridgeClientOptions = {}): Required<BridgeCli
     url: options.url ?? DEFAULT_BRIDGE_URL,
     reconnectIntervalMs: options.reconnectIntervalMs ?? DEFAULT_RECONNECT_INTERVAL,
   };
+}
+
+function unrefTimer<T extends { unref?: () => unknown }>(timer: T): T {
+  timer.unref?.();
+  return timer;
 }

@@ -31,18 +31,30 @@ export class BridgeRelayTransport implements ClientTransport {
       providerKey: this.providerKey,
     });
 
-    // Wait for the extension to activate the bridge relay in the content
-    // script before sending the SLOP connect handshake. The relay-open
-    // triggers bridge-active → content script adds window listener.
-    await new Promise((r) => setTimeout(r, 200));
+    // Send SLOP connect handshake with retry. The relay-open triggers
+    // bridge-active → content script adds window listener, which may not
+    // be ready immediately. Instead of a fixed delay we send the connect
+    // handshake and retry up to 3 times until the relay responds.
+    const RETRY_DELAY = 300;
+    const MAX_RETRIES = 3;
+    let gotResponse = false;
+    const sentinel = () => { gotResponse = true; };
+    messageHandlers.push(sentinel);
 
-    // Send SLOP connect handshake through the relay to trigger the
-    // provider's hello response (same as PostMessageClientTransport)
-    this.bridge.send({
-      type: "slop-relay",
-      providerKey: this.providerKey,
-      message: { type: "connect" },
-    });
+    for (let attempt = 0; attempt <= MAX_RETRIES && !gotResponse; attempt++) {
+      this.bridge.send({
+        type: "slop-relay",
+        providerKey: this.providerKey,
+        message: { type: "connect" },
+      });
+      if (!gotResponse) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY));
+      }
+    }
+
+    // Remove sentinel — normal message flow takes over
+    const idx = messageHandlers.indexOf(sentinel);
+    if (idx >= 0) messageHandlers.splice(idx, 1);
 
     return {
       send: (msg: SlopMessage) => {

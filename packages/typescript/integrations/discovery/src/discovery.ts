@@ -85,8 +85,23 @@ export function createDiscoveryService(
   let lastLocalDescriptors: ProviderDescriptor[] = [];
   let bridge: Bridge | null = null;
   let stateChangeCallback: (() => void) | null = null;
+  let started = false;
 
   // --- Local discovery (file-based) ---
+
+  const VALID_TRANSPORT_TYPES = new Set(["unix", "ws", "stdio", "relay"]);
+
+  function isValidDescriptor(obj: unknown): obj is ProviderDescriptor {
+    if (typeof obj !== "object" || obj === null) return false;
+    const o = obj as Record<string, unknown>;
+    if (typeof o.id !== "string" || !o.id) return false;
+    if (typeof o.name !== "string" || !o.name) return false;
+    if (typeof o.transport !== "object" || o.transport === null) return false;
+    const t = o.transport as Record<string, unknown>;
+    if (!VALID_TRANSPORT_TYPES.has(t.type as string)) return false;
+    if (!Array.isArray(o.capabilities)) return false;
+    return true;
+  }
 
   function readDescriptors(): ProviderDescriptor[] {
     const descriptors: ProviderDescriptor[] = [];
@@ -97,6 +112,10 @@ export function createDiscoveryService(
         try {
           const content = readFileSync(join(dir, file), "utf-8");
           const desc = JSON.parse(content);
+          if (!isValidDescriptor(desc)) {
+            log.error(`[slop] Invalid descriptor in ${file}: missing required fields`);
+            continue;
+          }
           desc.source = "local";
           descriptors.push(desc);
         } catch (e: any) {
@@ -238,6 +257,7 @@ export function createDiscoveryService(
         entry.consumer.disconnect();
         providers.delete(id);
         lastAccessed.delete(id);
+        reconnectAttempts.delete(id);
       }
     }
 
@@ -390,6 +410,9 @@ export function createDiscoveryService(
     },
 
     start() {
+      if (started) return;
+      started = true;
+
       // Start local file discovery
       scan();
 
@@ -431,6 +454,8 @@ export function createDiscoveryService(
       }
       providers.clear();
       lastAccessed.clear();
+      reconnectAttempts.clear();
+      started = false;
     },
   };
 }

@@ -1,0 +1,46 @@
+{
+  "name": "slop",
+  "version": "0.1.0",
+  "description": "Codex plugin for discovering and controlling SLOP-enabled desktop and web applications through MCP.",
+  "author": {
+    "name": "Diego"
+  },
+  "homepage": "https://docs.slopai.dev/guides/advanced/codex",
+  "repository": "https://github.com/devteapot/slop",
+  "license": "MIT",
+  "keywords": [
+    "slop",
+    "codex",
+    "integration",
+    "state",
+    "affordances",
+    "real-time"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "SLOP",
+    "shortDescription": "Observe and control local apps through Codex",
+    "longDescription": "Connect Codex to SLOP-enabled desktop and web applications. Discover available providers, inject their live semantic state into Codex, and act through five stable MCP tools backed by the shared discovery layer.",
+    "developerName": "Diego",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://docs.slopai.dev/guides/advanced/codex",
+    "privacyPolicyURL": "https://github.com/devteapot/slop",
+    "termsOfServiceURL": "https://github.com/devteapot/slop/blob/main/LICENSE",
+    "defaultPrompt": [
+      "List the SLOP-enabled apps available on this computer",
+      "Connect to my kanban board and inspect its current state",
+      "Use the visible app actions to update several items in one batch"
+    ],
+    "brandColor": "#2563EB",
+    "composerIcon": "./assets/slop-small.svg",
+    "logo": "./assets/slop-logo.svg",
+    "screenshots": []
+  }
+}

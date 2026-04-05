@@ -1,0 +1,9 @@
+{
+  "name": "claude-slop-native",
+  "version": "0.1.0",
+  "description": "Claude Code plugin for SLOP, direct-tool variant. Discovers local and web providers, subscribes to live state trees, and exposes app affordances as first-class tools so Claude can act on apps directly.",
+  "author": {
+    "name": "Diego"
+  },
+  "keywords": ["slop", "integration", "state", "affordances", "real-time"]
+}

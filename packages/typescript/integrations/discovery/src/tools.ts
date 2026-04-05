@@ -98,49 +98,48 @@ export function createDynamicTools(discovery: DiscoveryService): DynamicToolSet 
 }
 
 export function createToolHandlers(discovery: DiscoveryService) {
-  async function connectedApps(args: { app?: string }): Promise<ToolResult> {
-    const { app } = args;
-
-    // --- List all discovered apps ---
-    if (!app) {
-      const discovered = discovery.getDiscovered();
-      if (discovered.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "No applications found. Desktop and web apps that support external control will appear here automatically when they're running.",
-            },
-          ],
-        };
-      }
-
-      const connected = discovery.getProviders();
-      const connectedIds = new Set(connected.map((p) => p.id));
-
-      const lines = discovered.map((desc) => {
-        const isConnected = connectedIds.has(desc.id);
-        const provider = isConnected
-          ? connected.find((p) => p.id === desc.id)
-          : null;
-        const tree = provider?.consumer.getTree(provider.subscriptionId);
-        const actionCount = tree ? affordancesToTools(tree).tools.length : 0;
-        const label = (tree?.properties?.label as string) ?? desc.name;
-        const status = isConnected
-          ? `connected, ${actionCount} actions`
-          : "available";
-        return `- **${label}** (id: \`${desc.id}\`, ${desc.transport.type}) — ${status}`;
-      });
-
+  async function listApps(): Promise<ToolResult> {
+    const discovered = discovery.getDiscovered();
+    if (discovered.length === 0) {
       return {
         content: [
           {
             type: "text",
-            text: `Applications on this computer:\n${lines.join("\n")}\n\nUse connected_apps with an app name to see full state and available actions.`,
+            text: "No applications found. Desktop and web apps that support external control will appear here automatically when they're running.",
           },
         ],
       };
     }
+
+    const connected = discovery.getProviders();
+    const connectedIds = new Set(connected.map((p) => p.id));
+
+    const lines = discovered.map((desc) => {
+      const isConnected = connectedIds.has(desc.id);
+      const provider = isConnected
+        ? connected.find((p) => p.id === desc.id)
+        : null;
+      const tree = provider?.consumer.getTree(provider.subscriptionId);
+      const actionCount = tree ? affordancesToTools(tree).tools.length : 0;
+      const label = (tree?.properties?.label as string) ?? desc.name;
+      const status = isConnected
+        ? `connected, ${actionCount} actions`
+        : "available";
+      return `- **${label}** (id: \`${desc.id}\`, ${desc.transport.type}) — ${status}`;
+    });
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Applications on this computer:\n${lines.join("\n")}\n\nUse connect_app with an app name or ID to connect and inspect it.`,
+        },
+      ],
+    };
+  }
+
+  async function connectApp(args: { app: string }): Promise<ToolResult> {
+    const { app } = args;
 
     // --- Show specific app (lazy connect) ---
     const p = await discovery.ensureConnected(app);
@@ -204,7 +203,7 @@ export function createToolHandlers(discovery: DiscoveryService) {
         content: [
           {
             type: "text",
-            text: `App "${app}" is not connected. Use connected_apps to see available apps.`,
+            text: `App "${app}" is not connected. Use list_apps to see available apps.`,
           },
         ],
       };
@@ -219,5 +218,5 @@ export function createToolHandlers(discovery: DiscoveryService) {
     };
   }
 
-  return { connectedApps, disconnectApp };
+  return { listApps, connectApp, disconnectApp };
 }

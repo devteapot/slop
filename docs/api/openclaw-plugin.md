@@ -1,8 +1,10 @@
 # @slop-ai/openclaw-plugin
 
-The OpenClaw plugin discovers SLOP providers, injects their state into the prompt, and exposes three tools for interaction:
+The OpenClaw plugin discovers SLOP providers, injects their state into the prompt, and exposes five tools for interaction:
 
-- `connected_apps` — connect and inspect apps
+- `list_apps` — list available apps
+- `connect_app` — connect and inspect an app
+- `disconnect_app` — stop tracking an app
 - `app_action` — perform a single action
 - `app_action_batch` — perform multiple actions in one call
 
@@ -24,7 +26,7 @@ The plugin uses `@slop-ai/discovery` for provider discovery (local dirs, bridge,
 
 ### State injection
 
-A `before_prompt_build` hook injects connected providers' state trees as `prependContext` on every inference turn. The model sees live app state and available actions without calling any tool.
+A `before_prompt_build` hook injects connected providers' state trees as `prependContext` on every inference turn. The model sees live app state and available actions without calling any tool, and it can act using `app_action`, `app_action_batch`, or `disconnect_app`.
 
 ### Discovery
 

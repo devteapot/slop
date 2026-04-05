@@ -10,7 +10,7 @@
 
 import fs from "node:fs";
 
-const STATE_FILE = "/tmp/claude-slop-plugin/state.json";
+const STATE_FILE = "/tmp/codex-slop-plugin/state.json";
 const STALE_THRESHOLD = 30_000; // 30 seconds
 
 try {
@@ -19,7 +19,6 @@ try {
   const raw = fs.readFileSync(STATE_FILE, "utf-8");
   const data = JSON.parse(raw);
 
-  // Skip injection if state file is stale (MCP server may have crashed)
   if (data.lastUpdated && Date.now() - data.lastUpdated > STALE_THRESHOLD) {
     process.exit(0);
   }
@@ -34,7 +33,7 @@ try {
   if (hasProviders) {
     output += `${data.providers.length} app(s) connected. `;
     output +=
-      "Use app_action to act on apps. Call connected_apps with an app name to see full state and actions.\n\n";
+      "Read the state trees below before acting. Use app_action or app_action_batch to invoke affordances, and call connect_app only when you need to connect a new app or force a refresh.\n\n";
 
     for (const provider of data.providers) {
       output += `### ${provider.name} (${provider.id})\n\n`;
@@ -51,11 +50,10 @@ try {
     for (const app of data.available) {
       output += `- **${app.name}** (id: \`${app.id}\`, ${app.transport}, ${app.source})\n`;
     }
-    output += "\nCall connected_apps with an app name to connect.\n";
+    output += "\nCall connect_app with an app name to connect it.\n";
   }
 
   process.stdout.write(output);
 } catch {
-  // Silently exit — don't break the session if the state file is corrupt
   process.exit(0);
 }

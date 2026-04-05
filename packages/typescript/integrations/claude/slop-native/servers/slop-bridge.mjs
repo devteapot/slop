@@ -3,8 +3,9 @@
 /**
  * slop-bridge — MCP server that bridges SLOP providers to Claude.
  *
- * Two meta-tools for lifecycle:
- *   - connected_apps: discover and connect to SLOP providers
+ * Three lifecycle tools:
+ *   - list_apps: list available SLOP providers
+ *   - connect_app: explicitly connect to a SLOP provider
  *   - disconnect_app: explicitly disconnect from a provider
  *
  * All app actions are exposed as dynamic per-app tools via MCP tools/list_changed.
@@ -118,11 +119,20 @@ discovery.onStateChange(() => {
 
 const STATIC_TOOLS = [
   {
-    name: "connected_apps",
+    name: "list_apps",
     description:
-      "Connect to an application to enable its tools, or list all available apps. " +
-      "Once connected, per-app action tools appear automatically (e.g. kanban__add_card). " +
-      "Call with an app name to connect; call without arguments to list all.",
+      "List all available applications for connection. " +
+      "Shows which apps are already connected and how many actions they expose.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "connect_app",
+    description:
+      "Connect to an application to enable its tools and inspect its current state. " +
+      "Once connected, per-app action tools appear automatically (e.g. kanban__add_card).",
     inputSchema: {
       type: "object",
       properties: {
@@ -184,8 +194,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     // Static tools
     switch (name) {
-      case "connected_apps": {
-        const result = await handlers.connectedApps(args);
+      case "list_apps": {
+        return await handlers.listApps();
+      }
+
+      case "connect_app": {
+        const result = await handlers.connectApp(args);
         // After connecting a new app, rebuild dynamic tools
         dynamicToolSet = createDynamicTools(discovery);
         server.sendToolListChanged().catch(() => {});
@@ -207,7 +221,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const provider = discovery.getProvider(resolved.providerId);
       if (!provider) {
         return {
-          content: [{ type: "text", text: `App disconnected. Call connected_apps to reconnect.` }],
+          content: [{ type: "text", text: `App disconnected. Call connect_app to reconnect.` }],
           isError: true,
         };
       }

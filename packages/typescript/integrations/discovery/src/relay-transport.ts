@@ -16,11 +16,21 @@ export class BridgeRelayTransport implements ClientTransport {
     let closeHandlers: (() => void)[] = [];
     let closed = false;
 
+    // Buffer messages that arrive before onMessage is registered.
+    // This prevents the hello from being lost if it arrives during
+    // the relay-open retry window (before SlopConsumer sets up its handler).
+    const earlyMessages: SlopMessage[] = [];
+    let buffering = true;
+
     // Subscribe to relay messages for this provider
     const subs = this.bridge.subscribeRelay(this.providerKey);
     const relayHandler: RelayHandler = (message) => {
+      const msg = message as unknown as SlopMessage;
+      if (buffering) {
+        earlyMessages.push(msg);
+      }
       for (const h of messageHandlers) {
-        h(message as unknown as SlopMessage);
+        h(msg);
       }
     };
     subs.push(relayHandler);
@@ -68,6 +78,14 @@ export class BridgeRelayTransport implements ClientTransport {
 
       onMessage: (handler: MessageHandler) => {
         messageHandlers.push(handler);
+        // Replay any messages that arrived before this handler was registered
+        if (buffering) {
+          buffering = false;
+          for (const msg of earlyMessages) {
+            handler(msg);
+          }
+          earlyMessages.length = 0;
+        }
       },
 
       onClose: (handler: () => void) => {

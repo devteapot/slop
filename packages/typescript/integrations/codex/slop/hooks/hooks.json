@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ./hooks/scripts/inject-state.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

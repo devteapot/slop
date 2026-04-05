@@ -8,6 +8,7 @@
     "packages/typescript/sdk/*",
     "packages/typescript/adapters/*",
     "packages/typescript/integrations/*",
+    "packages/typescript/integrations/codex/*/servers",
     "packages/typescript/integrations/claude/*/servers",
     "website/demo",
     "examples/cli/*",

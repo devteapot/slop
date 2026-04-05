@@ -1,0 +1,15 @@
+{
+  "name": "codex-slop-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build slop-bridge.mjs --outfile dist/slop-bridge.bundle.mjs --format esm --target node",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@slop-ai/consumer": "workspace:*",
+    "@slop-ai/discovery": "workspace:*"
+  }
+}

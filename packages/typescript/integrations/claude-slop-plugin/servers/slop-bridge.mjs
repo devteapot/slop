@@ -3,13 +3,13 @@
 /**
  * slop-bridge — MCP server that bridges SLOP providers to Claude.
  *
- * Uses the @slop-ai/discovery SDK for discovery, connection management,
- * bridge relay, and tool logic. Exposes:
+ * Two meta-tools for lifecycle:
+ *   - connected_apps: discover and connect to SLOP providers
+ *   - disconnect_app: explicitly disconnect from a provider
  *
- * - Static tools: connected_apps (connect/list), app_action_batch (bulk ops)
- * - Dynamic tools: per-app affordance tools injected via MCP tools/list_changed
- *   when providers connect. The model calls e.g. `kanban__add_card({title: "..."})`
- *   directly — no proxy through app_action needed.
+ * All app actions are exposed as dynamic per-app tools via MCP tools/list_changed.
+ * When a provider connects, its affordances become first-class tools
+ * (e.g. `excalidraw__elements__add_rectangle`). The model calls them directly.
  *
  * State is written to a shared file for the context-injection hook.
  */
@@ -46,7 +46,7 @@ const log = {
 // Discovery service (from SDK — handles local + bridge + relay)
 // ---------------------------------------------------------------------------
 
-const discovery = createDiscoveryService({ logger: log, autoConnect: false, hostBridge: false });
+const discovery = createDiscoveryService({ logger: log, autoConnect: false });
 const handlers = createToolHandlers(discovery);
 
 // ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ discovery.onStateChange(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Static MCP Tool definitions
+// Static MCP Tool definitions (lifecycle only)
 // ---------------------------------------------------------------------------
 
 const STATIC_TOOLS = [
@@ -135,36 +135,19 @@ const STATIC_TOOLS = [
     },
   },
   {
-    name: "app_action_batch",
+    name: "disconnect_app",
     description:
-      "Perform MULTIPLE actions on an application in a single call. Much faster than calling " +
-      "individual action tools repeatedly. Use this when you need to add multiple items, " +
-      "make several changes, or perform any sequence of actions.",
+      "Disconnect from an application. Removes its action tools and stops state updates. " +
+      "Use when you're done interacting with an app.",
     inputSchema: {
       type: "object",
       properties: {
         app: {
           type: "string",
-          description: "App name or ID",
-        },
-        actions: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              path: { type: "string", description: "Path to act on" },
-              action: { type: "string", description: "Action to perform" },
-              params: {
-                type: "object",
-                description: "Action parameters",
-              },
-            },
-            required: ["path", "action"],
-          },
-          description: "Array of actions to perform sequentially",
+          description: "App name or ID to disconnect from.",
         },
       },
-      required: ["app", "actions"],
+      required: ["app"],
     },
   },
 ];
@@ -209,11 +192,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return result;
       }
 
-      case "app_action_batch":
-        return await handlers.appActionBatch(args);
+      case "disconnect_app": {
+        const result = await handlers.disconnectApp(args);
+        // After disconnecting, rebuild dynamic tools (removes app's tools)
+        dynamicToolSet = createDynamicTools(discovery);
+        server.sendToolListChanged().catch(() => {});
+        return result;
+      }
     }
 
-    // Dynamic tools — resolve to provider invoke
+    // Dynamic tools ��� resolve to provider invoke
     const resolved = dynamicToolSet.resolve(name);
     if (resolved) {
       const provider = discovery.getProvider(resolved.providerId);

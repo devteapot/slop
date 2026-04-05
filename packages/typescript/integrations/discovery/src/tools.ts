@@ -182,109 +182,28 @@ export function createToolHandlers(discovery: DiscoveryService) {
     };
   }
 
-  async function appAction(args: {
-    app: string;
-    path: string;
-    action: string;
-    params?: Record<string, unknown>;
-  }): Promise<ToolResult> {
-    const { app, path, action, params } = args;
-
-    const p = await discovery.ensureConnected(app);
-    if (!p) {
+  async function disconnectApp(args: { app: string }): Promise<ToolResult> {
+    const { app } = args;
+    const found = discovery.disconnect(app);
+    if (!found) {
       return {
         content: [
           {
             type: "text",
-            text: `App "${app}" not found or could not connect. Use connected_apps to see available apps.`,
+            text: `App "${app}" is not connected. Use connected_apps to see available apps.`,
           },
         ],
       };
     }
-
-    try {
-      const result = await p.consumer.invoke(path, action, params ?? {});
-
-      if (result.status === "ok") {
-        return {
-          content: [
-            {
-              type: "text",
-              text:
-                `Done. ${action} on ${path} succeeded.` +
-                (result.data
-                  ? ` Result: ${JSON.stringify(result.data)}`
-                  : ""),
-            },
-          ],
-        };
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
-          },
-        ],
-        isError: true,
-      };
-    } catch (err: any) {
-      return {
-        content: [{ type: "text", text: `Error: ${err.message}` }],
-        isError: true,
-      };
-    }
-  }
-
-  async function appActionBatch(args: {
-    app: string;
-    actions: { path: string; action: string; params?: Record<string, unknown> }[];
-  }): Promise<ToolResult> {
-    const { app, actions } = args;
-
-    const p = await discovery.ensureConnected(app);
-    if (!p) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `App "${app}" not found or could not connect. Use connected_apps to see available apps.`,
-          },
-        ],
-      };
-    }
-
-    const results: string[] = [];
-    let failed = 0;
-
-    for (const { path, action, params } of actions) {
-      try {
-        const result = await p.consumer.invoke(path, action, params ?? {});
-        if (result.status === "ok") {
-          results.push(`OK: ${action} on ${path}`);
-        } else {
-          failed++;
-          results.push(`FAIL: ${action} on ${path} — [${result.error?.code}] ${result.error?.message}`);
-        }
-      } catch (err: any) {
-        failed++;
-        results.push(`ERROR: ${action} on ${path} — ${err.message}`);
-      }
-    }
-
     return {
       content: [
         {
           type: "text",
-          text:
-            `Batch complete: ${actions.length - failed}/${actions.length} succeeded.\n` +
-            results.join("\n"),
+          text: `Disconnected from "${app}". Its tools have been removed.`,
         },
       ],
-      isError: failed > 0,
     };
   }
 
-  return { connectedApps, appAction, appActionBatch };
+  return { connectedApps, disconnectApp };
 }

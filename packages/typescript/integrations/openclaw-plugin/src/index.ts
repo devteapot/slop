@@ -18,7 +18,7 @@ function buildStateContext(discovery: DiscoveryService): string | null {
   if (connected.length > 0) {
     output += `${connected.length} app(s) connected. `;
     output +=
-      "Use app_action to act on apps. Call connected_apps with an app name to see full state and actions.\n\n";
+      "Use app_action to act on them. Call connected_apps with an app name to see full state and actions.\n\n";
 
     for (const p of connected) {
       const tree = p.consumer.getTree(p.subscriptionId);
@@ -48,7 +48,7 @@ export default definePluginEntry({
   description:
     "Observe and control desktop and web applications running on this computer. " +
     "Applications that support external control are discovered automatically and " +
-    "become available through connected_apps, app_action, and app_action_batch tools.",
+    "become available through connected_apps, app_action, app_action_batch, and disconnect_app tools.",
   register(api) {
     const discovery = createDiscoveryService({ logger: api.logger });
     const handlers = createToolHandlers(discovery);

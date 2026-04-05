@@ -4,8 +4,7 @@ import type { ToolResult } from "@slop-ai/discovery";
 
 interface ToolHandlers {
   connectedApps(args: { app?: string }): Promise<ToolResult>;
-  appAction(args: { app: string; path: string; action: string; params?: Record<string, unknown> }): Promise<ToolResult>;
-  appActionBatch(args: { app: string; actions: { path: string; action: string; params?: Record<string, unknown> }[] }): Promise<ToolResult>;
+  disconnectApp(args: { app: string }): Promise<ToolResult>;
 }
 
 export function registerSlopTools(api: any, discovery: DiscoveryService, handlers: ToolHandlers) {
@@ -24,6 +23,21 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
     }),
     async execute(_id: string, args: { app?: string }) {
       return handlers.connectedApps(args);
+    },
+  });
+
+  api.registerTool({
+    name: "disconnect_app",
+    description:
+      "Disconnect from an application. Stops state updates. " +
+      "Use when you're done interacting with an app.",
+    parameters: Type.Object({
+      app: Type.String({
+        description: "App name or ID to disconnect from.",
+      }),
+    }),
+    async execute(_id: string, args: { app: string }) {
+      return handlers.disconnectApp(args);
     },
   });
 
@@ -53,7 +67,37 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
       _id: string,
       args: { app: string; path: string; action: string; params?: Record<string, unknown> },
     ) {
-      return handlers.appAction(args);
+      const p = await discovery.ensureConnected(args.app);
+      if (!p) {
+        return {
+          content: [{ type: "text" as const, text: `App "${args.app}" not found or could not connect.` }],
+          isError: true,
+        };
+      }
+      try {
+        const result = await p.consumer.invoke(args.path, args.action, args.params ?? {});
+        if (result.status === "ok") {
+          return {
+            content: [{
+              type: "text" as const,
+              text: `Done. ${args.action} on ${args.path} succeeded.` +
+                (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+            }],
+          };
+        }
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
+          }],
+          isError: true,
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
+          isError: true,
+        };
+      }
     },
   });
 
@@ -84,7 +128,37 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
       _id: string,
       args: { app: string; actions: { path: string; action: string; params?: Record<string, unknown> }[] },
     ) {
-      return handlers.appActionBatch(args);
+      const p = await discovery.ensureConnected(args.app);
+      if (!p) {
+        return {
+          content: [{ type: "text" as const, text: `App "${args.app}" not found or could not connect.` }],
+          isError: true,
+        };
+      }
+      const results: string[] = [];
+      let failed = 0;
+      for (const { path, action, params } of args.actions) {
+        try {
+          const result = await p.consumer.invoke(path, action, params ?? {});
+          if (result.status === "ok") {
+            results.push(`OK: ${action} on ${path}`);
+          } else {
+            failed++;
+            results.push(`FAIL: ${action} on ${path} — [${result.error?.code}] ${result.error?.message}`);
+          }
+        } catch (err: any) {
+          failed++;
+          results.push(`ERROR: ${action} on ${path} — ${err.message}`);
+        }
+      }
+      return {
+        content: [{
+          type: "text" as const,
+          text: `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
+            results.join("\n"),
+        }],
+        isError: failed > 0,
+      };
     },
   });
 }

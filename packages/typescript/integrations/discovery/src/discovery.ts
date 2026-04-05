@@ -56,6 +56,8 @@ export interface DiscoveryService {
   getProviders(): ConnectedProvider[];
   getProvider(id: string): ConnectedProvider | null;
   ensureConnected(idOrName: string): Promise<ConnectedProvider | null>;
+  /** Explicitly disconnect from a provider by ID or name. Returns true if found. */
+  disconnect(idOrName: string): boolean;
   /** Register a callback fired on connect, disconnect, and state patch */
   onStateChange(fn: () => void): void;
   start(): void;
@@ -334,6 +336,33 @@ export function createDiscoveryService(
         return entry;
       }
       return null;
+    },
+
+    disconnect(idOrName: string): boolean {
+      // Find by id
+      let entry = providers.get(idOrName);
+      let id = idOrName;
+
+      // Find by name
+      if (!entry) {
+        for (const [pid, p] of providers) {
+          if (p.name.toLowerCase().includes(idOrName.toLowerCase())) {
+            entry = p;
+            id = pid;
+            break;
+          }
+        }
+      }
+
+      if (!entry) return false;
+
+      log.info(`[slop] Disconnecting ${entry.name}`);
+      entry.consumer.disconnect();
+      providers.delete(id);
+      lastAccessed.delete(id);
+      reconnectAttempts.delete(id);
+      stateChangeCallback?.();
+      return true;
     },
 
     async ensureConnected(idOrName: string): Promise<ConnectedProvider | null> {

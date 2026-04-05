@@ -13,6 +13,10 @@ import { createToolHandlers } from "./tools";
 
 /**
  * Create Agent SDK tool definitions for use with `query()`.
+ *
+ * Returns lifecycle tools only (connected_apps, disconnect_app).
+ * Dynamic affordance tools should be wired via MCP's tools/list_changed
+ * using `createDynamicTools()` from the main export.
  */
 export function createSlopAgentTools(discovery: ReturnType<typeof createDiscoveryService>) {
   const handlers = createToolHandlers(discovery);
@@ -31,41 +35,17 @@ export function createSlopAgentTools(discovery: ReturnType<typeof createDiscover
     async (args) => handlers.connectedApps(args),
   );
 
-  const appAction = tool(
-    "app_action",
-    "Perform an action on an application — add items, edit content, toggle state, " +
-      "delete entries, move things around, start/stop processes, etc. " +
-      "IMPORTANT: Always call connected_apps with the app name FIRST to see the exact state tree, " +
-      "node paths, action names, and parameter values. Do not guess — use the exact IDs shown.",
+  const disconnectApp = tool(
+    "disconnect_app",
+    "Disconnect from an application. Removes its action tools and stops state updates. " +
+      "Use when you're done interacting with an app.",
     {
-      app: z.string().describe("App name or ID (from connected_apps)"),
-      path: z.string().describe("Path to the item to act on, e.g. '/' for root, '/todos/todo-1'"),
-      action: z.string().describe("Action to perform, e.g. 'add_card', 'toggle', 'delete'"),
-      params: z.record(z.unknown()).optional().describe("Action parameters as key-value pairs"),
+      app: z.string().describe("App name or ID to disconnect from."),
     },
-    async (args) => handlers.appAction({ ...args, params: args.params as Record<string, unknown> | undefined }),
+    async (args) => handlers.disconnectApp(args),
   );
 
-  const appActionBatch = tool(
-    "app_action_batch",
-    "Perform MULTIPLE actions on an application in a single call. Much faster than calling app_action " +
-      "repeatedly. Use this when you need to add multiple items, make several changes, or perform any " +
-      "sequence of actions.",
-    {
-      app: z.string().describe("App name or ID (from connected_apps)"),
-      actions: z.array(z.object({
-        path: z.string().describe("Path to act on"),
-        action: z.string().describe("Action to perform"),
-        params: z.record(z.unknown()).optional().describe("Action parameters"),
-      })).describe("Array of actions to perform sequentially"),
-    },
-    async (args) => handlers.appActionBatch({
-      app: args.app,
-      actions: args.actions.map(a => ({ ...a, params: a.params as Record<string, unknown> | undefined })),
-    }),
-  );
-
-  return [connectedApps, appAction, appActionBatch];
+  return [connectedApps, disconnectApp];
 }
 
 /**

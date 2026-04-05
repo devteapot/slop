@@ -43,43 +43,13 @@ server.tool(
 );
 
 server.tool(
-  "app_action",
-  isPluginMode
-    ? "Perform an action on an application. Use the exact paths, action names, and " +
-      "parameter values from the application state shown in context."
-    : "Perform an action on an application — add items, edit content, toggle state, " +
-      "delete entries, move things around, start/stop processes, etc. " +
-      "IMPORTANT: Always call connected_apps with the app name FIRST to see the exact state tree, " +
-      "node paths, action names, and parameter values. Do not guess — use the exact IDs shown.",
+  "disconnect_app",
+  "Disconnect from an application. Removes its action tools and stops state updates. " +
+    "Use when you're done interacting with an app.",
   {
-    app: z.string().describe("App name or ID (from connected_apps)"),
-    path: z.string().describe("Path to the item to act on, e.g. '/' for root, '/todos/todo-1'"),
-    action: z.string().describe("Action to perform, e.g. 'add_card', 'toggle', 'delete'"),
-    params: z.string().optional().describe("Action parameters as JSON string, e.g. '{\"title\": \"New task\"}'"),
+    app: z.string().describe("App name or ID to disconnect from."),
   },
-  async (args) =>
-    handlers.appAction({
-      app: args.app,
-      path: args.path,
-      action: args.action,
-      params: args.params ? JSON.parse(args.params) : undefined,
-    }),
-);
-
-server.tool(
-  "app_action_batch",
-  "Perform MULTIPLE actions on an application in a single call. Much faster than calling app_action " +
-    "repeatedly. Use this when you need to add multiple items, make several changes, or perform any " +
-    "sequence of actions. Each action has a path, action name, and optional params.",
-  {
-    app: z.string().describe("App name or ID (from connected_apps)"),
-    actions: z.string().describe("JSON array of actions, e.g. '[{\"path\":\"/\",\"action\":\"add\",\"params\":{\"title\":\"Item 1\"}},{\"path\":\"/\",\"action\":\"add\",\"params\":{\"title\":\"Item 2\"}}]'"),
-  },
-  async (args) =>
-    handlers.appActionBatch({
-      app: args.app,
-      actions: JSON.parse(args.actions),
-    }),
+  async (args) => handlers.disconnectApp(args),
 );
 
 discovery.start();

@@ -9,9 +9,10 @@ export {
   type Bridge,
   type BridgeProvider,
   type RelayHandler,
+  type BridgeClientOptions,
   createBridgeClient,
 } from "./bridge-client";
-export { createBridgeServer } from "./bridge-server";
+export { createBridgeServer, type BridgeServerOptions } from "./bridge-server";
 export { BridgeRelayTransport } from "./relay-transport";
 
 /** Agent-agnostic tool handlers and dynamic affordance→tool mapping (OpenClaw, MCP bridges, etc.). */

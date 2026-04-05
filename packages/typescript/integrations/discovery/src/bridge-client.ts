@@ -1,7 +1,15 @@
 import WebSocket from "ws";
 
-const BRIDGE_URL = "ws://127.0.0.1:9339/slop-bridge";
-const RECONNECT_INTERVAL = 5000;
+export const DEFAULT_BRIDGE_URL = "ws://127.0.0.1:9339/slop-bridge";
+const DEFAULT_RECONNECT_INTERVAL = 5000;
+
+type Logger = { info: (...args: any[]) => void; error: (...args: any[]) => void };
+
+export interface BridgeClientOptions {
+  logger?: Logger;
+  url?: string;
+  reconnectIntervalMs?: number;
+}
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -54,66 +62,96 @@ export function parseBridgeProvider(msg: Record<string, unknown>): BridgeProvide
 // ---------------------------------------------------------------------------
 
 export function createBridgeClient(
-  logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void },
+  optionsOrLogger?: BridgeClientOptions | Logger,
 ): Bridge & { connectOnce(): Promise<void> } {
-  const log = logger ?? { info: console.error, error: console.error };
+  const {
+    logger: log,
+    url,
+    reconnectIntervalMs,
+  } = normalizeOptions(optionsOrLogger);
 
   let ws: WebSocket | null = null;
   let isRunning = false;
+  let started = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let connectPromise: Promise<void> | null = null;
   let changeCallback: (() => void) | null = null;
 
   const providerMap = new Map<string, BridgeProvider>();
   const relaySubscribers = new Map<string, RelayHandler[]>();
 
-  function doConnect(
-    onSuccess?: () => void,
-    onFailure?: (err: Error) => void,
-  ) {
-    if (ws) return;
+  function doConnect(): Promise<void> {
+    if (connectPromise) return connectPromise;
+    if (ws?.readyState === WebSocket.OPEN) return Promise.resolve();
 
-    try {
-      ws = new WebSocket(BRIDGE_URL);
-    } catch (e: any) {
-      onFailure?.(e);
-      return;
-    }
+    connectPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      let socket: WebSocket;
 
-    ws.on("open", () => {
-      isRunning = true;
-      log.info("[slop-bridge] Connected to extension bridge");
-      onSuccess?.();
-    });
-
-    ws.on("message", (data: WebSocket.Data) => {
       try {
-        const msg = JSON.parse(data.toString());
-        handleMessage(msg);
-      } catch {}
-    });
-
-    ws.on("close", () => {
-      isRunning = false;
-      ws = null;
-      if (providerMap.size > 0) {
-        providerMap.clear();
-        changeCallback?.();
+        socket = new WebSocket(url);
+      } catch (error: any) {
+        connectPromise = null;
+        reject(error);
+        return;
       }
-      scheduleReconnect();
+
+      ws = socket;
+
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        connectPromise = null;
+        fn();
+      };
+
+      socket.on("open", () => {
+        if (ws !== socket) {
+          socket.close();
+          settle(resolve);
+          return;
+        }
+        isRunning = true;
+        log.info("[slop-bridge] Connected to extension bridge");
+        settle(resolve);
+      });
+
+      socket.on("message", (data: WebSocket.Data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+          handleMessage(msg);
+        } catch {}
+      });
+
+      socket.on("close", () => {
+        if (ws === socket) {
+          isRunning = false;
+          ws = null;
+          if (providerMap.size > 0) {
+            providerMap.clear();
+            changeCallback?.();
+          }
+          if (started) {
+            scheduleReconnect();
+          }
+        }
+        settle(() => reject(new Error("Bridge connection closed")));
+      });
+
+      socket.on("error", (err: Error) => {
+        settle(() => reject(err));
+      });
     });
 
-    ws.on("error", (err: Error) => {
-      onFailure?.(err);
-      // Error will trigger close, which handles reconnect
-    });
+    return connectPromise;
   }
 
   function scheduleReconnect() {
-    if (reconnectTimer) return;
+    if (!started || reconnectTimer) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      doConnect();
-    }, RECONNECT_INTERVAL);
+      void doConnect().catch(() => {});
+    }, reconnectIntervalMs);
   }
 
   function handleMessage(msg: Record<string, unknown>) {
@@ -155,9 +193,7 @@ export function createBridgeClient(
   return {
     /** Single connection attempt — resolves on open, rejects on error. */
     connectOnce(): Promise<void> {
-      return new Promise((resolve, reject) => {
-        doConnect(resolve, reject);
-      });
+      return doConnect();
     },
 
     running() {
@@ -193,10 +229,12 @@ export function createBridgeClient(
     },
 
     start() {
-      doConnect();
+      started = true;
+      void doConnect().catch(() => {});
     },
 
     stop() {
+      started = false;
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -209,5 +247,18 @@ export function createBridgeClient(
       providerMap.clear();
       relaySubscribers.clear();
     },
+  };
+}
+
+function normalizeOptions(optionsOrLogger?: BridgeClientOptions | Logger): Required<BridgeClientOptions> {
+  const options =
+    optionsOrLogger && ("url" in optionsOrLogger || "logger" in optionsOrLogger || "reconnectIntervalMs" in optionsOrLogger)
+      ? optionsOrLogger as BridgeClientOptions
+      : { logger: optionsOrLogger as Logger | undefined };
+
+  return {
+    logger: options.logger ?? { info: console.error, error: console.error },
+    url: options.url ?? DEFAULT_BRIDGE_URL,
+    reconnectIntervalMs: options.reconnectIntervalMs ?? DEFAULT_RECONNECT_INTERVAL,
   };
 }

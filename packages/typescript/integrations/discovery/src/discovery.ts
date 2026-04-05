@@ -7,15 +7,35 @@ import {
   NodeSocketClientTransport,
   type ClientTransport,
 } from "@slop-ai/consumer";
-import { createBridgeClient, type Bridge, type BridgeProvider } from "./bridge-client";
-import { createBridgeServer } from "./bridge-server";
+import {
+  DEFAULT_BRIDGE_URL,
+  createBridgeClient,
+  type Bridge,
+  type BridgeProvider,
+} from "./bridge-client";
+import {
+  DEFAULT_BRIDGE_HOST,
+  DEFAULT_BRIDGE_PATH,
+  DEFAULT_BRIDGE_PORT,
+  createBridgeServer,
+} from "./bridge-server";
 import { BridgeRelayTransport } from "./relay-transport";
 
-const PROVIDERS_DIRS = [
+const DEFAULT_PROVIDERS_DIRS = [
   join(homedir(), ".slop", "providers"),  // persistent user-level
   "/tmp/slop/providers",                   // session-level ephemeral
 ];
-const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
+const DEFAULT_SCAN_INTERVAL_MS = 15_000;
+const DEFAULT_WATCH_DEBOUNCE_MS = 500;
+const DEFAULT_IDLE_CHECK_INTERVAL_MS = 60_000;
+const DEFAULT_RECONNECT_BASE_DELAY_MS = 3000;
+const DEFAULT_MAX_RECONNECT_DELAY_MS = 30_000;
+const DEFAULT_BRIDGE_DIAL_TIMEOUT_MS = 1000;
+const DEFAULT_BRIDGE_RETRY_DELAY_MS = 5000;
+
+type Logger = { info: (...args: any[]) => void; error: (...args: any[]) => void };
 
 export interface ProviderDescriptor {
   id: string;
@@ -44,11 +64,22 @@ export interface ConnectedProvider {
 }
 
 export interface DiscoveryOptions {
-  logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void };
+  logger?: Logger;
   /** Auto-connect all discovered providers instead of lazy-connecting */
   autoConnect?: boolean;
   /** Start a bridge server if no existing bridge is found (default: true) */
   hostBridge?: boolean;
+  providersDirs?: string[];
+  bridgeUrl?: string;
+  idleTimeoutMs?: number;
+  idleCheckIntervalMs?: number;
+  connectTimeoutMs?: number;
+  scanIntervalMs?: number;
+  watchDebounceMs?: number;
+  reconnectBaseDelayMs?: number;
+  maxReconnectDelayMs?: number;
+  bridgeDialTimeoutMs?: number;
+  bridgeRetryDelayMs?: number;
 }
 
 export interface DiscoveryService {
@@ -65,27 +96,45 @@ export interface DiscoveryService {
 }
 
 export function createDiscoveryService(
-  optionsOrLogger?: DiscoveryOptions | { info: (...args: any[]) => void; error: (...args: any[]) => void }
+  optionsOrLogger?: DiscoveryOptions | Logger,
 ): DiscoveryService {
-  // Support both old signature (logger) and new (options)
-  const opts: DiscoveryOptions =
-    optionsOrLogger && ("autoConnect" in optionsOrLogger || "logger" in optionsOrLogger)
-      ? optionsOrLogger as DiscoveryOptions
-      : { logger: optionsOrLogger as any };
-  const log = opts.logger ?? { info: console.error, error: console.error };
-  const autoConnect = opts.autoConnect ?? false;
-  const hostBridge = opts.hostBridge ?? true;
+  // Support both old signature (logger) and new (options).
+  // TODO: deprecate the logger-only overload after downstream integrations migrate.
+  const opts = normalizeOptions(optionsOrLogger);
+  const {
+    log,
+    autoConnect,
+    hostBridge,
+    providersDirs,
+    bridgeUrl,
+    bridgeHost,
+    bridgePort,
+    bridgePath,
+    idleTimeoutMs,
+    idleCheckIntervalMs,
+    connectTimeoutMs,
+    scanIntervalMs,
+    watchDebounceMs,
+    reconnectBaseDelayMs,
+    maxReconnectDelayMs,
+    bridgeDialTimeoutMs,
+    bridgeRetryDelayMs,
+  } = opts;
   const providers = new Map<string, ConnectedProvider>();
+  const connecting = new Map<string, Promise<ConnectedProvider | null>>();
   const lastAccessed = new Map<string, number>();
   const reconnectAttempts = new Map<string, number>();
-  const MAX_RECONNECT_DELAY = 30000;
+  const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const intentionalDisconnects = new Set<string>();
   let watchers: FSWatcher[] = [];
   let scanTimer: ReturnType<typeof setInterval> | null = null;
   let idleTimer: ReturnType<typeof setInterval> | null = null;
+  let watchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let lastLocalDescriptors: ProviderDescriptor[] = [];
   let bridge: Bridge | null = null;
   let stateChangeCallback: (() => void) | null = null;
   let started = false;
+  let lifecycleVersion = 0;
 
   // --- Local discovery (file-based) ---
 
@@ -105,7 +154,7 @@ export function createDiscoveryService(
 
   function readDescriptors(): ProviderDescriptor[] {
     const descriptors: ProviderDescriptor[] = [];
-    for (const dir of PROVIDERS_DIRS) {
+    for (const dir of providersDirs) {
       if (!existsSync(dir)) continue;
       for (const file of readdirSync(dir)) {
         if (!file.endsWith(".json")) continue;
@@ -173,75 +222,111 @@ export function createDiscoveryService(
   // --- Connection management ---
 
   async function connectProvider(desc: ProviderDescriptor): Promise<ConnectedProvider | null> {
-    if (providers.has(desc.id) && providers.get(desc.id)!.status === "connected") {
-      return providers.get(desc.id)!;
+    const existing = providers.get(desc.id);
+    if (existing?.status === "connected") {
+      return existing;
     }
 
-    const transport = createTransport(desc);
-    if (!transport) {
-      log.info(`[slop] Skipping ${desc.name}: unsupported transport ${desc.transport.type}`);
-      return null;
+    const inFlight = connecting.get(desc.id);
+    if (inFlight) {
+      return inFlight;
     }
 
-    const entry: ConnectedProvider = {
-      id: desc.id,
-      name: desc.name,
-      descriptor: desc,
-      consumer: new SlopConsumer(transport),
-      subscriptionId: "",
-      status: "connecting",
-    };
-    providers.set(desc.id, entry);
+    const generation = lifecycleVersion;
+    const trackedPromise = Promise.resolve().then(async () => {
+      const transport = createTransport(desc);
+      if (!transport) {
+        log.info(`[slop] Skipping ${desc.name}: unsupported transport ${desc.transport.type}`);
+        return null;
+      }
 
-    try {
-      const CONNECT_TIMEOUT = 10_000;
-      const hello = await Promise.race([
-        entry.consumer.connect(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Connection timed out after 10s")), CONNECT_TIMEOUT),
-        ),
-      ]);
-      entry.name = hello.provider.name;
-      const { id: subId } = await entry.consumer.subscribe("/", -1);
-      entry.subscriptionId = subId;
-      entry.status = "connected";
-      lastAccessed.set(desc.id, Date.now());
-      reconnectAttempts.delete(desc.id);
-      log.info(`[slop] Connected to ${entry.name} (${desc.id}) via ${desc.transport.type}`);
-      stateChangeCallback?.();
+      clearReconnectTimer(desc.id);
 
-      entry.consumer.on("patch", () => {
-        stateChangeCallback?.();
-      });
+      const entry: ConnectedProvider = {
+        id: desc.id,
+        name: desc.name,
+        descriptor: desc,
+        consumer: new SlopConsumer(transport),
+        subscriptionId: "",
+        status: "connecting",
+      };
+      providers.set(desc.id, entry);
 
-      entry.consumer.on("disconnect", () => {
-        log.info(`[slop] Disconnected from ${entry.name}`);
-        entry.status = "disconnected";
-        providers.delete(desc.id);
-        lastAccessed.delete(desc.id);
-        stateChangeCallback?.();
+      try {
+        const hello = await withTimeout(
+          entry.consumer.connect(),
+          connectTimeoutMs,
+          `Connection timed out after ${Math.round(connectTimeoutMs / 1000)}s`,
+        );
+        const { id: subId } = await withTimeout(
+          entry.consumer.subscribe("/", -1),
+          connectTimeoutMs,
+          `Subscription timed out after ${Math.round(connectTimeoutMs / 1000)}s`,
+        );
 
-        // Exponential backoff reconnection (only if descriptor still exists)
-        const allDescs = getAllDescriptors();
-        if (allDescs.some(d => d.id === desc.id)) {
-          const attempt = (reconnectAttempts.get(desc.id) ?? 0) + 1;
-          reconnectAttempts.set(desc.id, attempt);
-          const delay = Math.min(3000 * Math.pow(2, attempt - 1), MAX_RECONNECT_DELAY);
-          log.info(`[slop] Will reconnect to ${entry.name} in ${delay / 1000}s (attempt ${attempt})`);
-          setTimeout(() => {
-            if (!providers.has(desc.id)) {
-              connectProvider(desc).catch(() => {});
-            }
-          }, delay);
+        if (lifecycleVersion !== generation || !providers.has(desc.id)) {
+          entry.consumer.disconnect();
+          return null;
         }
-      });
 
-      return entry;
-    } catch (err: any) {
-      log.error(`[slop] Failed to connect to ${desc.name}: ${err.message}`);
-      providers.delete(desc.id);
-      return null;
-    }
+        entry.name = hello.provider.name;
+        entry.subscriptionId = subId;
+        entry.status = "connected";
+        lastAccessed.set(desc.id, Date.now());
+        reconnectAttempts.delete(desc.id);
+        intentionalDisconnects.delete(desc.id);
+        log.info(`[slop] Connected to ${entry.name} (${desc.id}) via ${desc.transport.type}`);
+        stateChangeCallback?.();
+
+        entry.consumer.on("patch", () => {
+          stateChangeCallback?.();
+        });
+
+        entry.consumer.on("disconnect", () => {
+          const wasIntentional = intentionalDisconnects.delete(desc.id);
+          log.info(`[slop] Disconnected from ${entry.name}`);
+          entry.status = "disconnected";
+          providers.delete(desc.id);
+          lastAccessed.delete(desc.id);
+          stateChangeCallback?.();
+
+          if (wasIntentional || lifecycleVersion !== generation) {
+            reconnectAttempts.delete(desc.id);
+            clearReconnectTimer(desc.id);
+            return;
+          }
+
+          if (getAllDescriptors().some(d => d.id === desc.id)) {
+            const attempt = (reconnectAttempts.get(desc.id) ?? 0) + 1;
+            reconnectAttempts.set(desc.id, attempt);
+            const delay = Math.min(
+              reconnectBaseDelayMs * Math.pow(2, attempt - 1),
+              maxReconnectDelayMs,
+            );
+            log.info(`[slop] Will reconnect to ${entry.name} in ${delay / 1000}s (attempt ${attempt})`);
+            clearReconnectTimer(desc.id);
+            reconnectTimers.set(desc.id, setTimeout(() => {
+              reconnectTimers.delete(desc.id);
+              if (lifecycleVersion === generation && !providers.has(desc.id) && getAllDescriptors().some(d => d.id === desc.id)) {
+                void connectProvider(desc).catch(() => {});
+              }
+            }, delay));
+          }
+        });
+
+        return entry;
+      } catch (err: any) {
+        log.error(`[slop] Failed to connect to ${desc.name}: ${err.message}`);
+        providers.delete(desc.id);
+        return null;
+      }
+    }).finally(() => {
+      if (connecting.get(desc.id) === trackedPromise) {
+        connecting.delete(desc.id);
+      }
+    });
+    connecting.set(desc.id, trackedPromise);
+    return trackedPromise;
   }
 
   // --- Scan & cleanup ---
@@ -249,16 +334,23 @@ export function createDiscoveryService(
   function scan() {
     lastLocalDescriptors = readDescriptors();
     const allIds = new Set(getAllDescriptors().map(d => d.id));
+    let changed = false;
 
     // Clean up connected providers whose descriptors are gone
     for (const [id, entry] of providers) {
       if (!allIds.has(id)) {
         log.info(`[slop] Provider ${entry.name} unregistered, disconnecting`);
+        markIntentionalDisconnect(id);
         entry.consumer.disconnect();
         providers.delete(id);
         lastAccessed.delete(id);
         reconnectAttempts.delete(id);
+        changed = true;
       }
+    }
+
+    if (changed) {
+      stateChangeCallback?.();
     }
 
     // Auto-connect new providers when in plugin mode
@@ -275,13 +367,15 @@ export function createDiscoveryService(
   function checkIdle() {
     const now = Date.now();
     for (const [id, ts] of lastAccessed) {
-      if (now - ts > IDLE_TIMEOUT && providers.has(id)) {
+      if (now - ts > idleTimeoutMs && providers.has(id)) {
         const entry = providers.get(id)!;
         log.info(`[slop] Idle timeout: disconnecting ${entry.name}`);
+        markIntentionalDisconnect(id);
         entry.consumer.disconnect();
         providers.delete(id);
         lastAccessed.delete(id);
         reconnectAttempts.delete(id);
+        stateChangeCallback?.();
       }
     }
   }
@@ -289,12 +383,20 @@ export function createDiscoveryService(
   // --- Lookup ---
 
   async function initBridge(
-    logger: { info: (...args: any[]) => void; error: (...args: any[]) => void },
+    logger: Logger,
   ): Promise<Bridge> {
     // 1. Try connecting as a client (Desktop or another consumer hosts the bridge)
-    const client = createBridgeClient(logger);
+    const client = createBridgeClient({
+      logger,
+      url: bridgeUrl,
+      reconnectIntervalMs: bridgeRetryDelayMs,
+    });
     try {
-      await client.connectOnce();
+      await withTimeout(
+        client.connectOnce(),
+        bridgeDialTimeoutMs,
+        `Bridge connection timed out after ${bridgeDialTimeoutMs}ms`,
+      );
       client.start(); // enable retry loop for future disconnects
       logger.info("[slop-bridge] Connected as client to existing bridge");
       return client;
@@ -305,13 +407,17 @@ export function createDiscoveryService(
     // 2. If hosting is disabled, just start client with retry loop
     if (!hostBridge) {
       logger.info("[slop-bridge] No bridge found, will keep retrying as client");
-      const retryClient = createBridgeClient(logger);
+      const retryClient = createBridgeClient({
+        logger,
+        url: bridgeUrl,
+        reconnectIntervalMs: bridgeRetryDelayMs,
+      });
       retryClient.start();
       return retryClient;
     }
 
     // 3. No bridge running — start our own server
-    const server = createBridgeServer(logger);
+    const server = createBridgeServer({ logger, host: bridgeHost, port: bridgePort, path: bridgePath });
     try {
       await server.start();
       return server;
@@ -322,9 +428,36 @@ export function createDiscoveryService(
 
     // 4. Retry as client (port race fallback)
     logger.info("[slop-bridge] Port taken, retrying as client");
-    const retryClient = createBridgeClient(logger);
+    const retryClient = createBridgeClient({
+      logger,
+      url: bridgeUrl,
+      reconnectIntervalMs: bridgeRetryDelayMs,
+    });
     retryClient.start();
     return retryClient;
+  }
+
+  function scheduleScan() {
+    if (watchDebounceTimer) {
+      clearTimeout(watchDebounceTimer);
+    }
+    watchDebounceTimer = setTimeout(() => {
+      watchDebounceTimer = null;
+      scan();
+    }, watchDebounceMs);
+  }
+
+  function clearReconnectTimer(id: string) {
+    const timer = reconnectTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      reconnectTimers.delete(id);
+    }
+  }
+
+  function markIntentionalDisconnect(id: string) {
+    intentionalDisconnects.add(id);
+    clearReconnectTimer(id);
   }
 
   function findDescriptor(idOrName: string): ProviderDescriptor | null {
@@ -377,6 +510,7 @@ export function createDiscoveryService(
       if (!entry) return false;
 
       log.info(`[slop] Disconnecting ${entry.name}`);
+      markIntentionalDisconnect(id);
       entry.consumer.disconnect();
       providers.delete(id);
       lastAccessed.delete(id);
@@ -412,50 +546,134 @@ export function createDiscoveryService(
     start() {
       if (started) return;
       started = true;
+      const generation = ++lifecycleVersion;
 
       // Start local file discovery
       scan();
 
-      for (const dir of PROVIDERS_DIRS) {
+      for (const dir of providersDirs) {
         try {
           if (existsSync(dir)) {
-            watchers.push(watch(dir, () => setTimeout(scan, 500)));
+            watchers.push(watch(dir, scheduleScan));
           }
         } catch {}
       }
 
-      scanTimer = setInterval(scan, 15000);
-      idleTimer = setInterval(checkIdle, 60000);
+      scanTimer = setInterval(scan, scanIntervalMs);
+      idleTimer = setInterval(checkIdle, idleCheckIntervalMs);
 
       // Start bridge: try client first, fall back to server
       initBridge(log).then((b) => {
+        if (!started || lifecycleVersion !== generation) {
+          b.stop();
+          return;
+        }
         bridge = b;
         bridge.onProviderChange(() => {
           log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
-          if (autoConnect) {
-            for (const desc of getBridgeDescriptors()) {
-              if (!providers.has(desc.id)) {
-                connectProvider(desc).catch(() => {});
-              }
-            }
-          }
+          scan();
         });
       });
     },
 
     stop() {
+      started = false;
+      lifecycleVersion += 1;
       for (const w of watchers) w.close();
       watchers = [];
       if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
       if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+      if (watchDebounceTimer) { clearTimeout(watchDebounceTimer); watchDebounceTimer = null; }
       if (bridge) { bridge.stop(); bridge = null; }
+      for (const [, promise] of connecting) {
+        void promise.catch(() => {});
+      }
+      connecting.clear();
+      for (const [id, timer] of reconnectTimers) {
+        markIntentionalDisconnect(id);
+        clearTimeout(timer);
+      }
+      reconnectTimers.clear();
       for (const [, entry] of providers) {
+        intentionalDisconnects.add(entry.id);
         entry.consumer.disconnect();
       }
       providers.clear();
       lastAccessed.clear();
       reconnectAttempts.clear();
-      started = false;
+      intentionalDisconnects.clear();
     },
   };
+}
+
+function normalizeOptions(optionsOrLogger?: DiscoveryOptions | Logger) {
+  const options: DiscoveryOptions =
+    optionsOrLogger && isDiscoveryOptions(optionsOrLogger)
+      ? optionsOrLogger
+      : { logger: optionsOrLogger as Logger | undefined };
+  const bridgeUrl = options.bridgeUrl ?? DEFAULT_BRIDGE_URL;
+  const bridgeConfig = resolveBridgeConfig(bridgeUrl);
+
+  return {
+    log: options.logger ?? { info: console.error, error: console.error },
+    autoConnect: options.autoConnect ?? false,
+    hostBridge: options.hostBridge ?? true,
+    providersDirs: options.providersDirs ?? DEFAULT_PROVIDERS_DIRS,
+    bridgeUrl,
+    bridgeHost: bridgeConfig.host,
+    bridgePort: bridgeConfig.port,
+    bridgePath: bridgeConfig.path,
+    idleTimeoutMs: options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
+    idleCheckIntervalMs: options.idleCheckIntervalMs ?? DEFAULT_IDLE_CHECK_INTERVAL_MS,
+    connectTimeoutMs: options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
+    scanIntervalMs: options.scanIntervalMs ?? DEFAULT_SCAN_INTERVAL_MS,
+    watchDebounceMs: options.watchDebounceMs ?? DEFAULT_WATCH_DEBOUNCE_MS,
+    reconnectBaseDelayMs: options.reconnectBaseDelayMs ?? DEFAULT_RECONNECT_BASE_DELAY_MS,
+    maxReconnectDelayMs: options.maxReconnectDelayMs ?? DEFAULT_MAX_RECONNECT_DELAY_MS,
+    bridgeDialTimeoutMs: options.bridgeDialTimeoutMs ?? DEFAULT_BRIDGE_DIAL_TIMEOUT_MS,
+    bridgeRetryDelayMs: options.bridgeRetryDelayMs ?? DEFAULT_BRIDGE_RETRY_DELAY_MS,
+  };
+}
+
+function isDiscoveryOptions(optionsOrLogger: DiscoveryOptions | Logger): optionsOrLogger is DiscoveryOptions {
+  return (
+    "autoConnect" in optionsOrLogger ||
+    "hostBridge" in optionsOrLogger ||
+    "logger" in optionsOrLogger ||
+    "providersDirs" in optionsOrLogger ||
+    "bridgeUrl" in optionsOrLogger ||
+    "idleTimeoutMs" in optionsOrLogger ||
+    "idleCheckIntervalMs" in optionsOrLogger ||
+    "connectTimeoutMs" in optionsOrLogger ||
+    "scanIntervalMs" in optionsOrLogger ||
+    "watchDebounceMs" in optionsOrLogger ||
+    "reconnectBaseDelayMs" in optionsOrLogger ||
+    "maxReconnectDelayMs" in optionsOrLogger ||
+    "bridgeDialTimeoutMs" in optionsOrLogger ||
+    "bridgeRetryDelayMs" in optionsOrLogger
+  );
+}
+
+function resolveBridgeConfig(bridgeUrl: string) {
+  try {
+    const parsed = new URL(bridgeUrl);
+    return {
+      host: parsed.hostname || DEFAULT_BRIDGE_HOST,
+      port: parsed.port ? Number(parsed.port) : DEFAULT_BRIDGE_PORT,
+      path: parsed.pathname || DEFAULT_BRIDGE_PATH,
+    };
+  } catch {
+    return {
+      host: DEFAULT_BRIDGE_HOST,
+      port: DEFAULT_BRIDGE_PORT,
+      path: DEFAULT_BRIDGE_PATH,
+    };
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs)),
+  ]);
 }

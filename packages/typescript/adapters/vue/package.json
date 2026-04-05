@@ -1,0 +1,26 @@
+{
+  "name": "@slop-ai/vue",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "sideEffects": false,
+  "license": "MIT",
+  "description": "SLOP integration for Vue — useSlop() composable",
+  "homepage": "https://docs.slopai.dev/api/vue",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": { "type": "git", "url": "https://github.com/devteapot/slop", "directory": "packages/typescript/adapters/vue" },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --format esm --external '@slop-ai/core' --external vue && bunx tsc --emitDeclarationOnly --outDir dist",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": { "@slop-ai/core": "workspace:*" },
+  "peerDependencies": { "vue": ">=3.3.0" }
+}

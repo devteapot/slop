@@ -71,12 +71,23 @@ export async function runTurn(
           continue;
         }
 
-        const { providerIndex, path, action } = route;
+        const { providerIndex, path, action, targets } = route;
         const params = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+
+        // For grouped tools (path is null), extract target from params
+        const invokePath = path ?? params.target as string | undefined;
+        if (!invokePath) {
+          conversation.push({
+            role: "tool",
+            content: `Error: grouped tool "${tc.function.name}" requires a target parameter`,
+            tool_call_id: tc.id,
+          });
+          continue;
+        }
 
         // Emit progress
         const paramsStr = Object.keys(params).length ? " " + JSON.stringify(params) : "";
-        send(port, { type: "progress", content: `Invoking ${action} on ${path}${paramsStr}` });
+        send(port, { type: "progress", content: `Invoking ${action} on ${invokePath}${paramsStr}` });
 
         // Execute invocation
         const entry = session.getProviderByIndex(providerIndex);
@@ -90,7 +101,7 @@ export async function runTurn(
         }
 
         try {
-          const result = await entry.consumer.invoke(path, action, params);
+          const result = await entry.consumer.invoke(invokePath, action, params);
           await new Promise(r => setTimeout(r, 150));
 
           const resultStr = result.status === "ok"

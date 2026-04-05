@@ -1,0 +1,29 @@
+{
+  "name": "@slop-ai/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "sideEffects": false,
+  "license": "MIT",
+  "description": "SLOP client library — let AI observe and interact with your app's state",
+  "homepage": "https://docs.slopai.dev/api/core",
+  "bugs": "https://github.com/devteapot/slop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/sdk/core"
+  },
+  "scripts": {
+    "build": "rm -rf dist && bunx tsc",
+    "clean": "rm -rf dist"
+  }
+}

@@ -159,6 +159,10 @@ export const docsPages = [
 	page('docs/sdk/index.md', 'sdk/index.md', {
 		label: 'Overview',
 	}),
+	page('docs/sdk/discovery.md', 'sdk/discovery.md', {
+		label: 'Discovery & Bridge',
+		description: 'Provider scanning, extension bridge, relay transport, auto-connect, state formatting',
+	}),
 	page('docs/sdk/development.md', 'sdk/development.md', {
 		label: 'Development & Debugging',
 	}),
@@ -250,6 +254,7 @@ export const docsSidebar = [
 		label: 'SDK Architecture',
 		items: [
 			pageItem('sdk', 'Overview'),
+			pageItem('sdk/discovery', 'Discovery & Bridge'),
 			pageItem('sdk/development'),
 			pageItem('sdk/sessions'),
 		],

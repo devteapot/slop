@@ -1,10 +1,10 @@
-# claude-slop-plugin
+# claude-slop-native
 
-Connect Claude to any SLOP-enabled application — local native apps and web apps alike. Discovers providers, subscribes to live state trees, and exposes app affordances as first-class tools so Claude can see and act on your apps in real time.
+Claude Code plugin for SLOP — direct-tool variant. Connect Claude to local native apps and web apps alike, subscribe to their live state trees, and expose app affordances as first-class tools so Claude can see and act on your apps in real time.
 
 ## What it does
 
-SLOP (Semantic Live Observable Protocol) is a standard for apps to expose their state and actions to AI systems. This plugin bridges SLOP providers to Claude:
+SLOP (Semantic Live Observable Protocol) is a standard for apps to expose their state and actions to AI systems. This plugin bridges SLOP providers to Claude by:
 
 - **Discovers** SLOP-enabled apps — both local native apps and web apps running in the browser
 - **Connects** via WebSocket, Unix socket, or extension relay (for browser-only SPAs)
@@ -23,19 +23,29 @@ bun install
 
 ### Auto-allow permissions
 
-The plugin dynamically registers tools for each connected app. To avoid approving every tool call individually, add this to your project's `.claude/settings.local.json`:
+This variant dynamically registers tools for each connected app. To avoid approving every tool call individually, add this to your project's `.claude/settings.local.json`:
 
 ```json
 {
   "permissions": {
     "allow": [
-      "mcp__plugin_claude-slop-plugin_slop-bridge__*"
+      "mcp__plugin_claude-slop-native_slop-bridge__*"
     ]
   }
 }
 ```
 
 This allows all tools from the plugin's MCP server — both the lifecycle tools (`connected_apps`, `disconnect_app`) and every dynamic affordance tool from connected apps.
+
+## Comparison with `slop-mcp-proxy`
+
+| | **slop-native** (this) | **slop-mcp-proxy** |
+|---|---|---|
+| Tool count | Grows with connected affordances | Fixed (4 tools) |
+| Affordance invocation | Per-affordance tool (e.g. `excalidraw__zoom_to_fit`) | Generic `app_action(app, path, action, params)` |
+| Schema validation | MCP validates per-tool JSON Schema | Model reads schemas from injected state |
+| Token cost | Higher (N tool definitions) | Lower (4 tool definitions) |
+| Best fit | Direct, ergonomic tool calling | Lowest-overhead integration surface |
 
 ### Local apps
 

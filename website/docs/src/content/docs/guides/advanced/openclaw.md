@@ -133,4 +133,4 @@ Both approaches give the model full context about available state and actions. T
 - [OpenClaw package API](/api/openclaw-plugin)
 - [Consumer SDK](/api/consumer)
 - [Discovery & Bridge](/sdk/discovery) — shared discovery layer
-- [Claude Code integration](./claude-code.md) — comparison integration
+- [Claude Code integration](/guides/advanced/claude-code) — comparison integration

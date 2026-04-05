@@ -19,6 +19,7 @@ describe("createDiscoveryService", () => {
     const providersDir = createTempDir("slop-discovery-ts-scan");
     const service = createDiscoveryService({
       providersDirs: [providersDir],
+      enableBridge: false,
       hostBridge: false,
       bridgeUrl: "ws://127.0.0.1:1/slop-bridge",
       scanIntervalMs: 50,
@@ -104,6 +105,7 @@ describe("createDiscoveryService", () => {
     const providerServer = await createMockSlopProviderServer({ port, providerName: "Test App" });
     const service = createDiscoveryService({
       providersDirs: [providersDir],
+      enableBridge: false,
       hostBridge: false,
       bridgeUrl: "ws://127.0.0.1:1/slop-bridge",
       connectTimeoutMs: 200,
@@ -147,6 +149,7 @@ describe("createDiscoveryService", () => {
     const providerServer = await createMockSlopProviderServer({ port, providerName: "Idle App" });
     const service = createDiscoveryService({
       providersDirs: [providersDir],
+      enableBridge: false,
       hostBridge: false,
       bridgeUrl: "ws://127.0.0.1:1/slop-bridge",
       idleTimeoutMs: 20,

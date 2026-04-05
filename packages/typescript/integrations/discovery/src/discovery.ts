@@ -67,6 +67,8 @@ export interface DiscoveryOptions {
   logger?: Logger;
   /** Auto-connect all discovered providers instead of lazy-connecting */
   autoConnect?: boolean;
+  /** Disable bridge startup entirely (useful for environments that only need local discovery) */
+  enableBridge?: boolean;
   /** Start a bridge server if no existing bridge is found (default: true) */
   hostBridge?: boolean;
   providersDirs?: string[];
@@ -102,6 +104,7 @@ export function createDiscoveryService(
   const {
     log,
     autoConnect,
+    enableBridge,
     hostBridge,
     providersDirs,
     bridgeUrl,
@@ -561,17 +564,19 @@ export function createDiscoveryService(
       idleTimer = setInterval(checkIdle, idleCheckIntervalMs);
 
       // Start bridge: try client first, fall back to server
-      initBridge(log).then((b) => {
-        if (!started || lifecycleVersion !== generation) {
-          b.stop();
-          return;
-        }
-        bridge = b;
-        bridge.onProviderChange(() => {
-          log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
-          scan();
+      if (enableBridge) {
+        initBridge(log).then((b) => {
+          if (!started || lifecycleVersion !== generation) {
+            b.stop();
+            return;
+          }
+          bridge = b;
+          bridge.onProviderChange(() => {
+            log.info(`[slop-bridge] Provider list changed (${bridge!.providers().length} browser tabs)`);
+            scan();
+          });
         });
-      });
+      }
     },
 
     stop() {
@@ -611,6 +616,7 @@ function normalizeOptions(options: DiscoveryOptions = {}) {
   return {
     log: options.logger ?? { info: console.error, error: console.error },
     autoConnect: options.autoConnect ?? false,
+    enableBridge: options.enableBridge ?? true,
     hostBridge: options.hostBridge ?? true,
     providersDirs: options.providersDirs ?? DEFAULT_PROVIDERS_DIRS,
     bridgeUrl,

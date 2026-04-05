@@ -74,6 +74,11 @@ export const docsPages = [
 		description: 'Connect Claude Code to SLOP-enabled applications with dynamic or generic action tools',
 		redirects: ['/guides-advanced/claude-code'],
 	}),
+	page('docs/guides/advanced/codex.md', 'guides/advanced/codex.md', {
+		label: 'Codex Integration',
+		description: 'Connect Codex to SLOP-enabled applications with injected live state and a fixed MCP tool surface',
+		redirects: ['/guides-advanced/codex'],
+	}),
 	page('docs/guides/advanced/openclaw.md', 'guides/advanced/openclaw.md', {
 		label: 'OpenClaw Integration',
 		description: 'Control SLOP-enabled applications through OpenClaw',
@@ -269,6 +274,7 @@ export const docsSidebar = [
 		items: [
 			pageItem('guides/advanced/agent-scaffolding', 'Agent-Assisted Integration'),
 			pageItem('guides/advanced/claude-code', 'Claude Code Integration'),
+			pageItem('guides/advanced/codex', 'Codex Integration'),
 			pageItem('guides/advanced/openclaw', 'OpenClaw Integration'),
 			pageItem('guides/advanced/benchmarks', 'Benchmarks: MCP vs SLOP'),
 		],

@@ -21,7 +21,7 @@
   "homepage": "https://docs.slopai.dev/api/consumer",
   "bugs": "https://github.com/devteapot/slop/issues",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/browser.ts --outdir dist --target node --format esm && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"
   },
   "repository": {

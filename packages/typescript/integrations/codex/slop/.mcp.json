@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "slop-bridge": {
+      "command": "node",
+      "args": [
+        "./dist/slop-bridge.bundle.mjs"
+      ],
+      "cwd": "./servers",
+      "note": "Local MCP bridge for discovering SLOP providers and invoking their affordances through Codex."
+    }
+  }
+}

@@ -40,6 +40,55 @@ Integrations (Claude Code plugin, OpenClaw plugin, VS Code extension, custom age
 
 Integrations that only need discovery + MCP (e.g. `slop-bridge` with the MCP SDK) import from the **default** export and do not need `anthropic-agent-sdk`.
 
+## Phase 1: Core Discovery Layer
+
+The current cross-SDK parity target is the **core discovery layer**. The TypeScript implementation is the behavioral reference, but other SDKs do **not** need to copy its package topology.
+
+- TypeScript reference files: `packages/typescript/integrations/discovery/src/discovery.ts`, `bridge-client.ts`, `bridge-server.ts`, `relay-transport.ts`, and `tools.ts`
+- Python target module: `slop_ai.discovery`
+- Go target package: `github.com/devteapot/slop/packages/go/slop-ai/discovery`
+- Rust target module: `slop_ai::discovery`
+
+Python, Go, and Rust keep discovery inside their existing SDK artifact. Only TypeScript publishes discovery as a separate package.
+
+### Phase 1 scope
+
+Phase 1 includes:
+
+- Local provider scanning (`~/.slop/providers/` + `/tmp/slop/providers/`)
+- Descriptor validation and pruning when descriptors disappear
+- Directory watching with periodic fallback scan
+- Bridge client
+- Bridge server
+- "Try client first, fall back to server" bridge startup
+- Relay transport for `postmessage` providers
+- Discovery service / connection orchestration
+- Lazy connect with `ensureConnected()`
+- Auto-connect mode
+- Idle timeout (5 minutes default)
+- Exponential backoff reconnection
+- Connection timeout (10 seconds)
+- State change callback
+- `formatTree()`
+- `affordancesToTools()`
+- `createToolHandlers()`
+- `createDynamicTools()`
+
+Phase 1 explicitly excludes:
+
+- Host-specific wrappers such as `cli.ts` and `anthropic-agent-sdk.ts`
+- Prompt/hook integration glue for Claude Code, Codex, OpenClaw, or other hosts
+- File-cache helpers such as `createStateCache()`
+
+### Status labels
+
+| Label | Meaning |
+|---|---|
+| `Shipped` | Implemented in the SDK artifact with the current contract |
+| `Partial` | Code exists, but only in app code or with behavior drift from the contract |
+| `Planned` | Not implemented yet |
+| `Out of scope` | Intentionally excluded from phase 1 |
+
 ## Provider Discovery
 
 ### Local providers
@@ -237,16 +286,62 @@ Consumers can use this to maintain a cache, update a UI, or trigger context inje
 
 ## SDK Implementations
 
-| Language | Consumer SDK | Discovery Layer | Status |
+| Language | Consumer SDK | Core discovery module | Current status |
 |---|---|---|---|
-| TypeScript | `@slop-ai/consumer` | `@slop-ai/discovery` | Bridge client + server, relay, auto-connect, state cache |
-| Python | `slop-ai` | — | Planned |
-| Go | `slop-ai` | `apps/cli/bridge` + `apps/cli/provider` (to be extracted) | Bridge client + server exist in CLI, not packaged as library |
-| Rust | `slop-ai` | `apps/desktop/src-tauri/src/bridge` (to be extracted) | Bridge server exists in Desktop, not packaged as library |
+| TypeScript | `@slop-ai/consumer` | `@slop-ai/discovery` | Reference implementation for phase 1, plus host-specific helpers outside the shared contract |
+| Python | `slop-ai` | `slop_ai.discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
+| Go | `slop-ai` | `github.com/devteapot/slop/packages/go/slop-ai/discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
+| Rust | `slop-ai` | `slop_ai::discovery` | Initial phase-1 implementation shipped in the SDK and normalized to the shared contract |
+
+### Phase 1 capability matrix
+
+| Capability | TypeScript | Python | Go | Rust |
+|---|---|---|---|---|
+| Local provider scanning | Shipped | Shipped | Shipped | Shipped |
+| Descriptor validation and pruning | Shipped | Shipped | Shipped | Shipped |
+| Directory watch + 15s fallback scan | Shipped | Shipped | Shipped | Shipped |
+| Bridge client | Shipped | Shipped | Shipped | Shipped |
+| Bridge server | Shipped | Shipped | Shipped | Shipped |
+| Client-first / server-fallback startup | Shipped | Shipped | Shipped | Shipped |
+| Relay transport | Shipped | Shipped | Shipped | Shipped |
+| Discovery service / connection orchestration | Shipped | Shipped | Shipped | Shipped |
+| Lazy connect + `ensureConnected()` | Shipped | Shipped | Shipped | Shipped |
+| Auto-connect mode | Shipped | Shipped | Shipped | Shipped |
+| Idle timeout | Shipped | Shipped | Shipped | Shipped |
+| Reconnect backoff | Shipped | Shipped | Shipped | Shipped |
+| Connection timeout | Shipped | Shipped | Shipped | Shipped |
+| State change callback | Shipped | Shipped | Shipped | Shipped |
+| `formatTree()` | Shipped | Shipped | Shipped | Shipped |
+| `affordancesToTools()` | Shipped | Shipped | Shipped | Shipped |
+| `createToolHandlers()` | Shipped | Shipped | Shipped | Shipped |
+| `createDynamicTools()` | Shipped | Shipped | Shipped | Shipped |
+| Host wrappers and prompt injection glue | Shipped | Out of scope | Out of scope | Out of scope |
+| State cache / shared file helpers | Shipped | Out of scope | Out of scope | Out of scope |
+
+### Known donor-code drift
+
+The Go CLI and Rust Desktop codebases are useful donor implementations, but they are **not** the behavioral contract. New SDK modules should match the TypeScript phase-1 semantics above, even when that means changing extracted code.
+
+#### Go donor drift (`apps/cli`)
+
+- `apps/cli/bridge/server.go` forwards `provider-available`, `provider-unavailable`, and `slop-relay`, but does not yet forward `relay-open` and `relay-close`
+- `apps/cli/bridge/client.go` does not maintain a reconnect loop after bridge disconnects
+- `apps/cli/main.go` tries client first, but on bind failure it disables the bridge instead of retrying as a client after a port race
+- `apps/cli/bridge/relay.go` opens the relay and returns immediately; it does not yet match the TypeScript relay handshake retry and early-message buffering behavior
+- `apps/cli/tui/discovery.go` refreshes via TUI polling instead of a reusable discovery service with directory watchers, pruning, idle timeout, and reconnect backoff
+- `apps/cli/provider/discovery.go` filters dead PIDs today; extraction should keep only behavior that is explicitly part of the shared contract
+
+#### Rust donor drift (`apps/desktop/src-tauri`)
+
+- `apps/desktop/src-tauri/src/bridge/mod.rs` is coupled to `tauri::AppHandle`, app events, and desktop registry state, so it cannot be extracted as-is into the SDK
+- `apps/desktop/src-tauri/src/provider/mod.rs` sends `relay-open` and a single `connect`, but does not yet match the TypeScript relay handshake retry and early-message buffering behavior
+- `apps/desktop/src-tauri/src/provider/discovery.rs` only scans descriptor files; it does not yet implement the full watcher, fallback-rescan, validation, and pruning behavior
+- `apps/desktop/src-tauri/src/provider/mod.rs` ingests discovered and bridge providers additively; extraction should also handle descriptor disappearance and bridge provider removal using the shared contract
+- The desktop app currently hosts a bridge server, but it does not provide a reusable bridge client or the full client-first / server-fallback startup flow
 
 ### Implementation checklist for new SDKs
 
-A complete discovery layer implementation provides:
+A complete phase-1 discovery layer implementation provides:
 
 - [ ] Local provider scanning (`~/.slop/providers/` + `/tmp/slop/providers/`)
 - [ ] Directory watching with periodic fallback scan
@@ -263,7 +358,8 @@ A complete discovery layer implementation provides:
 - [ ] Connection timeout (10 seconds)
 - [ ] State change callback
 - [ ] Dynamic tool generation (`createDynamicTools()` equivalent)
-- [ ] State injection for host context (hook or prompt prepend)
+
+Host-specific wrappers and prompt injection are intentionally outside phase 1.
 
 ## Integrations
 
@@ -295,25 +391,46 @@ Dynamic tools have proper parameter schemas from the provider's affordance defin
 
 | Host | Dynamic tools | Mechanism | Limitation |
 |---|---|---|---|
+| Codex | No (current plugin) | Stable MCP tools + `UserPromptSubmit` hook-based state injection | No runtime tool registration; actions still go through meta-tools |
 | Claude Code (MCP) | Yes | `notifications/tools/list_changed` — server notifies client when tool list changes | None |
 | OpenClaw | No | `api.registerTool()` is one-time during `register()` | No runtime tool registration API; tools must be declared in the plugin manifest |
 
-Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. The model knows exact paths and action names from state injection, so it gets the call right without guessing.
+Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. Depending on the host, the model learns the exact paths and action names from prompt-time state injection or from an explicit `connect_app` inspection step.
 
-### Claude Code plugin (`claude-slop-plugin`)
+### Codex plugin (`packages/typescript/integrations/codex/slop`)
 
 | Component | Purpose |
 |---|---|
-| **MCP Server** (`slop-bridge`) | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `connected_apps` (connect), `app_action_batch` (bulk ops). |
-| **Hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message — no MCP fetch needed. Also lists discovered-but-not-connected apps. |
-| **Skill** (`slop-connect`) | Teaches Claude the discover → connect → inspect → act workflow. |
+| **Tools** | `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch` |
+| **Hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' trees into Codex on every user message |
+| **Skill** (`slop-connect`) | Teaches Codex the connect-once → inspect → act workflow |
 
 Design details:
 
-- **Dynamic tools** — When `connected_apps("kanban")` connects a provider, affordances are registered as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
-- **Live state in context** — The MCP server writes provider state to `/tmp/claude-slop-plugin/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
+- **Fixed tool surface** — The Codex plugin exposes the same stable five-tool catalog as the OpenClaw plugin.
+- **Hook-based state injection** — The bridge writes provider state to `/tmp/codex-slop-plugin/state.json` on every state change. The `UserPromptSubmit` hook reads that file and injects fresh markdown into future turns.
+- **Immediate snapshot on connect** — `connect_app` still returns the current tree and actions right away, so Codex can act in the same turn it first connects.
+- **Discovery** — Uses `@slop-ai/discovery` with local descriptor watching plus browser bridge support.
+- **Multi-app** — Multiple providers can remain connected concurrently; `app_action` and `app_action_batch` resolve against the requested app ID.
+
+See [Codex guide](/guides/advanced/codex) for setup and usage.
+
+### Claude Code integrations (`claude-slop-native`, `claude-slop-mcp-proxy`)
+
+| Variant | Purpose |
+|---|---|
+| **`claude-slop-native`** | Wraps `createDiscoveryService` + `createDynamicTools` from `@slop-ai/discovery`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `list_apps`, `connect_app`, `disconnect_app`. |
+| **`claude-slop-mcp-proxy`** | Wraps `createDiscoveryService` from `@slop-ai/discovery`, but keeps a fixed tool catalog: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`. |
+| **Shared hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message — no MCP fetch needed. Also lists discovered-but-not-connected apps. |
+| **Shared skill** (`slop-connect`) | Teaches Claude the list → connect → inspect → act workflow. |
+
+Design details:
+
+- **Native direct tools** — When `connect_app("kanban")` connects a provider, `claude-slop-native` registers affordances as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
+- **MCP proxy fallback** — `claude-slop-mcp-proxy` does not register dynamic tools. Instead, Claude reads state from context and calls `app_action(app, path, action, params)` or `app_action_batch(...)`.
+- **Live state in context** — Both variants write provider state to `/tmp/claude-slop-plugin/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
 - **Staleness protection** — The state file includes a `lastUpdated` timestamp. The hook skips injection if the file is older than 30 seconds.
-- **Multi-app** — Multiple providers can be connected simultaneously. Dynamic tools from different apps are distinguished by their app ID prefix.
+- **Multi-app** — Multiple providers can be connected simultaneously. In the native variant, dynamic tools from different apps are distinguished by their app ID prefix.
 
 See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
 
@@ -321,7 +438,7 @@ See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
 
 | Component | Purpose |
 |---|---|
-| **Tools** | `connected_apps` (connect/list), `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
+| **Tools** | `list_apps` (list), `connect_app` (connect/inspect), `disconnect_app`, `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
 | **Hook** (`before_prompt_build`) | Injects connected providers' state trees as `prependContext` on every inference turn |
 
 Design details:
@@ -338,4 +455,5 @@ See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 - [Transport spec](/spec/core/transport) — wire protocol and discovery mechanisms
 - [Adapters spec](/spec/integrations/adapters) — bridging non-SLOP apps
 - [Consumer guide](/guides/consumer) — usage patterns and example workflows
+- [Codex guide](/guides/advanced/codex) — Codex plugin setup and usage
 - [Claude Code guide](/guides/advanced/claude-code) — Claude Code plugin setup and usage

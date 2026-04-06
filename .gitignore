@@ -13,3 +13,4 @@ __pycache__/
 target/
 .claude/
 examples/spa/angular/.angular/
+.agents/plugins/marketplace.json

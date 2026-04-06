@@ -1,0 +1,9 @@
+{
+  "name": "claude-slop-mcp-proxy",
+  "version": "0.1.0",
+  "description": "Claude Code plugin for SLOP, generic-action variant. Discovers local and web providers, injects live state into context, and uses app_action/app_action_batch instead of per-affordance tool registration.",
+  "author": {
+    "name": "Diego"
+  },
+  "keywords": ["slop", "integration", "state", "affordances", "real-time", "mcp-proxy"]
+}

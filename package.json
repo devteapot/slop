@@ -25,6 +25,8 @@
     "build": "bun run scripts/build-typescript-packages.ts",
     "test": "for d in packages/typescript/*/*/; do if ls \"$d\"__tests__/*.test.* >/dev/null 2>&1; then echo \"Testing $d\" && (cd \"$d\" && bun test); fi; done",
     "clean": "for d in packages/typescript/*/*/; do (cd \"$d\" && rm -rf dist); done",
+    "format": "biome format --write .",
+    "format:check": "biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .",
     "demo": "cd website/demo && bunx vite --port 3001",
     "preflight": "bun run scripts/preflight.ts",
     "preflight:list": "bun run scripts/preflight.ts --list",
@@ -34,5 +36,8 @@
     "release:publish-rust": "bun run scripts/release/publish-rust.ts",
     "release:stage-extension": "bun run scripts/release/stage-extension.ts",
     "release:publish-extension": "bun run scripts/release/publish-chrome-web-store.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.10"
   }
 }

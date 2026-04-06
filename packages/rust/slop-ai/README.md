@@ -54,7 +54,7 @@ slop.register("todos", json!({
 
 ## Discovery layer
 
-The Rust SDK now includes the core discovery layer in `slop_ai::discovery` under the default `native` feature set:
+The Rust SDK includes the core discovery layer in `slop_ai::discovery` under the default `native` feature set:
 
 ```rust
 use slop_ai::discovery::{DiscoveryService, DiscoveryServiceOptions};

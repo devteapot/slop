@@ -336,8 +336,8 @@ The desktop app aggregates providers from all discovery sources into a single li
 
 Each discovered provider appears in the desktop's sidebar under the appropriate group (Pinned, Local Apps, or Browser Tabs — see Sidebar groups above). The desktop connects using the appropriate transport — Unix socket, direct WebSocket, or bridge relay — transparently.
 
-## Roadmap: SLOP-enabled desktop app
+## Future work: desktop app as a SLOP provider
 
-The desktop app itself can become a SLOP provider. Its own state — the workspace list, connected providers, chat history, settings — is observable via the same protocol it consumes. Another SLOP client (a CLI agent, a second desktop instance, a web dashboard) could connect to the desktop app and read or manipulate its state.
+The desktop app already ships as a multi-provider SLOP consumer workspace. A future step is for the desktop app itself to become a SLOP provider. Its own state — the workspace list, connected providers, chat history, settings — would be observable via the same protocol it consumes. Another SLOP client (a CLI agent, a second desktop instance, a web dashboard) could then connect to the desktop app and read or manipulate its state.
 
 This turns the desktop from a leaf consumer into a node in the SLOP graph — consuming providers below it and exposing its own state to consumers above it.

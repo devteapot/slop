@@ -26,11 +26,11 @@ The spec mentions `pause` / `resume` messages for subscriptions but doesn't defi
 
 **Path forward:** Define `pause` and `resume` message types in a future protocol version. Low priority — debouncing covers most real-world scenarios.
 
-### No network discovery
+### No LAN discovery
 
 Remote provider discovery via mDNS/DNS-SD (service type `_slop._tcp`) is reserved but not specified.
 
-**Current behavior:** Local discovery works via `~/.slop/providers/` files and web discovery via `<meta>` tags and `/.well-known/slop`. Remote providers must be configured manually (hardcoded URLs).
+**Current behavior:** Local discovery works via `~/.slop/providers/` files and web discovery via `<meta>` tags and `/.well-known/slop`. Remote providers must still be configured manually (hardcoded URLs).
 
 **Impact:** AI agents can't automatically discover SLOP providers on the local network. Only matters for multi-machine setups.
 

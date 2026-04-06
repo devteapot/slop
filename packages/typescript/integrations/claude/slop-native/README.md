@@ -139,7 +139,7 @@ Browser SPAs ──postMessage──Extension─────────┤
 
 All dynamic affordance tools remain registered for the lifetime of the connection. Apps with many distinct action+schema combinations can consume significant context tokens (~128 tokens per tool) even when Claude isn't actively interacting with the app.
 
-**Planned improvement: idle tool deregistration.** Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive — the hook still injects the state tree each turn so Claude retains awareness of the app. When Claude needs to act again, a single `connect_app("appname")` call re-registers the tools instantly from the cached state (no reconnection needed).
+One possible follow-up is idle tool deregistration. Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive — the hook still injects the state tree each turn so Claude retains awareness of the app. When Claude needs to act again, a single `connect_app("appname")` call re-registers the tools instantly from the cached state (no reconnection needed).
 
 This gives the best of both worlds: direct tool calls with zero overhead during active use, freed context when idle.
 

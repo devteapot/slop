@@ -28,7 +28,7 @@ serde_json = "1"
 thiserror = "2"
 
 # Optional — pulled by feature flags
-tokio = { version = "1", features = ["rt", "io-util", "io-std", "net", "sync", "macros", "rt-multi-thread"], optional = true }
+tokio = { version = "1", features = ["rt", "io-util", "io-std", "net", "sync", "macros", "rt-multi-thread", "time"], optional = true }
 tokio-tungstenite = { version = "0.26", optional = true }
 futures-util = { version = "0.3", optional = true }
 axum = { version = "0.8", features = ["ws"], optional = true }

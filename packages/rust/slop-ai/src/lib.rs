@@ -72,6 +72,9 @@ pub mod types;
 #[cfg(feature = "native")]
 pub mod consumer;
 
+#[cfg(feature = "native")]
+pub mod discovery;
+
 // Re-export main types at crate root
 pub use error::{Result, SlopError};
 pub use server::{ActionOptions, Connection, ScopedServer, SlopServer};

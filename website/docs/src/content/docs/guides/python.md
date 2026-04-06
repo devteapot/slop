@@ -97,6 +97,32 @@ asyncio.run(main())
 
 Unix consumer connections are available via `slop_ai.transports.unix_client.UnixClientTransport`.
 
+## Discovery layer
+
+The Python SDK also includes the core discovery layer in `slop_ai.discovery`:
+
+```python
+import asyncio
+
+from slop_ai.discovery import DiscoveryOptions, create_discovery_service
+
+
+async def main() -> None:
+    service = create_discovery_service(DiscoveryOptions())
+    await service.start()
+    try:
+        provider = await service.ensure_connected("my-app")
+        if provider is not None:
+            print(provider.name)
+    finally:
+        await service.stop()
+
+
+asyncio.run(main())
+```
+
+Install `slop-ai[websocket]` when discovery needs browser bridge support or direct WebSocket providers.
+
 ## Utilities
 
 The package also exports:

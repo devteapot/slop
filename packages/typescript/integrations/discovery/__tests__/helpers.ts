@@ -116,12 +116,7 @@ export async function createMockSlopProviderServer(options: {
   providerName?: string;
   helloDelayMs?: number;
 }) {
-  const {
-    port,
-    providerId = "test-provider",
-    providerName = "Test Provider",
-    helloDelayMs = 0,
-  } = options;
+  const { port, providerId = "test-provider", providerName = "Test Provider", helloDelayMs = 0 } = options;
   const clients = new Set<WebSocket>();
   let connectionCount = 0;
 
@@ -132,40 +127,46 @@ export async function createMockSlopProviderServer(options: {
 
     setTimeout(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: "hello",
-          provider: {
-            id: providerId,
-            name: providerName,
-            slop_version: "0.1",
-            capabilities: [],
-          },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "hello",
+            provider: {
+              id: providerId,
+              name: providerName,
+              slop_version: "0.1",
+              capabilities: [],
+            },
+          }),
+        );
       }
     }, helloDelayMs);
 
     ws.on("message", (raw) => {
       const message = JSON.parse(raw.toString()) as Record<string, unknown>;
       if (message.type === "subscribe") {
-        ws.send(JSON.stringify({
-          type: "snapshot",
-          id: message.id,
-          version: 1,
-          tree: {
-            id: providerId,
-            type: "root",
-            properties: { label: providerName },
-            children: [],
-            affordances: [],
-          },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "snapshot",
+            id: message.id,
+            version: 1,
+            tree: {
+              id: providerId,
+              type: "root",
+              properties: { label: providerName },
+              children: [],
+              affordances: [],
+            },
+          }),
+        );
       }
       if (message.type === "invoke") {
-        ws.send(JSON.stringify({
-          type: "result",
-          id: message.id,
-          status: "ok",
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "result",
+            id: message.id,
+            status: "ok",
+          }),
+        );
       }
     });
 

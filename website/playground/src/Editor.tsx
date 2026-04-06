@@ -136,11 +136,7 @@ export function Editor({ code, onChange, error }: EditorProps) {
           />
         </div>
       </div>
-      {error && (
-        <div className="px-3 py-2 font-mono text-xs text-error bg-error/8 shrink-0">
-          {error}
-        </div>
-      )}
+      {error && <div className="px-3 py-2 font-mono text-xs text-error bg-error/8 shrink-0">{error}</div>}
     </div>
   );
 }

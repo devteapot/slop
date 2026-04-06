@@ -11,8 +11,7 @@ interface ToolHandlers {
 export function registerSlopTools(api: any, discovery: DiscoveryService, handlers: ToolHandlers) {
   api.registerTool({
     name: "list_apps",
-    description:
-      "List the applications currently available on this computer and whether they are already connected.",
+    description: "List the applications currently available on this computer and whether they are already connected.",
     parameters: Type.Object({}),
     async execute(_id: string) {
       return handlers.listApps();
@@ -38,8 +37,7 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
   api.registerTool({
     name: "disconnect_app",
     description:
-      "Disconnect from an application. Stops state updates. " +
-      "Use when you're done interacting with an app.",
+      "Disconnect from an application. Stops state updates. " + "Use when you're done interacting with an app.",
     parameters: Type.Object({
       app: Type.String({
         description: "App name or ID to disconnect from.",
@@ -72,10 +70,7 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
         }),
       ),
     }),
-    async execute(
-      _id: string,
-      args: { app: string; path: string; action: string; params?: Record<string, unknown> },
-    ) {
+    async execute(_id: string, args: { app: string; path: string; action: string; params?: Record<string, unknown> }) {
       const p = await discovery.ensureConnected(args.app);
       if (!p) {
         return {
@@ -87,18 +82,23 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
         const result = await p.consumer.invoke(args.path, args.action, args.params ?? {});
         if (result.status === "ok") {
           return {
-            content: [{
-              type: "text" as const,
-              text: `Done. ${args.action} on ${args.path} succeeded.` +
-                (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  `Done. ${args.action} on ${args.path} succeeded.` +
+                  (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+              },
+            ],
           };
         }
         return {
-          content: [{
-            type: "text" as const,
-            text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
+            },
+          ],
           isError: true,
         };
       } catch (err: any) {
@@ -161,11 +161,14 @@ export function registerSlopTools(api: any, discovery: DiscoveryService, handler
         }
       }
       return {
-        content: [{
-          type: "text" as const,
-          text: `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
-            results.join("\n"),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text:
+              `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
+              results.join("\n"),
+          },
+        ],
         isError: failed > 0,
       };
     },

@@ -16,12 +16,12 @@ export const ambiguity: Scenario = {
   name: "ambiguity",
   description: "Resolve ambiguous references by reasoning about state",
   agentPrompt:
-    'I need help with a few things, but I don\'t remember the exact issue numbers:\n\n' +
-    '1. There\'s a bug about "connections" somewhere — I think it\'s about the database. Close it, it\'s been resolved.\n' +
+    "I need help with a few things, but I don't remember the exact issue numbers:\n\n" +
+    "1. There's a bug about \"connections\" somewhere — I think it's about the database. Close it, it's been resolved.\n" +
     '2. The "upgrade" issue that\'s already done (closed) — add a comment from "agent" saying "Confirmed: upgrade completed successfully in prod."\n' +
     '3. Someone filed an issue about "Kubernetes" — assign it to "charlie" since he handles infra.\n' +
     '4. There are two issues about "rate limiting" across different repos. Add the label "p0-critical" to both of them.\n\n' +
-    'Figure out which issues I\'m talking about and do the right thing.',
+    "Figure out which issues I'm talking about and do the right thing.",
 
   steps: [
     {
@@ -54,9 +54,7 @@ export const ambiguity: Scenario = {
     const upgradeCommented = closedUpgradeIssues.some((id) =>
       store.listComments(id).some((c) => c.author === "agent" && c.body.toLowerCase().includes("upgrade")),
     );
-    const whichUpgrade = closedUpgradeIssues.find((id) =>
-      store.listComments(id).some((c) => c.author === "agent"),
-    );
+    const whichUpgrade = closedUpgradeIssues.find((id) => store.listComments(id).some((c) => c.author === "agent"));
 
     const checks = [
       {
@@ -67,9 +65,7 @@ export const ambiguity: Scenario = {
       {
         name: "Commented on a closed upgrade issue",
         passed: upgradeCommented,
-        detail: whichUpgrade
-          ? `commented on ${whichUpgrade}`
-          : "no agent comment on any closed upgrade issue",
+        detail: whichUpgrade ? `commented on ${whichUpgrade}` : "no agent comment on any closed upgrade issue",
       },
       {
         name: "Kubernetes issue (issue-14) assigned to charlie",

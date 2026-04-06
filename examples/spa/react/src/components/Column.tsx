@@ -82,7 +82,10 @@ export default function Column({
             if (priority) updates.priority = priority as Card["priority"];
             if (due) updates.due = due;
             if (tags) {
-              updates.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+              updates.tags = tags
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean);
             }
             onEditCard(card.id, updates);
           },
@@ -98,9 +101,8 @@ export default function Column({
           ({ column }) => onMoveCard(card.id, column),
         ),
         delete: action(() => onDeleteCard(card.id), { dangerous: true }),
-        set_description: action(
-          { content: { type: "string", description: "Markdown content" } },
-          ({ content }) => onSetDescription(card.id, content),
+        set_description: action({ content: { type: "string", description: "Markdown content" } }, ({ content }) =>
+          onSetDescription(card.id, content),
         ),
       },
     };
@@ -118,36 +120,37 @@ export default function Column({
     return descriptor;
   };
 
-  useSlop(slop, () => `${boardId}/${columnId}`, () => (
-    useWindow
-      ? {
-        type: "collection",
-        props: { name: label, position, card_count: total },
-        window: {
-          items: windowed.map(buildItemDescriptor),
-          total,
-          offset: 0,
-        },
-        actions: {
-          reorder: action(
-            { card_id: "string", position: "number" },
-            ({ card_id, position }) => onReorderCard(columnId, card_id, position),
-          ),
-        },
-      }
-      : {
-        type: "collection",
-        props: { name: label, position, card_count: total },
-        meta: { window: [0, total] as [number, number], total_children: total },
-        items: sorted.map(buildItemDescriptor),
-        actions: {
-          reorder: action(
-            { card_id: "string", position: "number" },
-            ({ card_id, position }) => onReorderCard(columnId, card_id, position),
-          ),
-        },
-      }
-  ));
+  useSlop(
+    slop,
+    () => `${boardId}/${columnId}`,
+    () =>
+      useWindow
+        ? {
+            type: "collection",
+            props: { name: label, position, card_count: total },
+            window: {
+              items: windowed.map(buildItemDescriptor),
+              total,
+              offset: 0,
+            },
+            actions: {
+              reorder: action({ card_id: "string", position: "number" }, ({ card_id, position }) =>
+                onReorderCard(columnId, card_id, position),
+              ),
+            },
+          }
+        : {
+            type: "collection",
+            props: { name: label, position, card_count: total },
+            meta: { window: [0, total] as [number, number], total_children: total },
+            items: sorted.map(buildItemDescriptor),
+            actions: {
+              reorder: action({ card_id: "string", position: "number" }, ({ card_id, position }) =>
+                onReorderCard(columnId, card_id, position),
+              ),
+            },
+          },
+  );
 
   return (
     <section className="column">

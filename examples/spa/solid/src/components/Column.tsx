@@ -69,7 +69,10 @@ export default function Column(props: Props) {
             if (priority) updates.priority = priority as Card["priority"];
             if (due) updates.due = due;
             if (tags) {
-              updates.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+              updates.tags = tags
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean);
             }
             props.onEditCard(card.id, updates);
           },
@@ -85,9 +88,8 @@ export default function Column(props: Props) {
           ({ column }) => props.onMoveCard(card.id, column),
         ),
         delete: action(() => props.onDeleteCard(card.id), { dangerous: true }),
-        set_description: action(
-          { content: { type: "string", description: "Markdown content" } },
-          ({ content }) => props.onSetDescription(card.id, content),
+        set_description: action({ content: { type: "string", description: "Markdown content" } }, ({ content }) =>
+          props.onSetDescription(card.id, content),
         ),
       },
     };
@@ -105,43 +107,45 @@ export default function Column(props: Props) {
     return descriptor;
   };
 
-  useSlop(slop, () => `${props.boardId}/${props.columnId}`, () => {
-    const s = sorted();
-    const t = total();
-    const windowed = s.slice(0, WINDOW_SIZE);
-    const useWindow = t > WINDOW_SIZE;
+  useSlop(
+    slop,
+    () => `${props.boardId}/${props.columnId}`,
+    () => {
+      const s = sorted();
+      const t = total();
+      const windowed = s.slice(0, WINDOW_SIZE);
+      const useWindow = t > WINDOW_SIZE;
 
-    if (useWindow) {
+      if (useWindow) {
+        return {
+          type: "collection",
+          props: { name: label(), position: props.position, card_count: t },
+          window: {
+            items: windowed.map(buildItemDescriptor),
+            total: t,
+            offset: 0,
+          },
+          actions: {
+            reorder: action({ card_id: "string", position: "number" }, ({ card_id, position }) =>
+              props.onReorderCard(props.columnId, card_id, position),
+            ),
+          },
+        };
+      }
+
       return {
         type: "collection",
         props: { name: label(), position: props.position, card_count: t },
-        window: {
-          items: windowed.map(buildItemDescriptor),
-          total: t,
-          offset: 0,
-        },
+        meta: { window: [0, t] as [number, number], total_children: t },
+        items: s.map(buildItemDescriptor),
         actions: {
-          reorder: action(
-            { card_id: "string", position: "number" },
-            ({ card_id, position }) => props.onReorderCard(props.columnId, card_id, position),
+          reorder: action({ card_id: "string", position: "number" }, ({ card_id, position }) =>
+            props.onReorderCard(props.columnId, card_id, position),
           ),
         },
       };
-    }
-
-    return {
-      type: "collection",
-      props: { name: label(), position: props.position, card_count: t },
-      meta: { window: [0, t] as [number, number], total_children: t },
-      items: s.map(buildItemDescriptor),
-      actions: {
-        reorder: action(
-          { card_id: "string", position: "number" },
-          ({ card_id, position }) => props.onReorderCard(props.columnId, card_id, position),
-        ),
-      },
-    };
-  });
+    },
+  );
 
   return (
     <section class="column">

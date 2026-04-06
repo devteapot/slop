@@ -39,8 +39,12 @@ export class PostMessageClientTransport implements ClientTransport {
       send: (m: SlopMessage) => {
         this.port.postMessage({ type: "slop-to-provider", message: m });
       },
-      onMessage: (h: MessageHandler) => { messageHandlers.push(h); },
-      onClose: (h: () => void) => { closeHandlers.push(h); },
+      onMessage: (h: MessageHandler) => {
+        messageHandlers.push(h);
+      },
+      onClose: (h: () => void) => {
+        closeHandlers.push(h);
+      },
       close: () => {
         messageHandlers.length = 0;
         closeHandlers.length = 0;

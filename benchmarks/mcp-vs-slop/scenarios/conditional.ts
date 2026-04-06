@@ -16,11 +16,11 @@ export const conditional: Scenario = {
   name: "conditional",
   description: "Perform different actions based on issue state (comments, labels, assignees)",
   agentPrompt:
-    'Apply these rules to ALL open issues in the frontend repo:\n\n' +
+    "Apply these rules to ALL open issues in the frontend repo:\n\n" +
     '1. If the issue has 2 or more comments, it\'s been discussed enough — add the "needs-review" label.\n' +
     '2. If the issue has 0 comments and no assignee, it\'s been neglected — assign it to "bob" and add a comment from "agent" saying "Assigning to bob for initial triage."\n' +
     '3. If the issue already has the "wontfix" label, skip it entirely — don\'t modify it.\n\n' +
-    'Apply these rules to each open issue independently. Report what you did for each.',
+    "Apply these rules to each open issue independently. Report what you did for each.",
 
   steps: [
     {

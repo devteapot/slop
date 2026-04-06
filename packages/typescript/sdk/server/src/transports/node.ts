@@ -21,11 +21,7 @@ export interface AttachSlopOptions {
  * server.listen(3000);
  * ```
  */
-export function attachSlop(
-  slop: SlopServer,
-  httpServer: HttpServer,
-  options: AttachSlopOptions = {}
-): void {
+export function attachSlop(slop: SlopServer, httpServer: HttpServer, options: AttachSlopOptions = {}): void {
   const path = options.path ?? "/slop";
   const discovery = options.discovery !== false;
 
@@ -72,7 +68,10 @@ export function attachSlop(
 
   // Intercept /.well-known/slop requests
   if (discovery) {
-    const originalListeners = httpServer.listeners("request") as ((req: IncomingMessage, res: ServerResponse) => void)[];
+    const originalListeners = httpServer.listeners("request") as ((
+      req: IncomingMessage,
+      res: ServerResponse,
+    ) => void)[];
     httpServer.removeAllListeners("request");
 
     httpServer.on("request", (req: IncomingMessage, res: ServerResponse) => {
@@ -80,13 +79,15 @@ export function attachSlop(
         const host = req.headers.host ?? "localhost";
         const protocol = "ws";
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({
-          id: slop.id,
-          name: slop.name,
-          slop_version: "0.1",
-          transport: { type: "ws", url: `${protocol}://${host}${path}` },
-          capabilities: ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
-        }));
+        res.end(
+          JSON.stringify({
+            id: slop.id,
+            name: slop.name,
+            slop_version: "0.1",
+            transport: { type: "ws", url: `${protocol}://${host}${path}` },
+            capabilities: ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
+          }),
+        );
         return;
       }
 

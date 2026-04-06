@@ -50,61 +50,54 @@ export interface ModelPricing {
 export const MODEL_PRICING: Record<string, ModelPricing> = {
   "gemini-2.5-flash": {
     model: "Gemini 2.5 Flash",
-    inputPerMillion: 0.30,
-    outputPerMillion: 2.50,
+    inputPerMillion: 0.3,
+    outputPerMillion: 2.5,
   },
   "gemini-2.5-pro": {
     model: "Gemini 2.5 Pro",
     inputPerMillion: 1.25,
-    outputPerMillion: 10.00,
+    outputPerMillion: 10.0,
   },
   "gemini-3-flash-preview": {
     model: "Gemini 3 Flash",
-    inputPerMillion: 0.50,
-    outputPerMillion: 3.00,
+    inputPerMillion: 0.5,
+    outputPerMillion: 3.0,
   },
   "gemini-3.1-pro-preview": {
     model: "Gemini 3.1 Pro",
-    inputPerMillion: 2.00,
-    outputPerMillion: 12.00,
+    inputPerMillion: 2.0,
+    outputPerMillion: 12.0,
   },
   "gpt-4.1-nano": {
     model: "GPT-4.1 nano",
-    inputPerMillion: 0.10,
-    outputPerMillion: 0.40,
+    inputPerMillion: 0.1,
+    outputPerMillion: 0.4,
   },
   "gpt-4.1-mini": {
     model: "GPT-4.1 mini",
-    inputPerMillion: 0.40,
-    outputPerMillion: 1.60,
+    inputPerMillion: 0.4,
+    outputPerMillion: 1.6,
   },
   "gpt-4.1": {
     model: "GPT-4.1",
-    inputPerMillion: 2.00,
-    outputPerMillion: 8.00,
+    inputPerMillion: 2.0,
+    outputPerMillion: 8.0,
   },
   "claude-sonnet-4": {
     model: "Claude Sonnet 4",
-    inputPerMillion: 3.00,
-    outputPerMillion: 15.00,
+    inputPerMillion: 3.0,
+    outputPerMillion: 15.0,
   },
   "claude-opus-4": {
     model: "Claude Opus 4",
-    inputPerMillion: 15.00,
-    outputPerMillion: 75.00,
+    inputPerMillion: 15.0,
+    outputPerMillion: 75.0,
   },
 };
 
-export function estimateCost(
-  inputTokens: number,
-  outputTokens: number,
-  model = "gemini-2.5-flash",
-): number {
+export function estimateCost(inputTokens: number, outputTokens: number, model = "gemini-2.5-flash"): number {
   const pricing = MODEL_PRICING[model] ?? MODEL_PRICING["gemini-2.5-flash"];
-  return (
-    (inputTokens / 1_000_000) * pricing.inputPerMillion +
-    (outputTokens / 1_000_000) * pricing.outputPerMillion
-  );
+  return (inputTokens / 1_000_000) * pricing.inputPerMillion + (outputTokens / 1_000_000) * pricing.outputPerMillion;
 }
 
 export interface ScenarioResult {

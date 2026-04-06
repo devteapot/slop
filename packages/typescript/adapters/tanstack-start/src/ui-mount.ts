@@ -1,13 +1,5 @@
-import {
-  AsyncActionResult,
-} from "@slop-ai/core";
-import type {
-  SlopNode,
-  PatchOp,
-  NodeDescriptor,
-  JsonSchema,
-  ParamDef,
-} from "@slop-ai/core";
+import { AsyncActionResult } from "@slop-ai/core";
+import type { SlopNode, PatchOp, NodeDescriptor, JsonSchema, ParamDef } from "@slop-ai/core";
 import type { Connection, SlopServer } from "@slop-ai/server";
 
 const NODE_FIELDS = new Set(["properties", "meta", "affordances", "content_ref"]);
@@ -140,10 +132,7 @@ export class UiMountSession {
         break;
 
       case "error":
-        this.rejectPendingResult(
-          message.id,
-          new Error(message.error?.message ?? "Remote UI invoke failed"),
-        );
+        this.rejectPendingResult(message.id, new Error(message.error?.message ?? "Remote UI invoke failed"));
         break;
 
       case "batch":
@@ -181,11 +170,7 @@ export class UiMountSession {
       return Promise.resolve(undefined);
     }
 
-    return this.invokeRemote(
-      `/${this.remoteRootId}/__adapter`,
-      "refresh",
-      {},
-    );
+    return this.invokeRemote(`/${this.remoteRootId}/__adapter`, "refresh", {});
   }
 
   private applySnapshot(tree: SlopNode): void {
@@ -220,11 +205,7 @@ export class UiMountSession {
     );
   }
 
-  private invokeRemote(
-    path: string,
-    action: string,
-    params: Record<string, unknown>,
-  ): Promise<unknown> {
+  private invokeRemote(path: string, action: string, params: Record<string, unknown>): Promise<unknown> {
     if (!this.active) {
       return Promise.reject(new Error("Remote UI session is no longer active"));
     }
@@ -261,10 +242,7 @@ export class UiMountSession {
 
 function normalizeInvokeResult(message: ResultMessage): unknown {
   if (message.status === "accepted") {
-    const payload =
-      message.data && typeof message.data === "object"
-        ? message.data as Record<string, unknown>
-        : {};
+    const payload = message.data && typeof message.data === "object" ? (message.data as Record<string, unknown>) : {};
     const { taskId, ...rest } = payload;
 
     if (typeof taskId !== "string") {
@@ -312,11 +290,8 @@ function nodeToDescriptor(
           ...(affordance.dangerous ? { dangerous: true } : {}),
           ...(affordance.idempotent ? { idempotent: true } : {}),
           ...(affordance.estimate ? { estimate: affordance.estimate } : {}),
-          ...(affordance.params
-            ? { params: schemaToParamDefs(affordance.params) }
-            : {}),
-          handler: (params: Record<string, unknown>) =>
-            invoke(remotePath, affordance.action, params),
+          ...(affordance.params ? { params: schemaToParamDefs(affordance.params) } : {}),
+          handler: (params: Record<string, unknown>) => invoke(remotePath, affordance.action, params),
         },
       ]),
     );
@@ -324,10 +299,7 @@ function nodeToDescriptor(
 
   if (node.children?.length) {
     descriptor.children = Object.fromEntries(
-      node.children.map((child) => [
-        child.id,
-        nodeToDescriptor(child, `${remotePath}/${child.id}`, invoke),
-      ]),
+      node.children.map((child) => [child.id, nodeToDescriptor(child, `${remotePath}/${child.id}`, invoke)]),
     );
   }
 
@@ -404,10 +376,7 @@ function applyReplace(root: SlopNode, segments: string[], value: unknown): void 
   }
 }
 
-function navigate(
-  root: SlopNode,
-  segments: string[],
-): { parent: Record<string, unknown>; key: string } | null {
+function navigate(root: SlopNode, segments: string[]): { parent: Record<string, unknown>; key: string } | null {
   let current: Record<string, unknown> = root as unknown as Record<string, unknown>;
   for (let index = 0; index < segments.length - 1; index++) {
     const segment = segments[index];
@@ -419,9 +388,7 @@ function navigate(
     }
 
     const children = current.children as SlopNode[] | undefined;
-    const child = children?.find(
-      (candidate) => candidate.id === segment,
-    );
+    const child = children?.find((candidate) => candidate.id === segment);
     if (!child) return null;
     current = child as unknown as Record<string, unknown>;
   }

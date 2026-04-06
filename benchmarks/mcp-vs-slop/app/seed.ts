@@ -22,56 +22,269 @@ export const seedLabels: Label[] = [
 
 export const seedIssues: Issue[] = [
   // Frontend issues
-  { id: "issue-1", repoId: "frontend", title: "Login form not validating email format", body: "The login form accepts invalid email addresses. Need to add proper validation.", status: "open", labels: ["bug"], assignee: null, createdAt: "2026-03-15T10:00:00Z" },
-  { id: "issue-2", repoId: "frontend", title: "Add dark mode support", body: "Users have requested a dark mode toggle in the settings page.", status: "open", labels: ["feature"], assignee: "bob", createdAt: "2026-03-16T14:00:00Z" },
-  { id: "issue-3", repoId: "frontend", title: "Fix authentication token refresh", body: "The auth token refresh flow is broken, users get logged out after 30 minutes.", status: "open", labels: ["bug", "security"], assignee: null, createdAt: "2026-03-18T09:00:00Z" },
-  { id: "issue-4", repoId: "frontend", title: "Update React to v19", body: "Upgrade from React 18 to React 19 for improved performance.", status: "closed", labels: ["feature"], assignee: "alice", createdAt: "2026-03-10T11:00:00Z" },
-  { id: "issue-5", repoId: "frontend", title: "Remove deprecated API calls", body: "Clean up deprecated v1 API calls that were replaced in the backend migration.", status: "open", labels: ["wontfix"], assignee: null, createdAt: "2026-03-20T08:00:00Z" },
+  {
+    id: "issue-1",
+    repoId: "frontend",
+    title: "Login form not validating email format",
+    body: "The login form accepts invalid email addresses. Need to add proper validation.",
+    status: "open",
+    labels: ["bug"],
+    assignee: null,
+    createdAt: "2026-03-15T10:00:00Z",
+  },
+  {
+    id: "issue-2",
+    repoId: "frontend",
+    title: "Add dark mode support",
+    body: "Users have requested a dark mode toggle in the settings page.",
+    status: "open",
+    labels: ["feature"],
+    assignee: "bob",
+    createdAt: "2026-03-16T14:00:00Z",
+  },
+  {
+    id: "issue-3",
+    repoId: "frontend",
+    title: "Fix authentication token refresh",
+    body: "The auth token refresh flow is broken, users get logged out after 30 minutes.",
+    status: "open",
+    labels: ["bug", "security"],
+    assignee: null,
+    createdAt: "2026-03-18T09:00:00Z",
+  },
+  {
+    id: "issue-4",
+    repoId: "frontend",
+    title: "Update React to v19",
+    body: "Upgrade from React 18 to React 19 for improved performance.",
+    status: "closed",
+    labels: ["feature"],
+    assignee: "alice",
+    createdAt: "2026-03-10T11:00:00Z",
+  },
+  {
+    id: "issue-5",
+    repoId: "frontend",
+    title: "Remove deprecated API calls",
+    body: "Clean up deprecated v1 API calls that were replaced in the backend migration.",
+    status: "open",
+    labels: ["wontfix"],
+    assignee: null,
+    createdAt: "2026-03-20T08:00:00Z",
+  },
 
   // Backend issues
-  { id: "issue-6", repoId: "backend", title: "Rate limiting not working on /api/search", body: "The rate limiter middleware is not being applied to the search endpoint.", status: "open", labels: ["bug", "security"], assignee: null, createdAt: "2026-03-14T16:00:00Z" },
-  { id: "issue-7", repoId: "backend", title: "Add pagination to list endpoints", body: "All list endpoints return unbounded results. Add cursor-based pagination.", status: "open", labels: ["feature"], assignee: "charlie", createdAt: "2026-03-17T13:00:00Z" },
-  { id: "issue-8", repoId: "backend", title: "Database connection pool exhaustion", body: "Under high load, the connection pool runs out. Need to tune pool settings.", status: "open", labels: ["bug"], assignee: null, createdAt: "2026-03-19T07:00:00Z" },
-  { id: "issue-9", repoId: "backend", title: "Migrate to PostgreSQL 16", body: "Upgrade from PG 15 to PG 16 for improved query planning.", status: "closed", labels: ["feature"], assignee: "alice", createdAt: "2026-03-08T10:00:00Z" },
-  { id: "issue-10", repoId: "backend", title: "Legacy webhook format support", body: "Some consumers still use the v1 webhook format. Keep it or drop it?", status: "open", labels: ["wontfix"], assignee: null, createdAt: "2026-03-21T15:00:00Z" },
+  {
+    id: "issue-6",
+    repoId: "backend",
+    title: "Rate limiting not working on /api/search",
+    body: "The rate limiter middleware is not being applied to the search endpoint.",
+    status: "open",
+    labels: ["bug", "security"],
+    assignee: null,
+    createdAt: "2026-03-14T16:00:00Z",
+  },
+  {
+    id: "issue-7",
+    repoId: "backend",
+    title: "Add pagination to list endpoints",
+    body: "All list endpoints return unbounded results. Add cursor-based pagination.",
+    status: "open",
+    labels: ["feature"],
+    assignee: "charlie",
+    createdAt: "2026-03-17T13:00:00Z",
+  },
+  {
+    id: "issue-8",
+    repoId: "backend",
+    title: "Database connection pool exhaustion",
+    body: "Under high load, the connection pool runs out. Need to tune pool settings.",
+    status: "open",
+    labels: ["bug"],
+    assignee: null,
+    createdAt: "2026-03-19T07:00:00Z",
+  },
+  {
+    id: "issue-9",
+    repoId: "backend",
+    title: "Migrate to PostgreSQL 16",
+    body: "Upgrade from PG 15 to PG 16 for improved query planning.",
+    status: "closed",
+    labels: ["feature"],
+    assignee: "alice",
+    createdAt: "2026-03-08T10:00:00Z",
+  },
+  {
+    id: "issue-10",
+    repoId: "backend",
+    title: "Legacy webhook format support",
+    body: "Some consumers still use the v1 webhook format. Keep it or drop it?",
+    status: "open",
+    labels: ["wontfix"],
+    assignee: null,
+    createdAt: "2026-03-21T15:00:00Z",
+  },
 
   // Infra issues
-  { id: "issue-11", repoId: "infra", title: "CI pipeline times out on large PRs", body: "PRs with more than 50 changed files cause the CI to timeout at 30 minutes.", status: "open", labels: ["bug"], assignee: null, createdAt: "2026-03-13T12:00:00Z" },
-  { id: "issue-12", repoId: "infra", title: "Add staging environment auto-deploy", body: "Set up automatic deployment to staging on merge to main.", status: "open", labels: ["enhancement"], assignee: "bob", createdAt: "2026-03-16T09:00:00Z" },
-  { id: "issue-13", repoId: "infra", title: "Terraform state lock contention", body: "Multiple devs running terraform plan causes state lock conflicts.", status: "open", labels: ["bug"], assignee: null, createdAt: "2026-03-22T11:00:00Z" },
-  { id: "issue-14", repoId: "infra", title: "Upgrade Kubernetes to 1.29", body: "Current cluster is on 1.27, need to upgrade for security patches.", status: "closed", labels: ["enhancement"], assignee: "charlie", createdAt: "2026-03-05T08:00:00Z" },
-  { id: "issue-15", repoId: "infra", title: "Old monitoring dashboard removal", body: "The Grafana v8 dashboards are unused since we migrated. Remove them.", status: "open", labels: ["wontfix"], assignee: null, createdAt: "2026-03-23T14:00:00Z" },
+  {
+    id: "issue-11",
+    repoId: "infra",
+    title: "CI pipeline times out on large PRs",
+    body: "PRs with more than 50 changed files cause the CI to timeout at 30 minutes.",
+    status: "open",
+    labels: ["bug"],
+    assignee: null,
+    createdAt: "2026-03-13T12:00:00Z",
+  },
+  {
+    id: "issue-12",
+    repoId: "infra",
+    title: "Add staging environment auto-deploy",
+    body: "Set up automatic deployment to staging on merge to main.",
+    status: "open",
+    labels: ["enhancement"],
+    assignee: "bob",
+    createdAt: "2026-03-16T09:00:00Z",
+  },
+  {
+    id: "issue-13",
+    repoId: "infra",
+    title: "Terraform state lock contention",
+    body: "Multiple devs running terraform plan causes state lock conflicts.",
+    status: "open",
+    labels: ["bug"],
+    assignee: null,
+    createdAt: "2026-03-22T11:00:00Z",
+  },
+  {
+    id: "issue-14",
+    repoId: "infra",
+    title: "Upgrade Kubernetes to 1.29",
+    body: "Current cluster is on 1.27, need to upgrade for security patches.",
+    status: "closed",
+    labels: ["enhancement"],
+    assignee: "charlie",
+    createdAt: "2026-03-05T08:00:00Z",
+  },
+  {
+    id: "issue-15",
+    repoId: "infra",
+    title: "Old monitoring dashboard removal",
+    body: "The Grafana v8 dashboards are unused since we migrated. Remove them.",
+    status: "open",
+    labels: ["wontfix"],
+    assignee: null,
+    createdAt: "2026-03-23T14:00:00Z",
+  },
 ];
 
 export const seedComments: Comment[] = [
   // Comments on issue-1
-  { id: "comment-1", issueId: "issue-1", author: "alice", body: "I can reproduce this. The regex is missing the TLD check.", createdAt: "2026-03-15T11:00:00Z" },
-  { id: "comment-2", issueId: "issue-1", author: "bob", body: "Should we use a library like zod for this?", createdAt: "2026-03-15T12:00:00Z" },
+  {
+    id: "comment-1",
+    issueId: "issue-1",
+    author: "alice",
+    body: "I can reproduce this. The regex is missing the TLD check.",
+    createdAt: "2026-03-15T11:00:00Z",
+  },
+  {
+    id: "comment-2",
+    issueId: "issue-1",
+    author: "bob",
+    body: "Should we use a library like zod for this?",
+    createdAt: "2026-03-15T12:00:00Z",
+  },
 
   // Comments on issue-3
-  { id: "comment-3", issueId: "issue-3", author: "charlie", body: "This is critical — affects all users. The refresh endpoint returns 401 instead of issuing a new token.", createdAt: "2026-03-18T10:00:00Z" },
-  { id: "comment-4", issueId: "issue-3", author: "alice", body: "I think the issue is in the middleware. The token expiry check is using UTC but the token was issued with local time.", createdAt: "2026-03-18T14:00:00Z" },
+  {
+    id: "comment-3",
+    issueId: "issue-3",
+    author: "charlie",
+    body: "This is critical — affects all users. The refresh endpoint returns 401 instead of issuing a new token.",
+    createdAt: "2026-03-18T10:00:00Z",
+  },
+  {
+    id: "comment-4",
+    issueId: "issue-3",
+    author: "alice",
+    body: "I think the issue is in the middleware. The token expiry check is using UTC but the token was issued with local time.",
+    createdAt: "2026-03-18T14:00:00Z",
+  },
 
   // Comments on issue-6
-  { id: "comment-5", issueId: "issue-6", author: "bob", body: "The middleware is applied but the search endpoint is mounted before the rate limiter.", createdAt: "2026-03-14T17:00:00Z" },
+  {
+    id: "comment-5",
+    issueId: "issue-6",
+    author: "bob",
+    body: "The middleware is applied but the search endpoint is mounted before the rate limiter.",
+    createdAt: "2026-03-14T17:00:00Z",
+  },
 
   // Comments on issue-7
-  { id: "comment-6", issueId: "issue-7", author: "alice", body: "Let's use cursor-based pagination, not offset-based. Better for large datasets.", createdAt: "2026-03-17T14:00:00Z" },
-  { id: "comment-7", issueId: "issue-7", author: "charlie", body: "Agreed. I'll base it on the created_at timestamp + id for stable cursors.", createdAt: "2026-03-17T15:00:00Z" },
+  {
+    id: "comment-6",
+    issueId: "issue-7",
+    author: "alice",
+    body: "Let's use cursor-based pagination, not offset-based. Better for large datasets.",
+    createdAt: "2026-03-17T14:00:00Z",
+  },
+  {
+    id: "comment-7",
+    issueId: "issue-7",
+    author: "charlie",
+    body: "Agreed. I'll base it on the created_at timestamp + id for stable cursors.",
+    createdAt: "2026-03-17T15:00:00Z",
+  },
 
   // Comments on issue-8
-  { id: "comment-8", issueId: "issue-8", author: "alice", body: "Default pool size is 10. We should increase to 25 and add connection timeout.", createdAt: "2026-03-19T08:00:00Z" },
+  {
+    id: "comment-8",
+    issueId: "issue-8",
+    author: "alice",
+    body: "Default pool size is 10. We should increase to 25 and add connection timeout.",
+    createdAt: "2026-03-19T08:00:00Z",
+  },
 
   // Comments on issue-11
-  { id: "comment-9", issueId: "issue-11", author: "charlie", body: "We could split the test suite into parallel jobs.", createdAt: "2026-03-13T13:00:00Z" },
-  { id: "comment-10", issueId: "issue-11", author: "bob", body: "Or increase the timeout to 60 minutes? The large PRs are rare.", createdAt: "2026-03-13T14:00:00Z" },
+  {
+    id: "comment-9",
+    issueId: "issue-11",
+    author: "charlie",
+    body: "We could split the test suite into parallel jobs.",
+    createdAt: "2026-03-13T13:00:00Z",
+  },
+  {
+    id: "comment-10",
+    issueId: "issue-11",
+    author: "bob",
+    body: "Or increase the timeout to 60 minutes? The large PRs are rare.",
+    createdAt: "2026-03-13T14:00:00Z",
+  },
 
   // Comments on issue-12
-  { id: "comment-11", issueId: "issue-12", author: "alice", body: "We should add a manual approval step before staging deploys.", createdAt: "2026-03-16T10:00:00Z" },
+  {
+    id: "comment-11",
+    issueId: "issue-12",
+    author: "alice",
+    body: "We should add a manual approval step before staging deploys.",
+    createdAt: "2026-03-16T10:00:00Z",
+  },
 
   // Comments on issue-13
-  { id: "comment-12", issueId: "issue-13", author: "bob", body: "Terraform Cloud would solve this with remote state management.", createdAt: "2026-03-22T12:00:00Z" },
-  { id: "comment-13", issueId: "issue-13", author: "charlie", body: "Or we could use a simple locking mechanism with DynamoDB.", createdAt: "2026-03-22T13:00:00Z" },
+  {
+    id: "comment-12",
+    issueId: "issue-13",
+    author: "bob",
+    body: "Terraform Cloud would solve this with remote state management.",
+    createdAt: "2026-03-22T12:00:00Z",
+  },
+  {
+    id: "comment-13",
+    issueId: "issue-13",
+    author: "charlie",
+    body: "Or we could use a simple locking mechanism with DynamoDB.",
+    createdAt: "2026-03-22T13:00:00Z",
+  },
 ];
 
 export function createSeedData() {
@@ -89,21 +302,42 @@ export function createSeedData() {
  */
 export function createLargeSeedData() {
   const repoNames = [
-    "frontend", "backend", "infra", "mobile-ios", "mobile-android",
-    "docs", "analytics", "auth-service", "payments", "notifications",
+    "frontend",
+    "backend",
+    "infra",
+    "mobile-ios",
+    "mobile-android",
+    "docs",
+    "analytics",
+    "auth-service",
+    "payments",
+    "notifications",
   ];
   const labelNames = ["bug", "feature", "enhancement", "security", "wontfix", "needs-review", "good-first-issue"];
   const authors = ["alice", "bob", "charlie", "diana", "evan", "fiona"];
   const statuses: ("open" | "closed")[] = ["open", "open", "open", "closed"]; // 75% open
 
   const issueTitles = [
-    "Fix broken redirect after login", "Add support for dark mode", "Memory leak in worker pool",
-    "Update dependency to latest major", "Flaky test in CI pipeline", "Add rate limiting to API",
-    "Improve error messages for users", "Migrate to new auth provider", "Fix timezone handling in scheduler",
-    "Add bulk export functionality", "Refactor database query layer", "Broken pagination on mobile",
-    "Add webhook retry logic", "Remove deprecated endpoints", "Fix race condition in cache",
-    "Add multi-language support", "Improve startup performance", "Fix CSS layout on Safari",
-    "Add health check endpoint", "Upgrade Kubernetes manifests",
+    "Fix broken redirect after login",
+    "Add support for dark mode",
+    "Memory leak in worker pool",
+    "Update dependency to latest major",
+    "Flaky test in CI pipeline",
+    "Add rate limiting to API",
+    "Improve error messages for users",
+    "Migrate to new auth provider",
+    "Fix timezone handling in scheduler",
+    "Add bulk export functionality",
+    "Refactor database query layer",
+    "Broken pagination on mobile",
+    "Add webhook retry logic",
+    "Remove deprecated endpoints",
+    "Fix race condition in cache",
+    "Add multi-language support",
+    "Improve startup performance",
+    "Fix CSS layout on Safari",
+    "Add health check endpoint",
+    "Upgrade Kubernetes manifests",
   ];
 
   const commentBodies = [
@@ -123,7 +357,7 @@ export function createLargeSeedData() {
     id: name,
     name,
     description: `The ${name} service`,
-    visibility: name === "infra" || name === "payments" ? "private" as const : "public" as const,
+    visibility: name === "infra" || name === "payments" ? ("private" as const) : ("public" as const),
   }));
 
   const labels: Label[] = [];
@@ -138,7 +372,10 @@ export function createLargeSeedData() {
   let issueId = 1;
   // Deterministic pseudo-random using simple seed
   let rng = 42;
-  const rand = () => { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return rng / 0x7fffffff; };
+  const rand = () => {
+    rng = (rng * 1103515245 + 12345) & 0x7fffffff;
+    return rng / 0x7fffffff;
+  };
 
   for (const repo of repos) {
     const count = 8 + Math.floor(rand() * 5); // 8-12 issues per repo

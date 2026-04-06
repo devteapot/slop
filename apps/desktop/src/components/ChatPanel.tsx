@@ -5,16 +5,16 @@ import { useChatStore } from "../stores/chat-store";
 const EMPTY_MESSAGES: never[] = [];
 
 export function ChatPanel() {
-  const activeWorkspaceId = useAppStore(s => s.activeWorkspaceId);
-  const providers = useAppStore(s => s.providers);
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const providers = useAppStore((s) => s.providers);
 
-  const rawMessages = useChatStore(s => s.messages[activeWorkspaceId]);
+  const rawMessages = useChatStore((s) => s.messages[activeWorkspaceId]);
   const messages = rawMessages ?? EMPTY_MESSAGES;
-  const processing = useChatStore(s => !!s.processing[activeWorkspaceId]);
-  const sendMessage = useChatStore(s => s.sendMessage);
-  const clearChat = useChatStore(s => s.clearChat);
+  const processing = useChatStore((s) => !!s.processing[activeWorkspaceId]);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const clearChat = useChatStore((s) => s.clearChat);
 
-  const connectedCount = providers.filter(p => p.status === "connected").length;
+  const connectedCount = providers.filter((p) => p.status === "connected").length;
   const connected = connectedCount > 0;
 
   const [text, setText] = useState("");
@@ -60,14 +60,12 @@ export function ChatPanel() {
         </div>
       ) : (
         <div className="chat-messages">
-          {messages.map(msg => (
+          {messages.map((msg) => (
             <div key={msg.id} className={`msg ${msg.role}`}>
               {msg.content}
             </div>
           ))}
-          {processing && (
-            <div className="msg tool-progress">Thinking...</div>
-          )}
+          {processing && <div className="msg tool-progress">Thinking...</div>}
           <div ref={messagesEndRef} />
         </div>
       )}
@@ -76,8 +74,8 @@ export function ChatPanel() {
           ref={inputRef}
           placeholder={connected ? "Ask about the app..." : "Connect to a provider first"}
           value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => {
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSubmit(e);
@@ -86,7 +84,9 @@ export function ChatPanel() {
           disabled={!connected || processing}
           rows={1}
         />
-        <button type="submit" disabled={!canSend}>Send</button>
+        <button type="submit" disabled={!canSend}>
+          Send
+        </button>
       </form>
     </div>
   );

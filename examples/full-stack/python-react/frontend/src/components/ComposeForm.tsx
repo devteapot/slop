@@ -47,7 +47,9 @@ export default function ComposeForm({
           if (params.company !== undefined) onFieldChange("company", params.company as string);
         },
       },
-      submit: () => { handleSubmit(); },
+      submit: () => {
+        handleSubmit();
+      },
     },
   }));
 
@@ -58,31 +60,22 @@ export default function ComposeForm({
       <div className="compose-form" onClick={(e) => e.stopPropagation()}>
         <div className="compose-header">
           <h3>New Contact</h3>
-          <button className="btn-icon" onClick={onClose}>&times;</button>
+          <button className="btn-icon" onClick={onClose}>
+            &times;
+          </button>
         </div>
         <div className="compose-fields">
-          <input
-            placeholder="Name *"
-            value={name}
-            onChange={(e) => onFieldChange("name", e.target.value)}
-            autoFocus
-          />
-          <input
-            placeholder="Email"
-            value={email}
-            onChange={(e) => onFieldChange("email", e.target.value)}
-          />
-          <input
-            placeholder="Company"
-            value={company}
-            onChange={(e) => onFieldChange("company", e.target.value)}
-          />
+          <input placeholder="Name *" value={name} onChange={(e) => onFieldChange("name", e.target.value)} autoFocus />
+          <input placeholder="Email" value={email} onChange={(e) => onFieldChange("email", e.target.value)} />
+          <input placeholder="Company" value={company} onChange={(e) => onFieldChange("company", e.target.value)} />
         </div>
         <div className="compose-actions">
           <button className="btn-primary" onClick={handleSubmit} disabled={!name.trim()}>
             Create Contact
           </button>
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
         </div>
       </div>
     </div>

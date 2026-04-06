@@ -24,10 +24,7 @@ export default function TagFilter({ activeTag, availableTags, onTagChange }: Pro
 
   return (
     <div className="tag-filter">
-      <button
-        className={`tag-chip ${activeTag === null ? "active" : ""}`}
-        onClick={() => onTagChange(null)}
-      >
+      <button className={`tag-chip ${activeTag === null ? "active" : ""}`} onClick={() => onTagChange(null)}>
         All
       </button>
       {availableTags.map((tag) => (

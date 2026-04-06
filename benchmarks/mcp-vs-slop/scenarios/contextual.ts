@@ -20,13 +20,13 @@ export const contextual: Scenario = {
   name: "contextual",
   description: "Multi-turn contextual actions: create, refer by context, handle confirmation",
   agentPrompt:
-    'Perform these steps in order:\n' +
+    "Perform these steps in order:\n" +
     '1. Create a new issue in the "backend" repo titled "API rate limiting needs overhaul" with body "Current rate limiter is per-IP but we need per-user rate limiting with configurable thresholds." and label it "feature".\n' +
     '2. For the issue you just created, add a comment from "agent" saying "I\'ll start by auditing the current rate limiting middleware."\n' +
     '3. For that same issue, also add the "security" label.\n' +
     '4. Now assign that issue to "charlie".\n' +
     '5. Finally, close issue "issue-6" in the backend repo (the one about rate limiting not working on /api/search).\n\n' +
-    'Make sure you complete ALL steps. Refer to the issue you created by its actual ID, not by description.',
+    "Make sure you complete ALL steps. Refer to the issue you created by its actual ID, not by description.",
 
   steps: [
     {
@@ -42,9 +42,7 @@ export const contextual: Scenario = {
 
   verify(store: IssueTrackerStore): VerificationResult {
     // Find the newly created issue
-    const newIssue = store.issues.find(
-      (i) => i.repoId === "backend" && i.title === "API rate limiting needs overhaul",
-    );
+    const newIssue = store.issues.find((i) => i.repoId === "backend" && i.title === "API rate limiting needs overhaul");
 
     const checks = [
       {
@@ -64,22 +62,19 @@ export const contextual: Scenario = {
       },
       {
         name: "Comment added from 'agent' on new issue",
-        passed: newIssue
-          ? store.listComments(newIssue.id).some((c) => c.author === "agent")
-          : false,
-        detail: newIssue
-          ? `comments: ${store.listComments(newIssue.id).length}`
-          : "no issue",
+        passed: newIssue ? store.listComments(newIssue.id).some((c) => c.author === "agent") : false,
+        detail: newIssue ? `comments: ${store.listComments(newIssue.id).length}` : "no issue",
       },
       {
         name: "Comment mentions rate limiting middleware",
         passed: newIssue
-          ? store.listComments(newIssue.id).some((c) =>
-              c.body.toLowerCase().includes("rate limit"),
-            )
+          ? store.listComments(newIssue.id).some((c) => c.body.toLowerCase().includes("rate limit"))
           : false,
         detail: newIssue
-          ? store.listComments(newIssue.id).map((c) => `"${c.body.slice(0, 40)}..."`).join(", ")
+          ? store
+              .listComments(newIssue.id)
+              .map((c) => `"${c.body.slice(0, 40)}..."`)
+              .join(", ")
           : "no issue",
       },
       {

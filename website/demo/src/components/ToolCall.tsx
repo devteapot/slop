@@ -29,9 +29,11 @@ export function ToolCall({ toolCall }: { toolCall: ToolCallData }) {
 
       {/* Result */}
       {hasResult && (
-        <div className={`mt-1 pt-1 border-t border-outline-variant/15 ${
-          toolCall.result!.status === "ok" ? "text-primary" : "text-error"
-        }`}>
+        <div
+          className={`mt-1 pt-1 border-t border-outline-variant/15 ${
+            toolCall.result!.status === "ok" ? "text-primary" : "text-error"
+          }`}
+        >
           {toolCall.result!.status === "ok" ? "✓ success" : `✗ ${toolCall.result!.status}`}
         </div>
       )}

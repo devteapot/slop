@@ -75,4 +75,6 @@ const consumerServer = Bun.serve({
 
 console.log(`[relay] Provider port: ws://localhost:${providerServer.port}/slop`);
 console.log(`[relay] Consumer port: ws://localhost:${consumerServer.port}/slop`);
-console.log(`[relay] Start an SPA example, then connect CLI: go run ./cli --connect ws://localhost:${consumerServer.port}/slop`);
+console.log(
+  `[relay] Start an SPA example, then connect CLI: go run ./cli --connect ws://localhost:${consumerServer.port}/slop`,
+);

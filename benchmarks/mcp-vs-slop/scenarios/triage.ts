@@ -29,11 +29,7 @@ export const triage: Scenario = {
           if (!issuesNode) continue;
           for (const issue of issuesNode.children ?? []) {
             const props = issue.properties ?? {};
-            if (
-              props.status === "open" &&
-              !props.assignee &&
-              (props.labels as string[])?.includes("bug")
-            ) {
+            if (props.status === "open" && !props.assignee && (props.labels as string[])?.includes("bug")) {
               _targets.push(issue.id);
             }
           }

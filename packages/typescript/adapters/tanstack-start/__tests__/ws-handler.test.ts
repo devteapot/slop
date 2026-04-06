@@ -136,9 +136,7 @@ describe("createWebSocketHandler", () => {
       params: { status: "archived" },
     });
 
-    const invokeMessage = sent.find(
-      (message) => message.type === "invoke" && message.id !== undefined,
-    );
+    const invokeMessage = sent.find((message) => message.type === "invoke" && message.id !== undefined);
     expect(invokeMessage).toMatchObject({
       type: "invoke",
       path: "/ui/filters",

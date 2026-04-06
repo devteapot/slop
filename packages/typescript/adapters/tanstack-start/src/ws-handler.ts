@@ -1,10 +1,6 @@
 import type { SlopServer, Connection } from "@slop-ai/server";
 import { UiMountSession } from "./ui-mount";
-import {
-  refreshMountedUi,
-  registerUiMountSession,
-  unregisterUiMountSession,
-} from "./mount-registry";
+import { refreshMountedUi, registerUiMountSession, unregisterUiMountSession } from "./mount-registry";
 
 type RequestLike = {
   url?: string;
@@ -34,9 +30,9 @@ export interface SlopHandlerOptions {
    * For single-user apps, return a singleton.
    * For multi-user apps, use the context (e.g., auth cookie from the upgrade request)
    * to look up or create a per-session instance.
-  *
-  * @param context - The peer context (contains request headers, cookies, etc.)
-  */
+   *
+   * @param context - The peer context (contains request headers, cookies, etc.)
+   */
   resolve: (context: PeerContext) => SlopServer | Promise<SlopServer>;
   /**
    * Path to mount the browser-owned UI subtree under.
@@ -69,11 +65,14 @@ export interface SlopHandlerOptions {
  */
 export function createWebSocketHandler(options: SlopHandlerOptions) {
   const clients = new Map<HandlerPeer, { conn: Connection; slop: SlopServer }>();
-  const providerClients = new Map<HandlerPeer, {
-    session: UiMountSession;
-    slop: SlopServer;
-    mountPath: string;
-  }>();
+  const providerClients = new Map<
+    HandlerPeer,
+    {
+      session: UiMountSession;
+      slop: SlopServer;
+      mountPath: string;
+    }
+  >();
 
   return {
     async open(peer: HandlerPeer) {
@@ -83,8 +82,7 @@ export function createWebSocketHandler(options: SlopHandlerOptions) {
       const isProvider = url?.searchParams.get("slop_role") === "provider";
 
       if (isProvider) {
-        const mountPath =
-          url?.searchParams.get("mount") || options.uiMountPath || "ui";
+        const mountPath = url?.searchParams.get("mount") || options.uiMountPath || "ui";
         const session = new UiMountSession(slop, peerToConnection(peer), mountPath);
         const existing = registerUiMountSession(slop, mountPath, session);
         if (existing && existing !== session) {
@@ -134,11 +132,7 @@ export function createWebSocketHandler(options: SlopHandlerOptions) {
     close(peer: HandlerPeer) {
       const providerClient = providerClients.get(peer);
       if (providerClient) {
-        unregisterUiMountSession(
-          providerClient.slop,
-          providerClient.mountPath,
-          providerClient.session,
-        );
+        unregisterUiMountSession(providerClient.slop, providerClient.mountPath, providerClient.session);
         providerClient.session.deactivate("Browser UI session disconnected");
         providerClients.delete(peer);
         return;
@@ -201,10 +195,7 @@ function getPeerUrl(peer: HandlerPeer): URL | null {
   if (!request?.url) return null;
 
   try {
-    return new URL(
-      request.url,
-      `http://${request.headers?.host ?? "localhost"}`,
-    );
+    return new URL(request.url, `http://${request.headers?.host ?? "localhost"}`);
   } catch (e) {
     console.warn("[slop] failed to parse peer URL:", e);
     return null;
@@ -212,14 +203,14 @@ function getPeerUrl(peer: HandlerPeer): URL | null {
 }
 
 function isProviderMessage(value: unknown): value is Parameters<UiMountSession["handleMessage"]>[0] {
-  return !!value
-    && typeof value === "object"
-    && typeof (value as { type?: unknown }).type === "string";
+  return !!value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string";
 }
 
 function isInvokeMessage(value: unknown): value is { type: "invoke"; path: string } {
-  return !!value
-    && typeof value === "object"
-    && (value as { type?: unknown }).type === "invoke"
-    && typeof (value as { path?: unknown }).path === "string";
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as { type?: unknown }).type === "invoke" &&
+    typeof (value as { path?: unknown }).path === "string"
+  );
 }

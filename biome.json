@@ -6,10 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}",
-      "!examples/full-stack/tanstack-start/src/routeTree.gen.ts"
-    ]
+    "includes": ["**/*.{js,jsx,cjs,mjs,ts,tsx,cts,mts}", "!examples/full-stack/tanstack-start/src/routeTree.gen.ts"]
   },
   "formatter": {
     "indentStyle": "space",

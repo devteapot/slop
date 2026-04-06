@@ -23,8 +23,7 @@ interface IssueSummary {
  */
 export const scaleTriage: Scenario = {
   name: "scale-triage",
-  description:
-    'Triage unassigned bugs across 10 repos (~100 issues) — assign to "alice" with "needs-review"',
+  description: 'Triage unassigned bugs across 10 repos (~100 issues) — assign to "alice" with "needs-review"',
   largeDataset: true,
   agentPrompt:
     'Review all open issues across ALL repositories. For every unassigned issue that has the "bug" label, assign it to "alice" and add the "needs-review" label. Work through all repos systematically.',
@@ -41,11 +40,7 @@ export const scaleTriage: Scenario = {
           if (!issuesNode) continue;
           for (const issue of issuesNode.children ?? []) {
             const props = issue.properties ?? {};
-            if (
-              props.status === "open" &&
-              !props.assignee &&
-              (props.labels as string[])?.includes("bug")
-            ) {
+            if (props.status === "open" && !props.assignee && (props.labels as string[])?.includes("bug")) {
               _targets.push(issue.id);
             }
           }
@@ -74,11 +69,7 @@ export const scaleTriage: Scenario = {
           if (!issuesNode) continue;
           for (const issue of issuesNode.children ?? []) {
             const props = issue.properties ?? {};
-            if (
-              props.status === "open" &&
-              !props.assignee &&
-              (props.labels as string[])?.includes("bug")
-            ) {
+            if (props.status === "open" && !props.assignee && (props.labels as string[])?.includes("bug")) {
               // Find the repo id from the tree path
               targets.push({ repoId: repo.id, issueId: issue.id });
             }
@@ -190,31 +181,31 @@ function safeParseJson(text: string): unknown {
 }
 
 function isTextContentBlock(value: unknown): value is { type: "text"; text: string } {
-  return !!value
-    && typeof value === "object"
-    && (value as { type?: unknown }).type === "text"
-    && typeof (value as { text?: unknown }).text === "string";
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as { type?: unknown }).type === "text" &&
+    typeof (value as { text?: unknown }).text === "string"
+  );
 }
 
 function isContentResult(value: unknown): value is { content: unknown[] } {
-  return !!value
-    && typeof value === "object"
-    && Array.isArray((value as { content?: unknown }).content);
+  return !!value && typeof value === "object" && Array.isArray((value as { content?: unknown }).content);
 }
 
 function isRepoSummary(value: unknown): value is RepoSummary {
-  return !!value
-    && typeof value === "object"
-    && typeof (value as { id?: unknown }).id === "string";
+  return !!value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string";
 }
 
 function isIssueSummary(value: unknown): value is IssueSummary {
-  return !!value
-    && typeof value === "object"
-    && typeof (value as { id?: unknown }).id === "string"
-    && Array.isArray((value as { labels?: unknown }).labels)
-    && (value as { labels: unknown[] }).labels.every((label) => typeof label === "string")
-    && (typeof (value as { assignee?: unknown }).assignee === "string"
-      || typeof (value as { assignee?: unknown }).assignee === "undefined"
-      || (value as { assignee?: unknown }).assignee === null);
+  return (
+    !!value &&
+    typeof value === "object" &&
+    typeof (value as { id?: unknown }).id === "string" &&
+    Array.isArray((value as { labels?: unknown }).labels) &&
+    (value as { labels: unknown[] }).labels.every((label) => typeof label === "string") &&
+    (typeof (value as { assignee?: unknown }).assignee === "string" ||
+      typeof (value as { assignee?: unknown }).assignee === "undefined" ||
+      (value as { assignee?: unknown }).assignee === null)
+  );
 }

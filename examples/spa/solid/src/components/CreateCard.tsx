@@ -29,7 +29,12 @@ export default function CreateCard(props: Props) {
       priority(),
       due() || undefined,
       undefined,
-      tags() ? tags().split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+      tags()
+        ? tags()
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : undefined,
     );
   };
 
@@ -38,7 +43,9 @@ export default function CreateCard(props: Props) {
       <div class="modal" onClick={(e) => e.stopPropagation()}>
         <div class="modal-header">
           <h2 class="modal-title">New Card</h2>
-          <button class="modal-close" onClick={props.onClose}>&times;</button>
+          <button class="modal-close" onClick={props.onClose}>
+            &times;
+          </button>
         </div>
 
         <div class="modal-body">
@@ -59,15 +66,17 @@ export default function CreateCard(props: Props) {
             <div class="form-field">
               <label class="form-label">COLUMN</label>
               <select class="form-select" value={column()} onChange={(e) => setColumn(e.currentTarget.value)}>
-                <For each={props.columns}>
-                  {(col) => <option value={col}>{col}</option>}
-                </For>
+                <For each={props.columns}>{(col) => <option value={col}>{col}</option>}</For>
               </select>
             </div>
 
             <div class="form-field">
               <label class="form-label">PRIORITY</label>
-              <select class="form-select" value={priority()} onChange={(e) => setPriority(e.currentTarget.value as Card["priority"])}>
+              <select
+                class="form-select"
+                value={priority()}
+                onChange={(e) => setPriority(e.currentTarget.value as Card["priority"])}
+              >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -96,7 +105,9 @@ export default function CreateCard(props: Props) {
         </div>
 
         <div class="modal-footer">
-          <button class="btn-ghost" onClick={props.onClose}>Cancel</button>
+          <button class="btn-ghost" onClick={props.onClose}>
+            Cancel
+          </button>
           <button class="btn-primary" onClick={handleSubmit} disabled={!title().trim()}>
             Create
           </button>

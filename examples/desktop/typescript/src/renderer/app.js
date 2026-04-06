@@ -91,8 +91,7 @@ function updateStatusLabel(phase, paused) {
 function updateTagDisplay(phase, currentTag) {
   if (phase === "working" && currentTag) {
     tagDisplay.innerHTML =
-      `<span class="tag-prefix">WORKING ON:</span>` +
-      `<span class="tag-name">"${escapeHtml(currentTag)}"</span>`;
+      `<span class="tag-prefix">WORKING ON:</span>` + `<span class="tag-name">"${escapeHtml(currentTag)}"</span>`;
   } else if (phase === "short_break" || phase === "long_break") {
     const label = phase === "long_break" ? "LONG BREAK" : "SHORT BREAK";
     tagDisplay.innerHTML = `<span class="tag-prefix">${label}</span>`;

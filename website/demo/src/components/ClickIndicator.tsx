@@ -35,10 +35,7 @@ export function ClickIndicator() {
   if (!visible || !pos) return null;
 
   return (
-    <div
-      className="fixed pointer-events-none z-50"
-      style={{ left: pos.x, top: pos.y }}
-    >
+    <div className="fixed pointer-events-none z-50" style={{ left: pos.x, top: pos.y }}>
       {/* Cursor dot */}
       <div className="absolute -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-secondary border-2 border-on-surface shadow-lg shadow-secondary/30" />
       {/* Ripple */}

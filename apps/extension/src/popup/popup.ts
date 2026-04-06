@@ -13,7 +13,7 @@ const scanBtn = document.getElementById("scanBtn") as HTMLButtonElement;
 let isScanning = false;
 
 // Load prefs + check scan status
-getPrefs().then(prefs => {
+getPrefs().then((prefs) => {
   activeToggle.checked = prefs.active;
   chatToggle.checked = prefs.chatUIEnabled;
   bridgeToggle.checked = prefs.bridgeEnabled;

@@ -95,10 +95,7 @@ export function createCard(
   return card;
 }
 
-export function editCard(
-  cardId: string,
-  updates: Partial<Pick<Card, "title" | "priority" | "due" | "tags">>,
-) {
+export function editCard(cardId: string, updates: Partial<Pick<Card, "title" | "priority" | "due" | "tags">>) {
   data = {
     ...data,
     cards: data.cards.map((c) => (c.id === cardId ? { ...c, ...updates } : c)),
@@ -112,9 +109,7 @@ export function moveCard(cardId: string, targetColumn: string) {
   const targetCards = getCardsForColumn(card.board_id, targetColumn);
   data = {
     ...data,
-    cards: data.cards.map((c) =>
-      c.id === cardId ? { ...c, column: targetColumn, position: targetCards.length } : c,
-    ),
+    cards: data.cards.map((c) => (c.id === cardId ? { ...c, column: targetColumn, position: targetCards.length } : c)),
   };
   save(data);
 }

@@ -41,12 +41,8 @@ export function ProtocolLog({ entries }: ProtocolLogProps) {
         return (
           <div key={entry.id} className="flex items-start gap-2 py-px">
             <span className="text-[11px] text-on-surface-variant/30 shrink-0">{time}</span>
-            <span className={`text-[11px] px-1 rounded-sm shrink-0 ${style}`}>
-              {entry.type}
-            </span>
-            <span className="text-on-surface-variant/60 break-all">
-              {formatPayload(entry)}
-            </span>
+            <span className={`text-[11px] px-1 rounded-sm shrink-0 ${style}`}>{entry.type}</span>
+            <span className="text-on-surface-variant/60 break-all">{formatPayload(entry)}</span>
           </div>
         );
       })}

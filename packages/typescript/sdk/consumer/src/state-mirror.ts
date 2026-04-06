@@ -18,16 +18,26 @@ export class StateMirror {
     this.version = patch.version;
   }
 
-  getTree(): SlopNode { return this.tree; }
-  getVersion(): number { return this.version; }
+  getTree(): SlopNode {
+    return this.tree;
+  }
+  getVersion(): number {
+    return this.version;
+  }
 
   private applyOp(op: PatchOp): void {
     const segments = op.path.split("/").filter(Boolean);
     if (segments.length === 0) return;
     switch (op.op) {
-      case "add": this.applyAdd(segments, op.value); break;
-      case "remove": this.applyRemove(segments); break;
-      case "replace": this.applyReplace(segments, op.value); break;
+      case "add":
+        this.applyAdd(segments, op.value);
+        break;
+      case "remove":
+        this.applyRemove(segments);
+        break;
+      case "replace":
+        this.applyReplace(segments, op.value);
+        break;
     }
   }
 
@@ -44,7 +54,7 @@ export class StateMirror {
         if (current === undefined) return null;
       } else {
         // Child ID lookup
-        const child = (current.children as SlopNode[])?.find(c => c.id === seg);
+        const child = (current.children as SlopNode[])?.find((c) => c.id === seg);
         if (!child) return null;
         current = child;
       }
@@ -107,7 +117,7 @@ export class StateMirror {
     let current: SlopNode = this.tree;
     for (const seg of segments) {
       if (NODE_FIELDS.has(seg)) continue; // skip field keywords
-      const child = current.children?.find(c => c.id === seg);
+      const child = current.children?.find((c) => c.id === seg);
       if (!child) return null;
       current = child;
     }

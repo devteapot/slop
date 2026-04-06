@@ -43,7 +43,10 @@ const distFiles = existsSync(distDir)
   ? readdirSync(distDir).filter((fileName) => fileName.endsWith(".whl") || fileName.endsWith(".tar.gz"))
   : [];
 
-if (!distFiles.some((fileName) => fileName.endsWith(".whl")) || !distFiles.some((fileName) => fileName.endsWith(".tar.gz"))) {
+if (
+  !distFiles.some((fileName) => fileName.endsWith(".whl")) ||
+  !distFiles.some((fileName) => fileName.endsWith(".tar.gz"))
+) {
   throw new Error(`Expected both sdist and wheel artifacts in ${distDir}.`);
 }
 

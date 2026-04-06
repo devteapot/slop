@@ -1,19 +1,13 @@
 import { Server } from "@modelcontextprotocol/sdk/server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { IssueTrackerStore } from "./store";
 import { createSeedData, createLargeSeedData } from "./seed";
 
 const store = new IssueTrackerStore();
 store.reset(process.env.BENCH_LARGE_DATASET ? createLargeSeedData() : createSeedData());
 
-const server = new Server(
-  { name: "issue-tracker-mcp", version: "1.0.0" },
-  { capabilities: { tools: {} } },
-);
+const server = new Server({ name: "issue-tracker-mcp", version: "1.0.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -169,10 +163,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const issues = store.listIssues(a.repo_id);
       const openCount = issues.filter((i) => i.status === "open").length;
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ ...repo, open_issues: openCount, total_issues: issues.length }),
-        }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ ...repo, open_issues: openCount, total_issues: issues.length }),
+          },
+        ],
       };
     }
 

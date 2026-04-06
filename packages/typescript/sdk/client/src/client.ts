@@ -1,8 +1,17 @@
 import { ProviderBase, diffNodes, AsyncActionResult } from "@slop-ai/core";
 import type {
-  SlopNode, PatchOp, ActionHandler, Action, ParamDef,
-  NodeDescriptor, SlopClient, SlopClientOptions, TaskHandle, InferParams,
-  SubscriptionFilter, Transport,
+  SlopNode,
+  PatchOp,
+  ActionHandler,
+  Action,
+  ParamDef,
+  NodeDescriptor,
+  SlopClient,
+  SlopClientOptions,
+  TaskHandle,
+  InferParams,
+  SubscriptionFilter,
+  Transport,
 } from "@slop-ai/core";
 
 interface Subscription {
@@ -67,7 +76,7 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
   asyncAction<P extends Record<string, ParamDef>>(
     params: P,
     fn: (params: InferParams<P>, task: TaskHandle) => Promise<unknown>,
-    options?: { label?: string; description?: string; cancelable?: boolean }
+    options?: { label?: string; description?: string; cancelable?: boolean },
   ): Action {
     return {
       estimate: "async" as const,
@@ -227,9 +236,7 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         break;
 
       case "query":
-        transport.send(
-          this.snapshotMessage(msg.id, { path: msg.path, depth: msg.depth, filter: msg.filter })
-        );
+        transport.send(this.snapshotMessage(msg.id, { path: msg.path, depth: msg.depth, filter: msg.filter }));
         break;
 
       case "invoke":
@@ -238,7 +245,10 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
     }
   }
 
-  private async handleInvoke(msg: { id: string; path: string; action: string; params?: Record<string, unknown> }, transport: Transport): Promise<void> {
+  private async handleInvoke(
+    msg: { id: string; path: string; action: string; params?: Record<string, unknown> },
+    transport: Transport,
+  ): Promise<void> {
     const result = await this.executeInvoke(msg);
     transport.send(result);
   }
@@ -260,8 +270,7 @@ function createScopedClient<S>(parent: SlopClientImpl<unknown>, prefix: string):
         };
       }
       if (prop === "scope") {
-        return (path: string, descriptor?: NodeDescriptor) =>
-          parent.scope(`${prefix}/${path}`, descriptor);
+        return (path: string, descriptor?: NodeDescriptor) => parent.scope(`${prefix}/${path}`, descriptor);
       }
       if (prop === "flush") {
         return () => parent.flush();

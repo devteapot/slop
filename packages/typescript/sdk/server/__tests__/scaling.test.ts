@@ -231,8 +231,6 @@ describe("SlopServer scaling", () => {
     const current = conn.currentTree();
     ids = current.tree.children?.map((c: any) => c.id) ?? [];
     expect(ids).toContain("counter");
-    expect(current.tree.children.find((c: any) => c.id === "counter").meta.summary).toBe(
-      "Count is 1"
-    );
+    expect(current.tree.children.find((c: any) => c.id === "counter").meta.summary).toBe("Count is 1");
   });
 });

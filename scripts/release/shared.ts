@@ -34,9 +34,7 @@ export function getReleaseVersion(input: string | undefined): string {
 
   const version = raw.startsWith("v") ? raw.slice(1) : raw;
   if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(version)) {
-    throw new Error(
-      `Invalid release version "${raw}". Expected a SemVer tag like v1.2.3 or v1.2.3-rc.1.`,
-    );
+    throw new Error(`Invalid release version "${raw}". Expected a SemVer tag like v1.2.3 or v1.2.3-rc.1.`);
   }
 
   return version;
@@ -71,10 +69,10 @@ export function toPep440(version: string): string {
 
   // Map common semver pre-release labels to PEP 440 equivalents
   const pep440 = pre
-    .replace(/^alpha\.?/,  "a")
-    .replace(/^beta\.?/,   "b")
-    .replace(/^rc\.?/,     "rc")
-    .replace(/\./g,        "");
+    .replace(/^alpha\.?/, "a")
+    .replace(/^beta\.?/, "b")
+    .replace(/^rc\.?/, "rc")
+    .replace(/\./g, "");
 
   return `${base}${pep440}`;
 }
@@ -96,11 +94,7 @@ export function writeJson(filePath: string, value: unknown): void {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-export function replaceVersionInToml(
-  fileContents: string,
-  version: string,
-  sectionHeader?: string,
-): string {
+export function replaceVersionInToml(fileContents: string, version: string, sectionHeader?: string): string {
   const pattern = sectionHeader
     ? new RegExp(`(\\[${escapeRegExp(sectionHeader)}\\][\\s\\S]*?^version = ")[^"]+(")`, "m")
     : /(^version = ")[^"]+(")/m;
@@ -174,9 +168,7 @@ export function sortPackagesForPublish(packages: WorkspacePackage[]): WorkspaceP
     );
 
     if (ready.length === 0) {
-      throw new Error(
-        `Unable to resolve package publish order for: ${[...pending.keys()].join(", ")}`,
-      );
+      throw new Error(`Unable to resolve package publish order for: ${[...pending.keys()].join(", ")}`);
     }
 
     ready.sort((a, b) => a.manifest.name.localeCompare(b.manifest.name));
@@ -196,12 +188,7 @@ export function updateInternalDependencyVersions(
   version: string,
   workspaceNames: Set<string>,
 ): void {
-  for (const sectionName of [
-    "dependencies",
-    "devDependencies",
-    "peerDependencies",
-    "optionalDependencies",
-  ] as const) {
+  for (const sectionName of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const) {
     const section = manifest[sectionName];
     if (!section) {
       continue;
@@ -215,12 +202,7 @@ export function updateInternalDependencyVersions(
   }
 }
 
-export function runCommand(
-  command: string,
-  args: string[],
-  cwd: string,
-  env: NodeJS.ProcessEnv = process.env,
-): void {
+export function runCommand(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env): void {
   const result = spawnSync(command, args, {
     cwd,
     env,
@@ -228,8 +210,6 @@ export function runCommand(
   });
 
   if (result.status !== 0) {
-    throw new Error(
-      `Command failed (${result.status ?? "unknown"}): ${command} ${args.join(" ")}`,
-    );
+    throw new Error(`Command failed (${result.status ?? "unknown"}): ${command} ${args.join(" ")}`);
   }
 }

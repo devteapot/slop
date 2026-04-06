@@ -1,13 +1,7 @@
 import type { CartItem as CartItemType, Product } from "../state";
 import { useDemo } from "../context";
 
-export function CartItemRow({
-  item,
-  product,
-}: {
-  item: CartItemType;
-  product: Product | undefined;
-}) {
+export function CartItemRow({ item, product }: { item: CartItemType; product: Product | undefined }) {
   const { mode, appState } = useDemo();
   const isInteractive = mode === "interactive";
   const subtotal = (product?.price ?? 0) * item.quantity;
@@ -16,9 +10,7 @@ export function CartItemRow({
     <div className="flex items-center gap-3 py-2">
       <div className="flex-1 min-w-0">
         <p className="text-sm text-on-surface truncate">{product?.name ?? "Unknown"}</p>
-        <p className="text-xs text-on-surface-variant font-mono">
-          ${product?.price.toFixed(2)} each
-        </p>
+        <p className="text-xs text-on-surface-variant font-mono">${product?.price.toFixed(2)} each</p>
       </div>
 
       {/* Quantity controls */}
@@ -30,9 +22,7 @@ export function CartItemRow({
         >
           -
         </button>
-        <span className="font-mono text-xs w-5 text-center text-on-surface">
-          {item.quantity}
-        </span>
+        <span className="font-mono text-xs w-5 text-center text-on-surface">{item.quantity}</span>
         <button
           onClick={() => isInteractive && appState.updateQuantity(item.productId, item.quantity + 1)}
           disabled={!isInteractive}
@@ -43,9 +33,7 @@ export function CartItemRow({
       </div>
 
       {/* Subtotal */}
-      <span className="font-mono text-sm text-primary w-16 text-right">
-        ${subtotal.toFixed(2)}
-      </span>
+      <span className="font-mono text-sm text-primary w-16 text-right">${subtotal.toFixed(2)}</span>
 
       {/* Remove */}
       <button

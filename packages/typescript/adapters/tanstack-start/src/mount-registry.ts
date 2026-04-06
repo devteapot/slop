@@ -2,15 +2,13 @@ import type { SlopServer } from "@slop-ai/server";
 import type { UiMountSession } from "./ui-mount";
 
 declare global {
-  var __slop_ui_mounts:
-    | WeakMap<SlopServer<unknown>, Map<string, UiMountSession>>
-    | undefined;
+  var __slop_ui_mounts: WeakMap<SlopServer<unknown>, Map<string, UiMountSession>> | undefined;
 }
 
-const activeMounts = (
-  globalThis.__slop_ui_mounts ??=
-    new WeakMap<SlopServer<unknown>, Map<string, UiMountSession>>()
-) as WeakMap<SlopServer, Map<string, UiMountSession>>;
+const activeMounts = (globalThis.__slop_ui_mounts ??= new WeakMap<
+  SlopServer<unknown>,
+  Map<string, UiMountSession>
+>()) as WeakMap<SlopServer, Map<string, UiMountSession>>;
 
 export function registerUiMountSession(
   slop: SlopServer,
@@ -23,11 +21,7 @@ export function registerUiMountSession(
   return existing;
 }
 
-export function unregisterUiMountSession(
-  slop: SlopServer,
-  mountPath: string,
-  session: UiMountSession,
-): void {
+export function unregisterUiMountSession(slop: SlopServer, mountPath: string, session: UiMountSession): void {
   const mounts = activeMounts.get(slop);
   if (!mounts) return;
   if (mounts.get(mountPath) === session) {
@@ -35,10 +29,7 @@ export function unregisterUiMountSession(
   }
 }
 
-export async function refreshMountedUi(
-  slop: SlopServer,
-  options?: { skipPath?: string },
-): Promise<void> {
+export async function refreshMountedUi(slop: SlopServer, options?: { skipPath?: string }): Promise<void> {
   const mounts = activeMounts.get(slop);
   if (!mounts || mounts.size === 0) return;
 

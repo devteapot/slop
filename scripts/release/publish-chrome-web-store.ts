@@ -11,9 +11,7 @@ if (!zipPath) {
 }
 
 if (!publisherId || !extensionId || !serviceAccountJson) {
-  throw new Error(
-    "CHROME_PUBLISHER_ID, CHROME_EXTENSION_ID, and CHROME_SERVICE_ACCOUNT_JSON are required.",
-  );
+  throw new Error("CHROME_PUBLISHER_ID, CHROME_EXTENSION_ID, and CHROME_SERVICE_ACCOUNT_JSON are required.");
 }
 
 type ServiceAccountCredentials = {
@@ -24,11 +22,7 @@ type ServiceAccountCredentials = {
 const credentials = JSON.parse(serviceAccountJson) as ServiceAccountCredentials;
 
 function base64Url(input: string | Buffer): string {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function createJwt(): string {
@@ -90,17 +84,14 @@ const accessToken = await getAccessToken();
 const itemName = `publishers/${publisherId}/items/${extensionId}`;
 const zipBuffer = readFileSync(zipPath);
 
-const uploadResponse = await fetch(
-  `https://chromewebstore.googleapis.com/upload/v2/${itemName}:upload`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/octet-stream",
-    },
-    body: zipBuffer,
+const uploadResponse = await fetch(`https://chromewebstore.googleapis.com/upload/v2/${itemName}:upload`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/octet-stream",
   },
-);
+  body: zipBuffer,
+});
 
 const uploadBody = await expectOk(uploadResponse, "Chrome Web Store upload");
 console.log("Uploaded extension package:", JSON.stringify(uploadBody));

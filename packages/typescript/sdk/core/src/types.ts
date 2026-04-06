@@ -56,15 +56,17 @@ export type ActionHandler = (params: Record<string, unknown>) => unknown | Promi
 
 export type ParamDef = string | { type: string; description?: string; enum?: readonly unknown[]; items?: JsonSchema };
 
-export type Action = ActionHandler | {
-  handler: ActionHandler;
-  params?: Record<string, ParamDef>;
-  label?: string;
-  description?: string;
-  dangerous?: boolean;
-  idempotent?: boolean;
-  estimate?: "instant" | "fast" | "slow" | "async";
-};
+export type Action =
+  | ActionHandler
+  | {
+      handler: ActionHandler;
+      params?: Record<string, ParamDef>;
+      label?: string;
+      description?: string;
+      dangerous?: boolean;
+      idempotent?: boolean;
+      estimate?: "instant" | "fast" | "slow" | "async";
+    };
 
 export interface ContentRef {
   type: "text" | "binary" | "stream";
@@ -106,13 +108,19 @@ export interface NodeDescriptor {
 
 // --- Type inference for action params ---
 
-type InferParam<T> = T extends "string" ? string
-  : T extends "number" ? number
-  : T extends "boolean" ? boolean
-  : T extends { type: "string" } ? string
-  : T extends { type: "number" } ? number
-  : T extends { type: "boolean" } ? boolean
-  : unknown;
+type InferParam<T> = T extends "string"
+  ? string
+  : T extends "number"
+    ? number
+    : T extends "boolean"
+      ? boolean
+      : T extends { type: "string" }
+        ? string
+        : T extends { type: "number" }
+          ? number
+          : T extends { type: "boolean" }
+            ? boolean
+            : unknown;
 
 export type InferParams<T> = { [K in keyof T]: InferParam<T[K]> };
 
@@ -151,7 +159,7 @@ export interface SlopClient<S = unknown> {
   asyncAction<P extends Record<string, ParamDef>>(
     params: P,
     fn: (params: InferParams<P>, task: TaskHandle) => Promise<unknown>,
-    options?: { label?: string; description?: string; cancelable?: boolean }
+    options?: { label?: string; description?: string; cancelable?: boolean },
   ): Action;
   flush(): void;
   stop(): void;

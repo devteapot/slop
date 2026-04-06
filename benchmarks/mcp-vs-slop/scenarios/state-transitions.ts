@@ -18,14 +18,14 @@ export const stateTransitions: Scenario = {
   name: "state-transitions",
   description: "Close an issue, verify state changed, reopen it, then close a different one",
   agentPrompt:
-    'Perform these steps in order:\n' +
-    '1. Close issue-1 in the frontend repo (the login form validation bug).\n' +
-    '2. Verify that issue-1 is now closed by checking its status.\n' +
-    '3. Actually, we still need that fix — reopen issue-1.\n' +
+    "Perform these steps in order:\n" +
+    "1. Close issue-1 in the frontend repo (the login form validation bug).\n" +
+    "2. Verify that issue-1 is now closed by checking its status.\n" +
+    "3. Actually, we still need that fix — reopen issue-1.\n" +
     '4. Add a comment from "agent" on issue-1 saying "Reopened — this is still a priority."\n' +
-    '5. Now close issue-5 instead (the deprecated API calls issue in frontend, labeled wontfix).\n' +
+    "5. Now close issue-5 instead (the deprecated API calls issue in frontend, labeled wontfix).\n" +
     '6. Add the "wontfix" label to issue-1 as well, since we\'re deprioritizing validation fixes.\n\n' +
-    'Complete all steps in order.',
+    "Complete all steps in order.",
 
   steps: [
     {

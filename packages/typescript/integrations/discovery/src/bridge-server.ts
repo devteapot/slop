@@ -22,15 +22,8 @@ export interface BridgeServerOptions {
  * Accepts connections from the browser extension and other consumers,
  * tracks provider announcements, and relays SLOP messages for postMessage providers.
  */
-export function createBridgeServer(
-  options: BridgeServerOptions = {},
-): Bridge & { start(): Promise<void> } {
-  const {
-    logger: log,
-    host,
-    port,
-    path,
-  } = normalizeOptions(options);
+export function createBridgeServer(options: BridgeServerOptions = {}): Bridge & { start(): Promise<void> } {
+  const { logger: log, host, port, path } = normalizeOptions(options);
 
   let wss: WebSocketServer | null = null;
   let isRunning = false;

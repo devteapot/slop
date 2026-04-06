@@ -33,7 +33,8 @@ import type { IssueTrackerStore } from "../app/store";
  */
 export const complexWorkflow: Scenario = {
   name: "complex-workflow",
-  description: "Sprint planning: find busiest repo, pick top bugs, assign to least-loaded person, summarize, label, clean up",
+  description:
+    "Sprint planning: find busiest repo, pick top bugs, assign to least-loaded person, summarize, label, clean up",
   agentPrompt:
     "I'm preparing for sprint planning. Help me with the following:\n\n" +
     "1. Find which repository has the most open, unassigned bugs (issues with the 'bug' label that have no assignee).\n" +
@@ -67,9 +68,7 @@ export const complexWorkflow: Scenario = {
     // So alice has the fewest → should be assigned.
 
     // Find which issues got the sprint-candidate label
-    const sprintCandidates = store.issues.filter((i) =>
-      i.labels.includes("sprint-candidate"),
-    );
+    const sprintCandidates = store.issues.filter((i) => i.labels.includes("sprint-candidate"));
 
     // Find which repo the agent chose (the one with sprint-candidate issues)
     const chosenRepoId = sprintCandidates.length > 0 ? sprintCandidates[0].repoId : null;
@@ -83,9 +82,7 @@ export const complexWorkflow: Scenario = {
       },
       {
         name: "Both sprint candidates are from the same repo",
-        passed:
-          sprintCandidates.length === 2 &&
-          sprintCandidates[0].repoId === sprintCandidates[1].repoId,
+        passed: sprintCandidates.length === 2 && sprintCandidates[0].repoId === sprintCandidates[1].repoId,
         detail: sprintCandidates.map((i) => `${i.id}@${i.repoId}`).join(", "),
       },
       {
@@ -98,10 +95,7 @@ export const complexWorkflow: Scenario = {
     // If there's a security+bug issue in the chosen repo, it should be one of the candidates
     if (chosenRepoId) {
       const securityBugs = store.issues.filter(
-        (i) =>
-          i.repoId === chosenRepoId &&
-          i.labels.includes("bug") &&
-          i.labels.includes("security"),
+        (i) => i.repoId === chosenRepoId && i.labels.includes("bug") && i.labels.includes("security"),
       );
       if (securityBugs.length > 0) {
         checks.push({
@@ -136,17 +130,13 @@ export const complexWorkflow: Scenario = {
       checks.push({
         name: `${candidate.id} has agent comment`,
         passed: agentComment !== undefined,
-        detail: agentComment
-          ? `"${agentComment.body.slice(0, 50)}..."`
-          : "no agent comment",
+        detail: agentComment ? `"${agentComment.body.slice(0, 50)}..."` : "no agent comment",
       });
     }
 
     // Wontfix issues in the chosen repo should be closed
     if (chosenRepoId) {
-      const wontfixInRepo = store.issues.filter(
-        (i) => i.repoId === chosenRepoId && i.labels.includes("wontfix"),
-      );
+      const wontfixInRepo = store.issues.filter((i) => i.repoId === chosenRepoId && i.labels.includes("wontfix"));
       for (const wf of wontfixInRepo) {
         checks.push({
           name: `${wf.id} (wontfix in ${chosenRepoId}) closed`,

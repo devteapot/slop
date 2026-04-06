@@ -59,12 +59,7 @@ function calcPupilTransform(
 function checkCrossEyed(svg: SVGSVGElement): boolean {
   const leftInner = toScreenCoords(svg, 67, 40);
   const rightInner = toScreenCoords(svg, 86, 80);
-  return (
-    mouseX >= leftInner.x &&
-    mouseX <= rightInner.x &&
-    mouseY >= leftInner.y &&
-    mouseY <= rightInner.y
-  );
+  return mouseX >= leftInner.x && mouseX <= rightInner.x && mouseY >= leftInner.y && mouseY <= rightInner.y;
 }
 
 // ---- Track pupils for a given sloppy container ----
@@ -78,7 +73,10 @@ function updatePupilsFor(container: HTMLElement, svg: SVGSVGElement) {
 
   if (isCrossEyed) {
     leftPupil.setAttribute("transform", calcPupilTransform(svg, LEFT_EYE, LEFT_PUPIL_DEFAULT, CROSS_PUPIL_OFFSET, 0));
-    rightPupil.setAttribute("transform", calcPupilTransform(svg, RIGHT_EYE, RIGHT_PUPIL_DEFAULT, -CROSS_PUPIL_OFFSET, 0));
+    rightPupil.setAttribute(
+      "transform",
+      calcPupilTransform(svg, RIGHT_EYE, RIGHT_PUPIL_DEFAULT, -CROSS_PUPIL_OFFSET, 0),
+    );
     container.classList.add("cross-eyed");
     if (!container.dataset.angryHover) {
       container.classList.remove("angry");

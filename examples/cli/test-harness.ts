@@ -194,7 +194,7 @@ function assertEq(actual: any, expected: any, name: string) {
   assert(
     JSON.stringify(actual) === JSON.stringify(expected),
     name,
-    `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
+    `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
   );
 }
 
@@ -202,7 +202,7 @@ function assertIncludes(arr: any[], value: any, name: string) {
   assert(
     arr.some((v) => JSON.stringify(v) === JSON.stringify(value)),
     name,
-    `${JSON.stringify(value)} not found in array`
+    `${JSON.stringify(value)} not found in array`,
   );
 }
 
@@ -358,7 +358,7 @@ async function runTests(lang: string) {
     console.log("\n  \x1b[1mComplete task\x1b[0m");
     // Find a pending task to complete
     const pendingTask = updatedTasks?.children?.find(
-      (c: any) => c.properties?.done === false && findAffordance(c, "done")
+      (c: any) => c.properties?.done === false && findAffordance(c, "done"),
     );
     if (pendingTask) {
       client.send({
@@ -405,13 +405,10 @@ async function runTests(lang: string) {
     const notesResult = await client.waitForType("result");
     assertEq(notesResult.id, "inv-notes", "read_notes result has correct id");
     assertEq(notesResult.status, "ok", "read_notes succeeds");
-    assert(
-      notesResult.data?.content != null && notesResult.data.content.length > 0,
-      "read_notes returns content"
-    );
+    assert(notesResult.data?.content != null && notesResult.data.content.length > 0, "read_notes returns content");
     assert(
       notesResult.data?.content?.includes("Milk") || notesResult.data?.content?.includes("milk"),
-      "notes content matches seed data for t-1"
+      "notes content matches seed data for t-1",
     );
 
     // --- Test 7: Search ---
@@ -455,7 +452,6 @@ async function runTests(lang: string) {
     client.send({ type: "unsubscribe", id: "s1" });
     // No response expected for unsubscribe, just verify no crash
     assert(true, "unsubscribe sent without error");
-
   } catch (err: any) {
     console.log(`  \x1b[31m✗ Error: ${err.message}\x1b[0m`);
     failed++;
@@ -484,9 +480,7 @@ async function main() {
     await runTests(lang);
   }
 
-  console.log(
-    `\n\x1b[1mResults: ${passed} passed, ${failed} failed\x1b[0m`
-  );
+  console.log(`\n\x1b[1mResults: ${passed} passed, ${failed} failed\x1b[0m`);
   if (failures.length > 0) {
     console.log("\nFailures:");
     for (const f of failures) {

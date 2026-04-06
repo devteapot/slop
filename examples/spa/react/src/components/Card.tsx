@@ -34,9 +34,7 @@ export default function CardItem({ card, allColumns, onMove, onDelete, onOpenDet
       onClick={() => onOpenDetail(card.id)}
     >
       <div className="card-header">
-        <span className={`card-priority priority-${card.priority}`}>
-          {PRIORITY_LABELS[card.priority]}
-        </span>
+        <span className={`card-priority priority-${card.priority}`}>{PRIORITY_LABELS[card.priority]}</span>
         <button
           className="card-menu-btn"
           onClick={(e) => {
@@ -51,15 +49,13 @@ export default function CardItem({ card, allColumns, onMove, onDelete, onOpenDet
       <h3 className="card-title">{card.title}</h3>
 
       <div className="card-footer">
-        {card.due && (
-          <span className={`card-due ${isOverdue ? "overdue" : ""}`}>
-            {formatDue(card.due)}
-          </span>
-        )}
+        {card.due && <span className={`card-due ${isOverdue ? "overdue" : ""}`}>{formatDue(card.due)}</span>}
         {card.tags.length > 0 && (
           <div className="card-tags">
             {card.tags.map((tag) => (
-              <span key={tag} className="card-tag">{tag}</span>
+              <span key={tag} className="card-tag">
+                {tag}
+              </span>
             ))}
           </div>
         )}

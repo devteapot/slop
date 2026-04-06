@@ -27,9 +27,7 @@ interface TreePanelProps {
 }
 
 export function TreePanel({ tree, changedPaths, onInvoke }: TreePanelProps) {
-  return (
-    <TreeNode node={tree} depth={0} changedPaths={changedPaths} currentPath="" onInvoke={onInvoke} />
-  );
+  return <TreeNode node={tree} depth={0} changedPaths={changedPaths} currentPath="" onInvoke={onInvoke} />;
 }
 
 function TreeNode({
@@ -63,9 +61,7 @@ function TreeNode({
     <div>
       {/* Main row */}
       <div
-        className={`flex items-center gap-1.5 py-px rounded-sm cursor-default group ${
-          isChanged ? "flash-change" : ""
-        }`}
+        className={`flex items-center gap-1.5 py-px rounded-sm cursor-default group ${isChanged ? "flash-change" : ""}`}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
         onClick={() => expandable && setCollapsed(!collapsed)}
       >
@@ -128,10 +124,7 @@ function TreeNode({
 
           {/* Affordance buttons */}
           {hasAffordances && (
-            <div
-              className="flex flex-wrap gap-1 py-px"
-              style={{ paddingLeft: `${depth * 16 + 26}px` }}
-            >
+            <div className="flex flex-wrap gap-1 py-px" style={{ paddingLeft: `${depth * 16 + 26}px` }}>
               {node.affordances!.map((a) => (
                 <ActionButton
                   key={a.action}

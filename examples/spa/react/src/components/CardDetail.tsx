@@ -36,14 +36,21 @@ export default function CardDetail({ card, columns, onEdit, onMove, onDelete, on
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") { setTitleDraft(card.title); setEditingTitle(false); }
+                if (e.key === "Escape") {
+                  setTitleDraft(card.title);
+                  setEditingTitle(false);
+                }
               }}
               autoFocus
             />
           ) : (
-            <h2 className="modal-title" onClick={() => setEditingTitle(true)}>{card.title}</h2>
+            <h2 className="modal-title" onClick={() => setEditingTitle(true)}>
+              {card.title}
+            </h2>
           )}
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">
@@ -63,13 +70,11 @@ export default function CardDetail({ card, columns, onEdit, onMove, onDelete, on
 
           <div className="detail-row">
             <span className="detail-label">COLUMN</span>
-            <select
-              className="detail-select"
-              value={card.column}
-              onChange={(e) => onMove(e.target.value)}
-            >
+            <select className="detail-select" value={card.column} onChange={(e) => onMove(e.target.value)}>
               {columns.map((col) => (
-                <option key={col} value={col}>{col}</option>
+                <option key={col} value={col}>
+                  {col}
+                </option>
               ))}
             </select>
           </div>
@@ -80,7 +85,7 @@ export default function CardDetail({ card, columns, onEdit, onMove, onDelete, on
               className="detail-input"
               type="date"
               value={card.due || ""}
-              onChange={(e) => onEdit({ due: e.target.value || null as unknown as string })}
+              onChange={(e) => onEdit({ due: e.target.value || (null as unknown as string) })}
             />
           </div>
 
@@ -92,7 +97,12 @@ export default function CardDetail({ card, columns, onEdit, onMove, onDelete, on
               value={card.tags.join(", ")}
               placeholder="tag1, tag2, ..."
               onChange={(e) =>
-                onEdit({ tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })
+                onEdit({
+                  tags: e.target.value
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean),
+                })
               }
             />
           </div>
@@ -132,7 +142,10 @@ export default function CardDetail({ card, columns, onEdit, onMove, onDelete, on
             ) : (
               <div
                 className="desc-preview"
-                onClick={() => { setDescDraft(card.description); setEditingDesc(true); }}
+                onClick={() => {
+                  setDescDraft(card.description);
+                  setEditingDesc(true);
+                }}
               >
                 {card.description ? (
                   <pre className="desc-content">{card.description}</pre>
@@ -145,7 +158,9 @@ export default function CardDetail({ card, columns, onEdit, onMove, onDelete, on
         </div>
 
         <div className="modal-footer">
-          <button className="btn-danger" onClick={onDelete}>Delete Card</button>
+          <button className="btn-danger" onClick={onDelete}>
+            Delete Card
+          </button>
         </div>
       </div>
     </div>

@@ -1,6 +1,14 @@
 import type {
-  SlopNode, Affordance, JsonSchema, ActionHandler, NodeMeta, ContentRef,
-  NodeDescriptor, ItemDescriptor, Action, ParamDef,
+  SlopNode,
+  Affordance,
+  JsonSchema,
+  ActionHandler,
+  NodeMeta,
+  ContentRef,
+  NodeDescriptor,
+  ItemDescriptor,
+  Action,
+  ParamDef,
 } from "./types";
 
 export interface NormalizationResult {
@@ -12,11 +20,7 @@ export interface NormalizationResult {
  * Convert a developer-friendly NodeDescriptor into a wire-format SlopNode
  * and extract action handlers into a flat map keyed by "{path}/{action}".
  */
-export function normalizeDescriptor(
-  path: string,
-  id: string,
-  descriptor: NodeDescriptor
-): NormalizationResult {
+export function normalizeDescriptor(path: string, id: string, descriptor: NodeDescriptor): NormalizationResult {
   const handlers = new Map<string, ActionHandler>();
   const children: SlopNode[] = [];
 
@@ -48,9 +52,7 @@ export function normalizeDescriptor(
   if (descriptor.children) {
     for (const [childId, childDesc] of Object.entries(descriptor.children)) {
       const childPath = path ? `${path}/${childId}` : childId;
-      const { node: childNode, handlers: childHandlers } = normalizeDescriptor(
-        childPath, childId, childDesc
-      );
+      const { node: childNode, handlers: childHandlers } = normalizeDescriptor(childPath, childId, childDesc);
       children.push(childNode);
       for (const [k, v] of childHandlers) handlers.set(k, v);
     }
@@ -83,10 +85,7 @@ export function normalizeDescriptor(
   return { node, handlers };
 }
 
-function normalizeItem(
-  path: string,
-  item: ItemDescriptor
-): NormalizationResult {
+function normalizeItem(path: string, item: ItemDescriptor): NormalizationResult {
   const handlers = new Map<string, ActionHandler>();
   const children: SlopNode[] = [];
 
@@ -130,7 +129,7 @@ function normalizeItem(
 function normalizeActions(
   path: string,
   actions: Record<string, Action> | undefined,
-  handlers: Map<string, ActionHandler>
+  handlers: Map<string, ActionHandler>,
 ): Affordance[] {
   if (!actions) return [];
   const affordances: Affordance[] = [];

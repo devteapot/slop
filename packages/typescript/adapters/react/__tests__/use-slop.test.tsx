@@ -72,7 +72,11 @@ describe("useSlop", () => {
     const client = createMockClient();
 
     function Harness({ path }: { path: string }) {
-      useSlop(client, () => path, () => ({ type: "collection", props: { path } }));
+      useSlop(
+        client,
+        () => path,
+        () => ({ type: "collection", props: { path } }),
+      );
       return null;
     }
 

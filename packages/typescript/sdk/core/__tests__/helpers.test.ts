@@ -47,33 +47,23 @@ describe("omit", () => {
 
 describe("action", () => {
   test("creates action with typed params and handler", () => {
-    const a = action(
-      { title: "string", count: "number" },
-      ({ title, count }) => {
-        // TypeScript should infer: title: string, count: number
-        return { title, count };
-      }
-    );
+    const a = action({ title: "string", count: "number" }, ({ title, count }) => {
+      // TypeScript should infer: title: string, count: number
+      return { title, count };
+    });
     expect(typeof a).toBe("object");
     expect((a as any).params).toEqual({ title: "string", count: "number" });
     expect(typeof (a as any).handler).toBe("function");
   });
 
   test("handler receives params and can use them", () => {
-    const a = action(
-      { name: "string" },
-      ({ name }) => `Hello ${name}`
-    );
+    const a = action({ name: "string" }, ({ name }) => `Hello ${name}`);
     const result = (a as any).handler({ name: "World" });
     expect(result).toBe("Hello World");
   });
 
   test("supports options", () => {
-    const a = action(
-      { id: "string" },
-      () => {},
-      { label: "Delete", dangerous: true }
-    );
+    const a = action({ id: "string" }, () => {}, { label: "Delete", dangerous: true });
     expect((a as any).label).toBe("Delete");
     expect((a as any).dangerous).toBe(true);
   });
@@ -87,11 +77,7 @@ describe("action", () => {
   });
 
   test("action with estimate", () => {
-    const a = action(
-      { env: "string" },
-      () => {},
-      { estimate: "async" }
-    );
+    const a = action({ env: "string" }, () => {}, { estimate: "async" });
     expect((a as any).estimate).toBe("async");
   });
 });

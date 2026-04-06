@@ -82,5 +82,9 @@ Use **slop_query** on this node's path to resolve the full node and discover its
  * Combines the domain-agnostic SLOP concepts with the app's current state.
  */
 export function buildSlopSystemPrompt(stateContext: string): string {
-  return SLOP_SYSTEM_PROMPT + stateContext + "\n\nComplete the task using the available tools. When done, respond with \"DONE\".";
+  return (
+    SLOP_SYSTEM_PROMPT +
+    stateContext +
+    '\n\nComplete the task using the available tools. When done, respond with "DONE".'
+  );
 }

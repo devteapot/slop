@@ -93,12 +93,8 @@ export function TreePanel() {
     <div className="flex flex-col h-full bg-surface-lowest overflow-hidden">
       {/* Header */}
       <div className="px-3 flex items-center h-10 bg-surface-container">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">
-          State Tree
-        </span>
-        <span className="font-mono text-[10px] text-on-surface-variant ml-2">
-          v{version}
-        </span>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">State Tree</span>
+        <span className="font-mono text-[10px] text-on-surface-variant ml-2">v{version}</span>
       </div>
 
       {/* Tree */}

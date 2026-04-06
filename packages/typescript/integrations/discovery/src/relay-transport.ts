@@ -48,7 +48,9 @@ export class BridgeRelayTransport implements ClientTransport {
     const RETRY_DELAY = 300;
     const MAX_RETRIES = 3;
     let gotResponse = false;
-    const sentinel = () => { gotResponse = true; };
+    const sentinel = () => {
+      gotResponse = true;
+    };
     messageHandlers.push(sentinel);
 
     for (let attempt = 0; attempt <= MAX_RETRIES && !gotResponse; attempt++) {

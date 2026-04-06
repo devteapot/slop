@@ -17,11 +17,10 @@ export type ExtractPaths<S> = S extends string
     : string; // fallback: no schema = any string
 
 /** Extract the sub-schema at a given path */
-export type ExtractSubSchema<S, P extends string> =
-  P extends `${infer Head}/${infer Rest}`
-    ? Head extends keyof S
-      ? ExtractSubSchema<S[Head], Rest>
-      : unknown
-    : P extends keyof S
-      ? S[P]
-      : unknown;
+export type ExtractSubSchema<S, P extends string> = P extends `${infer Head}/${infer Rest}`
+  ? Head extends keyof S
+    ? ExtractSubSchema<S[Head], Rest>
+    : unknown
+  : P extends keyof S
+    ? S[P]
+    : unknown;

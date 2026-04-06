@@ -1,11 +1,6 @@
 import type { ChatMessage } from "@slop-ai/consumer/browser";
 import { formatTree, affordancesToTools } from "@slop-ai/consumer/browser";
-import type {
-  BackgroundMessage,
-  BridgeMessageFromDesktop,
-  ProviderMessage,
-  ProviderSpec,
-} from "../types";
+import type { BackgroundMessage, BridgeMessageFromDesktop, ProviderMessage, ProviderSpec } from "../types";
 import { Session } from "./session";
 import { initConversation, runTurn } from "./chat-engine";
 import * as bridge from "./bridge-client";
@@ -71,10 +66,7 @@ export function teardown(tabId: number): void {
   lastStatus.delete(tabId);
 }
 
-export function setDiscoveries(
-  tabId: number,
-  providers: ProviderSpec[],
-): void {
+export function setDiscoveries(tabId: number, providers: ProviderSpec[]): void {
   const entry = tabs.get(tabId);
   if (!entry) return;
 

@@ -138,7 +138,13 @@ async function run() {
   // Test: invoke search
   console.log(`\n=== TEST: search for "auth" ===\n`);
   const searchId = `search-${Date.now()}`;
-  send({ type: "invoke", id: searchId, path: snapshot.tree.children?.[0]?.id || "board-1", action: "search", params: { query: "auth" } });
+  send({
+    type: "invoke",
+    id: searchId,
+    path: snapshot.tree.children?.[0]?.id || "board-1",
+    action: "search",
+    params: { query: "auth" },
+  });
   const searchResult = await waitForMessage("result", searchId);
   console.log("Search result:", JSON.stringify(searchResult.data, null, 2));
 

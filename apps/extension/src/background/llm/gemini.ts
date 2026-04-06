@@ -87,9 +87,7 @@ function parseArguments(raw: string | undefined): Record<string, unknown> {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
   } catch {
     return {};
   }
@@ -98,7 +96,7 @@ function parseArguments(raw: string | undefined): Record<string, unknown> {
 export async function geminiChatCompletion(
   profile: LlmProfile,
   messages: ChatMessage[],
-  tools: LlmTool[]
+  tools: LlmTool[],
 ): Promise<ChatMessage> {
   const baseUrl = profile.endpoint || "https://generativelanguage.googleapis.com";
   const url = `${baseUrl}/v1beta/models/${profile.model}:generateContent?key=${profile.apiKey}`;
@@ -215,8 +213,7 @@ export async function geminiChatCompletion(
     .filter((part): part is { text: string } => typeof part.text === "string")
     .map((part) => part.text);
   const functionCalls = parts.filter(
-    (part): part is { functionCall: { name: string; args?: Record<string, unknown> } } =>
-      !!part.functionCall,
+    (part): part is { functionCall: { name: string; args?: Record<string, unknown> } } => !!part.functionCall,
   );
 
   const result: ChatMessage = {
@@ -236,8 +233,10 @@ export async function geminiChatCompletion(
         const responseSorted = geminiName.split("_").filter(Boolean).sort();
         for (const [gname, original] of geminiToName) {
           const candidateSorted = gname.split("_").filter(Boolean).sort();
-          if (candidateSorted.length === responseSorted.length &&
-              candidateSorted.every((s, i) => s === responseSorted[i])) {
+          if (
+            candidateSorted.length === responseSorted.length &&
+            candidateSorted.every((s, i) => s === responseSorted[i])
+          ) {
             originalName = original;
             break;
           }
@@ -251,13 +250,13 @@ export async function geminiChatCompletion(
 
       return {
         id: originalName,
-          type: "function" as const,
-          function: {
-            name: originalName,
-            arguments: JSON.stringify(fc.functionCall.args ?? {}),
-          },
-        };
-      });
+        type: "function" as const,
+        function: {
+          name: originalName,
+          arguments: JSON.stringify(fc.functionCall.args ?? {}),
+        },
+      };
+    });
   }
 
   return result;

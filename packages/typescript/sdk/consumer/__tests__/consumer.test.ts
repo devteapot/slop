@@ -11,10 +11,18 @@ function mockTransport() {
   const transport = {
     connect: () =>
       Promise.resolve({
-        send(msg: SlopMessage) { sent.push(msg); },
-        onMessage(fn: (msg: SlopMessage) => void) { handler = fn; },
-        onClose(fn: () => void) { closeHandler = fn; },
-        close() { closeHandler?.(); },
+        send(msg: SlopMessage) {
+          sent.push(msg);
+        },
+        onMessage(fn: (msg: SlopMessage) => void) {
+          handler = fn;
+        },
+        onClose(fn: () => void) {
+          closeHandler = fn;
+        },
+        close() {
+          closeHandler?.();
+        },
       }),
   };
 
@@ -26,7 +34,7 @@ function mockTransport() {
   return { transport, sent, inject };
 }
 
-const tick = () => new Promise(r => setTimeout(r, 0));
+const tick = () => new Promise((r) => setTimeout(r, 0));
 
 async function setupConsumer() {
   const { transport, sent, inject } = mockTransport();

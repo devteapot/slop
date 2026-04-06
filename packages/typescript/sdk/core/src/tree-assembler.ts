@@ -13,7 +13,7 @@ export interface AssemblyResult {
 export function assembleTree(
   registrations: Map<string, NodeDescriptor>,
   rootId: string,
-  rootName: string
+  rootName: string,
 ): AssemblyResult {
   const allHandlers = new Map<string, ActionHandler>();
   const nodesByPath = new Map<string, SlopNode>();
@@ -70,11 +70,7 @@ function getParentPath(path: string): string {
  * Ensure a node exists at the given path, creating synthetic placeholders
  * as needed for missing ancestors.
  */
-function ensureNode(
-  path: string,
-  nodesByPath: Map<string, SlopNode>,
-  root: SlopNode
-): SlopNode {
+function ensureNode(path: string, nodesByPath: Map<string, SlopNode>, root: SlopNode): SlopNode {
   // Already exists
   const existing = nodesByPath.get(path);
   if (existing) return existing;

@@ -56,23 +56,83 @@ export type JsonSchema = {
 
 // Messages
 
-export interface SubscribeMessage { type: "subscribe"; id: string; path?: string; depth?: number; }
-export interface UnsubscribeMessage { type: "unsubscribe"; id: string; }
-export interface QueryMessage { type: "query"; id: string; path?: string; depth?: number; }
-export interface InvokeMessage { type: "invoke"; id: string; path: string; action: string; params?: Record<string, unknown>; }
+export interface SubscribeMessage {
+  type: "subscribe";
+  id: string;
+  path?: string;
+  depth?: number;
+}
+export interface UnsubscribeMessage {
+  type: "unsubscribe";
+  id: string;
+}
+export interface QueryMessage {
+  type: "query";
+  id: string;
+  path?: string;
+  depth?: number;
+}
+export interface InvokeMessage {
+  type: "invoke";
+  id: string;
+  path: string;
+  action: string;
+  params?: Record<string, unknown>;
+}
 
 export type ConsumerMessage = SubscribeMessage | UnsubscribeMessage | QueryMessage | InvokeMessage;
 
-export interface HelloMessage { type: "hello"; provider: { id: string; name: string; slop_version: string; capabilities: string[]; }; }
-export interface SnapshotMessage { type: "snapshot"; id: string; version: number; tree: SlopNode; }
-export interface PatchOp { op: "add" | "remove" | "replace"; path: string; value?: unknown; }
-export interface PatchMessage { type: "patch"; subscription: string; version: number; ops: PatchOp[]; }
-export interface ResultMessage { type: "result"; id: string; status: "ok" | "error" | "accepted"; data?: unknown; error?: { code: string; message: string }; }
-export interface ErrorMessage { type: "error"; id?: string; error: { code: string; message: string }; }
-export interface EventMessage { type: "event"; name: string; data?: unknown; }
-export interface BatchMessage { type: "batch"; messages: ProviderMessage[]; }
+export interface HelloMessage {
+  type: "hello";
+  provider: { id: string; name: string; slop_version: string; capabilities: string[] };
+}
+export interface SnapshotMessage {
+  type: "snapshot";
+  id: string;
+  version: number;
+  tree: SlopNode;
+}
+export interface PatchOp {
+  op: "add" | "remove" | "replace";
+  path: string;
+  value?: unknown;
+}
+export interface PatchMessage {
+  type: "patch";
+  subscription: string;
+  version: number;
+  ops: PatchOp[];
+}
+export interface ResultMessage {
+  type: "result";
+  id: string;
+  status: "ok" | "error" | "accepted";
+  data?: unknown;
+  error?: { code: string; message: string };
+}
+export interface ErrorMessage {
+  type: "error";
+  id?: string;
+  error: { code: string; message: string };
+}
+export interface EventMessage {
+  type: "event";
+  name: string;
+  data?: unknown;
+}
+export interface BatchMessage {
+  type: "batch";
+  messages: ProviderMessage[];
+}
 
-export type ProviderMessage = HelloMessage | SnapshotMessage | PatchMessage | ResultMessage | ErrorMessage | EventMessage | BatchMessage;
+export type ProviderMessage =
+  | HelloMessage
+  | SnapshotMessage
+  | PatchMessage
+  | ResultMessage
+  | ErrorMessage
+  | EventMessage
+  | BatchMessage;
 export type SlopMessage = ConsumerMessage | ProviderMessage;
 
 // Transport

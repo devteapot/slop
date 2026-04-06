@@ -20,7 +20,7 @@ function createClient() {
 }
 
 function delay(ms: number) {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 function findNode(root: SlopNode, id: string): SlopNode | null {
@@ -35,10 +35,7 @@ function findNode(root: SlopNode, id: string): SlopNode | null {
 describe("asyncAction", () => {
   test("returns an Action with estimate 'async'", () => {
     const client = createClient();
-    const a = client.asyncAction(
-      { env: "string" },
-      async () => {},
-    );
+    const a = client.asyncAction({ env: "string" }, async () => {});
     expect((a as any).estimate).toBe("async");
     expect(typeof (a as any).handler).toBe("function");
   });
@@ -61,7 +58,7 @@ describe("asyncAction", () => {
         await delay(10);
         return { done: true };
       },
-      { label: "Deploy" }
+      { label: "Deploy" },
     );
 
     const result = (a as any).handler({ env: "prod" });
@@ -76,16 +73,15 @@ describe("asyncAction", () => {
   test("task completes and sets status to done", async () => {
     const client = createClient();
     let resolveWork: () => void;
-    const workDone = new Promise<void>(r => { resolveWork = r; });
+    const workDone = new Promise<void>((r) => {
+      resolveWork = r;
+    });
 
-    const a = client.asyncAction(
-      {},
-      async (_params, task) => {
-        task.update(0.5, "Working...");
-        await delay(20);
-        return { result: "success" };
-      },
-    );
+    const a = client.asyncAction({}, async (_params, task) => {
+      task.update(0.5, "Working...");
+      await delay(20);
+      return { result: "success" };
+    });
 
     (a as any).handler({});
 
@@ -99,12 +95,9 @@ describe("asyncAction", () => {
 
   test("task fails and sets status to failed", async () => {
     const client = createClient();
-    const a = client.asyncAction(
-      {},
-      async () => {
-        throw new Error("Deploy exploded");
-      },
-    );
+    const a = client.asyncAction({}, async () => {
+      throw new Error("Deploy exploded");
+    });
 
     (a as any).handler({});
     await delay(20);
@@ -126,7 +119,7 @@ describe("asyncAction", () => {
         completionOrder.push("fast");
         return { speed: "fast" };
       },
-      { label: "Fast task" }
+      { label: "Fast task" },
     );
 
     const slow = client.asyncAction(
@@ -139,7 +132,7 @@ describe("asyncAction", () => {
         completionOrder.push("slow");
         return { speed: "slow" };
       },
-      { label: "Slow task" }
+      { label: "Slow task" },
     );
 
     const medium = client.asyncAction(
@@ -150,7 +143,7 @@ describe("asyncAction", () => {
         completionOrder.push("medium");
         return { speed: "medium" };
       },
-      { label: "Medium task" }
+      { label: "Medium task" },
     );
 
     // Start all three at the same time
@@ -185,7 +178,7 @@ describe("asyncAction", () => {
         await delay(60);
         completionOrder.push("A");
       },
-      { label: "Task A" }
+      { label: "Task A" },
     );
 
     const taskB = client.asyncAction(
@@ -195,7 +188,7 @@ describe("asyncAction", () => {
         await delay(30);
         completionOrder.push("B");
       },
-      { label: "Task B" }
+      { label: "Task B" },
     );
 
     const taskC = client.asyncAction(
@@ -205,7 +198,7 @@ describe("asyncAction", () => {
         await delay(10);
         completionOrder.push("C");
       },
-      { label: "Task C" }
+      { label: "Task C" },
     );
 
     // Start A first (longest), then B after 10ms, then C after 20ms
@@ -263,12 +256,14 @@ describe("asyncAction", () => {
     const a = client.asyncAction(
       {},
       async (_params, task) => {
-        task.signal.addEventListener("abort", () => { wasAborted = true; });
+        task.signal.addEventListener("abort", () => {
+          wasAborted = true;
+        });
         task.update(0, "Running...");
         await delay(100);
         return "done";
       },
-      { cancelable: true }
+      { cancelable: true },
     );
 
     (a as any).handler({});
@@ -292,20 +287,17 @@ describe("asyncAction", () => {
       origRegister(path, desc);
     };
 
-    const a = client.asyncAction(
-      {},
-      async (_params, task) => {
-        task.update(0, "Starting");
-        await delay(5);
-        task.update(0.25, "Quarter done");
-        await delay(5);
-        task.update(0.5, "Halfway");
-        await delay(5);
-        task.update(0.75, "Almost done");
-        await delay(5);
-        return "done";
-      },
-    );
+    const a = client.asyncAction({}, async (_params, task) => {
+      task.update(0, "Starting");
+      await delay(5);
+      task.update(0.25, "Quarter done");
+      await delay(5);
+      task.update(0.5, "Halfway");
+      await delay(5);
+      task.update(0.75, "Almost done");
+      await delay(5);
+      return "done";
+    });
 
     (a as any).handler({});
     await delay(50);
@@ -315,7 +307,7 @@ describe("asyncAction", () => {
     expect(progressLog.length).toBeGreaterThanOrEqual(5);
 
     // Filter to unique progress values
-    const progressValues = progressLog.map(p => p.progress);
+    const progressValues = progressLog.map((p) => p.progress);
     expect(progressValues).toContain(0);
     expect(progressValues).toContain(0.25);
     expect(progressValues).toContain(0.5);

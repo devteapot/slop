@@ -7,10 +7,7 @@
  * `broadcast()` to push updates to consumers.
  */
 
-import type {
-  SlopNode, PatchOp, ActionHandler, NodeDescriptor,
-  SlopClientOptions,
-} from "./types";
+import type { SlopNode, PatchOp, ActionHandler, NodeDescriptor, SlopClientOptions } from "./types";
 import { AsyncActionResult } from "./types";
 import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
@@ -73,11 +70,7 @@ export abstract class ProviderBase<S = unknown> {
   /** Rebuild the tree from registrations, diff, and broadcast if changed. */
   protected rebuild(): void {
     const registrations = this.getRegistrations();
-    const { tree, handlers } = assembleTree(
-      registrations,
-      this.options.id,
-      this.options.name,
-    );
+    const { tree, handlers } = assembleTree(registrations, this.options.id, this.options.name);
     const ops = diffNodes(this.currentTree, tree);
     this.currentHandlers = handlers;
 
@@ -133,7 +126,9 @@ export abstract class ProviderBase<S = unknown> {
       const isAsync = data instanceof AsyncActionResult;
       const resultData = isAsync
         ? (data.data ?? {})
-        : (data && typeof data === "object" ? data as Record<string, unknown> : {});
+        : data && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : {};
       const result: Record<string, unknown> = {
         type: "result",
         id: msg.id,
@@ -175,17 +170,14 @@ export abstract class ProviderBase<S = unknown> {
 
   /** Prepare the tree for output, applying path, depth, filter, window, and global options. */
   getOutputTree(request?: OutputRequest): SlopNode {
-    let tree = request?.path
-      ? getSubtree(this.currentTree, request.path) ?? this.currentTree
-      : this.currentTree;
+    let tree = request?.path ? (getSubtree(this.currentTree, request.path) ?? this.currentTree) : this.currentTree;
 
     tree = prepareTree(tree, {
-      maxDepth: request?.depth != null && request.depth >= 0
-        ? request.depth
-        : this.options.maxDepth,
-      maxNodes: request?.max_nodes != null && this.options.maxNodes != null
-        ? Math.min(request.max_nodes, this.options.maxNodes)
-        : request?.max_nodes ?? this.options.maxNodes,
+      maxDepth: request?.depth != null && request.depth >= 0 ? request.depth : this.options.maxDepth,
+      maxNodes:
+        request?.max_nodes != null && this.options.maxNodes != null
+          ? Math.min(request.max_nodes, this.options.maxNodes)
+          : (request?.max_nodes ?? this.options.maxNodes),
       minSalience: request?.filter?.min_salience,
       types: request?.filter?.types,
     });

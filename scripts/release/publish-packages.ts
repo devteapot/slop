@@ -5,9 +5,7 @@ const registry = process.env.NPM_REGISTRY_URL ?? "https://registry.npmjs.org";
 const packages = sortPackagesForPublish(getTypeScriptPackages());
 
 async function isAlreadyPublished(name: string, publishedVersion: string): Promise<boolean> {
-  const packagePath = name.startsWith("@")
-    ? name.replace("/", "%2f")
-    : encodeURIComponent(name);
+  const packagePath = name.startsWith("@") ? name.replace("/", "%2f") : encodeURIComponent(name);
   const response = await fetch(`${registry.replace(/\/$/, "")}/${packagePath}/${publishedVersion}`);
 
   if (response.status === 404) {

@@ -48,11 +48,7 @@ interface DemoContextValue {
   messages: ChatMessage[];
   addMessage: (msg: ChatMessage) => void;
   updateMessage: (id: string, update: Partial<ChatMessage>) => void;
-  executeAction: (
-    path: string,
-    action: string,
-    params?: Record<string, unknown>,
-  ) => Promise<any>;
+  executeAction: (path: string, action: string, params?: Record<string, unknown>) => Promise<any>;
   bumpTreeVersion: () => void;
   clickTarget: string | null;
   simulateClick: (target: string) => Promise<void>;
@@ -154,9 +150,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateMessage = useCallback((id: string, update: Partial<ChatMessage>) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...update } : m)),
-    );
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...update } : m)));
   }, []);
 
   const [clickTarget, setClickTarget] = useState<string | null>(null);
@@ -171,24 +165,21 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     slop.flush(); // triggers rebuild → broadcast → tree panel receives patch
   }, []);
 
-  const executeAction = useCallback(
-    async (path: string, action: string, params?: Record<string, unknown>) => {
-      slop.flush();
-      const result = await slop.executeInvoke({
-        id: `demo-inv-${++invokeCounter.current}`,
-        path,
-        action,
-        params,
-      });
-      // React state setters are async — wait for re-render, then flush so the
-      // provider rebuilds the tree and broadcasts patches. Server-side providers
-      // rebuild synchronously; this delay is React-specific (see slop.ts).
-      await new Promise((r) => setTimeout(r, 10));
-      slop.flush();
-      return result;
-    },
-    [],
-  );
+  const executeAction = useCallback(async (path: string, action: string, params?: Record<string, unknown>) => {
+    slop.flush();
+    const result = await slop.executeInvoke({
+      id: `demo-inv-${++invokeCounter.current}`,
+      path,
+      action,
+      params,
+    });
+    // React state setters are async — wait for re-render, then flush so the
+    // provider rebuilds the tree and broadcasts patches. Server-side providers
+    // rebuild synchronously; this delay is React-specific (see slop.ts).
+    await new Promise((r) => setTimeout(r, 10));
+    slop.flush();
+    return result;
+  }, []);
 
   return (
     <DemoContext.Provider

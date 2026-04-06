@@ -35,20 +35,13 @@ export function AppPanel() {
   return (
     <div className="flex flex-col h-full bg-surface-low overflow-hidden relative">
       {/* Click interceptor in replay mode */}
-      {mode !== "interactive" && (
-        <div
-          className="absolute inset-0 z-10 cursor-pointer"
-          onClick={handleReplayClick}
-        />
-      )}
+      {mode !== "interactive" && <div className="absolute inset-0 z-10 cursor-pointer" onClick={handleReplayClick} />}
 
       {/* Prompt toast */}
       {showPrompt && (
         <div className="absolute inset-x-0 top-12 z-20 flex justify-center pointer-events-none">
           <div className="glass rounded px-4 py-3 shadow-lg shadow-black/30 pointer-events-auto max-w-[280px] text-center">
-            <p className="text-xs text-on-surface font-medium">
-              Connect an API key to interact live
-            </p>
+            <p className="text-xs text-on-surface font-medium">Connect an API key to interact live</p>
             <p className="text-[10px] text-on-surface-variant mt-1">
               Click <span className="text-primary font-medium">Connect API</span> in the chat panel
             </p>
@@ -75,16 +68,12 @@ export function AppPanel() {
           onClick={() => isInteractive && appState.navigate("cart")}
           disabled={!isInteractive}
           className={`text-xs font-medium transition-colors disabled:cursor-default flex items-center gap-1 ${
-            currentView === "cart"
-              ? "text-on-surface"
-              : "text-on-surface-variant hover:text-on-surface"
+            currentView === "cart" ? "text-on-surface" : "text-on-surface-variant hover:text-on-surface"
           }`}
         >
           Cart
           {cart.length > 0 && (
-            <span className="font-mono text-[10px] bg-primary/20 text-primary px-1 rounded">
-              {cart.length}
-            </span>
+            <span className="font-mono text-[10px] bg-primary/20 text-primary px-1 rounded">{cart.length}</span>
           )}
         </button>
         <span className="text-[10px] font-mono text-on-surface-variant ml-auto uppercase tracking-wider">
@@ -104,19 +93,10 @@ export function AppPanel() {
           />
         )}
         {currentView === "product" && selectedProduct && (
-          <ProductDetailView
-            product={selectedProduct}
-            reviews={productReviews}
-            isInteractive={isInteractive}
-          />
+          <ProductDetailView product={selectedProduct} reviews={productReviews} isInteractive={isInteractive} />
         )}
         {currentView === "cart" && (
-          <CartView
-            cart={cart}
-            products={products}
-            total={cartTotal}
-            isInteractive={isInteractive}
-          />
+          <CartView cart={cart} products={products} total={cartTotal} isInteractive={isInteractive} />
         )}
       </div>
     </div>
@@ -192,9 +172,7 @@ function CatalogView({
       </div>
 
       {products.length === 0 && (
-        <p className="text-sm text-on-surface-variant text-center py-8">
-          No products match your search.
-        </p>
+        <p className="text-sm text-on-surface-variant text-center py-8">No products match your search.</p>
       )}
     </div>
   );
@@ -231,14 +209,10 @@ function ProductDetailView({
         <h2 className="text-lg font-semibold text-on-surface mt-1">{product.name}</h2>
         <div className="flex items-center gap-2 mt-1">
           <RatingStars rating={product.rating} size="md" />
-          <span className="font-mono text-xs text-on-surface-variant">
-            ({product.reviewCount} reviews)
-          </span>
+          <span className="font-mono text-xs text-on-surface-variant">({product.reviewCount} reviews)</span>
         </div>
         <p className="font-mono text-xl text-primary mt-2">${product.price.toFixed(2)}</p>
-        <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">
-          {product.description}
-        </p>
+        <p className="text-sm text-on-surface-variant mt-2 leading-relaxed">{product.description}</p>
         <div className="flex items-center gap-3 mt-3">
           <span className="text-xs text-on-surface-variant font-mono">
             {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
@@ -256,9 +230,7 @@ function ProductDetailView({
 
       {/* Reviews */}
       <div className="bg-surface-container rounded p-3">
-        <h3 className="text-sm font-medium text-on-surface mb-2">
-          Reviews ({reviews.length})
-        </h3>
+        <h3 className="text-sm font-medium text-on-surface mb-2">Reviews ({reviews.length})</h3>
         {reviews.length === 0 ? (
           <p className="text-xs text-on-surface-variant">No reviews yet.</p>
         ) : (
@@ -293,9 +265,7 @@ function CartView({
       </h2>
 
       {cart.length === 0 ? (
-        <p className="text-sm text-on-surface-variant text-center py-8">
-          Your cart is empty.
-        </p>
+        <p className="text-sm text-on-surface-variant text-center py-8">Your cart is empty.</p>
       ) : (
         <>
           <div className="bg-surface-container rounded p-3 divide-y divide-outline-variant/10">
@@ -311,9 +281,7 @@ function CartView({
           {/* Total */}
           <div className="flex items-center justify-between px-3 py-2 bg-surface-container rounded">
             <span className="text-sm text-on-surface-variant">Total</span>
-            <span className="font-mono text-lg text-primary font-medium">
-              ${total.toFixed(2)}
-            </span>
+            <span className="font-mono text-lg text-primary font-medium">${total.toFixed(2)}</span>
           </div>
 
           <button

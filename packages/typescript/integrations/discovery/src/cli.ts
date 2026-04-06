@@ -37,12 +37,10 @@ server.tool(
   "connect_app",
   isPluginMode
     ? "Connect to a discovered application and refresh its full current state. " +
-      "Use this when you need to inspect a newly discovered app or refresh the active app state."
+        "Use this when you need to inspect a newly discovered app or refresh the active app state."
     : "Connect to an application running on this computer and see its full current state and every action you can perform.",
   {
-    app: z
-      .string()
-      .describe("App name or ID to connect and inspect."),
+    app: z.string().describe("App name or ID to connect and inspect."),
   },
   async (args) => handlers.connectApp(args),
 );

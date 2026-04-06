@@ -16,25 +16,21 @@ export function ProductCard({ product }: { product: Product }) {
     <div data-click-target={`product-${product.id}`} className="bg-surface-container rounded p-3 flex flex-col gap-2">
       {/* Category + price */}
       <div className="flex items-center justify-between">
-        <span className={`font-mono text-[10px] uppercase tracking-wider ${CATEGORY_COLORS[product.category] ?? "text-on-surface-variant"}`}>
+        <span
+          className={`font-mono text-[10px] uppercase tracking-wider ${CATEGORY_COLORS[product.category] ?? "text-on-surface-variant"}`}
+        >
           {product.category}
         </span>
-        <span className="font-mono text-sm font-medium text-primary">
-          ${product.price.toFixed(2)}
-        </span>
+        <span className="font-mono text-sm font-medium text-primary">${product.price.toFixed(2)}</span>
       </div>
 
       {/* Name */}
-      <h3 className="text-sm font-medium text-on-surface leading-tight">
-        {product.name}
-      </h3>
+      <h3 className="text-sm font-medium text-on-surface leading-tight">{product.name}</h3>
 
       {/* Rating */}
       <div className="flex items-center gap-1.5">
         <RatingStars rating={product.rating} />
-        <span className="text-[10px] text-on-surface-variant font-mono">
-          ({product.reviewCount})
-        </span>
+        <span className="text-[10px] text-on-surface-variant font-mono">({product.reviewCount})</span>
       </div>
 
       {/* Actions */}

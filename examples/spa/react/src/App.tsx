@@ -26,15 +26,12 @@ export default function App() {
     setVersion((v) => v + 1);
   }, [activeBoardId]);
 
-  const navigateToBoard = useCallback(
-    (boardId: string) => {
-      setActiveBoardId(boardId);
-      setCards(store.getCardsForBoard(boardId));
-      setSearchQuery("");
-      setDetailCardId(null);
-    },
-    [],
-  );
+  const navigateToBoard = useCallback((boardId: string) => {
+    setActiveBoardId(boardId);
+    setCards(store.getCardsForBoard(boardId));
+    setSearchQuery("");
+    setDetailCardId(null);
+  }, []);
 
   const handleCreateBoard = useCallback(
     (name: string) => {
@@ -46,7 +43,14 @@ export default function App() {
   );
 
   const handleCreateCard = useCallback(
-    (title: string, column?: string, priority?: Card["priority"], due?: string, description?: string, tags?: string[]) => {
+    (
+      title: string,
+      column?: string,
+      priority?: Card["priority"],
+      due?: string,
+      description?: string,
+      tags?: string[],
+    ) => {
       store.createCard(activeBoardId, title, column, priority, due, description, tags);
       refresh();
     },
@@ -116,9 +120,7 @@ export default function App() {
     const boardCards = store.getCardsForBoard(board.id);
     const dueThisWeek = boardCards.filter((c) => {
       if (!c.due || c.column === "done") return false;
-      const days = Math.round(
-        (new Date(c.due).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-      );
+      const days = Math.round((new Date(c.due).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       return days >= 0 && days <= 7;
     }).length;
     return `${board.columns.length} columns, ${boardCards.length} cards${dueThisWeek > 0 ? `, ${dueThisWeek} due this week` : ""}`;
@@ -130,11 +132,7 @@ export default function App() {
     props: { board_count: boards.length, active_board: activeBoardId },
     actions: {
       create_board: action({ name: "string" }, ({ name }) => handleCreateBoard(name)),
-      navigate: action(
-        { board_id: "string" },
-        ({ board_id }) => navigateToBoard(board_id),
-        { idempotent: true },
-      ),
+      navigate: action({ board_id: "string" }, ({ board_id }) => navigateToBoard(board_id), { idempotent: true }),
     },
     children: Object.fromEntries(
       boards.map((board) => {
@@ -152,60 +150,63 @@ export default function App() {
   }));
 
   // SLOP: active board node
-  useSlop(slop, () => activeBoard?.id ?? "__none__", () => {
-    if (!activeBoard) return { type: "view" as const };
-    return {
-      type: "view" as const,
-      props: {
-        name: activeBoard.name,
-        card_count: cards.length,
-        column_count: activeBoard.columns.length,
-      },
-      meta: { focus: true },
-      actions: {
-        create_card: action(
-          {
-            title: "string",
-            column: { type: "string", description: `Target column. One of: ${activeBoard.columns.join(", ")}` },
-            priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
-            due: { type: "string", description: "ISO date string" },
-            description: { type: "string", description: "Markdown description" },
-            tags: { type: "string", description: "Comma-separated tags" },
-          },
-          ({ title, column, priority, due, description, tags }) => {
-            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
-            handleCreateCard(
-              title,
-              column || undefined,
-              priority as Card["priority"] | undefined,
-              due || undefined,
-              description || undefined,
-              tagList,
-            );
-          },
-        ),
-        rename: action(
-          { name: "string" },
-          ({ name }) => handleRenameBoard(name),
-          { idempotent: true },
-        ),
-        delete: action(() => handleDeleteBoard(), { dangerous: true }),
-        search: action({ query: "string" }, ({ query }) => {
-          const results = store.searchCards(activeBoardId, query);
-          return results.map((c) => ({
-            id: c.id,
-            title: c.title,
-            column: c.column,
-            priority: c.priority,
-          }));
-        }),
-      },
-    };
-  });
+  useSlop(
+    slop,
+    () => activeBoard?.id ?? "__none__",
+    () => {
+      if (!activeBoard) return { type: "view" as const };
+      return {
+        type: "view" as const,
+        props: {
+          name: activeBoard.name,
+          card_count: cards.length,
+          column_count: activeBoard.columns.length,
+        },
+        meta: { focus: true },
+        actions: {
+          create_card: action(
+            {
+              title: "string",
+              column: { type: "string", description: `Target column. One of: ${activeBoard.columns.join(", ")}` },
+              priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
+              due: { type: "string", description: "ISO date string" },
+              description: { type: "string", description: "Markdown description" },
+              tags: { type: "string", description: "Comma-separated tags" },
+            },
+            ({ title, column, priority, due, description, tags }) => {
+              const tagList = tags
+                ? tags
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                : undefined;
+              handleCreateCard(
+                title,
+                column || undefined,
+                priority as Card["priority"] | undefined,
+                due || undefined,
+                description || undefined,
+                tagList,
+              );
+            },
+          ),
+          rename: action({ name: "string" }, ({ name }) => handleRenameBoard(name), { idempotent: true }),
+          delete: action(() => handleDeleteBoard(), { dangerous: true }),
+          search: action({ query: "string" }, ({ query }) => {
+            const results = store.searchCards(activeBoardId, query);
+            return results.map((c) => ({
+              id: c.id,
+              title: c.title,
+              column: c.column,
+              priority: c.priority,
+            }));
+          }),
+        },
+      };
+    },
+  );
 
-  const filteredCards = searchQuery
-    ? store.searchCards(activeBoardId, searchQuery)
-    : cards;
+  const filteredCards = searchQuery ? store.searchCards(activeBoardId, searchQuery) : cards;
 
   const detailCard = detailCardId ? cards.find((c) => c.id === detailCardId) : null;
 

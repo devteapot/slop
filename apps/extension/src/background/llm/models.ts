@@ -1,11 +1,7 @@
 import type { LlmProfile } from "../../types";
 import { getActiveProfile } from "../../types";
 import { getStorage } from "./storage";
-import {
-  parseGeminiModelNames,
-  parseOllamaModelNames,
-  parseOpenAIModelNames,
-} from "./parsers";
+import { parseGeminiModelNames, parseOllamaModelNames, parseOpenAIModelNames } from "./parsers";
 
 export async function fetchModels(): Promise<string[]> {
   const storage = await getStorage();

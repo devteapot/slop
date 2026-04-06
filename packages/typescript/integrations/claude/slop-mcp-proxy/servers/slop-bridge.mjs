@@ -19,10 +19,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createDiscoveryService } from "@slop-ai/discovery";
 import { createToolHandlers } from "@slop-ai/discovery";
 import { formatTree } from "@slop-ai/consumer";
@@ -88,10 +85,7 @@ function writeStateFile() {
       };
     });
 
-    fs.writeFileSync(
-      STATE_FILE,
-      JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2),
-    );
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2));
   } catch (err) {
     log.error("Failed to write state file:", err.message);
   }
@@ -127,8 +121,7 @@ const TOOLS = [
       properties: {
         app: {
           type: "string",
-          description:
-            "App name or ID to connect. Omit to list all apps.",
+          description: "App name or ID to connect. Omit to list all apps.",
         },
       },
     },
@@ -219,10 +212,7 @@ const TOOLS = [
 // MCP Server
 // ---------------------------------------------------------------------------
 
-const server = new Server(
-  { name: "slop-bridge", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
+const server = new Server({ name: "slop-bridge", version: "0.1.0" }, { capabilities: { tools: {} } });
 
 // --- List tools (static only) ---
 
@@ -255,25 +245,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
         try {
-          const result = await p.consumer.invoke(
-            args.path,
-            args.action,
-            args.params ?? {},
-          );
+          const result = await p.consumer.invoke(args.path, args.action, args.params ?? {});
           if (result.status === "ok") {
             return {
-              content: [{
-                type: "text",
-                text: `Done. ${args.action} on ${args.path} succeeded.` +
-                  (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
-              }],
+              content: [
+                {
+                  type: "text",
+                  text:
+                    `Done. ${args.action} on ${args.path} succeeded.` +
+                    (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+                },
+              ],
             };
           }
           return {
-            content: [{
-              type: "text",
-              text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
+              },
+            ],
             isError: true,
           };
         } catch (err) {
@@ -309,11 +300,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         }
         return {
-          content: [{
-            type: "text",
-            text: `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
-              results.join("\n"),
-          }],
+          content: [
+            {
+              type: "text",
+              text:
+                `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
+                results.join("\n"),
+            },
+          ],
           isError: failed > 0,
         };
       }
@@ -346,12 +340,16 @@ async function main() {
 
   process.on("SIGINT", () => {
     discovery.stop();
-    try { fs.unlinkSync(STATE_FILE); } catch {}
+    try {
+      fs.unlinkSync(STATE_FILE);
+    } catch {}
     process.exit(0);
   });
   process.on("SIGTERM", () => {
     discovery.stop();
-    try { fs.unlinkSync(STATE_FILE); } catch {}
+    try {
+      fs.unlinkSync(STATE_FILE);
+    } catch {}
     process.exit(0);
   });
 }

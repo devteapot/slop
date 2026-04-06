@@ -4,9 +4,7 @@ import type { Transport } from "@slop-ai/core";
  * postMessage transport for in-browser SLOP providers.
  * Wraps all messages in { slop: true, message } envelope.
  */
-export function createPostMessageTransport(
-  options: { discover?: boolean } = {}
-): Transport {
+export function createPostMessageTransport(options: { discover?: boolean } = {}): Transport {
   const messageHandlers: ((msg: any) => void)[] = [];
   let listener: ((event: MessageEvent) => void) | null = null;
   let metaTag: HTMLMetaElement | null = null;

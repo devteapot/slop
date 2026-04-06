@@ -24,7 +24,9 @@ export default function CardDetail(props: Props) {
           <Show
             when={editingTitle()}
             fallback={
-              <h2 class="modal-title" onClick={() => setEditingTitle(true)}>{props.card.title}</h2>
+              <h2 class="modal-title" onClick={() => setEditingTitle(true)}>
+                {props.card.title}
+              </h2>
             }
           >
             <input
@@ -39,12 +41,17 @@ export default function CardDetail(props: Props) {
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") { setTitleDraft(props.card.title); setEditingTitle(false); }
+                if (e.key === "Escape") {
+                  setTitleDraft(props.card.title);
+                  setEditingTitle(false);
+                }
               }}
               autofocus
             />
           </Show>
-          <button class="modal-close" onClick={props.onClose}>&times;</button>
+          <button class="modal-close" onClick={props.onClose}>
+            &times;
+          </button>
         </div>
 
         <div class="modal-body">
@@ -69,9 +76,7 @@ export default function CardDetail(props: Props) {
               value={props.card.column}
               onChange={(e) => props.onMove(e.currentTarget.value)}
             >
-              <For each={props.columns}>
-                {(col) => <option value={col}>{col}</option>}
-              </For>
+              <For each={props.columns}>{(col) => <option value={col}>{col}</option>}</For>
             </select>
           </div>
 
@@ -81,7 +86,7 @@ export default function CardDetail(props: Props) {
               class="detail-input"
               type="date"
               value={props.card.due || ""}
-              onChange={(e) => props.onEdit({ due: e.currentTarget.value || null as unknown as string })}
+              onChange={(e) => props.onEdit({ due: e.currentTarget.value || (null as unknown as string) })}
             />
           </div>
 
@@ -93,7 +98,12 @@ export default function CardDetail(props: Props) {
               value={props.card.tags.join(", ")}
               placeholder="tag1, tag2, ..."
               onChange={(e) =>
-                props.onEdit({ tags: e.currentTarget.value.split(",").map((t) => t.trim()).filter(Boolean) })
+                props.onEdit({
+                  tags: e.currentTarget.value
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean),
+                })
               }
             />
           </div>
@@ -105,7 +115,10 @@ export default function CardDetail(props: Props) {
               fallback={
                 <div
                   class="desc-preview"
-                  onClick={() => { setDescDraft(props.card.description); setEditingDesc(true); }}
+                  onClick={() => {
+                    setDescDraft(props.card.description);
+                    setEditingDesc(true);
+                  }}
                 >
                   <Show
                     when={props.card.description}
@@ -150,7 +163,9 @@ export default function CardDetail(props: Props) {
         </div>
 
         <div class="modal-footer">
-          <button class="btn-danger" onClick={props.onDelete}>Delete Card</button>
+          <button class="btn-danger" onClick={props.onDelete}>
+            Delete Card
+          </button>
         </div>
       </div>
     </div>

@@ -95,7 +95,10 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
 
   // Event wiring
   const closeBtn = shadow.getElementById("slop-close")!;
-  closeBtn.onclick = () => { panelOpen = false; panel.classList.add("hidden"); };
+  closeBtn.onclick = () => {
+    panelOpen = false;
+    panel.classList.add("hidden");
+  };
 
   const profileSelect = shadow.getElementById("slop-profile-select") as HTMLSelectElement;
   profileSelect.onchange = () => callbacks.onSwitchProfile(profileSelect.value);
@@ -120,7 +123,9 @@ export function createChatUI(callbacks: ChatCallbacks): ChatUI {
   }
 
   sendBtn.onclick = doSend;
-  input.onkeydown = (e) => { if (e.key === "Enter") doSend(); };
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") doSend();
+  };
 
   document.body.appendChild(host);
 

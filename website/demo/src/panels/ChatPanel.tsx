@@ -35,7 +35,20 @@ const PROVIDER_MODELS: Record<string, { label: string; value: string | null }[]>
 
 export function ChatPanel() {
   const ctx = useDemo();
-  const { messages, mode, setMode, apiKey, setApiKey, apiProvider, setApiProvider, apiModel, setApiModel, addMessage, replayComplete, skipReplay } = ctx;
+  const {
+    messages,
+    mode,
+    setMode,
+    apiKey,
+    setApiKey,
+    apiProvider,
+    setApiProvider,
+    apiModel,
+    setApiModel,
+    addMessage,
+    replayComplete,
+    skipReplay,
+  } = ctx;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [configOpen, setConfigOpen] = useState(false);
@@ -99,9 +112,7 @@ export function ChatPanel() {
       {/* Header */}
       <div className="bg-surface-container">
         <div className="flex items-center justify-between px-3 h-10">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">
-            AI Agent
-          </span>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">AI Agent</span>
           <div className="flex items-center gap-2">
             {mode === "interactive" && (
               <button
@@ -143,7 +154,10 @@ export function ChatPanel() {
           <div className="px-3 pb-3 flex flex-col gap-2">
             <select
               value={apiProvider}
-              onChange={(e) => { setApiProvider(e.target.value); setApiModel(""); }}
+              onChange={(e) => {
+                setApiProvider(e.target.value);
+                setApiModel("");
+              }}
               className="bg-surface-highest text-xs text-on-surface font-mono px-2 py-1 rounded outline-none"
             >
               <option value="openrouter">OpenRouter</option>
@@ -185,9 +199,7 @@ export function ChatPanel() {
         {messages.length === 0 && (
           <div className="text-center py-8">
             <p className="text-xs text-on-surface-variant">
-              {mode === "replay"
-                ? "Replay will start shortly..."
-                : "Type a message to interact with the store."}
+              {mode === "replay" ? "Replay will start shortly..." : "Type a message to interact with the store."}
             </p>
           </div>
         )}

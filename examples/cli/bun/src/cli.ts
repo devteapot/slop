@@ -55,7 +55,7 @@ function timeAgo(date: Date): string {
 
 function formatTags(tags: string[]): string {
   if (!tags.length) return "";
-  return tags.map(t => `${MAGENTA}#${t}${RESET}`).join(" ");
+  return tags.map((t) => `${MAGENTA}#${t}${RESET}`).join(" ");
 }
 
 function taskNumber(id: string): string {
@@ -69,12 +69,12 @@ export async function listTasks(opts: { all?: boolean; tag?: string }): Promise<
   let filtered = tasks;
 
   if (opts.tag) {
-    filtered = filtered.filter(t => t.tags.includes(opts.tag!));
+    filtered = filtered.filter((t) => t.tags.includes(opts.tag!));
   }
 
   if (!opts.all) {
     // Show pending tasks by default, plus recently completed
-    filtered = filtered.filter(t => !t.done);
+    filtered = filtered.filter((t) => !t.done);
   }
 
   if (filtered.length === 0) {
@@ -109,7 +109,7 @@ export async function addTask(title: string, opts: { due?: string; tag?: string 
     id,
     title,
     done: false,
-    tags: opts.tag ? opts.tag.split(",").map(t => t.trim()) : [],
+    tags: opts.tag ? opts.tag.split(",").map((t) => t.trim()) : [],
     notes: "",
     created: new Date().toISOString(),
   };
@@ -150,7 +150,7 @@ export async function editTask(idArg: string, opts: { title?: string; due?: stri
 
   if (opts.title) task.title = opts.title;
   if (opts.due) task.due = parseDate(opts.due);
-  if (opts.tag) task.tags = opts.tag.split(",").map(t => t.trim());
+  if (opts.tag) task.tags = opts.tag.split(",").map((t) => t.trim());
   await save(tasks);
   console.log(`${GREEN}Updated: ${task.title}${RESET}`);
 }
@@ -188,9 +188,8 @@ export async function showNotes(idArg: string, opts: { set?: string }): Promise<
 export async function searchTasks(query: string): Promise<void> {
   const tasks = await load();
   const lower = query.toLowerCase();
-  const matches = tasks.filter(t =>
-    t.title.toLowerCase().includes(lower) ||
-    t.tags.some(tag => tag.toLowerCase().includes(lower))
+  const matches = tasks.filter(
+    (t) => t.title.toLowerCase().includes(lower) || t.tags.some((tag) => tag.toLowerCase().includes(lower)),
   );
 
   if (matches.length === 0) {
@@ -230,13 +229,13 @@ export async function exportTasks(format: string): Promise<void> {
     }
     case "markdown": {
       console.log("# Tasks\n");
-      const pending = tasks.filter(t => !t.done);
-      const done = tasks.filter(t => t.done);
+      const pending = tasks.filter((t) => !t.done);
+      const done = tasks.filter((t) => t.done);
       if (pending.length) {
         console.log("## Pending\n");
         for (const t of pending) {
           const due = t.due ? ` (due: ${t.due})` : "";
-          const tags = t.tags.length ? ` ${t.tags.map(x => `\`${x}\``).join(" ")}` : "";
+          const tags = t.tags.length ? ` ${t.tags.map((x) => `\`${x}\``).join(" ")}` : "";
           console.log(`- [ ] ${t.title}${due}${tags}`);
         }
         console.log();
@@ -244,7 +243,7 @@ export async function exportTasks(format: string): Promise<void> {
       if (done.length) {
         console.log("## Completed\n");
         for (const t of done) {
-          const tags = t.tags.length ? ` ${t.tags.map(x => `\`${x}\``).join(" ")}` : "";
+          const tags = t.tags.length ? ` ${t.tags.map((x) => `\`${x}\``).join(" ")}` : "";
           console.log(`- [x] ${t.title}${tags}`);
         }
       }
@@ -260,7 +259,7 @@ export async function exportTasks(format: string): Promise<void> {
 
 function findTask(tasks: Task[], idArg: string): Task | undefined {
   const id = idArg.startsWith("t-") ? idArg : `t-${idArg}`;
-  const task = tasks.find(t => t.id === id);
+  const task = tasks.find((t) => t.id === id);
   if (!task) {
     console.error(`${RED}Task ${idArg} not found.${RESET}`);
   }
@@ -269,7 +268,7 @@ function findTask(tasks: Task[], idArg: string): Task | undefined {
 
 function findTaskIndex(tasks: Task[], idArg: string): number {
   const id = idArg.startsWith("t-") ? idArg : `t-${idArg}`;
-  const idx = tasks.findIndex(t => t.id === id);
+  const idx = tasks.findIndex((t) => t.id === id);
   if (idx < 0) {
     console.error(`${RED}Task ${idArg} not found.${RESET}`);
   }

@@ -61,14 +61,8 @@ export function parseBridgeProvider(msg: Record<string, unknown>): BridgeProvide
 // Bridge Client
 // ---------------------------------------------------------------------------
 
-export function createBridgeClient(
-  options: BridgeClientOptions = {},
-): Bridge & { connectOnce(): Promise<void> } {
-  const {
-    logger: log,
-    url,
-    reconnectIntervalMs,
-  } = normalizeOptions(options);
+export function createBridgeClient(options: BridgeClientOptions = {}): Bridge & { connectOnce(): Promise<void> } {
+  const { logger: log, url, reconnectIntervalMs } = normalizeOptions(options);
 
   let ws: WebSocket | null = null;
   let isRunning = false;
@@ -148,10 +142,12 @@ export function createBridgeClient(
 
   function scheduleReconnect() {
     if (!started || reconnectTimer) return;
-    reconnectTimer = unrefTimer(setTimeout(() => {
-      reconnectTimer = null;
-      void doConnect().catch(() => {});
-    }, reconnectIntervalMs));
+    reconnectTimer = unrefTimer(
+      setTimeout(() => {
+        reconnectTimer = null;
+        void doConnect().catch(() => {});
+      }, reconnectIntervalMs),
+    );
   }
 
   function handleMessage(msg: Record<string, unknown>) {

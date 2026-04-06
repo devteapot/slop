@@ -5,11 +5,7 @@
  * PostMessageClientTransport in the SDK. The background also handles these
  * for desktop bridge relay.
  */
-import type {
-  BackgroundMessage,
-  ProviderMessage,
-  RelayConsumerMessage,
-} from "../types";
+import type { BackgroundMessage, ProviderMessage, RelayConsumerMessage } from "../types";
 
 export function createBridgeRelay(port: chrome.runtime.Port) {
   let active = false;
@@ -58,14 +54,14 @@ export function createBridgeRelay(port: chrome.runtime.Port) {
 function isBridgeWindowMessage(
   value: unknown,
 ): value is { slop: true; __slop_relay?: boolean; message: ProviderMessage | RelayConsumerMessage } {
-  return !!value
-    && typeof value === "object"
-    && (value as Record<string, unknown>).slop === true
-    && "message" in (value as Record<string, unknown>);
+  return (
+    !!value &&
+    typeof value === "object" &&
+    (value as Record<string, unknown>).slop === true &&
+    "message" in (value as Record<string, unknown>)
+  );
 }
 
 function isBackgroundMessage(value: unknown): value is BackgroundMessage {
-  return !!value
-    && typeof value === "object"
-    && typeof (value as { type?: unknown }).type === "string";
+  return !!value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string";
 }

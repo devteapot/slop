@@ -4,10 +4,7 @@ import { getStorage } from "./storage";
 import { openaiChatCompletion } from "./openai";
 import { geminiChatCompletion } from "./gemini";
 
-export async function chatCompletion(
-  messages: ChatMessage[],
-  tools: LlmTool[]
-): Promise<ChatMessage> {
+export async function chatCompletion(messages: ChatMessage[], tools: LlmTool[]): Promise<ChatMessage> {
   const storage = await getStorage();
   const profile = getActiveProfile(storage);
 

@@ -20,9 +20,7 @@ function formatProviderState(p: ConnectedProvider): string {
     .map((t) => {
       const resolved = toolSet.resolve(t.function.name);
       const action = resolved?.action ?? t.function.name;
-      const pathInfo = resolved?.path
-        ? `on \`${resolved.path}\``
-        : `${resolved?.targets?.length ?? 0} targets`;
+      const pathInfo = resolved?.path ? `on \`${resolved.path}\`` : `${resolved?.targets?.length ?? 0} targets`;
       return `  - **${action}** ${pathInfo}: ${t.function.description}`;
     })
     .join("\n");
@@ -39,10 +37,7 @@ export interface StateCache {
   stop(): void;
 }
 
-export function createStateCache(
-  cacheDir: string,
-  discovery: DiscoveryService,
-): StateCache {
+export function createStateCache(cacheDir: string, discovery: DiscoveryService): StateCache {
   const cachePath = join(cacheDir, "state-cache.txt");
   const tmpPath = join(cacheDir, "state-cache.txt.tmp");
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -50,7 +45,9 @@ export function createStateCache(
   function write() {
     const connected = discovery.getProviders();
     if (connected.length === 0) {
-      try { unlinkSync(cachePath); } catch {}
+      try {
+        unlinkSync(cachePath);
+      } catch {}
       return;
     }
 
@@ -77,7 +74,9 @@ export function createStateCache(
     },
     stop() {
       if (debounceTimer) clearTimeout(debounceTimer);
-      try { unlinkSync(cachePath); } catch {}
+      try {
+        unlinkSync(cachePath);
+      } catch {}
     },
   };
 }

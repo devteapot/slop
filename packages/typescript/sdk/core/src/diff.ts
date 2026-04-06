@@ -4,20 +4,13 @@ import type { SlopNode, PatchOp } from "./types";
  * Recursively diff two SLOP trees and produce JSON Patch ops.
  * Paths use node IDs in children segments (not array indices).
  */
-export function diffNodes(
-  oldNode: SlopNode,
-  newNode: SlopNode,
-  basePath: string = ""
-): PatchOp[] {
+export function diffNodes(oldNode: SlopNode, newNode: SlopNode, basePath: string = ""): PatchOp[] {
   const ops: PatchOp[] = [];
 
   // Diff properties key-by-key
   const oldProps = oldNode.properties ?? {};
   const newProps = newNode.properties ?? {};
-  const allKeys = new Set([
-    ...Object.keys(oldProps),
-    ...Object.keys(newProps),
-  ]);
+  const allKeys = new Set([...Object.keys(oldProps), ...Object.keys(newProps)]);
   for (const key of allKeys) {
     const oldVal = oldProps[key];
     const newVal = newProps[key];

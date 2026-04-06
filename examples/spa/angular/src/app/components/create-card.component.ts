@@ -110,7 +110,10 @@ export class CreateCardComponent {
       due: this.due || undefined,
       description: undefined,
       tags: this.tags
-        ? this.tags.split(",").map((t) => t.trim()).filter(Boolean)
+        ? this.tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
         : undefined,
     });
   }

@@ -112,9 +112,7 @@ export function affordancesToTools(node: SlopNode, path = ""): ToolSet {
       if (!baseParams.properties) baseParams.properties = {};
       baseParams.properties.target = {
         type: "string",
-        description:
-          `Path to the target node (e.g. ${targets[0]}).` +
-          ` See the state tree for valid paths.`,
+        description: `Path to the target node (e.g. ${targets[0]}).` + ` See the state tree for valid paths.`,
       };
       if (!baseParams.required) baseParams.required = [];
       baseParams.required = ["target", ...baseParams.required];
@@ -182,12 +180,7 @@ function sortKeysDeep(obj: any): any {
 }
 
 /** Recursively collect all affordances from the tree. */
-function collectAffordances(
-  node: SlopNode,
-  path: string,
-  ancestors: string[],
-  out: AffordanceEntry[],
-): void {
+function collectAffordances(node: SlopNode, path: string, ancestors: string[], out: AffordanceEntry[]): void {
   for (const aff of node.affordances ?? []) {
     out.push({
       nodeId: node.id,
@@ -243,7 +236,6 @@ function buildGroupDescription(group: AffordanceEntry[], isDangerous: boolean): 
   return desc;
 }
 
-
 /** Format the state tree as readable string for LLM context */
 export function formatTree(node: SlopNode, indent = 0): string {
   const pad = "  ".repeat(indent);
@@ -251,23 +243,23 @@ export function formatTree(node: SlopNode, indent = 0): string {
   const meta = node.meta ?? {};
   const displayName = (props.label ?? props.title) as string | undefined;
   // Always show the node ID. If there's a human-readable label/title, show both.
-  const header = displayName && displayName !== node.id
-    ? `${node.id}: ${displayName}`
-    : node.id;
+  const header = displayName && displayName !== node.id ? `${node.id}: ${displayName}` : node.id;
   const extra = Object.entries(props)
     .filter(([k]) => k !== "label" && k !== "title")
     .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
     .join(", ");
   const affordances = (node.affordances ?? [])
-    .map(a => {
+    .map((a) => {
       let s = a.action;
       if (a.params?.properties) {
         const params = Object.entries(a.params.properties as Record<string, any>)
-          .map(([k, v]) => `${k}: ${v.type}`).join(", ");
+          .map(([k, v]) => `${k}: ${v.type}`)
+          .join(", ");
         s += `(${params})`;
       }
       return s;
-    }).join(", ");
+    })
+    .join(", ");
 
   let line = `${pad}[${node.type}] ${header}`;
   if (extra) line += ` (${extra})`;

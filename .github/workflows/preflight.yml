@@ -8,8 +8,37 @@ permissions:
   contents: read
 
 jobs:
+  detect:
+    name: Detect Affected Jobs
+    runs-on: ubuntu-latest
+    outputs:
+      run_biome_format: ${{ steps.detect.outputs.run_biome_format }}
+      run_typescript_packages: ${{ steps.detect.outputs.run_typescript_packages }}
+      run_extension: ${{ steps.detect.outputs.run_extension }}
+      run_docs: ${{ steps.detect.outputs.run_docs }}
+      run_landing: ${{ steps.detect.outputs.run_landing }}
+      run_demo: ${{ steps.detect.outputs.run_demo }}
+      run_playground: ${{ steps.detect.outputs.run_playground }}
+      run_desktop_macos: ${{ steps.detect.outputs.run_desktop_macos }}
+      run_python_sdk: ${{ steps.detect.outputs.run_python_sdk }}
+      run_rust_sdk: ${{ steps.detect.outputs.run_rust_sdk }}
+      run_go_sdk: ${{ steps.detect.outputs.run_go_sdk }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Detect affected preflight jobs
+        id: detect
+        run: bun run scripts/preflight.ts --list --since "${{ github.event.pull_request.base.sha }}" --github-output "$GITHUB_OUTPUT"
+
   biome-format:
     name: Biome Format Check
+    needs: detect
+    if: needs.detect.outputs.run_biome_format == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +54,8 @@ jobs:
 
   typescript-packages:
     name: TypeScript Packages
+    needs: detect
+    if: needs.detect.outputs.run_typescript_packages == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,6 +74,8 @@ jobs:
 
   extension:
     name: Chrome Extension
+    needs: detect
+    if: needs.detect.outputs.run_extension == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +96,8 @@ jobs:
 
   docs:
     name: Docs
+    needs: detect
+    if: needs.detect.outputs.run_docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,6 +124,8 @@ jobs:
 
   landing:
     name: Landing Site
+    needs: detect
+    if: needs.detect.outputs.run_landing == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -111,6 +148,8 @@ jobs:
 
   demo:
     name: Demo Site
+    needs: detect
+    if: needs.detect.outputs.run_demo == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -130,6 +169,8 @@ jobs:
 
   playground:
     name: Playground
+    needs: detect
+    if: needs.detect.outputs.run_playground == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -149,6 +190,8 @@ jobs:
 
   desktop-macos:
     name: Desktop macOS Smoke Build
+    needs: detect
+    if: needs.detect.outputs.run_desktop_macos == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -172,6 +215,8 @@ jobs:
 
   python-sdk:
     name: Python SDK
+    needs: detect
+    if: needs.detect.outputs.run_python_sdk == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -189,6 +234,8 @@ jobs:
 
   rust-sdk:
     name: Rust SDK
+    needs: detect
+    if: needs.detect.outputs.run_rust_sdk == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -202,6 +249,8 @@ jobs:
 
   go-sdk:
     name: Go SDK
+    needs: detect
+    if: needs.detect.outputs.run_go_sdk == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

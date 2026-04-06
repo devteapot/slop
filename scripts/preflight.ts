@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { getTypeScriptPackages, readJson, repoRoot, type PackageManifest } from "./release/shared";
@@ -38,7 +38,16 @@ type Args = {
   listOnly: boolean;
   since?: string;
   files: string[];
+  githubOutput?: string;
 };
+
+type CiJob = {
+  label: string;
+  output: string;
+  matches: (affectedIds: Set<string>, changedFiles: string[], repoWide: boolean) => boolean;
+};
+
+type CiJobPlan = Record<string, boolean>;
 
 const SCAN_DIRS = ["apps", "examples", "website", "benchmarks"];
 const WALK_IGNORE = new Set([
@@ -53,6 +62,12 @@ const WALK_IGNORE = new Set([
   ".tanstack",
   ".angular",
 ]);
+const JS_WORKSPACE_SHARED_ROOTS = ["package.json", "bun.lock"];
+const TYPESCRIPT_BUILD_TRIGGER = "scripts/build-typescript-packages.ts";
+const REPO_WIDE_TRIGGER_FILES = new Set([".github/workflows/preflight.yml", "scripts/preflight.ts"]);
+const BIOME_TRIGGER_FILES = new Set(["biome.json"]);
+const BIOME_EXCLUDED_FILES = new Set(["examples/full-stack/tanstack-start/src/routeTree.gen.ts"]);
+const BIOME_FORMAT_FILE_REGEX = /\.(?:[cm]?[jt]sx?)$/;
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
@@ -75,6 +90,9 @@ function parseArgs(argv: string[]): Args {
         args.files.push(normalizeRepoPath(argv[i + 1]));
         i += 1;
       }
+    } else if (arg === "--github-output") {
+      args.githubOutput = argv[i + 1];
+      i += 1;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -201,6 +219,14 @@ function createPythonCheck(relativeDir: string, args: string[], label: string): 
   };
 }
 
+function uniqueRoots(...rootGroups: string[][]): string[] {
+  return [...new Set(rootGroups.flat())];
+}
+
+function getSharedPackageRoots(): string[] {
+  return [...JS_WORKSPACE_SHARED_ROOTS];
+}
+
 function buildPackageChecks(relativeDir: string, manifest: PackageManifest): Check[] {
   const scripts = manifest.scripts ?? {};
 
@@ -243,7 +269,7 @@ function collectPackageComponents(): Component[] {
       manifestPath: pkg.manifestPath,
       relativeDir: pkg.relativeDir,
       absoluteRoot: pkg.dir,
-      roots: [pkg.relativeDir],
+      roots: uniqueRoots([pkg.relativeDir], getSharedPackageRoots()),
     });
   }
 
@@ -264,7 +290,10 @@ function collectPackageComponents(): Component[] {
         manifestPath,
         relativeDir,
         absoluteRoot,
-        roots: relativeDir === "website/docs" ? [relativeDir, "docs", "spec"] : [relativeDir],
+        roots: uniqueRoots(
+          relativeDir === "website/docs" ? [relativeDir, "docs", "spec"] : [relativeDir],
+          getSharedPackageRoots(),
+        ),
         excludedRoots: relativeDir === "apps/desktop" ? ["apps/desktop/src-tauri"] : undefined,
       });
     }
@@ -481,7 +510,7 @@ function collectPythonComponents(): Component[] {
   });
 }
 
-function buildComponents(): Component[] {
+export function buildComponents(): Component[] {
   return [
     ...collectPackageComponents(),
     ...collectCargoComponents(),
@@ -504,7 +533,19 @@ function fileMatchesComponent(filePath: string, component: Component): boolean {
 }
 
 function isRepoWideTrigger(filePath: string): boolean {
-  return filePath === "package.json" || filePath === "bun.lock" || filePath.startsWith("scripts/");
+  return REPO_WIDE_TRIGGER_FILES.has(filePath);
+}
+
+function isBiomeTrigger(filePath: string): boolean {
+  if (BIOME_TRIGGER_FILES.has(filePath)) {
+    return true;
+  }
+
+  if (BIOME_EXCLUDED_FILES.has(filePath)) {
+    return false;
+  }
+
+  return BIOME_FORMAT_FILE_REGEX.test(filePath);
 }
 
 function topologicalSort(components: Component[], affectedIds: Set<string>): Component[] {
@@ -555,7 +596,7 @@ function topologicalSort(components: Component[], affectedIds: Set<string>): Com
   return ordered;
 }
 
-function computeAffected(
+export function computeAffected(
   components: Component[],
   changedFiles: string[],
   runAll: boolean,
@@ -565,7 +606,6 @@ function computeAffected(
   repoWide: boolean;
 } {
   const causes = new Map<string, Cause>();
-  const componentMap = new Map(components.map((component) => [component.id, component]));
   const reverseDeps = new Map<string, string[]>();
 
   for (const component of components) {
@@ -615,6 +655,89 @@ function computeAffected(
     causes,
     repoWide,
   };
+}
+
+const CI_JOBS: CiJob[] = [
+  {
+    label: "Biome Format Check",
+    output: "run_biome_format",
+    matches: (_affectedIds, changedFiles, repoWide) => repoWide || changedFiles.some(isBiomeTrigger),
+  },
+  {
+    label: "TypeScript Packages",
+    output: "run_typescript_packages",
+    matches: (affectedIds, changedFiles, repoWide) =>
+      repoWide ||
+      changedFiles.includes(TYPESCRIPT_BUILD_TRIGGER) ||
+      [...affectedIds].some((id) => id.startsWith("pkg:packages/typescript/")),
+  },
+  {
+    label: "Chrome Extension",
+    output: "run_extension",
+    matches: (affectedIds) => affectedIds.has("pkg:apps/extension"),
+  },
+  {
+    label: "Docs",
+    output: "run_docs",
+    matches: (affectedIds) => affectedIds.has("pkg:website/docs"),
+  },
+  {
+    label: "Landing Site",
+    output: "run_landing",
+    matches: (affectedIds) => affectedIds.has("pkg:website/landing"),
+  },
+  {
+    label: "Demo Site",
+    output: "run_demo",
+    matches: (affectedIds, changedFiles, repoWide) =>
+      repoWide || changedFiles.includes(TYPESCRIPT_BUILD_TRIGGER) || affectedIds.has("pkg:website/demo"),
+  },
+  {
+    label: "Playground",
+    output: "run_playground",
+    matches: (affectedIds, changedFiles, repoWide) =>
+      repoWide || changedFiles.includes(TYPESCRIPT_BUILD_TRIGGER) || affectedIds.has("pkg:website/playground"),
+  },
+  {
+    label: "Desktop macOS Smoke Build",
+    output: "run_desktop_macos",
+    matches: (affectedIds) => affectedIds.has("pkg:apps/desktop") || affectedIds.has("cargo:apps/desktop/src-tauri"),
+  },
+  {
+    label: "Python SDK",
+    output: "run_python_sdk",
+    matches: (affectedIds) => affectedIds.has("py:packages/python/slop-ai"),
+  },
+  {
+    label: "Rust SDK",
+    output: "run_rust_sdk",
+    matches: (affectedIds) => affectedIds.has("cargo:packages/rust/slop-ai"),
+  },
+  {
+    label: "Go SDK",
+    output: "run_go_sdk",
+    matches: (affectedIds) => affectedIds.has("go:packages/go/slop-ai"),
+  },
+];
+
+export function computeCiJobPlan(ordered: Component[], changedFiles: string[], repoWide: boolean): CiJobPlan {
+  const affectedIds = new Set(ordered.map((component) => component.id));
+
+  return Object.fromEntries(
+    CI_JOBS.map((job) => [job.output, job.matches(affectedIds, changedFiles, repoWide)]),
+  ) as CiJobPlan;
+}
+
+function printCiJobPlan(plan: CiJobPlan): void {
+  console.log("CI jobs:\n");
+  for (const job of CI_JOBS) {
+    console.log(`- ${job.label}: ${plan[job.output] ? "run" : "skip"}`);
+  }
+}
+
+function writeGithubOutputs(filePath: string, plan: CiJobPlan): void {
+  const lines = CI_JOBS.map((job) => `${job.output}=${plan[job.output] ? "true" : "false"}`);
+  writeFileSync(filePath, `${lines.join("\n")}\n`);
 }
 
 function printPlan(ordered: Component[], causes: Map<string, Cause>, repoWide: boolean): void {
@@ -677,8 +800,15 @@ function main(): void {
   const changedFiles = detectChangedFiles(args);
   const components = buildComponents();
   const { ordered, causes, repoWide } = computeAffected(components, changedFiles, args.all);
+  const ciJobPlan = computeCiJobPlan(ordered, changedFiles, repoWide);
 
   printPlan(ordered, causes, repoWide);
+  console.log("");
+  printCiJobPlan(ciJobPlan);
+
+  if (args.githubOutput) {
+    writeGithubOutputs(args.githubOutput, ciJobPlan);
+  }
 
   if (!args.listOnly) {
     console.log("");
@@ -686,4 +816,6 @@ function main(): void {
   }
 }
 
-main();
+if (import.meta.main) {
+  main();
+}

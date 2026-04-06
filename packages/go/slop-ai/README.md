@@ -53,7 +53,7 @@ That mounts:
 
 ## Discovery layer
 
-The Go SDK now includes the core discovery layer in the `discovery` subpackage:
+The Go SDK includes the core discovery layer in the `discovery` subpackage:
 
 ```go
 import (

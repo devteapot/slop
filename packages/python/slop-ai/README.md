@@ -49,7 +49,7 @@ app.add_middleware(SlopMiddleware, slop=slop)
 
 ## Discovery layer
 
-The Python SDK now includes the core discovery layer in `slop_ai.discovery`:
+The Python SDK includes the core discovery layer in `slop_ai.discovery`:
 
 ```python
 import asyncio

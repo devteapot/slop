@@ -216,9 +216,19 @@ SLOP v0.1 is designed to be useful now while leaving room to grow. Key limitatio
 - **Multi-user apps** — Server-side providers currently expose one shared tree to all consumers. The protocol already supports per-user state (each connection is independent), but the SDKs don't implement session-scoped tree rendering yet. Client-only SPAs are unaffected — each tab is its own provider. See [Sessions & Multi-User](./docs/sdk/sessions.md).
 - **No reconnection** — If a WebSocket drops, the consumer must re-connect and re-subscribe from scratch. No automatic reconnect or version-based catch-up.
 - **No backpressure** — `pause`/`resume` messages are mentioned in the spec but not defined. Providers should debounce rapid changes (50-100ms).
-- **No network discovery** — mDNS/DNS-SD is reserved but unspecified. Remote providers require manual configuration.
+- **No LAN discovery** — Local discovery is shipped (`~/.slop/providers/`, `/tmp/slop/providers/`, browser meta tags, and `/.well-known/slop`), but mDNS/DNS-SD for remote providers is still reserved and unspecified.
 
 Full list: [Known Limitations & Future Work](https://docs.slopai.dev/spec/limitations/)
+
+## Current status
+
+As of `v0.1`, SLOP already includes:
+
+- Core protocol docs plus scaling, content-reference, and async-action extensions
+- TypeScript SDKs, framework adapters, and the discovery layer
+- Python, Go, and Rust SDKs
+- Chrome extension and desktop app
+- Examples, benchmarks, and OpenClaw integration
 
 ## Roadmap
 
@@ -237,7 +247,6 @@ Full list: [Known Limitations & Future Work](https://docs.slopai.dev/spec/limita
 **Product**
 - Firefox extension
 - Safari extension
-- OpenClaw integration
 - Agent CLI (`npx @slop-ai/init`)
 - Extension per-site toggles
 

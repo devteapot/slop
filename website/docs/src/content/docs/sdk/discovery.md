@@ -42,7 +42,7 @@ Integrations that only need discovery + MCP (e.g. `slop-bridge` with the MCP SDK
 
 ## Phase 1: Core Discovery Layer
 
-The current cross-SDK parity target is the **core discovery layer**. The TypeScript implementation is the behavioral reference, but other SDKs do **not** need to copy its package topology.
+As of `v0.1`, the **core discovery layer** is shipped across TypeScript, Python, Go, and Rust. The TypeScript implementation remains the behavioral reference, but other SDKs do **not** need to copy its package topology.
 
 - TypeScript reference files: `packages/typescript/integrations/discovery/src/discovery.ts`, `bridge-client.ts`, `bridge-server.ts`, `relay-transport.ts`, and `tools.ts`
 - Python target module: `slop_ai.discovery`

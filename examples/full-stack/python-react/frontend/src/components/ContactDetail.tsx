@@ -9,12 +9,7 @@ interface Props {
   onContactDeleted: () => void;
 }
 
-export default function ContactDetail({
-  contactId,
-  refreshToken,
-  onContactUpdated,
-  onContactDeleted,
-}: Props) {
+export default function ContactDetail({ contactId, refreshToken, onContactUpdated, onContactDeleted }: Props) {
   const [contact, setContact] = useState<Contact | null>(null);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [editing, setEditing] = useState(false);
@@ -23,23 +18,32 @@ export default function ContactDetail({
 
   useEffect(() => {
     let cancelled = false;
-    void api.fetchContact(contactId).then((data) => {
-      if (cancelled) return;
-      setContact(data);
-      setActivity(data.activity ?? []);
-      setEditing(false);
-      setNewNote("");
-    }).catch((error) => {
-      if (cancelled) return;
-      console.warn("[slop] failed to load contact detail:", error);
-      setContact(null);
-      setActivity([]);
-    });
-    return () => { cancelled = true; };
+    void api
+      .fetchContact(contactId)
+      .then((data) => {
+        if (cancelled) return;
+        setContact(data);
+        setActivity(data.activity ?? []);
+        setEditing(false);
+        setNewNote("");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.warn("[slop] failed to load contact detail:", error);
+        setContact(null);
+        setActivity([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [contactId, refreshToken]);
 
   if (!contact) {
-    return <section className="contact-detail"><p className="loading">Loading...</p></section>;
+    return (
+      <section className="contact-detail">
+        <p className="loading">Loading...</p>
+      </section>
+    );
   }
 
   const startEdit = () => {
@@ -122,14 +126,38 @@ export default function ContactDetail({
       <div className="detail-header">
         {editing ? (
           <div className="edit-form">
-            <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Name" />
-            <input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} placeholder="Email" />
-            <input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="Phone" />
-            <input value={editForm.company} onChange={(e) => setEditForm({ ...editForm, company: e.target.value })} placeholder="Company" />
-            <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
+            <input
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              placeholder="Name"
+            />
+            <input
+              value={editForm.email}
+              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              placeholder="Email"
+            />
+            <input
+              value={editForm.phone}
+              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              placeholder="Phone"
+            />
+            <input
+              value={editForm.company}
+              onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
+              placeholder="Company"
+            />
+            <input
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              placeholder="Title"
+            />
             <div className="edit-actions">
-              <button className="btn-primary" onClick={saveEdit}>Save</button>
-              <button className="btn-secondary" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="btn-primary" onClick={saveEdit}>
+                Save
+              </button>
+              <button className="btn-secondary" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
             </div>
           </div>
         ) : (
@@ -152,8 +180,12 @@ export default function ContactDetail({
               </p>
             )}
             <div className="detail-actions">
-              <button className="btn-secondary" onClick={startEdit}>Edit</button>
-              <button className="btn-danger" onClick={handleDelete}>Delete</button>
+              <button className="btn-secondary" onClick={startEdit}>
+                Edit
+              </button>
+              <button className="btn-danger" onClick={handleDelete}>
+                Delete
+              </button>
             </div>
           </>
         )}
@@ -165,10 +197,14 @@ export default function ContactDetail({
           {contact.tags.map((tag) => (
             <span key={tag} className="tag">
               {tag}
-              <button className="tag-remove" onClick={() => handleRemoveTag(tag)}>&times;</button>
+              <button className="tag-remove" onClick={() => handleRemoveTag(tag)}>
+                &times;
+              </button>
             </span>
           ))}
-          <button className="tag-add" onClick={handleAddTag}>+ tag</button>
+          <button className="tag-add" onClick={handleAddTag}>
+            + tag
+          </button>
         </div>
       </div>
 
@@ -180,12 +216,7 @@ export default function ContactDetail({
       )}
 
       <div className="detail-add-note">
-        <textarea
-          placeholder="Add a note..."
-          value={newNote}
-          onChange={(e) => setNewNote(e.target.value)}
-          rows={2}
-        />
+        <textarea placeholder="Add a note..." value={newNote} onChange={(e) => setNewNote(e.target.value)} rows={2} />
         <button className="btn-primary btn-small" onClick={handleAddNote} disabled={!newNote.trim()}>
           Add Note
         </button>

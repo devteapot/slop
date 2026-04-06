@@ -34,7 +34,9 @@ describe("StateMirror", () => {
   test("applies property replace", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
-      type: "patch", subscription: "sub-1", version: 2,
+      type: "patch",
+      subscription: "sub-1",
+      version: 2,
       ops: [{ op: "replace", path: "/todos/t1/properties/done", value: true }],
     });
     expect(mirror.getTree().children![0].children![0].properties?.done).toBe(true);
@@ -44,7 +46,9 @@ describe("StateMirror", () => {
   test("applies child add", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
-      type: "patch", subscription: "sub-1", version: 2,
+      type: "patch",
+      subscription: "sub-1",
+      version: 2,
       ops: [{ op: "add", path: "/todos/t3", value: { id: "t3", type: "item", properties: { title: "Third" } } }],
     });
     expect(mirror.getTree().children![0].children).toHaveLength(3);
@@ -53,7 +57,9 @@ describe("StateMirror", () => {
   test("applies child remove", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
-      type: "patch", subscription: "sub-1", version: 2,
+      type: "patch",
+      subscription: "sub-1",
+      version: 2,
       ops: [{ op: "remove", path: "/todos/t1" }],
     });
     expect(mirror.getTree().children![0].children).toHaveLength(1);
@@ -63,7 +69,9 @@ describe("StateMirror", () => {
   test("applies multiple ops in sequence", () => {
     const mirror = new StateMirror(snapshot);
     mirror.applyPatch({
-      type: "patch", subscription: "sub-1", version: 2,
+      type: "patch",
+      subscription: "sub-1",
+      version: 2,
       ops: [
         { op: "replace", path: "/todos/t1/properties/done", value: true },
         { op: "replace", path: "/todos/properties/count", value: 3 },

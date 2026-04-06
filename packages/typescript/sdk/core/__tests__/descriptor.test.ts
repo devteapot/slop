@@ -33,16 +33,18 @@ describe("normalizeDescriptor", () => {
         },
       },
     });
-    expect(node.affordances).toEqual([{
-      action: "delete",
-      label: "Delete All",
-      dangerous: true,
-      params: {
-        type: "object",
-        properties: { confirm: { type: "boolean" } },
-        required: ["confirm"],
+    expect(node.affordances).toEqual([
+      {
+        action: "delete",
+        label: "Delete All",
+        dangerous: true,
+        params: {
+          type: "object",
+          properties: { confirm: { type: "boolean" } },
+          required: ["confirm"],
+        },
       },
-    }]);
+    ]);
     expect(handlers.get("notes/delete")).toBe(fn);
   });
 
@@ -115,11 +117,13 @@ describe("normalizeDescriptor", () => {
     const editFn = () => {};
     const { handlers } = normalizeDescriptor("inbox/messages", "messages", {
       type: "collection",
-      items: [{
-        id: "msg-1",
-        props: { subject: "Hi" },
-        actions: { edit: editFn },
-      }],
+      items: [
+        {
+          id: "msg-1",
+          props: { subject: "Hi" },
+          actions: { edit: editFn },
+        },
+      ],
     });
     expect(handlers.get("inbox/messages/msg-1/edit")).toBe(editFn);
   });
@@ -197,15 +201,17 @@ describe("normalizeDescriptor", () => {
   test("item contentRef maps to content_ref field", () => {
     const { node } = normalizeDescriptor("docs", "docs", {
       type: "collection",
-      items: [{
-        id: "readme",
-        props: { title: "README.md" },
-        contentRef: {
-          type: "text",
-          mime: "text/markdown",
-          summary: "Project readme",
+      items: [
+        {
+          id: "readme",
+          props: { title: "README.md" },
+          contentRef: {
+            type: "text",
+            mime: "text/markdown",
+            summary: "Project readme",
+          },
         },
-      }],
+      ],
     });
     const item = node.children![0];
     expect(item.content_ref).toBeDefined();
@@ -236,11 +242,13 @@ describe("normalizeDescriptor", () => {
   test("item summary maps to meta.summary", () => {
     const { node } = normalizeDescriptor("notes", "notes", {
       type: "collection",
-      items: [{
-        id: "n1",
-        props: { title: "Note" },
-        summary: "A short note about testing",
-      }],
+      items: [
+        {
+          id: "n1",
+          props: { title: "Note" },
+          summary: "A short note about testing",
+        },
+      ],
     });
     expect(node.children![0].meta?.summary).toBe("A short note about testing");
   });

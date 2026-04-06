@@ -18,7 +18,7 @@ function invoke(cmd, args = {}) {
   if (window.__TAURI__ && window.__TAURI__.core) {
     return window.__TAURI__.core.invoke(cmd, args);
   }
-  return Promise.reject(new Error('Tauri IPC not available'));
+  return Promise.reject(new Error("Tauri IPC not available"));
 }
 
 // ── Helpers ──
@@ -26,15 +26,15 @@ function invoke(cmd, args = {}) {
 function formatTime(totalSec) {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function formatSessionTime(isoString) {
   try {
     const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -45,15 +45,19 @@ function formatDuration(sec) {
 
 function totalDuration(phase, settings) {
   switch (phase) {
-    case 'working': return settings.work_duration_sec;
-    case 'short_break': return settings.short_break_sec;
-    case 'long_break': return settings.long_break_sec;
-    default: return 0;
+    case "working":
+      return settings.work_duration_sec;
+    case "short_break":
+      return settings.short_break_sec;
+    case "long_break":
+      return settings.long_break_sec;
+    default:
+      return 0;
   }
 }
 
 function isBreak(phase) {
-  return phase === 'short_break' || phase === 'long_break';
+  return phase === "short_break" || phase === "long_break";
 }
 
 // ── DOM refs (lazy, grabbed on first render) ──
@@ -61,13 +65,13 @@ let statusLabel, tagDisplay, timerDigits, ringProgress, timerControls, sessionsT
 
 function ensureDom() {
   if (statusLabel) return;
-  statusLabel = document.getElementById('status-label');
-  tagDisplay = document.getElementById('tag-display');
-  timerDigits = document.getElementById('timer-digits');
-  ringProgress = document.getElementById('ring-progress');
-  timerControls = document.getElementById('timer-controls');
-  sessionsTitle = document.getElementById('sessions-title');
-  sessionsList = document.getElementById('sessions-list');
+  statusLabel = document.getElementById("status-label");
+  tagDisplay = document.getElementById("tag-display");
+  timerDigits = document.getElementById("timer-digits");
+  ringProgress = document.getElementById("ring-progress");
+  timerControls = document.getElementById("timer-controls");
+  sessionsTitle = document.getElementById("sessions-title");
+  sessionsList = document.getElementById("sessions-list");
 }
 
 // ── Render ──
@@ -81,33 +85,33 @@ function render(snap) {
   const { phase, paused, time_remaining_sec, current_tag, sessions, settings } = snap;
 
   // Status label
-  statusLabel.textContent = paused ? 'PAUSED' : phase.toUpperCase().replace('_', ' ');
-  statusLabel.className = 'status-label';
+  statusLabel.textContent = paused ? "PAUSED" : phase.toUpperCase().replace("_", " ");
+  statusLabel.className = "status-label";
   if (paused) {
-    statusLabel.classList.add('paused');
-  } else if (phase === 'working') {
-    statusLabel.classList.add('working');
+    statusLabel.classList.add("paused");
+  } else if (phase === "working") {
+    statusLabel.classList.add("working");
   } else if (isBreak(phase)) {
-    statusLabel.classList.add('break');
+    statusLabel.classList.add("break");
   }
 
   // Tag display
-  if (phase === 'working' && current_tag) {
+  if (phase === "working" && current_tag) {
     tagDisplay.innerHTML = `<span class="tag-prefix">WORKING ON:</span><span class="tag-name">"${escapeHtml(current_tag)}"</span>`;
   } else if (isBreak(phase)) {
-    const label = phase === 'short_break' ? 'SHORT BREAK' : 'LONG BREAK';
+    const label = phase === "short_break" ? "SHORT BREAK" : "LONG BREAK";
     tagDisplay.innerHTML = `<span class="tag-prefix">${label}</span><span class="tag-name">Take a break!</span>`;
   } else {
-    tagDisplay.innerHTML = '';
+    tagDisplay.innerHTML = "";
   }
 
   // Timer digits
-  if (phase === 'idle') {
-    timerDigits.textContent = '00:00';
-    timerDigits.className = 'timer-digits idle';
+  if (phase === "idle") {
+    timerDigits.textContent = "00:00";
+    timerDigits.className = "timer-digits idle";
   } else {
     timerDigits.textContent = formatTime(time_remaining_sec);
-    timerDigits.className = 'timer-digits';
+    timerDigits.className = "timer-digits";
   }
 
   // Ring progress
@@ -117,10 +121,10 @@ function render(snap) {
     const fraction = elapsed / total;
     const offset = RING_CIRCUMFERENCE * (1 - fraction);
     ringProgress.style.strokeDashoffset = offset;
-    ringProgress.classList.toggle('break-mode', isBreak(phase));
+    ringProgress.classList.toggle("break-mode", isBreak(phase));
   } else {
     ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE;
-    ringProgress.classList.remove('break-mode');
+    ringProgress.classList.remove("break-mode");
   }
 
   // Controls
@@ -131,16 +135,16 @@ function render(snap) {
 }
 
 function renderControls(phase, paused) {
-  let html = '';
+  let html = "";
 
-  if (phase === 'idle') {
+  if (phase === "idle") {
     html = `
       <form class="start-form" id="start-form">
         <input type="text" class="start-input" id="tag-input"
           placeholder="What are you working on?" />
         <button type="submit" class="btn btn-primary">START</button>
       </form>`;
-  } else if (phase === 'working' && !paused) {
+  } else if (phase === "working" && !paused) {
     html = `
       <button class="btn btn-secondary" onclick="doCommand('timer_pause')">PAUSE</button>
       <button class="btn btn-secondary" onclick="doCommand('timer_skip')">SKIP</button>
@@ -158,22 +162,22 @@ function renderControls(phase, paused) {
   timerControls.innerHTML = html;
 
   // Bind start form
-  const form = document.getElementById('start-form');
+  const form = document.getElementById("start-form");
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const input = document.getElementById('tag-input');
+      const input = document.getElementById("tag-input");
       const tag = input.value.trim() || null;
-      await invoke('timer_start', { tag });
+      await invoke("timer_start", { tag });
     });
   }
 }
 
 function renderSessions(sessions) {
   // Show all completed sessions (seed data may have different dates)
-  const todaySessions = sessions.filter(s => s.completed);
+  const todaySessions = sessions.filter((s) => s.completed);
 
-  sessionsTitle.textContent = `TODAY: ${todaySessions.length} POMODORO${todaySessions.length !== 1 ? 'S' : ''}`;
+  sessionsTitle.textContent = `TODAY: ${todaySessions.length} POMODORO${todaySessions.length !== 1 ? "S" : ""}`;
 
   if (todaySessions.length === 0) {
     sessionsList.innerHTML = '<div class="empty-state">No sessions yet today</div>';
@@ -184,18 +188,20 @@ function renderSessions(sessions) {
   const sorted = [...todaySessions].reverse();
 
   sessionsList.innerHTML = sorted
-    .map(s => `
+    .map(
+      (s) => `
       <div class="session-card">
         <span class="session-time">${formatSessionTime(s.started_at)}</span>
         <span class="session-tag">${escapeHtml(s.tag)}</span>
         <span class="session-category">#${escapeHtml(s.category)}</span>
         <span class="session-duration">${formatDuration(s.duration_sec)}</span>
-      </div>`)
-    .join('');
+      </div>`,
+    )
+    .join("");
 }
 
 function escapeHtml(str) {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
@@ -217,10 +223,10 @@ window.doCommand = doCommand;
 
 async function poll() {
   try {
-    const snap = await invoke('get_state');
+    const snap = await invoke("get_state");
     render(snap);
   } catch (e) {
-    console.error('Poll error:', e);
+    console.error("Poll error:", e);
   }
 }
 

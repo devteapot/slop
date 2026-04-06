@@ -36,12 +36,12 @@ function formatNode(node: SlopNode, indent: number = 0): string {
 }
 
 export function StateTree() {
-  const providerTrees = useAppStore(s => s.providerTrees);
-  const providers = useAppStore(s => s.providers);
+  const providerTrees = useAppStore((s) => s.providerTrees);
+  const providers = useAppStore((s) => s.providers);
 
-  const connected = providers.filter(p => p.status === "connected");
+  const connected = providers.filter((p) => p.status === "connected");
   const treePairs = connected
-    .map(p => ({ provider: p, tree: providerTrees[p.id] }))
+    .map((p) => ({ provider: p, tree: providerTrees[p.id] }))
     .filter((x): x is { provider: typeof x.provider; tree: SlopNode } => !!x.tree);
 
   const totalAffordances = treePairs.reduce((sum, { tree }) => {

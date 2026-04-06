@@ -38,21 +38,24 @@ import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 export function useSlop<S = unknown>(
   client: SlopClient<S>,
   path: string | (() => string),
-  descriptor: () => NodeDescriptor
+  descriptor: () => NodeDescriptor,
 ): void {
   let currentPath = resolvePath(path);
 
-  watchEffect(() => {
-    const p = resolvePath(path);
-    const desc = descriptor();
+  watchEffect(
+    () => {
+      const p = resolvePath(path);
+      const desc = descriptor();
 
-    if (p !== currentPath) {
-      client.unregister(currentPath);
-      currentPath = p;
-    }
+      if (p !== currentPath) {
+        client.unregister(currentPath);
+        currentPath = p;
+      }
 
-    client.register(currentPath, deepUnwrap(desc) as NodeDescriptor);
-  }, { flush: "post" });
+      client.register(currentPath, deepUnwrap(desc) as NodeDescriptor);
+    },
+    { flush: "post" },
+  );
 
   onUnmounted(() => {
     client.unregister(currentPath);

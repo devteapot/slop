@@ -9,10 +9,7 @@ import type { SlopServer } from "../server";
  * export default { plugins: [sveltekit(), slopPlugin(slop)] };
  * ```
  */
-export function slopPlugin(
-  slop: SlopServer,
-  options: { path?: string } = {}
-) {
+export function slopPlugin(slop: SlopServer, options: { path?: string } = {}) {
   const path = options.path ?? "/slop";
 
   return {

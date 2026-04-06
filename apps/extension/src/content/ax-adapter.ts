@@ -71,21 +71,13 @@ interface CursorElementInfo {
  */
 function findCursorInteractiveElements(root: HTMLElement): Map<Element, CursorElementInfo> {
   const out = new Map<Element, CursorElementInfo>();
-  const interactiveTags = new Set([
-    "a",
-    "button",
-    "input",
-    "select",
-    "textarea",
-    "details",
-    "summary",
-  ]);
+  const interactiveTags = new Set(["a", "button", "input", "select", "textarea", "details", "summary"]);
 
   const all = root.querySelectorAll("*");
   for (let i = 0; i < all.length; i++) {
     const el = all[i];
     if (!(el instanceof HTMLElement)) continue;
-    if (el.closest("[hidden], [aria-hidden=\"true\"]")) continue;
+    if (el.closest('[hidden], [aria-hidden="true"]')) continue;
 
     const tagName = el.tagName.toLowerCase();
     if (interactiveTags.has(tagName)) continue;
@@ -246,7 +238,10 @@ function getAccessibleName(el: Element, cursorFallback?: CursorElementInfo): str
 
   const labelledBy = el.getAttribute("aria-labelledby");
   if (labelledBy) {
-    const parts = labelledBy.split(/\s+/).map(id => document.getElementById(id)?.textContent?.trim()).filter(Boolean);
+    const parts = labelledBy
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent?.trim())
+      .filter(Boolean);
     if (parts.length) return sanitizeAccessibleString(parts.join(" "));
   }
 
@@ -281,7 +276,10 @@ function getAccessibleName(el: Element, cursorFallback?: CursorElementInfo): str
 function getDescription(el: Element): string {
   const describedBy = el.getAttribute("aria-describedby");
   if (describedBy) {
-    const parts = describedBy.split(/\s+/).map(id => document.getElementById(id)?.textContent?.trim()).filter(Boolean);
+    const parts = describedBy
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent?.trim())
+      .filter(Boolean);
     if (parts.length) return parts.join(" ");
   }
 
@@ -306,18 +304,13 @@ function getDescription(el: Element): string {
 
 // --- Affordance extraction ---
 
-function getAffordances(
-  el: Element,
-  role: string,
-  cursor: CursorElementInfo | undefined,
-): SlopNode["affordances"] {
+function getAffordances(el: Element, role: string, cursor: CursorElementInfo | undefined): SlopNode["affordances"] {
   const affordances: NonNullable<SlopNode["affordances"]> = [];
   const name = getAccessibleName(el, cursor);
 
   if (["button", "link", "menuitem", "tab"].includes(role)) {
-    const label = role === "link"
-      ? `Navigate to ${(el as HTMLAnchorElement).href?.slice(0, 60) ?? "link"}`
-      : name || "Click";
+    const label =
+      role === "link" ? `Navigate to ${(el as HTMLAnchorElement).href?.slice(0, 60) ?? "link"}` : name || "Click";
     affordances.push({ action: "click", label });
   }
 
@@ -347,9 +340,7 @@ function getAffordances(
   }
 
   if (role === "combobox") {
-    const options = el instanceof HTMLSelectElement
-      ? Array.from(el.options).map(o => o.value)
-      : [];
+    const options = el instanceof HTMLSelectElement ? Array.from(el.options).map((o) => o.value) : [];
     affordances.push({
       action: "select",
       label: `Select option in ${name || "dropdown"}`,
@@ -426,8 +417,31 @@ function isMeaningful(el: Element, role: string, cursorMap: ReadonlyMap<Element,
   if (el.getAttribute("role")) return true;
 
   // Semantic HTML tags
-  if (["MAIN", "NAV", "ASIDE", "HEADER", "FOOTER", "SECTION", "ARTICLE", "FORM",
-       "H1", "H2", "H3", "H4", "H5", "H6", "UL", "OL", "LI", "TABLE", "IMG", "FIGURE"].includes(tag)) return true;
+  if (
+    [
+      "MAIN",
+      "NAV",
+      "ASIDE",
+      "HEADER",
+      "FOOTER",
+      "SECTION",
+      "ARTICLE",
+      "FORM",
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+      "UL",
+      "OL",
+      "LI",
+      "TABLE",
+      "IMG",
+      "FIGURE",
+    ].includes(tag)
+  )
+    return true;
 
   return false;
 }
@@ -528,10 +542,7 @@ export interface AxBuildOptions {
   mode?: "full" | "interactive";
 }
 
-function buildSlopNodeForElement(
-  el: Element,
-  cursor: CursorElementInfo | undefined,
-): SlopNode | null {
+function buildSlopNodeForElement(el: Element, cursor: CursorElementInfo | undefined): SlopNode | null {
   const rawRole = getRole(el);
   const role = rawRole || roleFromCursorHint(cursor);
   const affordances = getAffordances(el, role, cursor);
@@ -586,7 +597,7 @@ function buildInteractiveFlat(cursorMap: ReadonlyMap<Element, CursorElementInfo>
 
   const candidates = new Set<Element>();
   for (const el of document.querySelectorAll(
-    "a[href], button, input, textarea, select, summary, [role], [tabindex]:not([tabindex=\"-1\"])",
+    'a[href], button, input, textarea, select, summary, [role], [tabindex]:not([tabindex="-1"])',
   )) {
     if (!(el instanceof HTMLElement)) continue;
     if (shouldSkip(el)) continue;
@@ -680,7 +691,16 @@ export function observeChanges(callback: (tree: SlopNode) => void): () => void {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["role", "aria-label", "aria-expanded", "aria-checked", "aria-hidden", "value", "checked", "disabled"],
+    attributeFilter: [
+      "role",
+      "aria-label",
+      "aria-expanded",
+      "aria-checked",
+      "aria-hidden",
+      "value",
+      "checked",
+      "disabled",
+    ],
   });
 
   return () => {
@@ -692,7 +712,11 @@ export function observeChanges(callback: (tree: SlopNode) => void): () => void {
 
 // --- Action execution ---
 
-export function executeAction(nodeId: string, action: string, params?: Record<string, unknown>): { status: string; message?: string } {
+export function executeAction(
+  nodeId: string,
+  action: string,
+  params?: Record<string, unknown>,
+): { status: string; message?: string } {
   const el = resolveElement(nodeId);
   if (!el) return { status: "error", message: `Element ${nodeId} not found` };
 

@@ -1,7 +1,17 @@
 #!/usr/bin/env bun
 
 import { setFilePath } from "./store";
-import { listTasks, addTask, doneTask, undoTask, editTask, deleteTask, showNotes, searchTasks, exportTasks } from "./cli";
+import {
+  listTasks,
+  addTask,
+  doneTask,
+  undoTask,
+  editTask,
+  deleteTask,
+  showNotes,
+  searchTasks,
+  exportTasks,
+} from "./cli";
 import { startSlopMode } from "./slop";
 
 const args = process.argv.slice(2);
@@ -64,21 +74,30 @@ async function runCli(args: string[]) {
 
     case "done": {
       const id = args[1];
-      if (!id) { console.error("Usage: tsk done <id>"); process.exit(1); }
+      if (!id) {
+        console.error("Usage: tsk done <id>");
+        process.exit(1);
+      }
       await doneTask(id);
       break;
     }
 
     case "undo": {
       const id = args[1];
-      if (!id) { console.error("Usage: tsk undo <id>"); process.exit(1); }
+      if (!id) {
+        console.error("Usage: tsk undo <id>");
+        process.exit(1);
+      }
       await undoTask(id);
       break;
     }
 
     case "edit": {
       const id = args[1];
-      if (!id) { console.error("Usage: tsk edit <id> [--title <t>] [--due <d>] [--tag <t>]"); process.exit(1); }
+      if (!id) {
+        console.error("Usage: tsk edit <id> [--title <t>] [--due <d>] [--tag <t>]");
+        process.exit(1);
+      }
       const opts: { title?: string; due?: string; tag?: string } = {};
       for (let i = 2; i < args.length; i++) {
         if (args[i] === "--title" && i + 1 < args.length) opts.title = args[++i];
@@ -91,14 +110,20 @@ async function runCli(args: string[]) {
 
     case "delete": {
       const id = args[1];
-      if (!id) { console.error("Usage: tsk delete <id>"); process.exit(1); }
+      if (!id) {
+        console.error("Usage: tsk delete <id>");
+        process.exit(1);
+      }
       await deleteTask(id);
       break;
     }
 
     case "notes": {
       const id = args[1];
-      if (!id) { console.error("Usage: tsk notes <id> [--set <text>]"); process.exit(1); }
+      if (!id) {
+        console.error("Usage: tsk notes <id> [--set <text>]");
+        process.exit(1);
+      }
       const opts: { set?: string } = {};
       for (let i = 2; i < args.length; i++) {
         if (args[i] === "--set" && i + 1 < args.length) opts.set = args[++i];
@@ -109,7 +134,10 @@ async function runCli(args: string[]) {
 
     case "search": {
       const query = args[1];
-      if (!query) { console.error("Usage: tsk search <query>"); process.exit(1); }
+      if (!query) {
+        console.error("Usage: tsk search <query>");
+        process.exit(1);
+      }
       await searchTasks(query);
       break;
     }

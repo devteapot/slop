@@ -53,13 +53,25 @@ export async function runAgentBenchmark(
       configs.push({ label: "MCP agent", proto: "mcp", run: () => runMcpAgent(genAI, scenario) });
     }
     if (shouldRun("slop")) {
-      configs.push({ label: "SLOP agent (full tree)", proto: "slop", run: () => runSlopAgent(genAI, scenario, "slop", -1, undefined, seed) });
+      configs.push({
+        label: "SLOP agent (full tree)",
+        proto: "slop",
+        run: () => runSlopAgent(genAI, scenario, "slop", -1, undefined, seed),
+      });
     }
     if (shouldRun("slop-optimized")) {
-      configs.push({ label: "SLOP agent (optimized)", proto: "slop-optimized", run: () => runSlopAgent(genAI, scenario, "slop-optimized", -1, { optimized: true }, seed) });
+      configs.push({
+        label: "SLOP agent (optimized)",
+        proto: "slop-optimized",
+        run: () => runSlopAgent(genAI, scenario, "slop-optimized", -1, { optimized: true }, seed),
+      });
     }
     if (shouldRun("slop-basic")) {
-      configs.push({ label: "SLOP agent (basic prompt)", proto: "slop-basic", run: () => runSlopAgent(genAI, scenario, "slop-basic", -1, undefined, seed, true) });
+      configs.push({
+        label: "SLOP agent (basic prompt)",
+        proto: "slop-basic",
+        run: () => runSlopAgent(genAI, scenario, "slop-basic", -1, undefined, seed, true),
+      });
     }
 
     const protocolResults: AgentMetrics[] = [];
@@ -101,9 +113,7 @@ function averageAgentMetrics(runs: AgentMetrics[]): AgentMetrics {
       passed: passCount === totalRuns,
       totalChecks: last.totalChecks,
       passedChecks: Math.round(avg(verifications.map((v) => v!.passedChecks))),
-      failures: passCount === totalRuns
-        ? []
-        : [`Passed ${passCount}/${totalRuns} runs. ` + last.failures.join("; ")],
+      failures: passCount === totalRuns ? [] : [`Passed ${passCount}/${totalRuns} runs. ` + last.failures.join("; ")],
     };
   }
 
@@ -167,7 +177,10 @@ async function runSlopAgent(
         parameters: convertToGeminiSchema({
           type: "object",
           properties: {
-            path: { type: "string", description: "The tree path to load, e.g. a collection path or a specific node path" },
+            path: {
+              type: "string",
+              description: "The tree path to load, e.g. a collection path or a specific node path",
+            },
             depth: { type: "integer", description: "How many levels deep to resolve. -1 for full depth. Default: -1" },
           },
           required: ["path"],
@@ -182,11 +195,13 @@ async function runSlopAgent(
     ];
 
     function buildGeminiTools() {
-      const tools = toolSet.tools.map((t): FunctionDeclaration => ({
-        name: t.function.name,
-        description: t.function.description,
-        parameters: convertToGeminiSchema(t.function.parameters),
-      }));
+      const tools = toolSet.tools.map(
+        (t): FunctionDeclaration => ({
+          name: t.function.name,
+          description: t.function.description,
+          parameters: convertToGeminiSchema(t.function.parameters),
+        }),
+      );
       tools.push(...navigationTools);
       return tools;
     }
@@ -224,7 +239,10 @@ async function runSlopAgent(
     while (maxIterations-- > 0) {
       const parts = response.response.candidates?.[0]?.content?.parts ?? [];
       const fnCalls = parts.filter((p) => "functionCall" in p);
-      const textParts = parts.filter((p) => "text" in p).map((p) => (p as any).text).join("");
+      const textParts = parts
+        .filter((p) => "text" in p)
+        .map((p) => (p as any).text)
+        .join("");
 
       if (textParts) verboseLlmTurn(proto, llmCalls, textParts);
 
@@ -291,7 +309,11 @@ async function runSlopAgent(
           metrics.recordSend(JSON.stringify({ path: resolved.path, action: resolved.action, params: fc.args }).length);
           metrics.recordReceive(JSON.stringify(result).length);
           const rawData = result.data ?? { status: result.status };
-          const responseObj = Array.isArray(rawData) ? { results: rawData } : (typeof rawData === "object" && rawData !== null ? rawData : { value: rawData });
+          const responseObj = Array.isArray(rawData)
+            ? { results: rawData }
+            : typeof rawData === "object" && rawData !== null
+              ? rawData
+              : { value: rawData };
           verboseToolResult(proto, fc.name, responseObj);
           fnResults.push({
             functionResponse: { name: fc.name, response: responseObj },
@@ -349,10 +371,7 @@ async function runSlopAgent(
   };
 }
 
-async function runMcpAgent(
-  genAI: GoogleGenerativeAI,
-  scenario: Scenario,
-): Promise<AgentMetrics> {
+async function runMcpAgent(genAI: GoogleGenerativeAI, scenario: Scenario): Promise<AgentMetrics> {
   const metrics = new MetricsCollector("mcp");
   let inputTokens = 0;
   let outputTokens = 0;
@@ -373,11 +392,13 @@ async function runMcpAgent(
   const { tools: mcpTools } = await client.listTools();
   metrics.endSetup();
 
-  const geminiTools = mcpTools.map((t): FunctionDeclaration => ({
-    name: t.name,
-    description: t.description ?? "",
-    parameters: convertToGeminiSchema(t.inputSchema),
-  }));
+  const geminiTools = mcpTools.map(
+    (t): FunctionDeclaration => ({
+      name: t.name,
+      description: t.description ?? "",
+      parameters: convertToGeminiSchema(t.inputSchema),
+    }),
+  );
 
   const model = genAI.getGenerativeModel({
     model: geminiModel,
@@ -411,7 +432,10 @@ async function runMcpAgent(
   while (maxIterations-- > 0) {
     const parts = response.response.candidates?.[0]?.content?.parts ?? [];
     const fnCalls = parts.filter((p) => "functionCall" in p);
-    const textParts = parts.filter((p) => "text" in p).map((p) => (p as any).text).join("");
+    const textParts = parts
+      .filter((p) => "text" in p)
+      .map((p) => (p as any).text)
+      .join("");
 
     if (textParts) verboseLlmTurn("mcp", llmCalls, textParts);
 
@@ -427,10 +451,11 @@ async function runMcpAgent(
       toolCalls++;
       verboseToolCall("mcp", fc.name, fc.args);
       const result = await client.callTool({ name: fc.name, arguments: fc.args ?? {} });
-      const resultText = (result.content as any[])
-        ?.filter((c: any) => c.type === "text")
-        .map((c: any) => c.text)
-        .join("") ?? "";
+      const resultText =
+        (result.content as any[])
+          ?.filter((c: any) => c.type === "text")
+          .map((c: any) => c.text)
+          .join("") ?? "";
       metrics.recordSend(JSON.stringify({ name: fc.name, arguments: fc.args }).length);
       metrics.recordReceive(resultText.length);
 
@@ -440,7 +465,11 @@ async function runMcpAgent(
       } catch {
         parsed = { text: resultText };
       }
-      const responseObj = Array.isArray(parsed) ? { results: parsed } : (typeof parsed === "object" && parsed !== null ? parsed : { value: parsed });
+      const responseObj = Array.isArray(parsed)
+        ? { results: parsed }
+        : typeof parsed === "object" && parsed !== null
+          ? parsed
+          : { value: parsed };
       verboseToolResult("mcp", fc.name, responseObj);
       fnResults.push({
         functionResponse: { name: fc.name, response: responseObj },
@@ -523,9 +552,7 @@ function toSummary(result: VerificationResult, protocol?: string): VerificationS
     passed: result.passed,
     totalChecks: result.checks.length,
     passedChecks: result.checks.filter((c) => c.passed).length,
-    failures: result.checks
-      .filter((c) => !c.passed)
-      .map((c) => `${c.name}${c.detail ? ` (${c.detail})` : ""}`),
+    failures: result.checks.filter((c) => !c.passed).map((c) => `${c.name}${c.detail ? ` (${c.detail})` : ""}`),
   };
 }
 

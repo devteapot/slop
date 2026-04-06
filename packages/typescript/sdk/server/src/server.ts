@@ -1,7 +1,11 @@
 import { ProviderBase, diffNodes, getSubtree } from "@slop-ai/core";
 import type {
-  SlopNode, PatchOp, ActionHandler, NodeDescriptor,
-  SlopClientOptions, SubscriptionFilter,
+  SlopNode,
+  PatchOp,
+  ActionHandler,
+  NodeDescriptor,
+  SlopClientOptions,
+  SubscriptionFilter,
 } from "@slop-ai/core";
 
 /** A descriptor function that returns a NodeDescriptor when called. */
@@ -157,21 +161,21 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
       }
 
       case "unsubscribe": {
-        const idx = this.subscriptions.findIndex(
-          (s) => s.id === msg.id && s.connection === conn
-        );
+        const idx = this.subscriptions.findIndex((s) => s.id === msg.id && s.connection === conn);
         if (idx >= 0) this.subscriptions.splice(idx, 1);
         break;
       }
 
       case "query": {
-        conn.send(this.snapshotMessage(msg.id, {
-          path: msg.path,
-          depth: msg.depth,
-          max_nodes: msg.max_nodes,
-          filter: msg.filter,
-          window: msg.window,
-        }));
+        conn.send(
+          this.snapshotMessage(msg.id, {
+            path: msg.path,
+            depth: msg.depth,
+            max_nodes: msg.max_nodes,
+            filter: msg.filter,
+            window: msg.window,
+          }),
+        );
         break;
       }
 
@@ -201,7 +205,9 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   /** Register a listener that fires after every tree rebuild. */
   onChange(fn: () => void): () => void {
     this.changeListeners.add(fn);
-    return () => { this.changeListeners.delete(fn); };
+    return () => {
+      this.changeListeners.delete(fn);
+    };
   }
 
   /** Graceful shutdown. */

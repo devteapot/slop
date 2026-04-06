@@ -56,10 +56,7 @@ class InMemoryTransport implements Transport {
 
 export const transport = new InMemoryTransport();
 
-export const slop = new SlopClientImpl(
-  { id: "shop", name: "SLOP Shop" },
-  [transport],
-);
+export const slop = new SlopClientImpl({ id: "shop", name: "SLOP Shop" }, [transport]);
 slop.start();
 
 // Send connect so the provider is ready to accept subscriptions

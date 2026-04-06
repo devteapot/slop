@@ -19,20 +19,24 @@ describe("createBridgeClient", () => {
       await waitUntil(() => server.clients.size === 1);
       const [socket] = Array.from(server.clients);
 
-      socket.send(JSON.stringify({
-        type: "provider-available",
-        tabId: 1,
-        providerKey: "browser-app",
-        provider: { id: "browser-app", name: "Browser App", transport: "postmessage" },
-      }));
+      socket.send(
+        JSON.stringify({
+          type: "provider-available",
+          tabId: 1,
+          providerKey: "browser-app",
+          provider: { id: "browser-app", name: "Browser App", transport: "postmessage" },
+        }),
+      );
 
       await waitUntil(() => client.providers().length === 1);
       expect(client.providers()[0].providerKey).toBe("browser-app");
 
-      socket.send(JSON.stringify({
-        type: "provider-unavailable",
-        providerKey: "browser-app",
-      }));
+      socket.send(
+        JSON.stringify({
+          type: "provider-unavailable",
+          providerKey: "browser-app",
+        }),
+      );
 
       await waitUntil(() => client.providers().length === 0);
       expect(client.running()).toBe(true);

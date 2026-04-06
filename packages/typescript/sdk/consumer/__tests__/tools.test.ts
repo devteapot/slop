@@ -5,12 +5,16 @@ import type { SlopNode } from "../src/types";
 describe("affordancesToTools", () => {
   test("singleton affordances keep nodeId__action naming", () => {
     const tree: SlopNode = {
-      id: "root", type: "root",
+      id: "root",
+      type: "root",
       affordances: [{ action: "create", label: "Create" }],
-      children: [{
-        id: "item-1", type: "item",
-        affordances: [{ action: "delete", dangerous: true }],
-      }],
+      children: [
+        {
+          id: "item-1",
+          type: "item",
+          affordances: [{ action: "delete", dangerous: true }],
+        },
+      ],
     };
     const toolSet = affordancesToTools(tree);
     expect(toolSet.tools).toHaveLength(2);
@@ -21,14 +25,21 @@ describe("affordancesToTools", () => {
 
   test("resolve maps singleton tool name back to path + action", () => {
     const tree: SlopNode = {
-      id: "root", type: "root",
-      children: [{
-        id: "inbox", type: "view",
-        children: [{
-          id: "msg-1", type: "item",
-          affordances: [{ action: "archive", label: "Archive message" }],
-        }],
-      }],
+      id: "root",
+      type: "root",
+      children: [
+        {
+          id: "inbox",
+          type: "view",
+          children: [
+            {
+              id: "msg-1",
+              type: "item",
+              affordances: [{ action: "archive", label: "Archive message" }],
+            },
+          ],
+        },
+      ],
     };
     const toolSet = affordancesToTools(tree);
     const resolved = toolSet.resolve("msg_1__archive");
@@ -37,13 +48,48 @@ describe("affordancesToTools", () => {
 
   test("groups same action + schema into one tool with target param", () => {
     const tree: SlopNode = {
-      id: "root", type: "root",
+      id: "root",
+      type: "root",
       children: [
-        { id: "backlog", type: "collection", children: [
-          { id: "card-1", type: "item", affordances: [{ action: "edit", label: "Edit card", params: { type: "object", properties: { title: { type: "string" } } } }] },
-          { id: "card-2", type: "item", affordances: [{ action: "edit", label: "Edit card", params: { type: "object", properties: { title: { type: "string" } } } }] },
-          { id: "card-3", type: "item", affordances: [{ action: "edit", label: "Edit card", params: { type: "object", properties: { title: { type: "string" } } } }] },
-        ]},
+        {
+          id: "backlog",
+          type: "collection",
+          children: [
+            {
+              id: "card-1",
+              type: "item",
+              affordances: [
+                {
+                  action: "edit",
+                  label: "Edit card",
+                  params: { type: "object", properties: { title: { type: "string" } } },
+                },
+              ],
+            },
+            {
+              id: "card-2",
+              type: "item",
+              affordances: [
+                {
+                  action: "edit",
+                  label: "Edit card",
+                  params: { type: "object", properties: { title: { type: "string" } } },
+                },
+              ],
+            },
+            {
+              id: "card-3",
+              type: "item",
+              affordances: [
+                {
+                  action: "edit",
+                  label: "Edit card",
+                  params: { type: "object", properties: { title: { type: "string" } } },
+                },
+              ],
+            },
+          ],
+        },
       ],
     };
     const toolSet = affordancesToTools(tree);
@@ -62,12 +108,17 @@ describe("affordancesToTools", () => {
 
   test("grouped tool resolve returns null path with targets list", () => {
     const tree: SlopNode = {
-      id: "root", type: "root",
+      id: "root",
+      type: "root",
       children: [
-        { id: "backlog", type: "collection", children: [
-          { id: "card-1", type: "item", affordances: [{ action: "delete" }] },
-          { id: "card-2", type: "item", affordances: [{ action: "delete" }] },
-        ]},
+        {
+          id: "backlog",
+          type: "collection",
+          children: [
+            { id: "card-1", type: "item", affordances: [{ action: "delete" }] },
+            { id: "card-2", type: "item", affordances: [{ action: "delete" }] },
+          ],
+        },
       ],
     };
     const toolSet = affordancesToTools(tree);
@@ -80,22 +131,47 @@ describe("affordancesToTools", () => {
 
   test("different schemas with same action produce separate tools", () => {
     const tree: SlopNode = {
-      id: "root", type: "root",
+      id: "root",
+      type: "root",
       children: [
-        { id: "cards", type: "collection", children: [
-          { id: "card-1", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { title: { type: "string" } } } }] },
-          { id: "card-2", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { title: { type: "string" } } } }] },
-        ]},
-        { id: "comments", type: "collection", children: [
-          { id: "comment-1", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { body: { type: "string" } } } }] },
-          { id: "comment-2", type: "item", affordances: [{ action: "edit", params: { type: "object", properties: { body: { type: "string" } } } }] },
-        ]},
+        {
+          id: "cards",
+          type: "collection",
+          children: [
+            {
+              id: "card-1",
+              type: "item",
+              affordances: [{ action: "edit", params: { type: "object", properties: { title: { type: "string" } } } }],
+            },
+            {
+              id: "card-2",
+              type: "item",
+              affordances: [{ action: "edit", params: { type: "object", properties: { title: { type: "string" } } } }],
+            },
+          ],
+        },
+        {
+          id: "comments",
+          type: "collection",
+          children: [
+            {
+              id: "comment-1",
+              type: "item",
+              affordances: [{ action: "edit", params: { type: "object", properties: { body: { type: "string" } } } }],
+            },
+            {
+              id: "comment-2",
+              type: "item",
+              affordances: [{ action: "edit", params: { type: "object", properties: { body: { type: "string" } } } }],
+            },
+          ],
+        },
       ],
     };
     const toolSet = affordancesToTools(tree);
     // Two groups: edit(title) and edit(body) — disambiguated names
     expect(toolSet.tools).toHaveLength(2);
-    const names = toolSet.tools.map(t => t.function.name);
+    const names = toolSet.tools.map((t) => t.function.name);
     expect(names[0]).not.toBe(names[1]);
     // Both should be resolvable
     expect(toolSet.resolve(names[0])).not.toBeNull();
@@ -105,14 +181,19 @@ describe("affordancesToTools", () => {
   test("groups across different parent containers", () => {
     // Cards in backlog AND done should merge (same action + schema)
     const tree: SlopNode = {
-      id: "root", type: "root",
+      id: "root",
+      type: "root",
       children: [
-        { id: "backlog", type: "collection", children: [
-          { id: "card-1", type: "item", affordances: [{ action: "move" }] },
-        ]},
-        { id: "done", type: "collection", children: [
-          { id: "card-2", type: "item", affordances: [{ action: "move" }] },
-        ]},
+        {
+          id: "backlog",
+          type: "collection",
+          children: [{ id: "card-1", type: "item", affordances: [{ action: "move" }] }],
+        },
+        {
+          id: "done",
+          type: "collection",
+          children: [{ id: "card-2", type: "item", affordances: [{ action: "move" }] }],
+        },
       ],
     };
     const toolSet = affordancesToTools(tree);
@@ -124,7 +205,8 @@ describe("affordancesToTools", () => {
 
   test("dangerous flag propagates if any entry in group is dangerous", () => {
     const tree: SlopNode = {
-      id: "root", type: "root",
+      id: "root",
+      type: "root",
       children: [
         { id: "a", type: "item", affordances: [{ action: "purge", dangerous: true }] },
         { id: "b", type: "item", affordances: [{ action: "purge" }] },
@@ -139,29 +221,37 @@ describe("affordancesToTools", () => {
 describe("formatTree", () => {
   // Canonical test tree matching spec/core/state-tree.md "Consumer display format"
   const canonicalTree: SlopNode = {
-    id: "store", type: "root",
+    id: "store",
+    type: "root",
     properties: { label: "Pet Store" },
     meta: { salience: 0.9 },
-    affordances: [{
-      action: "search",
-      params: { type: "object", properties: { query: { type: "string" } } },
-    }],
+    affordances: [
+      {
+        action: "search",
+        params: { type: "object", properties: { query: { type: "string" } } },
+      },
+    ],
     children: [
       {
-        id: "catalog", type: "collection",
+        id: "catalog",
+        type: "collection",
         properties: { label: "Catalog", count: 142 },
         meta: { total_children: 142, window: [0, 25], summary: "142 products, 12 on sale" },
-        children: [{
-          id: "prod-1", type: "item",
-          properties: { label: "Rubber Duck", price: 4.99, in_stock: true },
-          affordances: [
-            { action: "add_to_cart", params: { type: "object", properties: { quantity: { type: "number" } } } },
-            { action: "view" },
-          ],
-        }],
+        children: [
+          {
+            id: "prod-1",
+            type: "item",
+            properties: { label: "Rubber Duck", price: 4.99, in_stock: true },
+            affordances: [
+              { action: "add_to_cart", params: { type: "object", properties: { quantity: { type: "number" } } } },
+              { action: "view" },
+            ],
+          },
+        ],
       },
       {
-        id: "cart", type: "collection",
+        id: "cart",
+        type: "collection",
         properties: { label: "Cart" },
         meta: { total_children: 3, summary: "3 items, $24.97" },
       },
@@ -220,10 +310,10 @@ describe("formatTree", () => {
     // Root at indent 0
     expect(lines[0]).toMatch(/^\[root\]/);
     // Catalog at indent 1
-    const catalogLine = lines.find(l => l.includes("catalog"))!;
+    const catalogLine = lines.find((l) => l.includes("catalog"))!;
     expect(catalogLine).toMatch(/^  \[collection\]/);
     // prod-1 at indent 2
-    const prodLine = lines.find(l => l.includes("prod-1"))!;
+    const prodLine = lines.find((l) => l.includes("prod-1"))!;
     expect(prodLine).toMatch(/^    \[item\]/);
   });
 });

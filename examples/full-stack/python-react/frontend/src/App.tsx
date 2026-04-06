@@ -28,9 +28,7 @@ export default function App() {
     try {
       const data = await api.fetchContacts(search || undefined, activeTag || undefined);
       setContacts(data);
-      setSelectedId((current) => (
-        current && !data.some((contact) => contact.id === current) ? null : current
-      ));
+      setSelectedId((current) => (current && !data.some((contact) => contact.id === current) ? null : current));
     } catch (error) {
       console.warn("[slop] failed to load contacts:", error);
     }
@@ -45,8 +43,12 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => { loadContacts(); }, [loadContacts]);
-  useEffect(() => { loadTags(); }, [loadTags]);
+  useEffect(() => {
+    loadContacts();
+  }, [loadContacts]);
+  useEffect(() => {
+    loadTags();
+  }, [loadTags]);
 
   const refreshAll = useCallback(async () => {
     await Promise.all([loadContacts(), loadTags()]);
@@ -61,7 +63,9 @@ export default function App() {
       type: "context",
       actions: { refresh: () => refreshRef.current() },
     });
-    return () => { slop.unregister("__adapter"); };
+    return () => {
+      slop.unregister("__adapter");
+    };
   }, []);
 
   // --- Compose handlers ---
@@ -113,11 +117,7 @@ export default function App() {
       <TagFilter activeTag={activeTag} availableTags={tags} onTagChange={setActiveTag} />
 
       <div className="app-body">
-        <ContactList
-          contacts={contacts}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
+        <ContactList contacts={contacts} selectedId={selectedId} onSelect={setSelectedId} />
         <main className="app-main">
           {selectedId ? (
             <ContactDetail

@@ -100,9 +100,7 @@ export async function start(): Promise<void> {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.prefs) {
-      const newPrefs = isExtensionPrefsPatch(changes.prefs.newValue)
-        ? changes.prefs.newValue
-        : undefined;
+      const newPrefs = isExtensionPrefsPatch(changes.prefs.newValue) ? changes.prefs.newValue : undefined;
       const shouldBeEnabled = (newPrefs?.active ?? true) && (newPrefs?.bridgeEnabled ?? false);
       if (shouldBeEnabled && !enabled) {
         enabled = true;

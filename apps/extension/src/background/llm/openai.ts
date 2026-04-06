@@ -5,11 +5,9 @@ import { parseChatMessage } from "./parsers";
 export async function openaiChatCompletion(
   profile: LlmProfile,
   messages: ChatMessage[],
-  tools: LlmTool[]
+  tools: LlmTool[],
 ): Promise<ChatMessage> {
-  const endpoint = profile.llmProvider === "openrouter"
-    ? "https://openrouter.ai/api"
-    : profile.endpoint;
+  const endpoint = profile.llmProvider === "openrouter" ? "https://openrouter.ai/api" : profile.endpoint;
   const url = `${endpoint}/v1/chat/completions`;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };

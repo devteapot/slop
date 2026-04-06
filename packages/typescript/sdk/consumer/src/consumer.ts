@@ -1,7 +1,15 @@
 import type {
-  ClientTransport, Connection, HelloMessage, SlopNode,
-  ResultMessage, PatchOp, SlopMessage, ProviderMessage,
-  ErrorMessage, EventMessage, BatchMessage,
+  ClientTransport,
+  Connection,
+  HelloMessage,
+  SlopNode,
+  ResultMessage,
+  PatchOp,
+  SlopMessage,
+  ProviderMessage,
+  ErrorMessage,
+  EventMessage,
+  BatchMessage,
 } from "./types";
 import { StateMirror } from "./state-mirror";
 import { Emitter } from "./emitter";
@@ -28,9 +36,7 @@ export class SlopConsumer extends Emitter {
         const m = msg as ProviderMessage;
         if (m.type === "hello") {
           resolve(m);
-          this.connection!.onMessage((msg2: SlopMessage) =>
-            this.handleMessage(msg2 as ProviderMessage)
-          );
+          this.connection!.onMessage((msg2: SlopMessage) => this.handleMessage(msg2 as ProviderMessage));
         }
       });
       this.connection!.onClose(() => this.emit("disconnect"));
@@ -49,7 +55,10 @@ export class SlopConsumer extends Emitter {
         reject,
       });
       this.connection!.send({
-        type: "subscribe", id, path, depth,
+        type: "subscribe",
+        id,
+        path,
+        depth,
         ...(options?.max_nodes != null && { max_nodes: options.max_nodes }),
         ...(options?.filter && { filter: options.filter }),
       });
@@ -70,7 +79,10 @@ export class SlopConsumer extends Emitter {
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.connection!.send({
-        type: "query", id, path, depth,
+        type: "query",
+        id,
+        path,
+        depth,
         ...(options?.max_nodes != null && { max_nodes: options.max_nodes }),
         ...(options?.filter && { filter: options.filter }),
         ...(options?.window && { window: options.window }),
@@ -92,12 +104,16 @@ export class SlopConsumer extends Emitter {
 
   onError(fn: (error: ErrorMessage["error"], id?: string) => void): () => void {
     this.errorCallbacks.add(fn);
-    return () => { this.errorCallbacks.delete(fn); };
+    return () => {
+      this.errorCallbacks.delete(fn);
+    };
   }
 
   onEvent(fn: (name: string, data: unknown) => void): () => void {
     this.eventCallbacks.add(fn);
-    return () => { this.eventCallbacks.delete(fn); };
+    return () => {
+      this.eventCallbacks.delete(fn);
+    };
   }
 
   disconnect(): void {
@@ -131,7 +147,10 @@ export class SlopConsumer extends Emitter {
       }
       case "result": {
         const p = this.pending.get(msg.id);
-        if (p) { this.pending.delete(msg.id); p.resolve(msg); }
+        if (p) {
+          this.pending.delete(msg.id);
+          p.resolve(msg);
+        }
         break;
       }
       case "error": {

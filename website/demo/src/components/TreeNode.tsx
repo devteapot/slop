@@ -47,9 +47,7 @@ export function TreeNode({
     <div>
       {/* Main row */}
       <div
-        className={`flex items-center gap-1.5 py-px rounded-sm cursor-default group ${
-          isChanged ? "flash-change" : ""
-        }`}
+        className={`flex items-center gap-1.5 py-px rounded-sm cursor-default group ${isChanged ? "flash-change" : ""}`}
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
         onClick={() => expandable && setCollapsed(!collapsed)}
       >
@@ -65,17 +63,15 @@ export function TreeNode({
         {/* Type dot + label */}
         {!isItem ? (
           <>
-            <span className={`text-[9px] font-mono uppercase tracking-wider flex-shrink-0 opacity-70 ${TYPE_COLORS[node.type] ?? "text-on-surface-variant"}`}>
+            <span
+              className={`text-[9px] font-mono uppercase tracking-wider flex-shrink-0 opacity-70 ${TYPE_COLORS[node.type] ?? "text-on-surface-variant"}`}
+            >
               {node.type}
             </span>
-            <span className="text-xs text-on-surface font-medium truncate">
-              {label}
-            </span>
+            <span className="text-xs text-on-surface font-medium truncate">{label}</span>
           </>
         ) : (
-          <span className="text-xs text-on-surface-variant truncate">
-            {label}
-          </span>
+          <span className="text-xs text-on-surface-variant truncate">{label}</span>
         )}
 
         {/* Key props inline — max 3, short */}
@@ -104,24 +100,21 @@ export function TreeNode({
               style={{ paddingLeft: `${depth * 16 + 26}px` }}
             >
               {visibleProps.slice(3).map(([k, v]) => (
-                <span key={k} className="mr-3">{k}={formatValue(v)}</span>
+                <span key={k} className="mr-3">
+                  {k}={formatValue(v)}
+                </span>
               ))}
             </div>
           )}
 
           {/* Affordances as subtle inline tags */}
           {hasAffordances && (
-            <div
-              className="flex flex-wrap gap-1 py-px"
-              style={{ paddingLeft: `${depth * 16 + 26}px` }}
-            >
+            <div className="flex flex-wrap gap-1 py-px" style={{ paddingLeft: `${depth * 16 + 26}px` }}>
               {node.affordances!.map((a) => (
                 <span
                   key={a.action}
                   className={`font-mono text-[8px] px-1 rounded ${
-                    a.dangerous
-                      ? "bg-error/10 text-error/70"
-                      : "bg-primary/8 text-primary/50"
+                    a.dangerous ? "bg-error/10 text-error/70" : "bg-primary/8 text-primary/50"
                   }`}
                 >
                   {a.action}

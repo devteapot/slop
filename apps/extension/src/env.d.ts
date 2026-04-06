@@ -30,11 +30,7 @@ declare namespace chrome {
     }
 
     function query(queryInfo: { active?: boolean; currentWindow?: boolean }): Promise<Tab[]>;
-    function sendMessage(
-      tabId: number,
-      message: unknown,
-      responseCallback?: (response?: unknown) => void,
-    ): void;
+    function sendMessage(tabId: number, message: unknown, responseCallback?: (response?: unknown) => void): void;
     const onRemoved: Event<(tabId: number) => void>;
   }
 
@@ -64,11 +60,9 @@ declare namespace chrome {
     function openOptionsPage(): void;
 
     const onConnect: Event<(port: Port) => void>;
-    const onMessage: Event<(
-      message: unknown,
-      sender: MessageSender,
-      sendResponse: (response?: unknown) => void,
-    ) => void>;
+    const onMessage: Event<
+      (message: unknown, sender: MessageSender, sendResponse: (response?: unknown) => void) => void
+    >;
     const lastError: LastError | undefined;
   }
 
@@ -92,9 +86,6 @@ declare namespace chrome {
 
     const local: StorageArea;
     const sync: StorageArea;
-    const onChanged: Event<(
-      changes: Record<string, StorageChange>,
-      areaName: StorageAreaName,
-    ) => void>;
+    const onChanged: Event<(changes: Record<string, StorageChange>, areaName: StorageAreaName) => void>;
   }
 }

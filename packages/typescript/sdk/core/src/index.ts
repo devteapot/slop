@@ -3,14 +3,7 @@ import { AsyncActionResult } from "./types";
 import { pick, omit, action } from "./helpers";
 import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
-import {
-  prepareTree,
-  getSubtree,
-  truncateTree,
-  autoCompact,
-  filterTree,
-  countNodes,
-} from "./scaling";
+import { prepareTree, getSubtree, truncateTree, autoCompact, filterTree, countNodes } from "./scaling";
 
 // Provider base (shared between client and server)
 export { ProviderBase };

@@ -1,9 +1,5 @@
 import type { SlopNode } from "@slop-ai/consumer/browser";
-import {
-  SlopConsumer,
-  WebSocketClientTransport,
-  PostMessageClientTransport,
-} from "@slop-ai/consumer/browser";
+import { SlopConsumer, WebSocketClientTransport, PostMessageClientTransport } from "@slop-ai/consumer/browser";
 import type { ProviderSpec, BackgroundMessage } from "../types";
 
 export interface ProviderEntry {
@@ -29,12 +25,7 @@ export class Session {
   private onStatusChange: StatusHandler;
   private onTreeUpdate: TreeHandler;
 
-  constructor(
-    tabId: number,
-    port: chrome.runtime.Port,
-    onStatusChange: StatusHandler,
-    onTreeUpdate: TreeHandler,
-  ) {
+  constructor(tabId: number, port: chrome.runtime.Port, onStatusChange: StatusHandler, onTreeUpdate: TreeHandler) {
     this.tabId = tabId;
     this.port = port;
     this.onStatusChange = onStatusChange;
@@ -69,8 +60,7 @@ export class Session {
   }
 
   async sync(specs: ProviderSpec[]): Promise<void> {
-    const keyFor = (s: { transport: string; endpoint?: string }) =>
-      `${s.transport}:${s.endpoint ?? ""}`;
+    const keyFor = (s: { transport: string; endpoint?: string }) => `${s.transport}:${s.endpoint ?? ""}`;
 
     const nextKeys = new Set(specs.map(keyFor));
 
@@ -139,9 +129,10 @@ export class Session {
     this.onStatusChange();
 
     try {
-      const transport = entry.transport === "ws"
-        ? new WebSocketClientTransport(entry.endpoint!)
-        : new PostMessageClientTransport(this.port);
+      const transport =
+        entry.transport === "ws"
+          ? new WebSocketClientTransport(entry.endpoint!)
+          : new PostMessageClientTransport(this.port);
 
       const consumer = new SlopConsumer(transport);
       const hello = await consumer.connect();

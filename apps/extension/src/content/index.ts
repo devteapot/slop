@@ -25,7 +25,7 @@ let reconnecting = false;
 // ========================================================================
 
 async function init() {
-  const result = await chrome.storage.local.get("prefs") as PrefsStorageRecord;
+  const result = (await chrome.storage.local.get("prefs")) as PrefsStorageRecord;
   isActive = result.prefs?.active ?? true;
 
   currentDiscoveries = discoverSlop();
@@ -48,9 +48,7 @@ async function init() {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes.prefs) return;
-    const nextPrefs = isExtensionPrefsPatch(changes.prefs.newValue)
-      ? changes.prefs.newValue
-      : undefined;
+    const nextPrefs = isExtensionPrefsPatch(changes.prefs.newValue) ? changes.prefs.newValue : undefined;
     const newActive = nextPrefs?.active ?? true;
     if (newActive && !isActive && currentDiscoveries.length > 0) {
       isActive = true;
@@ -210,12 +208,16 @@ function startAxAdapter() {
   let version = 1;
 
   // AX adapter acts as a postMessage provider — use SDK-compatible message types
-  const slopUp = (message: ProviderMessage) =>
-    port?.postMessage({ type: "slop-from-provider", message });
+  const slopUp = (message: ProviderMessage) => port?.postMessage({ type: "slop-from-provider", message });
 
   slopUp({
     type: "hello",
-    provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] },
+    provider: {
+      id: "ax-adapter",
+      name: document.title || "Page",
+      slop_version: "0.1",
+      capabilities: ["state", "affordances"],
+    },
   });
 
   slopUp({ type: "snapshot", id: "sub-1", version, tree });
@@ -233,7 +235,8 @@ function startAxAdapter() {
       const nodeId = path.split("/").pop() ?? path.replace(/^\//, "");
       const result = executeAction(nodeId, action, params);
       slopUp({
-        type: "result", id,
+        type: "result",
+        id,
         status: result.status === "ok" ? "ok" : "error",
         ...(result.status === "ok" ? {} : { error: { code: "internal", message: result.message ?? "Unknown error" } }),
       });
@@ -243,7 +246,15 @@ function startAxAdapter() {
       }, 100);
     }
     if (message.type === "slop-to-provider" && message.message.type === "connect") {
-      slopUp({ type: "hello", provider: { id: "ax-adapter", name: document.title || "Page", slop_version: "0.1", capabilities: ["state", "affordances"] } });
+      slopUp({
+        type: "hello",
+        provider: {
+          id: "ax-adapter",
+          name: document.title || "Page",
+          slop_version: "0.1",
+          capabilities: ["state", "affordances"],
+        },
+      });
     }
     if (message.type === "slop-to-provider" && message.message.type === "subscribe") {
       slopUp({ type: "snapshot", id: message.message.id, version, tree: buildAxTree() });
@@ -267,11 +278,17 @@ function startAxAdapter() {
 }
 
 function stopAxAdapter() {
-  if (axCleanup) { axCleanup(); axCleanup = null; }
+  if (axCleanup) {
+    axCleanup();
+    axCleanup = null;
+  }
   hideChatUI();
   bridgeRelay?.dispose();
   bridgeRelay = null;
-  if (port) { port.disconnect(); port = null; }
+  if (port) {
+    port.disconnect();
+    port = null;
+  }
 }
 
 // ========================================================================
@@ -312,16 +329,11 @@ function isExtensionPrefsPatch(value: unknown): value is Partial<ExtensionPrefs>
 }
 
 function isPortMessageToContent(value: unknown): value is PortMessageToContent {
-  return !!value
-    && typeof value === "object"
-    && typeof (value as { type?: unknown }).type === "string";
+  return !!value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string";
 }
 
 function isPopupCommandMessage(value: unknown): value is PopupCommandMessage {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: unknown }).type;
-  return type === "scan-page"
-    || type === "stop-scan"
-    || type === "get-scan-status"
-    || type === "get-slop-status";
+  return type === "scan-page" || type === "stop-scan" || type === "get-scan-status" || type === "get-slop-status";
 }

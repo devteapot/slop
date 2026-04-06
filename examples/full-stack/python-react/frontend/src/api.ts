@@ -15,9 +15,7 @@ export async function fetchContacts(query?: string, tag?: string): Promise<Conta
   if (query) params.set("q", query);
   if (tag) params.set("tag", tag);
   const qs = params.toString();
-  const data = await json<{ contacts: Contact[] }>(
-    await fetch(`${BASE}/contacts${qs ? `?${qs}` : ""}`, GET_REQUEST)
-  );
+  const data = await json<{ contacts: Contact[] }>(await fetch(`${BASE}/contacts${qs ? `?${qs}` : ""}`, GET_REQUEST));
   return data.contacts;
 }
 
@@ -38,20 +36,20 @@ export async function createContact(data: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    })
+    }),
   );
 }
 
 export async function editContact(
   id: string,
-  data: { name?: string; email?: string; phone?: string; company?: string; title?: string }
+  data: { name?: string; email?: string; phone?: string; company?: string; title?: string },
 ): Promise<Contact> {
   return json(
     await fetch(`${BASE}/contacts/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    })
+    }),
   );
 }
 
@@ -101,11 +99,7 @@ export async function addNote(id: string, content: string): Promise<void> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 }
 
-export async function logActivity(
-  id: string,
-  type: string,
-  description: string
-): Promise<void> {
+export async function logActivity(id: string, type: string, description: string): Promise<void> {
   const res = await fetch(`${BASE}/contacts/${id}/activity`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -118,9 +112,9 @@ export async function logActivity(
 
 export async function fetchTags(): Promise<string[]> {
   const data = await json<{ tags: { name: string; contact_count: number }[] }>(
-    await fetch(`${BASE}/tags`, GET_REQUEST)
+    await fetch(`${BASE}/tags`, GET_REQUEST),
   );
-  return data.tags.map(t => t.name);
+  return data.tags.map((t) => t.name);
 }
 
 export async function renameTag(oldName: string, newName: string): Promise<void> {

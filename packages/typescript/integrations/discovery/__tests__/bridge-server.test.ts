@@ -11,12 +11,14 @@ describe("createBridgeServer", () => {
     const first = await connectWebSocket(`ws://127.0.0.1:${port}/slop-bridge`);
 
     try {
-      first.send(JSON.stringify({
-        type: "provider-available",
-        tabId: 1,
-        providerKey: "browser-app",
-        provider: { id: "browser-app", name: "Browser App", transport: "postmessage" },
-      }));
+      first.send(
+        JSON.stringify({
+          type: "provider-available",
+          tabId: 1,
+          providerKey: "browser-app",
+          provider: { id: "browser-app", name: "Browser App", transport: "postmessage" },
+        }),
+      );
 
       await waitUntil(() => server.providers().length === 1);
 

@@ -38,9 +38,7 @@ export interface CreateSlopOptions<S = unknown> extends SlopClientOptions<S> {
  * });
  * ```
  */
-export function createSlop<S = unknown>(
-  options: CreateSlopOptions<S>
-): SlopClient<S> {
+export function createSlop<S = unknown>(options: CreateSlopOptions<S>): SlopClient<S> {
   const transports: Transport[] = [];
   const enabledTransports = options.transports ?? [
     "postmessage",
@@ -49,16 +47,12 @@ export function createSlop<S = unknown>(
   const websocketUrl = options.websocketUrl ?? options.desktopUrl;
 
   if (enabledTransports.includes("postmessage")) {
-    transports.push(
-      createPostMessageTransport({ discover: options.postmessageDiscover })
-    );
+    transports.push(createPostMessageTransport({ discover: options.postmessageDiscover }));
   }
 
   if (enabledTransports.includes("websocket")) {
     const url = typeof websocketUrl === "string" ? websocketUrl : undefined;
-    transports.push(
-      createWebSocketTransport(url, { discover: options.websocketDiscover })
-    );
+    transports.push(createWebSocketTransport(url, { discover: options.websocketDiscover }));
   }
 
   const client = new SlopClientImpl<S>(options, transports);
@@ -72,9 +66,17 @@ export { SlopClientImpl } from "./client";
 // Re-export core types and utilities for convenience
 export {
   ProviderBase,
-  pick, omit, action,
-  assembleTree, diffNodes,
-  prepareTree, getSubtree, truncateTree, autoCompact, filterTree, countNodes,
+  pick,
+  omit,
+  action,
+  assembleTree,
+  diffNodes,
+  prepareTree,
+  getSubtree,
+  truncateTree,
+  autoCompact,
+  filterTree,
+  countNodes,
 } from "@slop-ai/core";
 
 export type {

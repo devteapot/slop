@@ -5,7 +5,12 @@ const STATUS_COLORS: Record<StatusState, { dot: string; bg: string; text: string
   acting: { dot: "bg-primary", bg: "bg-primary/20", text: "text-primary", border: "border-l-primary" },
   updating: { dot: "bg-amber", bg: "bg-amber/20", text: "text-amber", border: "border-l-amber" },
   user: { dot: "bg-secondary", bg: "bg-secondary/15", text: "text-secondary", border: "border-l-secondary" },
-  idle: { dot: "bg-on-surface-variant", bg: "bg-surface-container", text: "text-on-surface-variant", border: "border-l-on-surface-variant/30" },
+  idle: {
+    dot: "bg-on-surface-variant",
+    bg: "bg-surface-container",
+    text: "text-on-surface-variant",
+    border: "border-l-on-surface-variant/30",
+  },
 };
 
 const STATUS_LABELS: Record<StatusState, string> = {
@@ -22,17 +27,23 @@ export function StatusBar() {
   const colors = STATUS_COLORS[status.state];
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-2.5 border-l-3 ${colors.border} ${colors.bg} transition-all duration-300`}>
+    <div
+      className={`flex items-center gap-3 px-4 py-2.5 border-l-3 ${colors.border} ${colors.bg} transition-all duration-300`}
+    >
       {/* Status dot + label */}
       <div className="flex items-center gap-2">
-        <span className={`inline-block w-2.5 h-2.5 rounded-full ${colors.dot} ${status.state !== "idle" ? "animate-pulse" : ""}`} />
+        <span
+          className={`inline-block w-2.5 h-2.5 rounded-full ${colors.dot} ${status.state !== "idle" ? "animate-pulse" : ""}`}
+        />
         <span className={`font-mono text-xs font-semibold tracking-wider uppercase ${colors.text}`}>
           {STATUS_LABELS[status.state]}
         </span>
       </div>
 
       {/* Description */}
-      <span className={`text-xs truncate flex-1 ${status.state === "idle" ? "text-on-surface-variant" : colors.text + " opacity-70"}`}>
+      <span
+        className={`text-xs truncate flex-1 ${status.state === "idle" ? "text-on-surface-variant" : colors.text + " opacity-70"}`}
+      >
         {status.label}
       </span>
 
@@ -64,11 +75,11 @@ export function StatusBar() {
       )}
 
       {/* Mode badge */}
-      <span className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${
-        mode === "interactive"
-          ? "bg-primary/20 text-primary"
-          : "bg-surface-variant text-on-surface-variant"
-      }`}>
+      <span
+        className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${
+          mode === "interactive" ? "bg-primary/20 text-primary" : "bg-surface-variant text-on-surface-variant"
+        }`}
+      >
         {mode === "interactive" ? "● live" : mode === "disconnected" ? "○ disconnected" : ""}
       </span>
     </div>

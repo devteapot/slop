@@ -12,14 +12,17 @@ export function App() {
   const [treeOpen, setTreeOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const initialized = useAppStore(s => s.initialized);
-  const activeWorkspaceId = useAppStore(s => s.activeWorkspaceId);
+  const initialized = useAppStore((s) => s.initialized);
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
 
   useEffect(() => {
-    useAppStore.getState().init().then(() => {
-      const wsId = useAppStore.getState().activeWorkspaceId;
-      useChatStore.getState().init(wsId);
-    });
+    useAppStore
+      .getState()
+      .init()
+      .then(() => {
+        const wsId = useAppStore.getState().activeWorkspaceId;
+        useChatStore.getState().init(wsId);
+      });
     return () => {
       useAppStore.getState().destroy();
       useChatStore.getState().destroy();
@@ -36,9 +39,7 @@ export function App() {
   if (!initialized) {
     return (
       <div className="app" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ color: "#6e7681", fontFamily: "JetBrains Mono, monospace", fontSize: "12px" }}>
-          Loading...
-        </span>
+        <span style={{ color: "#6e7681", fontFamily: "JetBrains Mono, monospace", fontSize: "12px" }}>Loading...</span>
       </div>
     );
   }

@@ -34,9 +34,7 @@ export default function CardItem(props: Props) {
       onClick={() => props.onOpenDetail(props.card.id)}
     >
       <div class="card-header">
-        <span class={`card-priority priority-${props.card.priority}`}>
-          {PRIORITY_LABELS[props.card.priority]}
-        </span>
+        <span class={`card-priority priority-${props.card.priority}`}>{PRIORITY_LABELS[props.card.priority]}</span>
         <button
           class="card-menu-btn"
           onClick={(e) => {
@@ -52,15 +50,11 @@ export default function CardItem(props: Props) {
 
       <div class="card-footer">
         <Show when={props.card.due}>
-          <span class={`card-due ${isOverdue() ? "overdue" : ""}`}>
-            {formatDue(props.card.due!)}
-          </span>
+          <span class={`card-due ${isOverdue() ? "overdue" : ""}`}>{formatDue(props.card.due!)}</span>
         </Show>
         <Show when={props.card.tags.length > 0}>
           <div class="card-tags">
-            <For each={props.card.tags}>
-              {(tag) => <span class="card-tag">{tag}</span>}
-            </For>
+            <For each={props.card.tags}>{(tag) => <span class="card-tag">{tag}</span>}</For>
           </div>
         </Show>
         <Show when={props.card.description}>

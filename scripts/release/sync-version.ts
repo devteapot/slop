@@ -82,9 +82,7 @@ syncToml(join(repoRoot, "apps", "desktop", "src-tauri", "Cargo.toml"), appVersio
 syncToml(join(repoRoot, "packages", "rust", "slop-ai", "Cargo.toml"), version, "package");
 syncToml(join(repoRoot, "packages", "python", "slop-ai", "pyproject.toml"), pythonVersion, "project");
 
-console.log(
-  `${dryRun ? "Would update" : "Updated"} ${writeOps.length} files for release ${version}.`,
-);
+console.log(`${dryRun ? "Would update" : "Updated"} ${writeOps.length} files for release ${version}.`);
 for (const filePath of writeOps) {
   console.log(`- ${filePath}`);
 }

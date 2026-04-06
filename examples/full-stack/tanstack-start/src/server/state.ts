@@ -42,12 +42,15 @@ export function getTasksForProject(id: string): Task[] {
 }
 
 export function addProject(name: string) {
-  state.projects = [...state.projects, {
-    id: `id-${state.nextId++}`,
-    name,
-    status: "active",
-    created: new Date().toISOString().split("T")[0],
-  }];
+  state.projects = [
+    ...state.projects,
+    {
+      id: `id-${state.nextId++}`,
+      name,
+      status: "active",
+      created: new Date().toISOString().split("T")[0],
+    },
+  ];
 }
 
 export function archiveProject(id: string) {
@@ -57,22 +60,15 @@ export function archiveProject(id: string) {
 }
 
 export function renameProject(id: string, name: string) {
-  state.projects = state.projects.map((project: Project) =>
-    project.id === id ? { ...project, name } : project,
-  );
+  state.projects = state.projects.map((project: Project) => (project.id === id ? { ...project, name } : project));
 }
 
 export function addTask(projectId: string, title: string) {
-  state.tasks = [
-    ...state.tasks,
-    { id: `id-${state.nextId++}`, projectId, title, done: false },
-  ];
+  state.tasks = [...state.tasks, { id: `id-${state.nextId++}`, projectId, title, done: false }];
 }
 
 export function toggleTask(id: string) {
-  state.tasks = state.tasks.map((task: Task) =>
-    task.id === id ? { ...task, done: !task.done } : task,
-  );
+  state.tasks = state.tasks.map((task: Task) => (task.id === id ? { ...task, done: !task.done } : task));
 }
 
 export function deleteTask(id: string) {

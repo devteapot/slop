@@ -1,12 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import {
-  getTypeScriptPackages,
-  readJson,
-  repoRoot,
-  type PackageManifest,
-} from "./release/shared";
+import { getTypeScriptPackages, readJson, repoRoot, type PackageManifest } from "./release/shared";
 
 type Check = {
   label: string;
@@ -36,9 +31,7 @@ type RawPackageComponent = {
   excludedRoots?: string[];
 };
 
-type Cause =
-  | { kind: "changed"; files: string[] }
-  | { kind: "dependency"; dependencyId: string };
+type Cause = { kind: "changed"; files: string[] } | { kind: "dependency"; dependencyId: string };
 
 type Args = {
   all: boolean;
@@ -271,10 +264,7 @@ function collectPackageComponents(): Component[] {
         manifestPath,
         relativeDir,
         absoluteRoot,
-        roots:
-          relativeDir === "website/docs"
-            ? [relativeDir, "docs", "spec"]
-            : [relativeDir],
+        roots: relativeDir === "website/docs" ? [relativeDir, "docs", "spec"] : [relativeDir],
         excludedRoots: relativeDir === "apps/desktop" ? ["apps/desktop/src-tauri"] : undefined,
       });
     }
@@ -355,11 +345,7 @@ function parseUvSourcePaths(filePath: string): string[] {
   return deps;
 }
 
-function resolveDependencyIds(
-  baseDir: string,
-  rawPaths: string[],
-  componentByRoot: Map<string, string>,
-): string[] {
+function resolveDependencyIds(baseDir: string, rawPaths: string[], componentByRoot: Map<string, string>): string[] {
   const dependencies = new Set<string>();
   for (const rawPath of rawPaths) {
     const absolute = resolve(baseDir, rawPath);
@@ -518,11 +504,7 @@ function fileMatchesComponent(filePath: string, component: Component): boolean {
 }
 
 function isRepoWideTrigger(filePath: string): boolean {
-  return (
-    filePath === "package.json" ||
-    filePath === "bun.lock" ||
-    filePath.startsWith("scripts/")
-  );
+  return filePath === "package.json" || filePath === "bun.lock" || filePath.startsWith("scripts/");
 }
 
 function topologicalSort(components: Component[], affectedIds: Set<string>): Component[] {
@@ -549,9 +531,7 @@ function topologicalSort(components: Component[], affectedIds: Set<string>): Com
     }
   }
 
-  const queue = [...affectedIds]
-    .filter((id) => (inDegree.get(id) ?? 0) === 0)
-    .sort((a, b) => a.localeCompare(b));
+  const queue = [...affectedIds].filter((id) => (inDegree.get(id) ?? 0) === 0).sort((a, b) => a.localeCompare(b));
   const ordered: Component[] = [];
 
   while (queue.length > 0) {
@@ -605,9 +585,7 @@ function computeAffected(
     }
   } else {
     for (const component of components) {
-      const matchedFiles = changedFiles.filter((filePath) =>
-        fileMatchesComponent(filePath, component),
-      );
+      const matchedFiles = changedFiles.filter((filePath) => fileMatchesComponent(filePath, component));
 
       if (matchedFiles.length === 0) {
         continue;
@@ -656,7 +634,9 @@ function printPlan(ordered: Component[], causes: Map<string, Cause>, repoWide: b
     if (cause?.kind === "changed") {
       console.log(`  reason: changed ${cause.files.join(", ")}`);
     } else if (cause?.kind === "dependency") {
-      console.log(`  reason: depends on ${ordered.find((item) => item.id === cause.dependencyId)?.label ?? cause.dependencyId}`);
+      console.log(
+        `  reason: depends on ${ordered.find((item) => item.id === cause.dependencyId)?.label ?? cause.dependencyId}`,
+      );
     }
 
     if (component.checks.length === 0) {

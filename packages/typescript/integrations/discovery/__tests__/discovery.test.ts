@@ -60,13 +60,15 @@ describe("createDiscoveryService", () => {
     try {
       service.start();
 
-      bridge.setProviders([{
-        providerKey: "browser-app",
-        tabId: 1,
-        id: "browser-app",
-        name: "Browser App",
-        transport: "postmessage",
-      }]);
+      bridge.setProviders([
+        {
+          providerKey: "browser-app",
+          tabId: 1,
+          id: "browser-app",
+          name: "Browser App",
+          transport: "postmessage",
+        },
+      ]);
 
       await waitUntil(() => service.getDiscovered().some((provider) => provider.id === "browser-app"));
 

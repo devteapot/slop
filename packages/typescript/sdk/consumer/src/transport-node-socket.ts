@@ -53,7 +53,7 @@ export class NodeSocketClientTransport implements ClientTransport {
       const socket = createConnection(this.socketPath);
       socket.once("connect", () => resolve(socket));
       socket.once("error", (err) =>
-        reject(new Error(`Unix socket connection failed: ${this.socketPath}: ${err.message}`))
+        reject(new Error(`Unix socket connection failed: ${this.socketPath}: ${err.message}`)),
       );
     });
   }

@@ -117,12 +117,7 @@ export function createSlopServer(store: IssueTrackerStore, opts?: SlopServerOpts
       return {
         type: "collection",
         props: { count: repoIssues.length },
-        children: Object.fromEntries(
-          repoIssues.map((issue) => [
-            issue.id,
-            buildIssueNode(store, slop, issue, false),
-          ]),
-        ),
+        children: Object.fromEntries(repoIssues.map((issue) => [issue.id, buildIssueNode(store, slop, issue, false)])),
       };
     });
   }
@@ -170,10 +165,7 @@ function buildOptimizedCollection(
     props: { count: allIssues.length },
     summary: `${allIssues.length} issues: ${openIssues.length} open (${unassigned} unassigned, ${bugs} bugs), ${closedCount} closed. Labels: ${labelSummary}`,
     children: Object.fromEntries(
-      scored.map(({ issue, salience }) => [
-        issue.id,
-        buildIssueNode(store, slop, issue, true, salience),
-      ]),
+      scored.map(({ issue, salience }) => [issue.id, buildIssueNode(store, slop, issue, true, salience)]),
     ),
   };
 }

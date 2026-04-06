@@ -8,8 +8,7 @@ const fs = require("node:fs");
 // ---------------------------------------------------------------------------
 
 const SOCKET_PATH = process.env.POMODORO_SOCK || "/tmp/slop/pomodoro.sock";
-const DATA_FILE =
-  process.env.POMODORO_FILE || path.join(os.homedir(), ".pomodoro", "sessions.json");
+const DATA_FILE = process.env.POMODORO_FILE || path.join(os.homedir(), ".pomodoro", "sessions.json");
 const SEED_FILE = path.join(__dirname, "..", "seed.json");
 const DISCOVERY_DIR = path.join(os.homedir(), ".slop", "providers");
 const DISCOVERY_FILE = path.join(DISCOVERY_DIR, "pomodoro.json");
@@ -256,16 +255,10 @@ function stopTicking() {
 function computeStats() {
   const today = todaySessions();
   const completedToday = today.filter((s) => s.completed);
-  const totalFocusMin = Math.round(
-    completedToday.reduce((a, s) => a + (s.duration_sec || 0), 0) / 60
-  );
+  const totalFocusMin = Math.round(completedToday.reduce((a, s) => a + (s.duration_sec || 0), 0) / 60);
 
   // Streak: count consecutive days with at least 1 completed session
-  const allDates = new Set(
-    sessions
-      .filter((s) => s.completed)
-      .map((s) => s.started_at.slice(0, 10))
-  );
+  const allDates = new Set(sessions.filter((s) => s.completed).map((s) => s.started_at.slice(0, 10)));
   const todayStr = new Date().toISOString().slice(0, 10);
   let streak = 0;
   const d = new Date();
@@ -301,8 +294,7 @@ function notifyRenderer() {
 
 function getState() {
   const stats = computeStats();
-  const pomodorosUntilLong =
-    settings.long_break_interval - (pomodoroCount % settings.long_break_interval);
+  const pomodorosUntilLong = settings.long_break_interval - (pomodoroCount % settings.long_break_interval);
 
   return {
     phase,
@@ -333,8 +325,7 @@ async function startSlopProvider() {
 
   // Timer node — dynamic, returns different affordances based on state
   slop.register("timer", () => {
-    const pomodorosUntilLong =
-      settings.long_break_interval - (pomodoroCount % settings.long_break_interval);
+    const pomodorosUntilLong = settings.long_break_interval - (pomodoroCount % settings.long_break_interval);
 
     const props = {
       phase,
@@ -361,8 +352,7 @@ async function startSlopProvider() {
         params: {
           tag: {
             type: "string",
-            description:
-              "What you're working on (e.g. 'Code review', 'Write docs')",
+            description: "What you're working on (e.g. 'Code review', 'Write docs')",
           },
         },
         estimate: "instant",
@@ -374,26 +364,37 @@ async function startSlopProvider() {
         meta.focus = true;
         meta.reason = `Working: ${formatTime(timeRemaining)} remaining`;
         actions.pause = {
-          handler: async () => { pauseTimer(); return { ok: true }; },
+          handler: async () => {
+            pauseTimer();
+            return { ok: true };
+          },
           label: "Pause timer",
           estimate: "instant",
         };
         actions.skip = {
-          handler: async () => { skipTimer(); return { ok: true }; },
+          handler: async () => {
+            skipTimer();
+            return { ok: true };
+          },
           label: "Skip to next phase",
-          description:
-            "Skip the current timer and advance to the next phase (work -> break, break -> idle)",
+          description: "Skip the current timer and advance to the next phase (work -> break, break -> idle)",
           estimate: "instant",
         };
         actions.stop = {
-          handler: async () => { stopTimer(); return { ok: true }; },
+          handler: async () => {
+            stopTimer();
+            return { ok: true };
+          },
           label: "Stop timer",
           description: "Abandon the current session and return to idle",
           dangerous: true,
           estimate: "instant",
         };
         actions.tag = {
-          handler: async (params) => { tagTimer(params.label); return { ok: true }; },
+          handler: async (params) => {
+            tagTimer(params.label);
+            return { ok: true };
+          },
           label: "Tag session",
           description: "Set or change the tag on the current session",
           params: {
@@ -407,19 +408,28 @@ async function startSlopProvider() {
         meta.urgency = "low";
         meta.reason = `Paused at ${formatTime(timeRemaining)}`;
         actions.resume = {
-          handler: async () => { resumeTimer(); return { ok: true }; },
+          handler: async () => {
+            resumeTimer();
+            return { ok: true };
+          },
           label: "Resume timer",
           estimate: "instant",
         };
         actions.stop = {
-          handler: async () => { stopTimer(); return { ok: true }; },
+          handler: async () => {
+            stopTimer();
+            return { ok: true };
+          },
           label: "Stop timer",
           description: "Abandon the current session and return to idle",
           dangerous: true,
           estimate: "instant",
         };
         actions.tag = {
-          handler: async (params) => { tagTimer(params.label); return { ok: true }; },
+          handler: async (params) => {
+            tagTimer(params.label);
+            return { ok: true };
+          },
           label: "Tag session",
           description: "Set or change the tag on the current session",
           params: {
@@ -431,23 +441,25 @@ async function startSlopProvider() {
     } else {
       // short_break or long_break
       const breakType = phase === "long_break" ? "Long" : "Short";
-      const breakMsg =
-        phase === "long_break"
-          ? "stretch and rest!"
-          : "take a break!";
+      const breakMsg = phase === "long_break" ? "stretch and rest!" : "take a break!";
       if (!paused) {
         meta.salience = 0.9;
         meta.urgency = "medium";
         meta.reason = `${breakType} break: ${formatTime(timeRemaining)} remaining — ${breakMsg}`;
         actions.skip = {
-          handler: async () => { skipTimer(); return { ok: true }; },
+          handler: async () => {
+            skipTimer();
+            return { ok: true };
+          },
           label: "Skip to next phase",
-          description:
-            "Skip the current timer and advance to the next phase (work -> break, break -> idle)",
+          description: "Skip the current timer and advance to the next phase (work -> break, break -> idle)",
           estimate: "instant",
         };
         actions.stop = {
-          handler: async () => { stopTimer(); return { ok: true }; },
+          handler: async () => {
+            stopTimer();
+            return { ok: true };
+          },
           label: "Stop timer",
           description: "Abandon the current session and return to idle",
           dangerous: true,
@@ -458,12 +470,18 @@ async function startSlopProvider() {
         meta.urgency = "low";
         meta.reason = `Paused at ${formatTime(timeRemaining)}`;
         actions.resume = {
-          handler: async () => { resumeTimer(); return { ok: true }; },
+          handler: async () => {
+            resumeTimer();
+            return { ok: true };
+          },
           label: "Resume timer",
           estimate: "instant",
         };
         actions.stop = {
-          handler: async () => { stopTimer(); return { ok: true }; },
+          handler: async () => {
+            stopTimer();
+            return { ok: true };
+          },
           label: "Stop timer",
           description: "Abandon the current session and return to idle",
           dangerous: true,
@@ -577,8 +595,8 @@ function writeDiscovery() {
     phase === "idle"
       ? `Pomodoro timer: idle, ${todaySessions().length} sessions today`
       : phase === "working"
-      ? `Working: ${formatTime(timeRemaining)} remaining on '${currentTag || "Untitled"}'`
-      : `${phase === "long_break" ? "Long" : "Short"} break: ${formatTime(timeRemaining)} remaining`;
+        ? `Working: ${formatTime(timeRemaining)} remaining on '${currentTag || "Untitled"}'`
+        : `${phase === "long_break" ? "Long" : "Short"} break: ${formatTime(timeRemaining)} remaining`;
 
   const descriptor = {
     id: "pomodoro",
@@ -598,8 +616,12 @@ function writeDiscovery() {
 }
 
 function cleanupDiscovery() {
-  try { fs.unlinkSync(DISCOVERY_FILE); } catch {}
-  try { fs.unlinkSync(SOCKET_PATH); } catch {}
+  try {
+    fs.unlinkSync(DISCOVERY_FILE);
+  } catch {}
+  try {
+    fs.unlinkSync(SOCKET_PATH);
+  } catch {}
 }
 
 // ---------------------------------------------------------------------------
@@ -608,12 +630,30 @@ function cleanupDiscovery() {
 
 function setupIPC() {
   ipcMain.handle("get-state", () => getState());
-  ipcMain.handle("start", (_e, tag) => { startTimer(tag); return getState(); });
-  ipcMain.handle("pause", () => { pauseTimer(); return getState(); });
-  ipcMain.handle("resume", () => { resumeTimer(); return getState(); });
-  ipcMain.handle("skip", () => { skipTimer(); return getState(); });
-  ipcMain.handle("stop", () => { stopTimer(); return getState(); });
-  ipcMain.handle("tag", (_e, label) => { tagTimer(label); return getState(); });
+  ipcMain.handle("start", (_e, tag) => {
+    startTimer(tag);
+    return getState();
+  });
+  ipcMain.handle("pause", () => {
+    pauseTimer();
+    return getState();
+  });
+  ipcMain.handle("resume", () => {
+    resumeTimer();
+    return getState();
+  });
+  ipcMain.handle("skip", () => {
+    skipTimer();
+    return getState();
+  });
+  ipcMain.handle("stop", () => {
+    stopTimer();
+    return getState();
+  });
+  ipcMain.handle("tag", (_e, label) => {
+    tagTimer(label);
+    return getState();
+  });
 }
 
 // ---------------------------------------------------------------------------

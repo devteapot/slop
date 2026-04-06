@@ -52,10 +52,7 @@ export class IssueTrackerStore {
 
   // --- Issues ---
 
-  listIssues(
-    repoId: string,
-    filters?: { status?: "open" | "closed"; label?: string },
-  ): Issue[] {
+  listIssues(repoId: string, filters?: { status?: "open" | "closed"; label?: string }): Issue[] {
     let issues = this.issues.filter((i) => i.repoId === repoId);
     if (filters?.status) issues = issues.filter((i) => i.status === filters.status);
     if (filters?.label) issues = issues.filter((i) => i.labels.includes(filters.label!));

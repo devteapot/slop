@@ -29,7 +29,12 @@ export default function CreateCard({ columns, onSubmit, onClose }: Props) {
       priority,
       due || undefined,
       undefined,
-      tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+      tags
+        ? tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : undefined,
     );
   };
 
@@ -38,7 +43,9 @@ export default function CreateCard({ columns, onSubmit, onClose }: Props) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">New Card</h2>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">
@@ -60,14 +67,20 @@ export default function CreateCard({ columns, onSubmit, onClose }: Props) {
               <label className="form-label">COLUMN</label>
               <select className="form-select" value={column} onChange={(e) => setColumn(e.target.value)}>
                 {columns.map((col) => (
-                  <option key={col} value={col}>{col}</option>
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div className="form-field">
               <label className="form-label">PRIORITY</label>
-              <select className="form-select" value={priority} onChange={(e) => setPriority(e.target.value as Card["priority"])}>
+              <select
+                className="form-select"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as Card["priority"])}
+              >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -96,7 +109,9 @@ export default function CreateCard({ columns, onSubmit, onClose }: Props) {
         </div>
 
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
           <button className="btn-primary" onClick={handleSubmit} disabled={!title.trim()}>
             Create
           </button>

@@ -51,8 +51,7 @@ export function parseGeminiModelNames(payload: unknown): string[] {
   return asArray(root.models, "Gemini model list response.models")
     .map((model, index) => asObject(model, `Gemini model ${index + 1}`))
     .filter((model) => asOptionalStringArray(model.supportedGenerationMethods).includes("generateContent"))
-    .map((model, index) =>
-      asString(model.name, `Gemini model ${index + 1}.name`).replace("models/", ""))
+    .map((model, index) => asString(model.name, `Gemini model ${index + 1}.name`).replace("models/", ""))
     .sort();
 }
 
@@ -88,10 +87,7 @@ function parseToolCall(value: unknown, index: number): NonNullable<ChatMessage["
     type: "function",
     function: {
       name: asString(fn.name, `tool call ${index + 1}.function.name`),
-      arguments:
-        typeof argumentsValue === "string"
-          ? argumentsValue
-          : JSON.stringify(argumentsValue ?? {}),
+      arguments: typeof argumentsValue === "string" ? argumentsValue : JSON.stringify(argumentsValue ?? {}),
     },
   };
 }
@@ -118,9 +114,7 @@ export function parseGeminiResponseParts(payload: unknown): GeminiResponsePart[]
     }
 
     if (isObject(rawPart.functionCall)) {
-      const args = isObject(rawPart.functionCall.args)
-        ? rawPart.functionCall.args
-        : undefined;
+      const args = isObject(rawPart.functionCall.args) ? rawPart.functionCall.args : undefined;
       parsed.functionCall = {
         name: asString(rawPart.functionCall.name, `Gemini response part ${index + 1}.functionCall.name`),
         ...(args ? { args } : {}),

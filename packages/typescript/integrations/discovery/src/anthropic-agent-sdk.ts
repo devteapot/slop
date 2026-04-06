@@ -33,9 +33,7 @@ export function createSlopAgentTools(discovery: ReturnType<typeof createDiscover
     "connect_app",
     "Connect to an application running on this computer and see its full current state and every action you can perform.",
     {
-      app: z
-        .string()
-        .describe("App name or ID to connect and inspect."),
+      app: z.string().describe("App name or ID to connect and inspect."),
     },
     async (args) => handlers.connectApp(args),
   );
@@ -58,10 +56,7 @@ export function createSlopAgentTools(discovery: ReturnType<typeof createDiscover
  *
  * Programmatic use: pass `server` to `query()` via `mcpServers`.
  */
-export function createSlopMcpServer(options?: {
-  name?: string;
-  version?: string;
-}) {
+export function createSlopMcpServer(options?: { name?: string; version?: string }) {
   const discovery = createDiscoveryService();
   discovery.start();
 

@@ -18,10 +18,7 @@ import type { SlopServer, Connection } from "../server";
  * });
  * ```
  */
-export function bunHandler(
-  slop: SlopServer,
-  options: { path?: string; discovery?: boolean } = {}
-) {
+export function bunHandler(slop: SlopServer, options: { path?: string; discovery?: boolean } = {}) {
   const path = options.path ?? "/slop";
   const discovery = options.discovery !== false;
 

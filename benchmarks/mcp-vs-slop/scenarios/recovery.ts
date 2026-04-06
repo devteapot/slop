@@ -23,12 +23,12 @@ export const recovery: Scenario = {
   name: "recovery",
   description: "Recover from impossible action then perform a valid one",
   agentPrompt:
-    'I need you to do two things:\n\n' +
-    '1. First, try to merge pull request #42 in the frontend repo. I think there should be a merge action available.\n\n' +
+    "I need you to do two things:\n\n" +
+    "1. First, try to merge pull request #42 in the frontend repo. I think there should be a merge action available.\n\n" +
     '2. After that, regardless of whether the merge worked, find the open issue about "login form" validation in the frontend repo (issue-1), ' +
     'add a comment from "agent" saying "Investigated: the email regex is missing TLD validation. Fix incoming.", ' +
     'assign it to "bob", and add the "in-progress" label.\n\n' +
-    'If the first task is not possible, explain why and move on to the second task immediately.',
+    "If the first task is not possible, explain why and move on to the second task immediately.",
 
   steps: [
     {
@@ -58,17 +58,15 @@ export const recovery: Scenario = {
         // The valid action: comment added
         name: "Comment added to issue-1 from 'agent'",
         passed: agentComment !== undefined,
-        detail: agentComment
-          ? `"${agentComment.body.slice(0, 50)}..."`
-          : "no agent comment found",
+        detail: agentComment ? `"${agentComment.body.slice(0, 50)}..."` : "no agent comment found",
       },
       {
         // Comment content mentions the fix
         name: "Comment mentions TLD validation or regex",
         passed: agentComment
-          ? (agentComment.body.toLowerCase().includes("tld") ||
-             agentComment.body.toLowerCase().includes("regex") ||
-             agentComment.body.toLowerCase().includes("validation"))
+          ? agentComment.body.toLowerCase().includes("tld") ||
+            agentComment.body.toLowerCase().includes("regex") ||
+            agentComment.body.toLowerCase().includes("validation")
           : false,
         detail: agentComment ? `"${agentComment.body.slice(0, 60)}"` : "no comment",
       },

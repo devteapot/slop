@@ -34,9 +34,7 @@ interface VitePeerMessage {
  * });
  * ```
  */
-export function slopVitePlugin(
-  options: SlopHandlerOptions & { path?: string }
-) {
+export function slopVitePlugin(options: SlopHandlerOptions & { path?: string }) {
   const path = options.path ?? "/slop";
 
   return {
@@ -64,7 +62,9 @@ export function slopVitePlugin(
           send(data: string) {
             if (ws.readyState === WebSocket.OPEN) ws.send(data);
           },
-          close() { ws.close(); },
+          close() {
+            ws.close();
+          },
           __slopRequest: req,
         };
 
@@ -73,8 +73,12 @@ export function slopVitePlugin(
         ws.on("message", (data) => {
           // Wrap raw data in a peer message-like object
           const msg: VitePeerMessage = {
-            text() { return data.toString(); },
-            toString() { return data.toString(); },
+            text() {
+              return data.toString();
+            },
+            toString() {
+              return data.toString();
+            },
           };
           handler.message(peer, msg);
         });
@@ -91,13 +95,15 @@ export function slopVitePlugin(
         if (req.url === "/.well-known/slop") {
           const host = req.headers.host ?? "localhost";
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({
-            id: "slop",
-            name: "SLOP",
-            slop_version: "0.1",
-            transport: { type: "ws", url: `ws://${host}${path}` },
-            capabilities: ["state", "patches", "affordances"],
-          }));
+          res.end(
+            JSON.stringify({
+              id: "slop",
+              name: "SLOP",
+              slop_version: "0.1",
+              transport: { type: "ws", url: `ws://${host}${path}` },
+              capabilities: ["state", "patches", "affordances"],
+            }),
+          );
           return;
         }
         for (const listener of originalListeners) {

@@ -42,11 +42,17 @@ export default function BoardSwitcher({ boards, activeBoardId, onNavigate, onCre
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             autoFocus
           />
-          <button className="btn-ghost" onClick={handleSubmit}>&#10003;</button>
-          <button className="btn-ghost" onClick={() => setCreating(false)}>&times;</button>
+          <button className="btn-ghost" onClick={handleSubmit}>
+            &#10003;
+          </button>
+          <button className="btn-ghost" onClick={() => setCreating(false)}>
+            &times;
+          </button>
         </span>
       ) : (
-        <button className="board-tab add" onClick={() => setCreating(true)}>+</button>
+        <button className="board-tab add" onClick={() => setCreating(true)}>
+          +
+        </button>
       )}
     </nav>
   );

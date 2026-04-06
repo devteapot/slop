@@ -18,7 +18,7 @@ const statusEl = document.getElementById("status")!;
 let storage: SlopStorage = DEFAULT_STORAGE;
 
 async function loadStorage(): Promise<void> {
-  const result = await chrome.storage.sync.get("slopStorage") as SlopStorageRecord;
+  const result = (await chrome.storage.sync.get("slopStorage")) as SlopStorageRecord;
   storage = result.slopStorage ?? DEFAULT_STORAGE;
   renderProfiles();
 }
@@ -62,7 +62,7 @@ function activateProfile(id: string) {
 }
 
 function deleteProfile(id: string) {
-  storage.profiles = storage.profiles.filter(p => p.id !== id);
+  storage.profiles = storage.profiles.filter((p) => p.id !== id);
   if (storage.activeProfileId === id && storage.profiles.length > 0) {
     storage.activeProfileId = storage.profiles[0].id;
   }
@@ -70,7 +70,7 @@ function deleteProfile(id: string) {
 }
 
 function openEditForm(id?: string) {
-  const profile = id ? storage.profiles.find(p => p.id === id) : null;
+  const profile = id ? storage.profiles.find((p) => p.id === id) : null;
   formTitle.textContent = profile ? "Edit Profile" : "New Profile";
   editIdEl.value = profile?.id ?? "";
   profileNameEl.value = profile?.name ?? "";
@@ -89,10 +89,18 @@ function closeEditForm() {
 function toggleApiKey() {
   apiKeyRow.classList.toggle("visible", providerEl.value !== "ollama");
   switch (providerEl.value) {
-    case "ollama": endpointEl.placeholder = "http://localhost:11434"; break;
-    case "openai": endpointEl.placeholder = "https://api.openai.com"; break;
-    case "openrouter": endpointEl.placeholder = "https://openrouter.ai/api"; break;
-    case "gemini": endpointEl.placeholder = "https://generativelanguage.googleapis.com"; break;
+    case "ollama":
+      endpointEl.placeholder = "http://localhost:11434";
+      break;
+    case "openai":
+      endpointEl.placeholder = "https://api.openai.com";
+      break;
+    case "openrouter":
+      endpointEl.placeholder = "https://openrouter.ai/api";
+      break;
+    case "gemini":
+      endpointEl.placeholder = "https://generativelanguage.googleapis.com";
+      break;
   }
 }
 
@@ -102,12 +110,20 @@ function saveProfile() {
     id,
     name: profileNameEl.value || providerEl.value.charAt(0).toUpperCase() + providerEl.value.slice(1),
     llmProvider: providerEl.value as LlmProfile["llmProvider"],
-    endpoint: endpointEl.value || { ollama: "http://localhost:11434", openai: "https://api.openai.com", openrouter: "https://openrouter.ai/api", gemini: "https://generativelanguage.googleapis.com" }[providerEl.value] || "http://localhost:11434",
+    endpoint:
+      endpointEl.value ||
+      {
+        ollama: "http://localhost:11434",
+        openai: "https://api.openai.com",
+        openrouter: "https://openrouter.ai/api",
+        gemini: "https://generativelanguage.googleapis.com",
+      }[providerEl.value] ||
+      "http://localhost:11434",
     apiKey: apiKeyEl.value,
-    model: "",  // selected dynamically in the chat UI
+    model: "", // selected dynamically in the chat UI
   };
 
-  const idx = storage.profiles.findIndex(p => p.id === id);
+  const idx = storage.profiles.findIndex((p) => p.id === id);
   if (idx >= 0) {
     storage.profiles[idx] = profile;
   } else {
@@ -129,7 +145,9 @@ function save() {
 
 function showStatus(text: string) {
   statusEl.textContent = text;
-  setTimeout(() => { statusEl.textContent = ""; }, 2000);
+  setTimeout(() => {
+    statusEl.textContent = "";
+  }, 2000);
 }
 
 function esc(s: string): string {

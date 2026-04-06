@@ -6,12 +6,14 @@ const tree = {
   id: "root",
   type: "root",
   properties: { label: "Test App" },
-  children: [{
-    id: "todo-1",
-    type: "item",
-    properties: { label: "Todo 1" },
-    affordances: [{ action: "complete", description: "Complete item" }],
-  }],
+  children: [
+    {
+      id: "todo-1",
+      type: "item",
+      properties: { label: "Todo 1" },
+      affordances: [{ action: "complete", description: "Complete item" }],
+    },
+  ],
 };
 
 describe("discovery tools", () => {

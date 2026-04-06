@@ -1,10 +1,5 @@
 import { create } from "zustand";
-import type {
-  WorkspaceSummary,
-  ProviderSummary,
-  LlmProfile,
-  SlopNode,
-} from "../lib/types";
+import type { WorkspaceSummary, ProviderSummary, LlmProfile, SlopNode } from "../lib/types";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import * as commands from "../lib/commands";
 import { setupEvents, cleanup } from "../lib/events";
@@ -105,7 +100,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                   status: payload.status,
                   provider_name: payload.provider_name ?? p.provider_name,
                 }
-              : p
+              : p,
           );
           let providerTrees = state.providerTrees;
           if (payload.tree) {
@@ -154,7 +149,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // workspaces-changed event will update the list + active
     const state = get();
     if (state.activeWorkspaceId === id) {
-      const remaining = state.workspaces.filter(w => w.id !== id);
+      const remaining = state.workspaces.filter((w) => w.id !== id);
       set({ activeWorkspaceId: remaining[0]?.id ?? "" });
     }
   },

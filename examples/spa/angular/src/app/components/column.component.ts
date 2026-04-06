@@ -57,16 +57,18 @@ export class ColumnComponent {
   setDescription = output<{ cardId: string; content: string }>();
   openDetail = output<string>();
 
-  sorted = computed(() =>
-    [...this.cards()].sort((a, b) => a.position - b.position),
-  );
+  sorted = computed(() => [...this.cards()].sort((a, b) => a.position - b.position));
 
   total = computed(() => this.sorted().length);
 
   label = computed(() => COLUMN_LABELS[this.columnId()] || this.columnId());
 
   constructor() {
-    useSlop(slop, () => `${this.boardId()}/${this.columnId()}`, () => this.buildDescriptor());
+    useSlop(
+      slop,
+      () => `${this.boardId()}/${this.columnId()}`,
+      () => this.buildDescriptor(),
+    );
   }
 
   private buildDescriptor(): NodeDescriptor {
@@ -112,7 +114,10 @@ export class ColumnComponent {
               if (priority) updates.priority = priority as Card["priority"];
               if (due) updates.due = due;
               if (tags) {
-                updates.tags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+                updates.tags = tags
+                  .split(",")
+                  .map((t) => t.trim())
+                  .filter(Boolean);
               }
               this.editCard.emit({ cardId: card.id, updates });
             },
@@ -128,9 +133,8 @@ export class ColumnComponent {
             ({ column }) => this.moveCard.emit({ cardId: card.id, column }),
           ),
           delete: action(() => this.deleteCard.emit(card.id), { dangerous: true }),
-          set_description: action(
-            { content: { type: "string", description: "Markdown content" } },
-            ({ content }) => this.setDescription.emit({ cardId: card.id, content }),
+          set_description: action({ content: { type: "string", description: "Markdown content" } }, ({ content }) =>
+            this.setDescription.emit({ cardId: card.id, content }),
           ),
         },
       };
@@ -158,10 +162,8 @@ export class ColumnComponent {
           offset: 0,
         },
         actions: {
-          reorder: action(
-            { card_id: "string", position: "number" },
-            ({ card_id, position }) =>
-              this.reorderCard.emit({ column: columnId, cardId: card_id, position }),
+          reorder: action({ card_id: "string", position: "number" }, ({ card_id, position }) =>
+            this.reorderCard.emit({ column: columnId, cardId: card_id, position }),
           ),
         },
       };
@@ -173,10 +175,8 @@ export class ColumnComponent {
       meta: { window: [0, total] as [number, number], total_children: total },
       items: sortedCards.map(buildItemDescriptor),
       actions: {
-        reorder: action(
-          { card_id: "string", position: "number" },
-          ({ card_id, position }) =>
-            this.reorderCard.emit({ column: columnId, cardId: card_id, position }),
+        reorder: action({ card_id: "string", position: "number" }, ({ card_id, position }) =>
+          this.reorderCard.emit({ column: columnId, cardId: card_id, position }),
         ),
       },
     };

@@ -25,9 +25,7 @@ function pad(s: string, len: number): string {
 }
 
 function renderTable(headers: string[], rows: string[][]): string {
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map((r) => (r[i] ?? "").length), 8),
-  );
+  const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? "").length), 8));
   const lines: string[] = [];
 
   lines.push(`| ${headers.map((h, i) => pad(h, widths[i])).join(" | ")} |`);
@@ -86,10 +84,7 @@ function renderScenario(result: ScenarioResult): string {
     const row = [label, ...values];
     if (protocols.length > 1) {
       const nonMcp = protocols.filter((p) => p.protocol !== "mcp");
-      const best = nonMcp.reduce(
-        (min, p) => (getter(p) < getter(min) ? p : min),
-        nonMcp[0],
-      );
+      const best = nonMcp.reduce((min, p) => (getter(p) < getter(min) ? p : min), nonMcp[0]);
       if (best && baseline.protocol === "mcp") {
         row.push(delta(getter(best), getter(baseline)));
       } else {

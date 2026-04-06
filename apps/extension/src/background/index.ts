@@ -78,7 +78,6 @@ chrome.runtime.onConnect.addListener((port) => {
         await setActiveModel(msg.model);
         port.postMessage({ type: "models", models: [], active: msg.model });
         break;
-
     }
   };
 
@@ -105,7 +104,5 @@ bridge.onMessage((msg) => tabRegistry.handleBridgeMessage(msg));
 bridge.onConnect(() => tabRegistry.reannounceAll());
 
 function isPortMessageFromContent(value: unknown): value is PortMessageFromContent {
-  return !!value
-    && typeof value === "object"
-    && typeof (value as { type?: unknown }).type === "string";
+  return !!value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string";
 }

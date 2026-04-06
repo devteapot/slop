@@ -38,8 +38,7 @@ export const replayScript: ReplayStep[] = [
   {
     type: "ai_message",
     delay: 1200,
-    content:
-      "Let me search the catalog for headphones and find the best option for you.",
+    content: "Let me search the catalog for headphones and find the best option for you.",
   },
 
   // 4. Search
@@ -56,8 +55,7 @@ export const replayScript: ReplayStep[] = [
   {
     type: "ai_message",
     delay: 1500,
-    content:
-      'I found the "Wireless Headphones Pro" at $79.99 with a 4.7 star rating. Let me pull up the full details.',
+    content: 'I found the "Wireless Headphones Pro" at $79.99 with a 4.7 star rating. Let me pull up the full details.',
   },
 
   // 6. View details
@@ -103,8 +101,7 @@ export const replayScript: ReplayStep[] = [
   {
     type: "ai_message",
     delay: 1200,
-    content:
-      "Done — it's in your cart. Total is $79.99. I can also leave a review if you'd like.",
+    content: "Done — it's in your cart. Total is $79.99. I can also leave a review if you'd like.",
   },
 
   // 11. User asks for review

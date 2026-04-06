@@ -1,7 +1,17 @@
 import { SlopServer } from "@slop-ai/server";
 import { listenUnix } from "@slop-ai/server/unix";
 import { load, save, nextId, parseDate, today, computeSalience, sortBySalience, getFilePath, type Task } from "./store";
-import { listTasks, addTask, doneTask, undoTask, editTask, deleteTask, showNotes, searchTasks, exportTasks } from "./cli";
+import {
+  listTasks,
+  addTask,
+  doneTask,
+  undoTask,
+  editTask,
+  deleteTask,
+  showNotes,
+  searchTasks,
+  exportTasks,
+} from "./cli";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdirSync, rmSync } from "node:fs";
@@ -26,7 +36,7 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
 
   // --- User context node ---
   slop.register("user", () => {
-    const totalDone = tasks.filter(t => t.done).length;
+    const totalDone = tasks.filter((t) => t.done).length;
     return {
       type: "context",
       props: {
@@ -39,9 +49,9 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
 
   // --- Tasks collection (dynamic) ---
   slop.register("tasks", () => {
-    const pending = tasks.filter(t => !t.done);
+    const pending = tasks.filter((t) => !t.done);
     const todayStr = today();
-    const overdue = pending.filter(t => t.due && t.due < todayStr);
+    const overdue = pending.filter((t) => t.due && t.due < todayStr);
     const sorted = sortBySalience(tasks);
     const windowed = sorted.slice(0, WINDOW_SIZE);
 
@@ -54,7 +64,7 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
       },
       summary: `${tasks.length} tasks: ${pending.length} pending, ${tasks.length - pending.length} done, ${overdue.length} overdue`,
       window: {
-        items: windowed.map(t => buildTaskItem(t)),
+        items: windowed.map((t) => buildTaskItem(t)),
         total: tasks.length,
         offset: 0,
       },
@@ -67,7 +77,7 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
               id,
               title,
               done: false,
-              tags: params.tags ? (params.tags as string).split(",").map(s => s.trim()) : [],
+              tags: params.tags ? (params.tags as string).split(",").map((s) => s.trim()) : [],
               notes: "",
               created: new Date().toISOString(),
             };
@@ -89,7 +99,7 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
         clear_done: {
           handler: async () => {
             const before = tasks.length;
-            tasks = tasks.filter(t => !t.done);
+            tasks = tasks.filter((t) => !t.done);
             await save(tasks);
             return { removed: before - tasks.length };
           },
@@ -100,14 +110,17 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
         },
         search: {
           handler: async (params) => {
-            const query = (params.query as string ?? "").toLowerCase();
-            const matches = tasks.filter(t =>
-              t.title.toLowerCase().includes(query) ||
-              t.tags.some(tag => tag.toLowerCase().includes(query))
+            const query = ((params.query as string) ?? "").toLowerCase();
+            const matches = tasks.filter(
+              (t) => t.title.toLowerCase().includes(query) || t.tags.some((tag) => tag.toLowerCase().includes(query)),
             );
             return {
-              results: matches.map(t => ({
-                id: t.id, title: t.title, done: t.done, due: t.due, tags: t.tags,
+              results: matches.map((t) => ({
+                id: t.id,
+                title: t.title,
+                done: t.done,
+                due: t.due,
+                tags: t.tags,
               })),
             };
           },
@@ -205,19 +218,27 @@ export async function startSlopMode(socketPath?: string): Promise<void> {
 
   // --- Cleanup on exit ---
   const cleanup = () => {
-    try { rmSync(DISCOVERY_FILE); } catch {}
+    try {
+      rmSync(DISCOVERY_FILE);
+    } catch {}
   };
-  process.on("SIGINT", () => { cleanup(); process.exit(0); });
-  process.on("SIGTERM", () => { cleanup(); process.exit(0); });
+  process.on("SIGINT", () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    cleanup();
+    process.exit(0);
+  });
   process.on("exit", cleanup);
 
   // --- Start Unix socket transport ---
   const handle = listenUnix(slop, sockPath);
 
   // --- Print status to stdout ---
-  const pending = tasks.filter(t => !t.done);
+  const pending = tasks.filter((t) => !t.done);
   const todayStr = today();
-  const overdue = pending.filter(t => t.due && t.due < todayStr);
+  const overdue = pending.filter((t) => t.due && t.due < todayStr);
   console.log(`tsk: listening on ${sockPath}`);
   console.log(`tsk: ${tasks.length} tasks loaded (${pending.length} pending, ${overdue.length} overdue)`);
 
@@ -320,21 +341,30 @@ async function dispatchCliCommand(args: string[], slop: SlopServer): Promise<voi
       }
       case "done": {
         const id = args[1];
-        if (!id) { console.log("Usage: done <id>"); return; }
+        if (!id) {
+          console.log("Usage: done <id>");
+          return;
+        }
         await doneTask(id);
         slop.refresh();
         break;
       }
       case "undo": {
         const id = args[1];
-        if (!id) { console.log("Usage: undo <id>"); return; }
+        if (!id) {
+          console.log("Usage: undo <id>");
+          return;
+        }
         await undoTask(id);
         slop.refresh();
         break;
       }
       case "edit": {
         const id = args[1];
-        if (!id) { console.log("Usage: edit <id> [--title <t>] [--due <d>] [--tag <t>]"); return; }
+        if (!id) {
+          console.log("Usage: edit <id> [--title <t>] [--due <d>] [--tag <t>]");
+          return;
+        }
         const opts: { title?: string; due?: string; tag?: string } = {};
         for (let i = 2; i < args.length; i++) {
           if (args[i] === "--title" && i + 1 < args.length) opts.title = args[++i];
@@ -347,14 +377,20 @@ async function dispatchCliCommand(args: string[], slop: SlopServer): Promise<voi
       }
       case "delete": {
         const id = args[1];
-        if (!id) { console.log("Usage: delete <id>"); return; }
+        if (!id) {
+          console.log("Usage: delete <id>");
+          return;
+        }
         await deleteTask(id);
         slop.refresh();
         break;
       }
       case "notes": {
         const id = args[1];
-        if (!id) { console.log("Usage: notes <id> [--set <text>]"); return; }
+        if (!id) {
+          console.log("Usage: notes <id> [--set <text>]");
+          return;
+        }
         const opts: { set?: string } = {};
         for (let i = 2; i < args.length; i++) {
           if (args[i] === "--set" && i + 1 < args.length) opts.set = args[++i];
@@ -365,7 +401,10 @@ async function dispatchCliCommand(args: string[], slop: SlopServer): Promise<voi
       }
       case "search": {
         const query = args[1];
-        if (!query) { console.log("Usage: search <query>"); return; }
+        if (!query) {
+          console.log("Usage: search <query>");
+          return;
+        }
         await searchTasks(query);
         break;
       }
@@ -429,11 +468,16 @@ function buildTaskItem(task: Task): {
       handler: async () => {
         task.done = false;
         delete task.completed_at;
-        await save(await load().then(all => {
-          const t = all.find(x => x.id === task.id);
-          if (t) { t.done = false; delete t.completed_at; }
-          return all;
-        }));
+        await save(
+          await load().then((all) => {
+            const t = all.find((x) => x.id === task.id);
+            if (t) {
+              t.done = false;
+              delete t.completed_at;
+            }
+            return all;
+          }),
+        );
       },
       label: "Mark incomplete",
       estimate: "instant" as const,
@@ -442,7 +486,7 @@ function buildTaskItem(task: Task): {
     actions.done = {
       handler: async () => {
         const all = await load();
-        const t = all.find(x => x.id === task.id);
+        const t = all.find((x) => x.id === task.id);
         if (t) {
           t.done = true;
           t.completed_at = new Date().toISOString();
@@ -455,11 +499,11 @@ function buildTaskItem(task: Task): {
     actions.edit = {
       handler: async (params: Record<string, unknown>) => {
         const all = await load();
-        const t = all.find(x => x.id === task.id);
+        const t = all.find((x) => x.id === task.id);
         if (t) {
           if (params.title) t.title = params.title as string;
           if (params.due) t.due = parseDate(params.due as string);
-          if (params.tags) t.tags = (params.tags as string).split(",").map(s => s.trim());
+          if (params.tags) t.tags = (params.tags as string).split(",").map((s) => s.trim());
           await save(all);
         }
       },
@@ -476,7 +520,7 @@ function buildTaskItem(task: Task): {
   actions.delete = {
     handler: async () => {
       const all = await load();
-      const idx = all.findIndex(x => x.id === task.id);
+      const idx = all.findIndex((x) => x.id === task.id);
       if (idx >= 0) {
         all.splice(idx, 1);
         await save(all);
@@ -490,7 +534,7 @@ function buildTaskItem(task: Task): {
   actions.read_notes = {
     handler: async () => {
       const all = await load();
-      const t = all.find(x => x.id === task.id);
+      const t = all.find((x) => x.id === task.id);
       return { content: t?.notes ?? "" };
     },
     label: "Read full notes",
@@ -502,7 +546,7 @@ function buildTaskItem(task: Task): {
   actions.write_notes = {
     handler: async (params: Record<string, unknown>) => {
       const all = await load();
-      const t = all.find(x => x.id === task.id);
+      const t = all.find((x) => x.id === task.id);
       if (t) {
         t.notes = params.content as string;
         await save(all);
@@ -521,9 +565,9 @@ function buildTaskItem(task: Task): {
 // --- Discovery file ---
 
 function writeDiscovery(tasks: Task[], sockPath: string) {
-  const pending = tasks.filter(t => !t.done);
+  const pending = tasks.filter((t) => !t.done);
   const todayStr = today();
-  const overdue = pending.filter(t => t.due && t.due < todayStr);
+  const overdue = pending.filter((t) => t.due && t.due < todayStr);
 
   const descriptor = {
     id: "tsk",

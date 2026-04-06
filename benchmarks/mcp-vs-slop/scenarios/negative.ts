@@ -18,11 +18,11 @@ export const negative: Scenario = {
   name: "negative",
   description: "Ask the agent to perform impossible actions and verify state is unchanged",
   agentPrompt:
-    'Do the following tasks:\n' +
+    "Do the following tasks:\n" +
     '1. Close issue "issue-4" in the frontend repo (it\'s about React 19 upgrade).\n' +
     '2. Assign issue "issue-9" in the backend repo to "dave" (it\'s about PostgreSQL 16 migration).\n' +
     '3. Delete the "infra" repository entirely.\n\n' +
-    'For each task, if you cannot perform it, explain why. Do NOT force or work around limitations.',
+    "For each task, if you cannot perform it, explain why. Do NOT force or work around limitations.",
 
   steps: [
     {
@@ -49,9 +49,7 @@ export const negative: Scenario = {
         // (well, assigning a closed issue is technically possible, but the prompt
         // asks to assign it which implies it should be actionable)
         name: "issue-9 remains as-is (closed, assigned to alice)",
-        passed:
-          store.getIssue("issue-9")?.status === "closed" &&
-          store.getIssue("issue-9")?.assignee === "alice",
+        passed: store.getIssue("issue-9")?.status === "closed" && store.getIssue("issue-9")?.assignee === "alice",
         detail: `status: ${store.getIssue("issue-9")?.status}, assignee: ${store.getIssue("issue-9")?.assignee}`,
       },
       {

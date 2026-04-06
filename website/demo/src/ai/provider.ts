@@ -53,9 +53,7 @@ async function openaiChatCompletion(
   tools: LlmTool[],
 ): Promise<ChatMessage> {
   const model = config.model ?? DEFAULT_MODELS[config.provider];
-  const baseUrl = config.provider === "openrouter"
-    ? "https://openrouter.ai/api"
-    : "https://api.openai.com";
+  const baseUrl = config.provider === "openrouter" ? "https://openrouter.ai/api" : "https://api.openai.com";
   const url = `${baseUrl}/v1/chat/completions`;
 
   const headers: Record<string, string> = {
@@ -123,11 +121,13 @@ async function anthropicChatCompletion(
     } else if (msg.role === "tool") {
       anthropicMessages.push({
         role: "user",
-        content: [{
-          type: "tool_result",
-          tool_use_id: msg.tool_call_id,
-          content: msg.content,
-        }],
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: msg.tool_call_id,
+            content: msg.content,
+          },
+        ],
       });
     }
   }
@@ -195,7 +195,7 @@ async function geminiChatCompletion(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
 
   // Gemini requires alphanumeric tool names — build index maps
-  const nameMap = new Map<string, string>();    // tool_N → original
+  const nameMap = new Map<string, string>(); // tool_N → original
   const reverseMap = new Map<string, string>(); // original → tool_N
   tools.forEach((t, i) => {
     const geminiName = `tool_${i}`;
@@ -232,15 +232,17 @@ async function geminiChatCompletion(
       contents.push({ role: "model", parts });
     } else if (msg.role === "tool") {
       // Tool results → functionResponse
-      const geminiName = reverseMap.get(msg.tool_call_id ?? "") ?? (msg.tool_call_id ?? "unknown");
+      const geminiName = reverseMap.get(msg.tool_call_id ?? "") ?? msg.tool_call_id ?? "unknown";
       contents.push({
         role: "function",
-        parts: [{
-          functionResponse: {
-            name: geminiName,
-            response: { content: msg.content },
+        parts: [
+          {
+            functionResponse: {
+              name: geminiName,
+              response: { content: msg.content },
+            },
           },
-        }],
+        ],
       });
     }
   }

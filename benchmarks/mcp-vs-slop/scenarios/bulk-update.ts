@@ -13,8 +13,7 @@ import type { IssueTrackerStore } from "../app/store";
 export const bulkUpdate: Scenario = {
   name: "bulk-update",
   description: 'Close all issues labeled "wontfix" across all repos',
-  agentPrompt:
-    'Find all open issues that have the "wontfix" label across all repositories and close them.',
+  agentPrompt: 'Find all open issues that have the "wontfix" label across all repositories and close them.',
 
   steps: [
     {
@@ -27,10 +26,7 @@ export const bulkUpdate: Scenario = {
           if (!issuesNode) continue;
           for (const issue of issuesNode.children ?? []) {
             const props = issue.properties ?? {};
-            if (
-              props.status === "open" &&
-              (props.labels as string[])?.includes("wontfix")
-            ) {
+            if (props.status === "open" && (props.labels as string[])?.includes("wontfix")) {
               _targets.push(issue.id);
             }
           }

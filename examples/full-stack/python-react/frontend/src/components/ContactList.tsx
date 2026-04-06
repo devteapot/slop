@@ -53,9 +53,7 @@ export default function ContactList({ contacts, selectedId, onSelect }: Props) {
           </div>
         </button>
       ))}
-      {contacts.length === 0 && (
-        <p className="empty-list">No contacts found.</p>
-      )}
+      {contacts.length === 0 && <p className="empty-list">No contacts found.</p>}
       <div className="contact-count">{contacts.length} contacts</div>
     </aside>
   );

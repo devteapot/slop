@@ -17,12 +17,12 @@ export const crossEntity: Scenario = {
   name: "cross-entity",
   description: "Use information from comments to act on related issues across repos",
   agentPrompt:
-    'I need you to investigate and connect some related issues:\n\n' +
-    '1. Look at issue-6 in the backend repo (rate limiting on /api/search). Read its comments to understand the root cause.\n' +
+    "I need you to investigate and connect some related issues:\n\n" +
+    "1. Look at issue-6 in the backend repo (rate limiting on /api/search). Read its comments to understand the root cause.\n" +
     '2. The comment on issue-6 mentions the middleware ordering problem. Issue-3 in the frontend repo is about auth token refresh, which also involves middleware. Add a comment from "agent" on issue-3 saying "This may be related to the middleware ordering issue found in issue-6 (backend). The auth middleware and rate limiter may have the same root cause."\n' +
     '3. Since both issues are middleware-related, add the label "middleware" to both issue-6 and issue-3.\n' +
     '4. Both issues are security-sensitive. Make sure both have the "security" label (check first — one of them might already have it).\n' +
-    '5. Assign both issues to the same person — whoever is NOT currently assigned to either. Pick someone from the team: alice, bob, or charlie.',
+    "5. Assign both issues to the same person — whoever is NOT currently assigned to either. Pick someone from the team: alice, bob, or charlie.",
 
   steps: [
     {
@@ -44,7 +44,8 @@ export const crossEntity: Scenario = {
     const checks = [
       {
         name: "Agent commented on issue-3 referencing issue-6",
-        passed: agentComment !== undefined &&
+        passed:
+          agentComment !== undefined &&
           (agentComment.body.includes("issue-6") || agentComment.body.includes("issue 6")),
         detail: agentComment ? `"${agentComment.body.slice(0, 60)}..."` : "no agent comment",
       },
@@ -70,9 +71,7 @@ export const crossEntity: Scenario = {
       },
       {
         name: "Both issues assigned to same person",
-        passed: issue3?.assignee !== null &&
-          issue6?.assignee !== null &&
-          issue3?.assignee === issue6?.assignee,
+        passed: issue3?.assignee !== null && issue6?.assignee !== null && issue3?.assignee === issue6?.assignee,
         detail: `issue-3: ${issue3?.assignee}, issue-6: ${issue6?.assignee}`,
       },
       {

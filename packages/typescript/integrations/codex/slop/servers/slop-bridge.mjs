@@ -11,10 +11,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createDiscoveryService, createToolHandlers } from "@slop-ai/discovery";
 import { formatTree } from "@slop-ai/consumer";
 import fs from "node:fs";
@@ -62,10 +59,7 @@ function writeStateFile() {
       };
     });
 
-    fs.writeFileSync(
-      STATE_FILE,
-      JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2),
-    );
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2));
   } catch (err) {
     log.error("Failed to write state file:", err.message);
   }
@@ -103,8 +97,7 @@ const TOOLS = [
   },
   {
     name: "disconnect_app",
-    description:
-      "Disconnect from an application when you're done interacting with it.",
+    description: "Disconnect from an application when you're done interacting with it.",
     inputSchema: {
       type: "object",
       properties: {
@@ -184,10 +177,7 @@ const TOOLS = [
   },
 ];
 
-const server = new Server(
-  { name: "slop-bridge", version: "0.1.0" },
-  { capabilities: { tools: {} } },
-);
+const server = new Server({ name: "slop-bridge", version: "0.1.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
@@ -215,28 +205,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         try {
-          const result = await provider.consumer.invoke(
-            args.path,
-            args.action,
-            args.params ?? {},
-          );
+          const result = await provider.consumer.invoke(args.path, args.action, args.params ?? {});
 
           if (result.status === "ok") {
             return {
-              content: [{
-                type: "text",
-                text:
-                  `Done. ${args.action} on ${args.path} succeeded.` +
-                  (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
-              }],
+              content: [
+                {
+                  type: "text",
+                  text:
+                    `Done. ${args.action} on ${args.path} succeeded.` +
+                    (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+                },
+              ],
             };
           }
 
           return {
-            content: [{
-              type: "text",
-              text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
+              },
+            ],
             isError: true,
           };
         } catch (err) {
@@ -275,12 +265,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         return {
-          content: [{
-            type: "text",
-            text:
-              `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
-              results.join("\n"),
-          }],
+          content: [
+            {
+              type: "text",
+              text:
+                `Batch complete: ${args.actions.length - failed}/${args.actions.length} succeeded.\n` +
+                results.join("\n"),
+            },
+          ],
           isError: failed > 0,
         };
       }

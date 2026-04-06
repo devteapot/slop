@@ -11,7 +11,10 @@ const RULES: Array<[RegExp, string]> = [
   // Numbers
   [/\b\d+(\.\d+)?\b/g, "hl-number"],
   // Keywords
-  [/\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|typeof|instanceof|in|of|true|false|null|undefined|this|class|export|import|from|default|try|catch|throw|finally|async|await|yield)\b/g, "hl-keyword"],
+  [
+    /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|typeof|instanceof|in|of|true|false|null|undefined|this|class|export|import|from|default|try|catch|throw|finally|async|await|yield)\b/g,
+    "hl-keyword",
+  ],
   // Arrow functions
   [/=>/g, "hl-keyword"],
   // Property keys (before colon in objects)
@@ -66,8 +69,5 @@ export function highlight(code: string): string {
 }
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

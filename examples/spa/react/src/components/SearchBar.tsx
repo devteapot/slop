@@ -6,12 +6,7 @@ interface Props {
 export default function SearchBar({ query, onQueryChange }: Props) {
   return (
     <div className="search-bar">
-      <input
-        type="text"
-        placeholder="Search cards..."
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-      />
+      <input type="text" placeholder="Search cards..." value={query} onChange={(e) => onQueryChange(e.target.value)} />
       {query && (
         <button className="search-clear" onClick={() => onQueryChange("")}>
           &times;

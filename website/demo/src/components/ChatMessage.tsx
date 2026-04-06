@@ -5,9 +5,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
   if (message.role === "system") {
     return (
       <div className="text-center py-2">
-        <span className="text-[11px] text-on-surface-variant font-mono">
-          {message.content}
-        </span>
+        <span className="text-[11px] text-on-surface-variant font-mono">{message.content}</span>
       </div>
     );
   }
@@ -18,9 +16,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
       <div
         className={`max-w-[85%] rounded px-3 py-2 ${
-          isUser
-            ? "bg-secondary-container/40 text-on-surface"
-            : "bg-surface-container text-on-surface"
+          isUser ? "bg-secondary-container/40 text-on-surface" : "bg-surface-container text-on-surface"
         }`}
       >
         {/* Label */}

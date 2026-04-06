@@ -21,7 +21,7 @@ export interface ListenUnixOptions {
 export function listenUnix(
   slop: SlopServer,
   socketPath: string,
-  options: ListenUnixOptions = {}
+  options: ListenUnixOptions = {},
 ): { close: () => void } {
   // Clean up stale socket
   removeSocketIfPresent(socketPath);

@@ -1,8 +1,4 @@
-import type {
-  ConsumerMessage,
-  ProviderMessage,
-  SlopNode,
-} from "@slop-ai/consumer/browser";
+import type { ConsumerMessage, ProviderMessage, SlopNode } from "@slop-ai/consumer/browser";
 export type {
   ConsumerMessage,
   ProviderMessage,
@@ -118,7 +114,7 @@ export const DEFAULT_STORAGE: SlopStorage = {
 };
 
 export function getActiveProfile(storage: SlopStorage): LlmProfile {
-  return storage.profiles.find(p => p.id === storage.activeProfileId) ?? storage.profiles[0] ?? DEFAULT_PROFILE;
+  return storage.profiles.find((p) => p.id === storage.activeProfileId) ?? storage.profiles[0] ?? DEFAULT_PROFILE;
 }
 
 // ========================================================================
@@ -146,7 +142,7 @@ export const DEFAULT_PREFS: ExtensionPrefs = {
 };
 
 export async function getPrefs(): Promise<ExtensionPrefs> {
-  const result = await chrome.storage.local.get("prefs") as PrefsStorageRecord;
+  const result = (await chrome.storage.local.get("prefs")) as PrefsStorageRecord;
   return { ...DEFAULT_PREFS, ...result.prefs };
 }
 

@@ -27,9 +27,7 @@ import type { SlopServerOptions } from "./server";
  * attachSlop(slop, httpServer);
  * ```
  */
-export function createSlopServer<S = unknown>(
-  options: SlopServerOptions<S>
-): SlopServer<S> {
+export function createSlopServer<S = unknown>(options: SlopServerOptions<S>): SlopServer<S> {
   return new SlopServer<S>(options);
 }
 

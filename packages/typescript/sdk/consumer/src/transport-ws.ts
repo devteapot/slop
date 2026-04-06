@@ -26,10 +26,18 @@ export class WebSocketClientTransport implements ClientTransport {
     };
 
     return {
-      send(msg) { ws.send(JSON.stringify(msg)); },
-      onMessage(h) { messageHandlers.push(h); },
-      onClose(h) { closeHandlers.push(h); },
-      close() { ws.close(); },
+      send(msg) {
+        ws.send(JSON.stringify(msg));
+      },
+      onMessage(h) {
+        messageHandlers.push(h);
+      },
+      onClose(h) {
+        closeHandlers.push(h);
+      },
+      close() {
+        ws.close();
+      },
     };
   }
 }

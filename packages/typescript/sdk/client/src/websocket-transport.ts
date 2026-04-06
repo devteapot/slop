@@ -17,7 +17,7 @@ const DEFAULT_DESKTOP_URL = "ws://localhost:9339/slop";
  */
 export function createWebSocketTransport(
   url: string = DEFAULT_DESKTOP_URL,
-  options: { discover?: boolean } = {}
+  options: { discover?: boolean } = {},
 ): Transport {
   const messageHandlers: ((msg: any) => void)[] = [];
   let ws: WebSocket | null = null;

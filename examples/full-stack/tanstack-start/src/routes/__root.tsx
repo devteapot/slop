@@ -1,59 +1,59 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
-import { useSlopUI } from '@slop-ai/tanstack-start'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
-import Header from '../components/Header'
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { useSlopUI } from "@slop-ai/tanstack-start";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import Header from "../components/Header";
 
-import appCss from '../styles.css?url'
+import appCss from "../styles.css?url";
 
-const THEME_INIT_SCRIPT = `(function(){document.documentElement.style.colorScheme='dark'})();`
+const THEME_INIT_SCRIPT = `(function(){document.documentElement.style.colorScheme='dark'})();`;
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       {
-        charSet: 'utf-8',
+        charSet: "utf-8",
       },
       {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
       },
       {
-        title: 'Project Tracker — SLOP + TanStack Start',
+        title: "Project Tracker — SLOP + TanStack Start",
       },
       {
-        name: 'slop',
-        content: 'ws://localhost:3000/slop',
+        name: "slop",
+        content: "ws://localhost:3000/slop",
       },
     ],
     links: [
       {
-        rel: 'icon',
-        type: 'image/svg+xml',
-        href: '/favicon.svg',
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
       },
       {
-        rel: 'preconnect',
-        href: 'https://fonts.googleapis.com',
+        rel: "preconnect",
+        href: "https://fonts.googleapis.com",
       },
       {
-        rel: 'preconnect',
-        href: 'https://fonts.gstatic.com',
-        crossOrigin: 'anonymous',
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
       },
       {
-        rel: 'stylesheet',
+        rel: "stylesheet",
         href: appCss,
       },
     ],
   }),
   shellComponent: RootDocument,
   component: RootLayout,
-})
+});
 
 function RootLayout() {
-  useSlopUI()
-  return <Outlet />
+  useSlopUI();
+  return <Outlet />;
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
@@ -68,11 +68,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         {children}
         <TanStackDevtools
           config={{
-            position: 'bottom-right',
+            position: "bottom-right",
           }}
           plugins={[
             {
-              name: 'Tanstack Router',
+              name: "Tanstack Router",
               render: <TanStackRouterDevtoolsPanel />,
             },
           ]}
@@ -80,5 +80,5 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
-  )
+  );
 }

@@ -28,10 +28,14 @@ export function computeSalience(card: Card): SalienceResult {
   if (isCritical && isDueSoon2) {
     salience = 1.0;
     urgency = "critical";
-    reason = daysUntilDue === 0 ? "critical priority, due today"
-      : daysUntilDue === 1 ? "critical priority, due tomorrow"
-      : isOverdue ? `critical priority, overdue by ${Math.abs(daysUntilDue!)} days`
-      : `critical priority, due in ${daysUntilDue} days`;
+    reason =
+      daysUntilDue === 0
+        ? "critical priority, due today"
+        : daysUntilDue === 1
+          ? "critical priority, due tomorrow"
+          : isOverdue
+            ? `critical priority, overdue by ${Math.abs(daysUntilDue!)} days`
+            : `critical priority, due in ${daysUntilDue} days`;
   } else if (isCritical) {
     salience = 0.9;
     urgency = "high";

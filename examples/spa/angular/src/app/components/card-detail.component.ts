@@ -172,7 +172,10 @@ export class CardDetailComponent {
 
   handleTagsChange(value: string) {
     this.edit.emit({
-      tags: value.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     });
   }
 }

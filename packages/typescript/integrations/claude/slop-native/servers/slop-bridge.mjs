@@ -17,10 +17,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createDiscoveryService } from "@slop-ai/discovery";
 import { createToolHandlers, createDynamicTools } from "@slop-ai/discovery";
 import { formatTree } from "@slop-ai/consumer";
@@ -92,10 +89,7 @@ function writeStateFile() {
       };
     });
 
-    fs.writeFileSync(
-      STATE_FILE,
-      JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2),
-    );
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2));
   } catch (err) {
     log.error("Failed to write state file:", err.message);
   }
@@ -138,8 +132,7 @@ const STATIC_TOOLS = [
       properties: {
         app: {
           type: "string",
-          description:
-            "App name or ID to connect. Omit to list all apps.",
+          description: "App name or ID to connect. Omit to list all apps.",
         },
       },
     },
@@ -168,7 +161,7 @@ const STATIC_TOOLS = [
 
 const server = new Server(
   { name: "slop-bridge", version: "0.1.0" },
-  { capabilities: { tools: { listChanged: true } } }
+  { capabilities: { tools: { listChanged: true } } },
 );
 
 // --- List tools (static + dynamic) ---
@@ -234,13 +227,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { target, ...rest } = invokeArgs;
         if (!target || typeof target !== "string") {
           return {
-            content: [{ type: "text", text: `Missing required "target" parameter. Specify the path to the target node (see state tree for valid paths).` }],
+            content: [
+              {
+                type: "text",
+                text: `Missing required "target" parameter. Specify the path to the target node (see state tree for valid paths).`,
+              },
+            ],
             isError: true,
           };
         }
         if (resolved.targets && !resolved.targets.includes(target)) {
           return {
-            content: [{ type: "text", text: `Invalid target "${target}". Valid targets: ${resolved.targets.join(", ")}. Check the state tree for current paths.` }],
+            content: [
+              {
+                type: "text",
+                text: `Invalid target "${target}". Valid targets: ${resolved.targets.join(", ")}. Check the state tree for current paths.`,
+              },
+            ],
             isError: true,
           };
         }
@@ -249,26 +252,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       try {
-        const result = await provider.consumer.invoke(
-          invokePath,
-          resolved.action,
-          invokeArgs,
-        );
+        const result = await provider.consumer.invoke(invokePath, resolved.action, invokeArgs);
 
         if (result.status === "ok") {
           return {
-            content: [{
-              type: "text",
-              text: `Done.` + (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
-            }],
+            content: [
+              {
+                type: "text",
+                text: `Done.` + (result.data ? ` Result: ${JSON.stringify(result.data)}` : ""),
+              },
+            ],
           };
         }
 
         return {
-          content: [{
-            type: "text",
-            text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
-          }],
+          content: [
+            {
+              type: "text",
+              text: `Action failed: [${result.error?.code}] ${result.error?.message}`,
+            },
+          ],
           isError: true,
         };
       } catch (err) {
@@ -308,12 +311,16 @@ async function main() {
   // Cleanup on exit
   process.on("SIGINT", () => {
     discovery.stop();
-    try { fs.unlinkSync(STATE_FILE); } catch {}
+    try {
+      fs.unlinkSync(STATE_FILE);
+    } catch {}
     process.exit(0);
   });
   process.on("SIGTERM", () => {
     discovery.stop();
-    try { fs.unlinkSync(STATE_FILE); } catch {}
+    try {
+      fs.unlinkSync(STATE_FILE);
+    } catch {}
     process.exit(0);
   });
 }

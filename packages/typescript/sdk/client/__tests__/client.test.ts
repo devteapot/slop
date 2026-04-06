@@ -8,8 +8,12 @@ const incomingHandlers: ((msg: any) => void)[] = [];
 
 function createMockTransport(): Transport {
   return {
-    send(message: unknown) { sentMessages.push(message); },
-    onMessage(handler: (msg: any) => void) { incomingHandlers.push(handler); },
+    send(message: unknown) {
+      sentMessages.push(message);
+    },
+    onMessage(handler: (msg: any) => void) {
+      incomingHandlers.push(handler);
+    },
     start() {},
     stop() {},
   };
@@ -47,7 +51,7 @@ describe("SlopClient", () => {
     client.register("c", { type: "group" });
 
     // All three should be batched — wait for microtask
-    await new Promise(r => queueMicrotask(r));
+    await new Promise((r) => queueMicrotask(r));
     // No crash = success. Batching verified by the queueMicrotask mechanism.
   });
 
@@ -117,11 +121,13 @@ describe("SlopClient", () => {
 
     client.register("todos", {
       type: "collection",
-      items: [{
-        id: "t1",
-        props: { title: "Test" },
-        actions: { delete: deleteFn },
-      }],
+      items: [
+        {
+          id: "t1",
+          props: { title: "Test" },
+          actions: { delete: deleteFn },
+        },
+      ],
     });
     client.flush();
     // Handler should be registered at "todos/t1/delete"
@@ -191,14 +197,18 @@ describe("SlopClient scaling integration", () => {
     const sent: any[] = [];
     const handlers: ((msg: any) => void)[] = [];
     const transport: Transport = {
-      send(msg) { sent.push(msg); },
-      onMessage(h) { handlers.push(h); },
+      send(msg) {
+        sent.push(msg);
+      },
+      onMessage(h) {
+        handlers.push(h);
+      },
       start() {},
       stop() {},
     };
     const client = new SlopClientImpl({ id: "app", name: "App", ...opts }, transport);
     client.start();
-    const simulate = (msg: any) => handlers.forEach(h => h(msg));
+    const simulate = (msg: any) => handlers.forEach((h) => h(msg));
     return { client, sent, simulate };
   }
 
@@ -210,7 +220,7 @@ describe("SlopClient scaling integration", () => {
     client.flush();
 
     simulate({ type: "subscribe", id: "sub-1", path: "/", depth: 1 });
-    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    const snapshot = sent.find((m) => m.type === "snapshot" && m.id === "sub-1");
     expect(snapshot).toBeDefined();
     // At depth 1, a should be present but its children truncated
     const a = snapshot.tree.children?.find((c: any) => c.id === "a");
@@ -226,7 +236,7 @@ describe("SlopClient scaling integration", () => {
     client.flush();
 
     simulate({ type: "subscribe", id: "sub-1", filter: { min_salience: 0.5 } });
-    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    const snapshot = sent.find((m) => m.type === "snapshot" && m.id === "sub-1");
     const ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
     expect(ids).toContain("high");
     expect(ids).not.toContain("low");
@@ -239,7 +249,7 @@ describe("SlopClient scaling integration", () => {
     client.flush();
 
     simulate({ type: "subscribe", id: "sub-1", filter: { types: ["notification"] } });
-    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    const snapshot = sent.find((m) => m.type === "snapshot" && m.id === "sub-1");
     const ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
     expect(ids).toContain("alert");
     expect(ids).not.toContain("data");
@@ -253,7 +263,7 @@ describe("SlopClient scaling integration", () => {
     client.flush();
 
     simulate({ type: "subscribe", id: "sub-1", path: "/inbox" });
-    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "sub-1");
+    const snapshot = sent.find((m) => m.type === "snapshot" && m.id === "sub-1");
     // Should get the inbox subtree, not the full tree
     expect(snapshot.tree.id).toBe("inbox");
     expect(snapshot.tree.children?.[0]?.id).toBe("messages");
@@ -267,7 +277,7 @@ describe("SlopClient scaling integration", () => {
     client.flush();
 
     simulate({ type: "query", id: "q-1", depth: 1, filter: { min_salience: 0.5 } });
-    const snapshot = sent.find(m => m.type === "snapshot" && m.id === "q-1");
+    const snapshot = sent.find((m) => m.type === "snapshot" && m.id === "q-1");
     const ids = snapshot.tree.children?.map((c: any) => c.id) ?? [];
     expect(ids).toContain("a");
     expect(ids).not.toContain("noise");
@@ -287,8 +297,8 @@ describe("SlopClient scaling integration", () => {
     simulate({ type: "subscribe", id: "filtered", path: "/", filter: { min_salience: 0.5 } });
 
     // Verify initial snapshots have correct filtering
-    const allSnap = sent.find(m => m.type === "snapshot" && m.id === "all");
-    const filteredSnap = sent.find(m => m.type === "snapshot" && m.id === "filtered");
+    const allSnap = sent.find((m) => m.type === "snapshot" && m.id === "all");
+    const filteredSnap = sent.find((m) => m.type === "snapshot" && m.id === "filtered");
     expect(allSnap.tree.children?.map((c: any) => c.id)).toContain("low");
     expect(filteredSnap.tree.children?.map((c: any) => c.id)).not.toContain("low");
 
@@ -299,8 +309,8 @@ describe("SlopClient scaling integration", () => {
     client.flush();
 
     // After change, we should get patch messages (not snapshots)
-    const allPatch = sent.find(m => m.type === "patch" && m.subscription === "all");
-    const filteredPatch = sent.find(m => m.type === "patch" && m.subscription === "filtered");
+    const allPatch = sent.find((m) => m.type === "patch" && m.subscription === "all");
+    const filteredPatch = sent.find((m) => m.type === "patch" && m.subscription === "filtered");
     expect(allPatch).toBeDefined();
     expect(filteredPatch).toBeDefined();
     expect(allPatch.ops.length).toBeGreaterThan(0);

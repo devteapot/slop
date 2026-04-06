@@ -20,7 +20,7 @@ export function buildMergedContext(providers: ProviderTreeInfo[]): MergedContext
   const singleProvider = providers.length === 1;
   const allTools: LlmTool[] = [];
   let stateStr = "";
-  const providerNames = providers.map(p => ({ name: p.name, index: p.index }));
+  const providerNames = providers.map((p) => ({ name: p.name, index: p.index }));
 
   // Per-provider ToolSets for resolve
   const providerToolSets: { name: string; index: number; toolSet: ToolSet }[] = [];

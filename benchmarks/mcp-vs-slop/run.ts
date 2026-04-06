@@ -40,14 +40,20 @@ setVerbose(values.verbose!);
 // Parse protocol filter: "all", or comma-separated: "mcp,slop-optimized"
 const protocolFilter = values.protocol!;
 const selectedProtocols: Set<string> | null =
-  protocolFilter === "all"
-    ? null
-    : new Set(protocolFilter.split(",").map((s) => s.trim()));
+  protocolFilter === "all" ? null : new Set(protocolFilter.split(",").map((s) => s.trim()));
 
 const allScenarios = [
-  exploreAndAct, triage, bulkUpdate, scaleTriage,
-  negative, contextual, recovery,
-  stateTransitions, crossEntity, conditional, ambiguity,
+  exploreAndAct,
+  triage,
+  bulkUpdate,
+  scaleTriage,
+  negative,
+  contextual,
+  recovery,
+  stateTransitions,
+  crossEntity,
+  conditional,
+  ambiguity,
   complexWorkflow,
 ];
 

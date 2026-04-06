@@ -67,12 +67,7 @@ class SlopTestClient {
     this.sockPath = sockPath;
   }
 
-  static async create(
-    cmd: string[],
-    cwd: string,
-    dataFile: string,
-    sockPath: string,
-  ): Promise<SlopTestClient> {
+  static async create(cmd: string[], cwd: string, dataFile: string, sockPath: string): Promise<SlopTestClient> {
     // Desktop apps use env vars, not CLI flags
     const proc = spawn({
       cmd,
@@ -321,7 +316,10 @@ async function runTests(lang: string) {
     assert(timerNode?.properties?.phase != null, "timer has phase property");
     assertEq(timerNode?.properties?.phase, "idle", "timer phase is 'idle'");
     assert(timerNode?.properties?.paused != null, "timer has paused property");
-    assert(timerNode?.properties?.time_remaining_sec != null || timerNode?.properties?.time_remaining_sec === 0, "timer has time_remaining_sec property");
+    assert(
+      timerNode?.properties?.time_remaining_sec != null || timerNode?.properties?.time_remaining_sec === 0,
+      "timer has time_remaining_sec property",
+    );
 
     // Sessions collection properties
     assert(sessionsNode?.properties?.count != null, "sessions has count property");
@@ -511,7 +509,6 @@ async function runTests(lang: string) {
     // No response expected for unsubscribe, just verify no crash
     await Bun.sleep(200);
     assert(true, "unsubscribe sent without error");
-
   } catch (err: any) {
     console.log(`  \x1b[31m✗ Error: ${err.message}\x1b[0m`);
     failed++;
@@ -540,9 +537,7 @@ async function main() {
     await runTests(lang);
   }
 
-  console.log(
-    `\n\x1b[1mResults: ${passed} passed, ${failed} failed\x1b[0m`,
-  );
+  console.log(`\n\x1b[1mResults: ${passed} passed, ${failed} failed\x1b[0m`);
   if (failures.length > 0) {
     console.log("\nFailures:");
     for (const f of failures) {

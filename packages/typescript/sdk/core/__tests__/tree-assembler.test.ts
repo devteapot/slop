@@ -8,9 +8,7 @@ function makeRegs(entries: [string, NodeDescriptor][]): Map<string, NodeDescript
 
 describe("assembleTree", () => {
   test("single node at root level", () => {
-    const regs = makeRegs([
-      ["notes", { type: "collection", props: { count: 3 } }],
-    ]);
+    const regs = makeRegs([["notes", { type: "collection", props: { count: 3 } }]]);
     const { tree } = assembleTree(regs, "app", "My App");
     expect(tree.id).toBe("app");
     expect(tree.type).toBe("root");
@@ -103,12 +101,13 @@ describe("assembleTree", () => {
   test("items inside registered nodes produce handler entries", () => {
     const deleteFn = () => {};
     const regs = makeRegs([
-      ["todos", {
-        type: "collection",
-        items: [
-          { id: "t1", props: { title: "A" }, actions: { delete: deleteFn } },
-        ],
-      }],
+      [
+        "todos",
+        {
+          type: "collection",
+          items: [{ id: "t1", props: { title: "A" }, actions: { delete: deleteFn } }],
+        },
+      ],
     ]);
     const { tree, handlers } = assembleTree(regs, "app", "App");
     expect(tree.children![0].children![0].id).toBe("t1");
@@ -117,12 +116,15 @@ describe("assembleTree", () => {
 
   test("inline children and path-registered children coexist", () => {
     const regs = makeRegs([
-      ["settings", {
-        type: "view",
-        children: {
-          account: { type: "group", props: { email: "a@b.com" } },
+      [
+        "settings",
+        {
+          type: "view",
+          children: {
+            account: { type: "group", props: { email: "a@b.com" } },
+          },
         },
-      }],
+      ],
       ["settings/notifications", { type: "group", props: { enabled: true } }],
     ]);
     const { tree } = assembleTree(regs, "app", "App");

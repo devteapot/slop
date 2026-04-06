@@ -40,7 +40,7 @@ import type { SlopClient, NodeDescriptor } from "@slop-ai/core";
 export function useSlop<S = unknown>(
   client: SlopClient<S>,
   path: string | (() => string),
-  descriptor: () => NodeDescriptor
+  descriptor: () => NodeDescriptor,
 ): void {
   let currentPath = resolvePath(path);
 

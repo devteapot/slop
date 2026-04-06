@@ -13,7 +13,10 @@ export interface ToolResult {
 
 /** Sanitize a string for use as a tool name prefix (alphanumeric + underscore). */
 function sanitizePrefix(s: string): string {
-  return s.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  return s
+    .replace(/[^a-zA-Z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 }
 
 export interface DynamicToolEntry {
@@ -116,15 +119,11 @@ export function createToolHandlers(discovery: DiscoveryService) {
 
     const lines = discovered.map((desc) => {
       const isConnected = connectedIds.has(desc.id);
-      const provider = isConnected
-        ? connected.find((p) => p.id === desc.id)
-        : null;
+      const provider = isConnected ? connected.find((p) => p.id === desc.id) : null;
       const tree = provider?.consumer.getTree(provider.subscriptionId);
       const actionCount = tree ? affordancesToTools(tree).tools.length : 0;
       const label = (tree?.properties?.label as string) ?? desc.name;
-      const status = isConnected
-        ? `connected, ${actionCount} actions`
-        : "available";
+      const status = isConnected ? `connected, ${actionCount} actions` : "available";
       return `- **${label}** (id: \`${desc.id}\`, ${desc.transport.type}) — ${status}`;
     });
 
@@ -145,9 +144,7 @@ export function createToolHandlers(discovery: DiscoveryService) {
     const p = await discovery.ensureConnected(app);
     if (!p) {
       const discovered = discovery.getDiscovered();
-      const available = discovered
-        .map((d) => `${d.name} (${d.id})`)
-        .join(", ");
+      const available = discovered.map((d) => `${d.name} (${d.id})`).join(", ");
       return {
         content: [
           {
@@ -175,9 +172,7 @@ export function createToolHandlers(discovery: DiscoveryService) {
       .map((t) => {
         const resolved = toolSet.resolve(t.function.name);
         const action = resolved?.action ?? t.function.name;
-        const pathInfo = resolved?.path
-          ? `on \`${resolved.path}\``
-          : `${resolved?.targets?.length ?? 0} targets`;
+        const pathInfo = resolved?.path ? `on \`${resolved.path}\`` : `${resolved?.targets?.length ?? 0} targets`;
         return `  - **${action}** ${pathInfo}: ${t.function.description}`;
       })
       .join("\n");

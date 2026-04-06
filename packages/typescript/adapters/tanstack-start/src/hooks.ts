@@ -168,7 +168,7 @@ export function useSlop(path: string, descriptor: NodeDescriptor): void {
 
     return () => {
       slopClient?.unregister(path);
-      pendingRegistrations = pendingRegistrations.filter(p => p.path !== path);
+      pendingRegistrations = pendingRegistrations.filter((p) => p.path !== path);
     };
   }, [path]);
 

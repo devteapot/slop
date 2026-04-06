@@ -75,7 +75,7 @@ export async function runTurn(
         const params = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
 
         // For grouped tools (path is null), extract target from params
-        const invokePath = path ?? params.target as string | undefined;
+        const invokePath = path ?? (params.target as string | undefined);
         if (!invokePath) {
           conversation.push({
             role: "tool",
@@ -102,11 +102,12 @@ export async function runTurn(
 
         try {
           const result = await entry.consumer.invoke(invokePath, action, params);
-          await new Promise(r => setTimeout(r, 150));
+          await new Promise((r) => setTimeout(r, 150));
 
-          const resultStr = result.status === "ok"
-            ? `OK${result.data ? ": " + JSON.stringify(result.data) : ""}`
-            : `Error [${result.error?.code}]: ${result.error?.message}`;
+          const resultStr =
+            result.status === "ok"
+              ? `OK${result.data ? ": " + JSON.stringify(result.data) : ""}`
+              : `Error [${result.error?.code}]: ${result.error?.message}`;
 
           conversation.push({ role: "tool", content: resultStr, tool_call_id: tc.id });
         } catch (err: unknown) {

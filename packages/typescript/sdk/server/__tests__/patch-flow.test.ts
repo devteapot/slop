@@ -6,8 +6,12 @@ import { StateMirror } from "../../consumer/src/state-mirror";
 class MockConnection implements Connection {
   messages: any[] = [];
   closed = false;
-  send(message: unknown): void { this.messages.push(message); }
-  close(): void { this.closed = true; }
+  send(message: unknown): void {
+    this.messages.push(message);
+  }
+  close(): void {
+    this.closed = true;
+  }
 }
 
 function setup() {
@@ -18,12 +22,18 @@ function setup() {
 }
 
 function subscribe(slop: SlopServer, conn: MockConnection, opts: any = {}) {
-  slop.handleMessage(conn, { type: "subscribe", id: opts.id ?? "sub-1", path: opts.path ?? "/", depth: opts.depth, filter: opts.filter });
-  return conn.messages.find(m => m.type === "snapshot" && m.id === (opts.id ?? "sub-1"));
+  slop.handleMessage(conn, {
+    type: "subscribe",
+    id: opts.id ?? "sub-1",
+    path: opts.path ?? "/",
+    depth: opts.depth,
+    filter: opts.filter,
+  });
+  return conn.messages.find((m) => m.type === "snapshot" && m.id === (opts.id ?? "sub-1"));
 }
 
 function lastPatch(conn: MockConnection, subId = "sub-1") {
-  return [...conn.messages].reverse().find(m => m.type === "patch" && m.subscription === subId);
+  return [...conn.messages].reverse().find((m) => m.type === "patch" && m.subscription === subId);
 }
 
 function replayState(conn: MockConnection): StateMirror | null {
@@ -41,8 +51,8 @@ describe("Patch message flow", () => {
     slop.register("counter", { type: "status", props: { count: 0 } });
     subscribe(slop, conn);
 
-    const snapshots = conn.messages.filter(m => m.type === "snapshot");
-    const patches = conn.messages.filter(m => m.type === "patch");
+    const snapshots = conn.messages.filter((m) => m.type === "snapshot");
+    const patches = conn.messages.filter((m) => m.type === "patch");
     expect(snapshots.length).toBe(1);
     expect(patches.length).toBe(0);
   });
@@ -124,13 +134,13 @@ describe("Patch message flow", () => {
     expect(mirror).not.toBeNull();
 
     const tree = mirror.getTree();
-    const counter = tree.children?.find(c => c.id === "counter");
+    const counter = tree.children?.find((c) => c.id === "counter");
     expect(counter?.properties?.count).toBe(2);
     expect(counter?.properties?.label).toBe("Counter");
 
-    const tasks = tree.children?.find(c => c.id === "tasks");
+    const tasks = tree.children?.find((c) => c.id === "tasks");
     expect(tasks).toBeDefined();
-    const t1 = tasks?.children?.find(c => c.id === "t1");
+    const t1 = tasks?.children?.find((c) => c.id === "t1");
     expect(t1?.properties?.title).toBe("Do stuff");
   });
 
@@ -139,7 +149,7 @@ describe("Patch message flow", () => {
     slop.register("x", { type: "status", props: { v: 0 } });
     subscribe(slop, conn);
 
-    const snapshot = conn.messages.find(m => m.type === "snapshot");
+    const snapshot = conn.messages.find((m) => m.type === "snapshot");
     expect(snapshot.version).toBe(1);
 
     slop.register("x", { type: "status", props: { v: 1 } });
@@ -187,7 +197,7 @@ describe("Patch message flow", () => {
     const { slop, conn } = setup();
     await slop.handleMessage(conn, { type: "bogus", id: "req-1" });
 
-    const error = conn.messages.find(m => m.type === "error");
+    const error = conn.messages.find((m) => m.type === "error");
     expect(error).toBeDefined();
     expect(error.id).toBe("req-1");
     expect(error.error.code).toBe("bad_request");
@@ -199,11 +209,11 @@ describe("Patch message flow", () => {
     slop.register("inbox", { type: "collection", props: {} });
     await slop.handleMessage(conn, { type: "subscribe", id: "sub-bad", path: "/nonexistent" });
 
-    const error = conn.messages.find(m => m.type === "error" && m.id === "sub-bad");
+    const error = conn.messages.find((m) => m.type === "error" && m.id === "sub-bad");
     expect(error).toBeDefined();
     expect(error.error.code).toBe("not_found");
     // Should not have created a subscription (no snapshot sent)
-    const snapshot = conn.messages.find(m => m.type === "snapshot" && m.id === "sub-bad");
+    const snapshot = conn.messages.find((m) => m.type === "snapshot" && m.id === "sub-bad");
     expect(snapshot).toBeUndefined();
   });
 
@@ -217,7 +227,7 @@ describe("Patch message flow", () => {
     slop.emitEvent("user-navigation", { from: "/a", to: "/b" });
 
     for (const conn of [conn1, conn2]) {
-      const evt = conn.messages.find(m => m.type === "event");
+      const evt = conn.messages.find((m) => m.type === "event");
       expect(evt).toBeDefined();
       expect(evt.name).toBe("user-navigation");
       expect(evt.data).toEqual({ from: "/a", to: "/b" });
@@ -234,7 +244,7 @@ describe("Patch message flow", () => {
 
     slop.handleMessage(conn, { type: "query", id: "q-1", path: "/items", depth: 1, window: [1, 2] });
 
-    const snapshot = conn.messages.find(m => m.type === "snapshot" && m.id === "q-1");
+    const snapshot = conn.messages.find((m) => m.type === "snapshot" && m.id === "q-1");
     expect(snapshot).toBeDefined();
     expect(snapshot.tree.children).toHaveLength(2);
     expect(snapshot.tree.children[0].id).toBe("i1");

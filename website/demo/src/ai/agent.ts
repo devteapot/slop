@@ -152,9 +152,10 @@ export async function runAgentTurn(
       // Server-side providers rebuild synchronously; this delay is React-specific.
       await new Promise((r) => setTimeout(r, 150));
 
-      const resultStr = result.status === "ok"
-        ? `OK${result.data ? ": " + JSON.stringify(result.data) : ""}`
-        : `Error [${result.error?.code}]: ${result.error?.message}`;
+      const resultStr =
+        result.status === "ok"
+          ? `OK${result.data ? ": " + JSON.stringify(result.data) : ""}`
+          : `Error [${result.error?.code}]: ${result.error?.message}`;
 
       conversation.push({
         role: "tool",

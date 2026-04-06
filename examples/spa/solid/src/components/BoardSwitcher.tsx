@@ -35,7 +35,9 @@ export default function BoardSwitcher(props: Props) {
       <Show
         when={creating()}
         fallback={
-          <button class="board-tab add" onClick={() => setCreating(true)}>+</button>
+          <button class="board-tab add" onClick={() => setCreating(true)}>
+            +
+          </button>
         }
       >
         <span class="board-tab-create">
@@ -48,8 +50,12 @@ export default function BoardSwitcher(props: Props) {
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             autofocus
           />
-          <button class="btn-ghost" onClick={handleSubmit}>&#10003;</button>
-          <button class="btn-ghost" onClick={() => setCreating(false)}>&times;</button>
+          <button class="btn-ghost" onClick={handleSubmit}>
+            &#10003;
+          </button>
+          <button class="btn-ghost" onClick={() => setCreating(false)}>
+            &times;
+          </button>
         </span>
       </Show>
     </nav>

@@ -117,7 +117,11 @@ export function today(): string {
 }
 
 /** Compute salience and urgency for a task */
-export function computeSalience(task: Task): { salience: number; urgency?: "high" | "medium" | "low"; reason?: string } {
+export function computeSalience(task: Task): {
+  salience: number;
+  urgency?: "high" | "medium" | "low";
+  reason?: string;
+} {
   if (task.done) {
     return { salience: 0.2 };
   }

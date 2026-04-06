@@ -116,11 +116,7 @@ export function autoCompact(root: SlopNode, maxNodes: number): SlopNode {
  * Nodes below minSalience or not matching types are removed.
  * The root node is never filtered.
  */
-export function filterTree(
-  node: SlopNode,
-  minSalience?: number,
-  types?: string[]
-): SlopNode {
+export function filterTree(node: SlopNode, minSalience?: number, types?: string[]): SlopNode {
   if (!node.children) return node;
 
   const filtered = node.children
@@ -142,9 +138,7 @@ export function filterTree(
 
 /** Count total nodes in a tree. */
 export function countNodes(node: SlopNode): number {
-  return (
-    1 + (node.children?.reduce((sum, c) => sum + countNodes(c), 0) ?? 0)
-  );
+  return 1 + (node.children?.reduce((sum, c) => sum + countNodes(c), 0) ?? 0);
 }
 
 // --- Internal helpers ---
@@ -159,7 +153,7 @@ function collectCandidates(
   node: SlopNode,
   path: number[],
   candidates: CompactCandidate[],
-  isRootChild: boolean = false
+  isRootChild: boolean = false,
 ): void {
   if (!node.children) return;
   for (let i = 0; i < node.children.length; i++) {
@@ -199,8 +193,7 @@ function collapseAtPath(tree: SlopNode, path: number[]): number {
     meta: {
       ...target.meta,
       total_children: target.children?.length ?? 0,
-      summary:
-        target.meta?.summary ?? `${target.children?.length ?? 0} children`,
+      summary: target.meta?.summary ?? `${target.children?.length ?? 0} children`,
     },
   };
 

@@ -47,8 +47,33 @@ That mounts:
 
 - `Server`, `ScopedServer`, and `RegisterFunc` for providers
 - `Consumer` plus WebSocket and Unix client transports
+- `discovery` subpackage for provider scanning, bridge relay, lazy/auto-connect, and AI-facing tool helpers
 - stdio and Unix transports for local tools
 - scaling helpers and LLM tool formatting helpers
+
+## Discovery layer
+
+The Go SDK now includes the core discovery layer in the `discovery` subpackage:
+
+```go
+import (
+	"context"
+
+	"github.com/devteapot/slop/packages/go/slop-ai/discovery"
+)
+
+svc := discovery.NewService(discovery.ServiceOptions{})
+svc.Start(context.Background())
+defer svc.Stop()
+
+provider, err := svc.EnsureConnected(context.Background(), "my-app")
+if err != nil {
+	panic(err)
+}
+if provider != nil {
+	println(provider.Name)
+}
+```
 
 ## Documentation
 

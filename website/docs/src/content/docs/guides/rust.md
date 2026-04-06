@@ -256,6 +256,26 @@ let node = consumer.query("/todos", 1).await?;
 consumer.disconnect();
 ```
 
+## Discovery layer
+
+The Rust SDK also includes the core discovery layer in `slop_ai::discovery` under the default `native` feature set:
+
+```rust
+use slop_ai::discovery::{DiscoveryService, DiscoveryServiceOptions};
+
+#[tokio::main]
+async fn main() {
+    let service = DiscoveryService::new(DiscoveryServiceOptions::default());
+    service.start().await;
+
+    if let Ok(Some(provider)) = service.ensure_connected("my-app").await {
+        println!("{}", provider.name);
+    }
+
+    service.stop().await;
+}
+```
+
 ## Scaling
 
 Prepare trees for output with depth truncation, salience filtering, and node-budget compaction:

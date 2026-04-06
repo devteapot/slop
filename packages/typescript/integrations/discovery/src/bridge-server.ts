@@ -2,8 +2,18 @@ import WebSocket, { WebSocketServer } from "ws";
 import type { Bridge, BridgeProvider, RelayHandler } from "./bridge-client";
 import { parseBridgeProvider } from "./bridge-client";
 
-const BRIDGE_PORT = 9339;
-const BRIDGE_PATH = "/slop-bridge";
+export const DEFAULT_BRIDGE_HOST = "127.0.0.1";
+export const DEFAULT_BRIDGE_PORT = 9339;
+export const DEFAULT_BRIDGE_PATH = "/slop-bridge";
+
+type Logger = { info: (...args: any[]) => void; error: (...args: any[]) => void };
+
+export interface BridgeServerOptions {
+  logger?: Logger;
+  host?: string;
+  port?: number;
+  path?: string;
+}
 
 /**
  * Bridge WebSocket server — hosts the extension bridge at ws://127.0.0.1:9339/slop-bridge.
@@ -13,9 +23,14 @@ const BRIDGE_PATH = "/slop-bridge";
  * tracks provider announcements, and relays SLOP messages for postMessage providers.
  */
 export function createBridgeServer(
-  logger?: { info: (...args: any[]) => void; error: (...args: any[]) => void },
+  options: BridgeServerOptions = {},
 ): Bridge & { start(): Promise<void> } {
-  const log = logger ?? { info: console.error, error: console.error };
+  const {
+    logger: log,
+    host,
+    port,
+    path,
+  } = normalizeOptions(options);
 
   let wss: WebSocketServer | null = null;
   let isRunning = false;
@@ -109,14 +124,14 @@ export function createBridgeServer(
     start(): Promise<void> {
       return new Promise((resolve, reject) => {
         wss = new WebSocketServer({
-          host: "127.0.0.1",
-          port: BRIDGE_PORT,
-          path: BRIDGE_PATH,
+          host,
+          port,
+          path,
         });
 
         wss.on("listening", () => {
           isRunning = true;
-          log.info(`[slop-bridge] Bridge server running on ws://127.0.0.1:${BRIDGE_PORT}${BRIDGE_PATH}`);
+          log.info(`[slop-bridge] Bridge server running on ws://${host}:${port}${path}`);
           resolve();
         });
 
@@ -189,14 +204,26 @@ export function createBridgeServer(
 
     stop() {
       isRunning = false;
-      for (const sink of sinks) sink.close();
+      for (const sink of sinks) sink.terminate();
       sinks.clear();
       providerMap.clear();
       relaySubscribers.clear();
       if (wss) {
+        for (const client of wss.clients) {
+          client.terminate();
+        }
         wss.close();
         wss = null;
       }
     },
+  };
+}
+
+function normalizeOptions(options: BridgeServerOptions = {}): Required<BridgeServerOptions> {
+  return {
+    logger: options.logger ?? { info: console.error, error: console.error },
+    host: options.host ?? DEFAULT_BRIDGE_HOST,
+    port: options.port ?? DEFAULT_BRIDGE_PORT,
+    path: options.path ?? DEFAULT_BRIDGE_PATH,
   };
 }

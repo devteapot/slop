@@ -56,7 +56,7 @@
 //! - Integration guide: <https://docs.slopai.dev/guides/rust>
 //! - crates.io docs: <https://docs.rs/slop-ai>
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod descriptor;
 pub mod diff;

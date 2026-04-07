@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
-import type { DiscoveryService } from "@slop-ai/discovery";
-import type { ToolResult } from "@slop-ai/discovery";
+import type { DiscoveryService } from "@slop-ai/discovery/service";
+import type { ToolResult } from "@slop-ai/discovery/tools";
 
 interface ToolHandlers {
   listApps(): Promise<ToolResult>;

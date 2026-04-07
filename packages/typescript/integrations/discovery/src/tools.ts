@@ -1,5 +1,5 @@
 import { formatTree, affordancesToTools, type LlmTool } from "@slop-ai/consumer";
-import type { DiscoveryService, ConnectedProvider } from "./discovery";
+import type { DiscoveryService } from "./service";
 
 export interface ToolResult {
   [key: string]: unknown;

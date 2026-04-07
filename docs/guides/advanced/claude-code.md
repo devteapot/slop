@@ -141,7 +141,7 @@ Server-backed web apps ──direct WebSocket─────┤
 Browser SPAs ──postMessage──Extension─────────┤     │
                      (relay via bridge)       │     ├── state.json ──→ hook ──→ Claude context
                                               │     │
-                 @slop-ai/discovery ──────────┘     ├── native: dynamic tools via tools/list_changed
+                  @slop-ai/discovery/* ────────┘     ├── native: dynamic tools via tools/list_changed
                                                     └── mcp-proxy: fixed tools (app_action, app_action_batch)
 ```
 
@@ -157,7 +157,7 @@ The state file includes a `lastUpdated` timestamp. The hook skips injection if t
 
 OpenClaw's plugin SDK does not support runtime tool registration — tools must be declared in the plugin manifest and registered once during plugin initialization. The OpenClaw plugin uses meta-tools (`app_action`, `app_action_batch`) instead, with state injection via `before_prompt_build` to give the model full context. See [OpenClaw integration](/guides/advanced/openclaw) for details.
 
-All three integrations share the same underlying `@slop-ai/discovery` package. `claude-slop-native` additionally uses `createDynamicTools()` to expose first-class tools.
+All three integrations share the same underlying discovery stack. They use `@slop-ai/discovery/service` for connection orchestration, and `claude-slop-native` additionally uses `@slop-ai/discovery/tools` to expose first-class tools.
 
 ## Related
 

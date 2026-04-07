@@ -162,7 +162,7 @@ slop/
 │   │   │   ├── svelte/             # @slop-ai/svelte — useSlop for Svelte 5 runes
 │   │   │   └── tanstack-start/     # @slop-ai/tanstack-start — SSR adapter
 │   │   └── integrations/
-│   │       ├── discovery/          # @slop-ai/discovery — provider discovery + agent tool helpers
+│   │       ├── discovery/          # @slop-ai/discovery — bridge/discovery primitives with /service and /tools entrypoints
 │   │       ├── claude/             # Claude Code plugins (native + MCP proxy)
 │   │       ├── codex/              # Codex plugin (MCP bridge + skill)
 │   │       └── openclaw-plugin/    # @slop-ai/openclaw-plugin — OpenClaw integration

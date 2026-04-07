@@ -24,7 +24,7 @@ openclaw plugins install @slop-ai/openclaw-plugin
 
 ## How it works
 
-The plugin uses `@slop-ai/discovery` for provider discovery (local dirs, bridge, relay) and for shared tool handlers (`createToolHandlers`, etc.).
+The plugin uses `@slop-ai/discovery/service` for provider discovery and connection management, and `@slop-ai/discovery/tools` for shared lifecycle tool handlers.
 
 ### State injection
 

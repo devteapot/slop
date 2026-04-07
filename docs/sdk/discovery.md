@@ -366,11 +366,11 @@ Host-specific wrappers, tool-helper layers, and prompt injection are intentional
 
 ## Integrations
 
-Both the Claude Code and OpenClaw plugins follow the same design principles:
+The Codex, Claude Code, OpenClaw, and Hermes integrations all follow the same design principles:
 
 - **State injection** — Provider state is injected into the model's context before each turn, not fetched via tool calls
 - **Minimal tool usage** — Tools are used only for connecting to apps and performing actions, never for reading state
-- **Shared discovery** — Both build on `@slop-ai/discovery/service` for provider scanning and connection orchestration
+- **Shared discovery contract** — TypeScript hosts build on `@slop-ai/discovery/service`; Hermes uses the mirrored Python implementation in `slop_ai.discovery`
 
 Where they differ is **action dispatch**, due to host platform limitations.
 
@@ -397,6 +397,7 @@ Dynamic tools have proper parameter schemas from the provider's affordance defin
 | Codex | No (current plugin) | Stable MCP tools + `UserPromptSubmit` hook-based state injection | No runtime tool registration; actions still go through meta-tools |
 | Claude Code (MCP) | Yes | `notifications/tools/list_changed` — server notifies client when tool list changes | None |
 | OpenClaw | No | `api.registerTool()` is one-time during `register()` | No runtime tool registration API; tools must be declared in the plugin manifest |
+| Hermes | No | `register_tool()` + `pre_llm_call` hook-based state injection | Plugin tools are registered once; current package targets local CLI / single-user use |
 
 Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. Depending on the host, the model learns the exact paths and action names from prompt-time state injection or from an explicit `connect_app` inspection step.
 
@@ -452,6 +453,24 @@ Design details:
 
 See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 
+### Hermes plugin (`slop-hermes`)
+
+| Component | Purpose |
+|---|---|
+| **Tools** | `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch` |
+| **Hook** (`pre_llm_call`) | Injects connected providers' state trees into the current Hermes turn |
+| **Runtime** | Background Python discovery service using `slop_ai.discovery` |
+
+Design details:
+
+- **Fixed tool surface** — The Hermes plugin registers the same stable five-tool catalog as the Codex and OpenClaw integrations.
+- **In-process state injection** — The `pre_llm_call` hook injects fresh `## SLOP Apps` markdown directly into the current turn. No file-based IPC is needed.
+- **Python discovery parity** — Uses `slop_ai.discovery` for local descriptor watching, bridge support, lazy connect, reconnect, and idle disconnect behavior.
+- **Bounded injection** — Connected trees are compacted with `prepare_tree(max_nodes=...)` before rendering so prompt growth stays controlled.
+- **Operational scope** — The current package is aimed at local CLI / single-user Hermes. Connected-provider state is process-global.
+
+See [Hermes guide](/guides/advanced/hermes) for setup and usage.
+
 ## Related
 
 - [Consumer SDK API](/api/consumer) — protocol client reference
@@ -460,3 +479,4 @@ See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 - [Consumer guide](/guides/consumer) — usage patterns and example workflows
 - [Codex guide](/guides/advanced/codex) — Codex plugin setup and usage
 - [Claude Code guide](/guides/advanced/claude-code) — Claude Code plugin setup and usage
+- [Hermes guide](/guides/advanced/hermes) — Hermes plugin setup and usage

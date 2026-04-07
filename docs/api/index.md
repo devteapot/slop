@@ -24,6 +24,7 @@ This page maps every published package in the repo to its primary use case and t
 | Package | Use it for | Install | Docs |
 | --- | --- | --- | --- |
 | `slop-ai` for Python | FastAPI, services, local tools, Python consumers | `pip install slop-ai[websocket]` | [API](/api/python), [Guide](/guides/python) |
+| `slop-hermes` | Hermes Agent integration | `pip install slop-hermes` | [API](/api/slop-hermes), [Guide](/guides/advanced/hermes) |
 | `slop-ai` for Go | `net/http` services, daemons, CLI tools, Go consumers | `go get github.com/devteapot/slop/packages/go/slop-ai` | [API](/api/go), [Guide](/guides/go) |
 | `slop-ai` for Rust | Axum apps, services, daemons, CLI tools, Rust consumers | `cargo add slop-ai` | [API](/api/rust), [Guide](/guides/rust) |
 

@@ -42,6 +42,8 @@ Integrations (Claude Code plugin, OpenClaw plugin, VS Code extension, custom age
 
 Integrations compose these entrypoints: `@slop-ai/discovery/service` for provider scanning and connection orchestration, `@slop-ai/discovery/tools` when they need lifecycle or dynamic-tool helpers, and the root export when they need direct bridge primitives.
 
+These are subpath entrypoints of the same published `@slop-ai/discovery` package, not separately published npm packages. They currently share one install-time dependency set even when a consumer only imports the root, `/service`, or `/tools` entrypoint.
+
 ## Phase 1: Core Discovery Layer
 
 As of `v0.1`, the **core discovery layer** is shipped across TypeScript, Python, Go, and Rust. The TypeScript implementation remains the behavioral reference, but other SDKs do **not** need to copy its package topology.

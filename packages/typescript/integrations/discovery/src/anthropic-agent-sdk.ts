@@ -17,7 +17,7 @@ import { createToolHandlers } from "./tools";
  *
  * Returns lifecycle tools only (list_apps, connect_app, disconnect_app).
  * Dynamic affordance tools should be wired via MCP's tools/list_changed
- * using `createDynamicTools()` from the main export.
+ * using `createDynamicTools()` from `@slop-ai/discovery/tools`.
  */
 export function createSlopAgentTools(discovery: ReturnType<typeof createDiscoveryService>) {
   const handlers = createToolHandlers(discovery);

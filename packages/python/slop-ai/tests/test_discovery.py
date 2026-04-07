@@ -6,7 +6,7 @@ import importlib
 import json
 import socket
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -15,6 +15,11 @@ from slop_ai.discovery import (
     BridgeServer,
     DiscoveryOptions,
     DiscoveryService,
+)
+from slop_ai.discovery.models import (
+    ConnectedProvider,
+    ProviderDescriptor,
+    TransportDescriptor,
 )
 
 
@@ -113,6 +118,64 @@ def test_relay_transport_buffers_early_messages() -> None:
     asyncio.run(_run())
 
 
+def test_service_matching_rejects_empty_and_ambiguous_app_names() -> None:
+    async def _run() -> None:
+        service = DiscoveryService(DiscoveryOptions(providers_dirs=[]))
+        service._local_descriptors = [
+            ProviderDescriptor(
+                id="canvas-app",
+                name="Canvas App",
+                slop_version="0.1",
+                transport=TransportDescriptor(type="unix", path="/tmp/canvas.sock"),
+                capabilities=["state"],
+            ),
+            ProviderDescriptor(
+                id="canvas-pro",
+                name="Canvas Pro",
+                slop_version="0.1",
+                transport=TransportDescriptor(type="unix", path="/tmp/canvas-pro.sock"),
+                capabilities=["state"],
+            ),
+        ]
+        service._providers = {
+            "canvas-app": ConnectedProvider(
+                id="canvas-app",
+                name="Canvas App",
+                descriptor=service._local_descriptors[0],
+                consumer=cast(Any, _FakeConsumer()),
+                subscription_id="sub-1",
+                status="connected",
+            )
+        }
+
+        assert service._find_descriptor("") is None
+        assert service._find_descriptor("   ") is None
+        assert service._find_connected_provider("") is None
+        assert service._find_any_provider("   ") is None
+        assert service._find_descriptor("canvas") is None
+        assert service._find_descriptor("canvas-app") is not None
+        assert service._find_descriptor("Canvas App") is not None
+        assert service._find_connected_provider("Canvas App") is not None
+
+    asyncio.run(_run())
+
+
+def test_service_matching_supports_normalized_unique_matches() -> None:
+    service = DiscoveryService(DiscoveryOptions(providers_dirs=[]))
+    descriptor = ProviderDescriptor(
+        id="whiteboard-canvas",
+        name="Whiteboard Canvas",
+        slop_version="0.1",
+        transport=TransportDescriptor(type="unix", path="/tmp/whiteboard.sock"),
+        capabilities=["state"],
+    )
+    service._local_descriptors = [descriptor]
+
+    assert service._find_descriptor("whiteboard canvas") == descriptor
+    assert service._find_descriptor("WhiteboardCanvas") == descriptor
+    assert service._find_descriptor("board") == descriptor
+
+
 async def _wait_until(predicate: Any, timeout: float = 1.0) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while asyncio.get_running_loop().time() < deadline:
@@ -164,4 +227,9 @@ class _FakeBridge:
         return None
 
     async def stop(self) -> None:
+        return None
+
+
+class _FakeConsumer:
+    def disconnect(self) -> None:
         return None

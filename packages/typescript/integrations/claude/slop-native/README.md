@@ -109,9 +109,9 @@ Claude calls these directly — no proxy through meta-tools needed. Tools are re
 
 ## How it works
 
-1. The MCP server uses `createDiscoveryService` from `@slop-ai/discovery` to discover SLOP providers from the local filesystem and the browser extension bridge.
+1. The MCP server uses `createDiscoveryService` from `@slop-ai/discovery/service` to discover SLOP providers from the local filesystem and the browser extension bridge.
 2. When Claude calls `connect_app` with an app name, the service lazy-connects via the appropriate transport (WebSocket, Unix socket, or extension relay) and subscribes to the state tree.
-3. `createDynamicTools` from `@slop-ai/discovery` converts each connected app's affordances into namespaced MCP tools. The server notifies Claude via `tools/list_changed`.
+3. `createDynamicTools` from `@slop-ai/discovery/tools` converts each connected app's affordances into namespaced MCP tools. The server notifies Claude via `tools/list_changed`.
 4. Claude calls affordance tools directly (e.g. `excalidraw__elements__add_rectangle`). The server resolves each tool name to a provider + path + action and invokes it.
 5. The `UserPromptSubmit` hook reads a shared state file (`/tmp/claude-slop-plugin/state.json`) that the MCP server updates whenever state changes, injecting live state into Claude's context.
 6. When Claude calls `disconnect_app`, the provider is disconnected, its tools are removed, and state drops from the hook.
@@ -126,11 +126,11 @@ Server-backed web apps ──direct WebSocket─────┤
 Browser SPAs ──postMessage──Extension─────────┤
                      (relay via bridge)       │
                                               │
-                 @slop-ai/discovery SDK ──────┘
-                   ├── createDiscoveryService (discovery + connections)
-                   ├── createDynamicTools (affordance → tool mapping)
-                   ├── createToolHandlers (lifecycle tool logic)
-                   └── createBridgeClient/Server (extension relay)
+                  @slop-ai/discovery/* SDK ────┘
+                    ├── /service → createDiscoveryService
+                    ├── /tools → createDynamicTools
+                    ├── /tools → createToolHandlers
+                    └── createBridgeClient/Server (extension relay)
 ```
 
 ## Known limitations
@@ -154,4 +154,4 @@ This gives the best of both worlds: direct tool calls with zero overhead during 
 - [Discovery & Bridge docs](/sdk/discovery) — discovery layer architecture
 - [Claude Code integration guide](/guides/advanced/claude-code) — detailed setup and usage
 - [`@slop-ai/consumer`](https://www.npmjs.com/package/@slop-ai/consumer) — SLOP consumer SDK
-- [`@slop-ai/discovery`](https://www.npmjs.com/package/@slop-ai/discovery) — discovery + bridge + tool mapping
+- [`@slop-ai/discovery`](https://www.npmjs.com/package/@slop-ai/discovery) — bridge/discovery primitives with `/service` and `/tools` subpaths

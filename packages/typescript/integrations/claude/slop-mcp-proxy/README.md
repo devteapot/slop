@@ -22,7 +22,7 @@ Server-backed web apps ──direct WebSocket─────┤
 Browser SPAs ──postMessage──Extension─────────┤
                      (relay via bridge)       │
                                               │
-                 @slop-ai/discovery SDK ──────┘
+                  @slop-ai/discovery/* SDK ────┘
 ```
 
 ## Setup

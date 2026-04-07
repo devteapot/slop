@@ -15,7 +15,7 @@ It gives Codex five stable MCP tools for discovering and controlling SLOP-enable
 ## What it does
 
 - **Discovers** SLOP apps from local provider descriptors and the browser extension bridge
-- **Connects** to Unix socket, WebSocket, and relay-backed providers through `@slop-ai/discovery`
+- **Connects** to Unix socket, WebSocket, and relay-backed providers through `@slop-ai/discovery/service`
 - **Injects live state** for connected apps on each future user prompt through a Codex hook
 - **Returns an immediate snapshot** through `connect_app`, including the current state tree and available actions
 - **Acts through stable meta-tools** so Codex has a predictable tool surface
@@ -48,7 +48,7 @@ The plugin's `.mcp.json` starts a local stdio MCP server:
 - cwd: `./servers`
 - entrypoint: `./dist/slop-bridge.bundle.mjs`
 
-That bridge wraps `@slop-ai/discovery` and exposes a fixed five-tool surface to Codex.
+That bridge wraps `@slop-ai/discovery/service` and `@slop-ai/discovery/tools` and exposes a fixed five-tool surface to Codex.
 
 ### Hook-based state injection
 
@@ -108,7 +108,7 @@ The Codex integration currently chooses the same fixed-tool model as the OpenCla
 - the hook can inject live state without rebuilding tools on every patch
 - the skill can reliably teach the connect-once, inspect, then act workflow
 
-When Codex support for dynamic per-affordance tool flows becomes desirable, the same `@slop-ai/discovery` layer can be extended in that direction.
+When Codex support for dynamic per-affordance tool flows becomes desirable, the same discovery stack can extend in that direction by adding `@slop-ai/discovery/tools` dynamic tool mapping.
 
 ## Example interaction
 

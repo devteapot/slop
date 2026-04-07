@@ -25,7 +25,7 @@
     "extensions": ["./dist/index.js"]
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --format esm --target node --external '@slop-ai/consumer' --external '@slop-ai/discovery' --external '@sinclair/typebox' --external openclaw && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts --outdir dist --format esm --target node --external '@slop-ai/consumer' --external '@slop-ai/discovery' --external '@slop-ai/discovery/service' --external '@slop-ai/discovery/tools' --external '@sinclair/typebox' --external openclaw && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"
   },
   "dependencies": {

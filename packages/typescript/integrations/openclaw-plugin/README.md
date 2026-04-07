@@ -24,7 +24,7 @@ openclaw plugins install @slop-ai/openclaw-plugin
 
 ## How it works
 
-The plugin uses `@slop-ai/discovery` for provider discovery and connection management, and injects provider state into the prompt via OpenClaw's `before_prompt_build` hook. The model sees live app state before every inference turn, then uses `app_action` or `app_action_batch` with the exact paths and action names shown in context.
+The plugin uses `@slop-ai/discovery/service` for provider discovery and connection management, plus `@slop-ai/discovery/tools` for shared lifecycle tool handlers. It injects provider state into the prompt via OpenClaw's `before_prompt_build` hook, so the model sees live app state before every inference turn, then uses `app_action` or `app_action_batch` with the exact paths and action names shown in context.
 
 ## How provider discovery works
 

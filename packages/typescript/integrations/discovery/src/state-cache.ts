@@ -1,7 +1,7 @@
 import { writeFileSync, renameSync, unlinkSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { formatTree, affordancesToTools } from "@slop-ai/consumer";
-import type { DiscoveryService, ConnectedProvider } from "./discovery";
+import type { DiscoveryService, ConnectedProvider } from "./service";
 
 const HEADER = `[SLOP — Connected Applications]
 

@@ -11,7 +11,7 @@ Codex plugin for SLOP. It lets Codex discover SLOP-enabled desktop and web apps 
 ## What it does
 
 - Discovers SLOP apps from local provider descriptors and the browser extension bridge
-- Connects to Unix socket, WebSocket, and browser-relayed providers through `@slop-ai/discovery`
+- Connects to Unix socket, WebSocket, and browser-relayed providers through `@slop-ai/discovery/service`
 - Injects connected apps' live state into future user turns through a `UserPromptSubmit` hook
 - Gives Codex a fixed MCP surface that works well with Codex skills and tool calling
 - Supports multiple connected apps at once for cross-app workflows
@@ -35,7 +35,7 @@ bun run build
 
 ## How it works
 
-Codex loads the plugin-local MCP server from `.mcp.json`. That server uses `@slop-ai/discovery` to:
+Codex loads the plugin-local MCP server from `.mcp.json`. That server uses `@slop-ai/discovery/service` and `@slop-ai/discovery/tools` to:
 
 1. discover local and browser-announced SLOP providers
 2. connect to a provider on demand with `connect_app`
@@ -61,7 +61,7 @@ Codex loads the plugin-local MCP server from `.mcp.json`. That server uses `@slo
 | `.mcp.json` | Plugin-local MCP server wiring |
 | `hooks/hooks.json` | `UserPromptSubmit` hook wiring for state injection |
 | `skills/slop-connect` | Codex-native workflow guidance for app discovery and control |
-| `servers/slop-bridge.mjs` | Fixed-tool MCP bridge backed by `@slop-ai/discovery` |
+| `servers/slop-bridge.mjs` | Fixed-tool MCP bridge backed by `@slop-ai/discovery/service` and `@slop-ai/discovery/tools` |
 
 ## Documentation
 

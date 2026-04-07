@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { createDiscoveryService } from "./discovery";
+import { createDiscoveryService } from "./service";
 import { createToolHandlers } from "./tools";
 import { createStateCache, type StateCache } from "./state-cache";
 

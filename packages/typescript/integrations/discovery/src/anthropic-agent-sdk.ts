@@ -2,13 +2,14 @@
  * Optional helpers for `@anthropic-ai/claude-agent-sdk` (`tool()`, `createSdkMcpServer`).
  *
  * Use when wiring SLOP discovery into Anthropic Agent `query()` or MCP-from-SDK flows.
- * Host-agnostic tool logic (`createToolHandlers`, `createDynamicTools`, discovery, bridge)
- * is exported from `@slop-ai/discovery` — not from this entry point.
+ * Host-agnostic discovery, service, and tool helpers live under
+ * `@slop-ai/discovery`, `@slop-ai/discovery/service`, and
+ * `@slop-ai/discovery/tools` — not from this entry point.
  */
 
 import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { createDiscoveryService } from "./discovery";
+import { createDiscoveryService } from "./service";
 import { createToolHandlers } from "./tools";
 
 /**

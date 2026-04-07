@@ -10,7 +10,7 @@
 
 ## What it does
 
-- **Discovers** SLOP apps — local native apps, WebSocket servers, and browser tabs via the extension bridge (powered by `@slop-ai/discovery`)
+- **Discovers** SLOP apps — local native apps, WebSocket servers, and browser tabs via the extension bridge (powered by `@slop-ai/discovery/service`)
 - **Injects state** into the prompt before each inference via `before_prompt_build` — the model sees live app state without calling any tool
 - **Exposes actions** through `app_action` and `app_action_batch` meta-tools
 - **Supports multiple apps** connected simultaneously
@@ -71,7 +71,7 @@ The model knows what state exists and what actions are available without calling
 
 ### Discovery
 
-The plugin uses `@slop-ai/discovery` for provider discovery, which covers:
+The plugin uses `@slop-ai/discovery/service` for provider discovery and connection management, which covers:
 
 - `~/.slop/providers/` — persistent user-level providers
 - `/tmp/slop/providers/` — session-level ephemeral providers
@@ -111,7 +111,7 @@ The workaround is the **meta-tool pattern**: five stable tools (`list_apps`, `co
 
 If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTools()` or `api.updateToolList()`), the plumbing is already in place:
 
-- `createDynamicTools(discovery)` from `@slop-ai/discovery` generates namespaced tool definitions from all connected providers
+- `createDynamicTools(discovery)` from `@slop-ai/discovery/tools` generates namespaced tool definitions from all connected providers
 - Each tool maps to `{ providerId, path, action }` via a `resolve()` function
 - The same helper is already used by the Claude Code MCP server
 
@@ -126,7 +126,7 @@ If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTool
 | List tool | `list_apps` | `list_apps` |
 | Connect tool | `connect_app` | `connect_app` |
 | Disconnect tool | `disconnect_app` | `disconnect_app` |
-| Discovery | `@slop-ai/discovery` | `@slop-ai/discovery` |
+| Discovery/runtime | `@slop-ai/discovery/service` + `@slop-ai/discovery/tools` | `@slop-ai/discovery/service` |
 | Bridge support | Yes | Yes |
 | Staleness protection | 30s timestamp check | Not needed (in-process) |
 

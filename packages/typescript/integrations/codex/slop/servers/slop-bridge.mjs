@@ -12,7 +12,8 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createDiscoveryService, createToolHandlers } from "@slop-ai/discovery";
+import { createDiscoveryService } from "@slop-ai/discovery/service";
+import { createToolHandlers } from "@slop-ai/discovery/tools";
 import { formatTree } from "@slop-ai/consumer";
 import fs from "node:fs";
 import path from "node:path";

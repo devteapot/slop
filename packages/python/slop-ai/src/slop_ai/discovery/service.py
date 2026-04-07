@@ -25,6 +25,59 @@ from .models import (
 from .relay_transport import BridgeRelayTransport
 
 
+def _normalize_match(value: str) -> str:
+    return "".join(ch.lower() for ch in value if ch.isalnum())
+
+
+def _resolve_named_match(
+    items: list[Any],
+    id_or_name: str,
+    *,
+    get_id: Callable[[Any], str],
+    get_name: Callable[[Any], str],
+) -> Any | None:
+    raw = id_or_name.strip()
+    if not raw:
+        return None
+
+    lower = raw.lower()
+    normalized = _normalize_match(raw)
+
+    exact_id = [item for item in items if get_id(item) == raw]
+    if len(exact_id) == 1:
+        return exact_id[0]
+
+    exact_text = [
+        item
+        for item in items
+        if get_id(item).lower() == lower or get_name(item).lower() == lower
+    ]
+    if len(exact_text) == 1:
+        return exact_text[0]
+
+    exact_normalized = [
+        item
+        for item in items
+        if _normalize_match(get_id(item)) == normalized
+        or _normalize_match(get_name(item)) == normalized
+    ]
+    if len(exact_normalized) == 1:
+        return exact_normalized[0]
+
+    partial = [
+        item
+        for item in items
+        if lower in get_id(item).lower()
+        or lower in get_name(item).lower()
+        or (len(normalized) >= 2 and normalized in _normalize_match(get_id(item)))
+        or (len(normalized) >= 2 and normalized in _normalize_match(get_name(item)))
+    ]
+    if len(partial) == 1:
+        return partial[0]
+
+    return None
+
+
 class DiscoveryService:
     """Discover, connect, and manage local and browser-backed SLOP providers."""
 
@@ -129,7 +182,7 @@ class DiscoveryService:
         provider = self._providers.get(provider_id)
         if provider is None or provider.status != "connected":
             return None
-        self._last_accessed[provider.id] = asyncio.get_running_loop().time()
+        self._touch_provider(provider.id)
         return provider
 
     async def ensure_connected(self, id_or_name: str) -> ConnectedProvider | None:
@@ -426,35 +479,32 @@ class DiscoveryService:
         return None
 
     def _find_connected_provider(self, id_or_name: str) -> ConnectedProvider | None:
-        provider = self._providers.get(id_or_name)
+        provider = _resolve_named_match(
+            list(self._providers.values()),
+            id_or_name,
+            get_id=lambda item: item.id,
+            get_name=lambda item: item.name,
+        )
         if provider is not None and provider.status == "connected":
-            self._last_accessed[provider.id] = asyncio.get_running_loop().time()
+            self._touch_provider(provider.id)
             return provider
-
-        needle = id_or_name.lower()
-        for provider in self._providers.values():
-            if provider.status == "connected" and needle in provider.name.lower():
-                self._last_accessed[provider.id] = asyncio.get_running_loop().time()
-                return provider
         return None
 
     def _find_any_provider(self, id_or_name: str) -> ConnectedProvider | None:
-        provider = self._providers.get(id_or_name)
-        if provider is not None:
-            return provider
-
-        needle = id_or_name.lower()
-        for provider in self._providers.values():
-            if needle in provider.name.lower():
-                return provider
-        return None
+        return _resolve_named_match(
+            list(self._providers.values()),
+            id_or_name,
+            get_id=lambda item: item.id,
+            get_name=lambda item: item.name,
+        )
 
     def _find_descriptor(self, id_or_name: str) -> ProviderDescriptor | None:
-        needle = id_or_name.lower()
-        for descriptor in self.get_discovered():
-            if descriptor.id == id_or_name or needle in descriptor.name.lower():
-                return descriptor
-        return None
+        return _resolve_named_match(
+            self.get_discovered(),
+            id_or_name,
+            get_id=lambda item: item.id,
+            get_name=lambda item: item.name,
+        )
 
     def _forget_provider(self, provider_id: str) -> None:
         self._providers.pop(provider_id, None)
@@ -463,6 +513,10 @@ class DiscoveryService:
         reconnect_task = self._reconnect_tasks.pop(provider_id, None)
         if reconnect_task is not None:
             reconnect_task.cancel()
+
+    def _touch_provider(self, provider_id: str) -> None:
+        with contextlib.suppress(RuntimeError):
+            self._last_accessed[provider_id] = asyncio.get_running_loop().time()
 
     def _fire_state_change(self) -> None:
         for handler in self._state_change_handlers:

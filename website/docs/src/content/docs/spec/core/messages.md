@@ -189,8 +189,8 @@ On error:
 |---|---|
 | `not_found` | Target node or action doesn't exist |
 | `invalid_params` | Parameters failed validation |
-| `unauthorized` | Consumer lacks permission for this action |
-| `conflict` | Action can't be performed in current state |
+| `unauthorized` | Consumer/session lacks permission, or policy forbids this action |
+| `conflict` | Action can't be performed in the current live state, even if it appeared valid in an earlier snapshot |
 | `internal` | Provider-side error |
 
 ### Extended result statuses

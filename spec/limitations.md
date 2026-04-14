@@ -16,6 +16,16 @@ This is intentional — session management is an application concern, and the pr
 
 **Path forward:** SDK-level session support — session-scoped descriptor functions, session-aware `refresh()`, and connection authentication helpers. See [Sessions & Multi-User](../docs/sdk/sessions.md) for the full architecture. No protocol changes are needed.
 
+### No standardized authorization metadata
+
+The protocol models **what actions are exposed right now**, but it does not standardize a machine-readable policy layer explaining *why* an action is allowed, what permission it requires, or which constraints are advisory versus hard enforcement.
+
+**Current behavior:** Providers expose contextual affordances, `dangerous` hints, and parameter schemas. At execution time they may reject an invoke with `unauthorized` or `conflict`, but the exact policy logic and denial semantics are implementation-specific.
+
+**Impact:** Consumers can see the safe path more clearly, but they cannot reliably explain permission boundaries, compare security posture across providers, or reason about denial causes beyond the coarse runtime error codes.
+
+**Path forward:** A future extension could define optional affordance policy metadata — for example required capability tags, structured denial reasons, or policy scopes — while keeping runtime enforcement authoritative at the provider.
+
 ### No backpressure signaling
 
 The spec mentions `pause` / `resume` messages for subscriptions but doesn't define them. If a consumer is slow to process patches, the provider may skip intermediate versions and send a fresh snapshot — but there's no formal mechanism for the consumer to signal that it's falling behind.

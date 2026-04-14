@@ -14,7 +14,7 @@ Key differences:
 | | Tools (MCP, etc.) | Affordances (SLOP) |
 |---|---|---|
 | Scope | Global flat list | Per-node, contextual |
-| Availability | Always listed (may fail at runtime) | Only present when valid |
+| Availability | Always listed (may fail at runtime) | Only present when expected to be valid in the current projected state |
 | Discovery | Read tool descriptions | See them alongside state |
 | Parameters | Must be inferred from docs | Defined with JSON Schema, contextualized |
 
@@ -125,9 +125,25 @@ Affordances are invoked via the `invoke` message (see [Messages](/spec/core/mess
 The provider:
 1. Validates the action exists on the target node
 2. Validates parameters against the affordance's `params` schema
-3. Executes the action
-4. Returns a `result` message
-5. Emits state `patch` messages reflecting any state changes caused by the action
+3. Re-validates that the action is still allowed under the provider's current state, session permissions, and app policy
+4. Executes the action
+5. Returns a `result` message
+6. Emits state `patch` messages reflecting any state changes caused by the action
+
+## Applicability is not authorization
+
+The presence of an affordance means the action is **structurally applicable in the provider's current projected state**. It is not an authorization grant, and it is not a promise that the action will still succeed by the time the consumer invokes it.
+
+Consumers, LLMs, browser extensions, desktop daemons, service workers, and relay processes are all **untrusted** from the provider's perspective. They may be stale, buggy, compromised, or influenced by prompt injection. A provider MUST therefore treat every `invoke` as untrusted input and MUST re-check:
+
+1. The target node and affordance still exist in the live state
+2. The supplied parameters are valid
+3. The current caller/session is allowed to perform the action
+4. Any resource-specific policy guards still pass
+
+If the action is no longer valid because state changed, return `conflict`. If the caller is not allowed to perform it, return `unauthorized`.
+
+Contextual affordances are still valuable: they reduce invalid action attempts, help the model choose correctly, and make the safe path obvious. But they are **defense in depth**, not the primary security boundary.
 
 ## Confirmation pattern
 
@@ -137,7 +153,7 @@ When `dangerous: true`, the protocol itself doesn't enforce confirmation — it'
 2. Present the action to the user for confirmation before invoking
 3. Only invoke after explicit approval
 
-This keeps policy in the consumer, not the provider.
+This keeps confirmation UX in the consumer, while execution authorization remains in the provider.
 
 ## Compound actions
 
@@ -155,7 +171,9 @@ This keeps each affordance atomic and lets the AI make decisions between steps.
 
 Affordances must be **declared in the node's descriptor** to appear in the state tree. The descriptor is the source of truth for what the consumer sees.
 
-A handler registered separately (e.g., for routing or middleware) does not automatically create an affordance in the tree. If a developer registers a handler for `"delete"` on a node but doesn't include `"delete"` in the node's affordances, the action is callable but invisible to the consumer. This is intentional — it allows providers to have internal actions that aren't exposed to AI consumers.
+A handler registered separately (e.g., for routing or middleware) does not automatically create an affordance in the tree. If a developer registers a handler for `"delete"` on a node but doesn't include `"delete"` in the node's affordances, the action may still be callable while remaining invisible to the consumer.
+
+This can be useful for adapter plumbing, but providers MUST NOT rely on invisibility for safety. If an operation must not be invocable by an untrusted SLOP consumer, do not expose it on the SLOP transport at all, or enforce the same authorization and policy checks at runtime.
 
 ## Affordance placement
 

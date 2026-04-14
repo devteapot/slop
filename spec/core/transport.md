@@ -248,4 +248,6 @@ Capabilities declare which features a provider supports. Consumers must not rely
 - **WebSocket transports** must require authentication for non-localhost connections. A bearer token in the initial HTTP upgrade request is the simplest approach.
 - **Providers should not expose secrets** in the state tree. The state tree is a projection, not an internal dump — treat it like a public API surface.
 - **Affordance invocations are untrusted input.** Providers must validate all parameters, just as they would for any API endpoint.
+- **Prompt injection is in scope.** A consumer may send fabricated, stale, or policy-violating `invoke` messages regardless of what the tree previously showed. Providers must re-authorize every invoke against live state, caller identity, and resource policy.
+- **Bridges and relays are not the security boundary.** Browser extensions, desktop daemons, MCP proxies, and service workers may discover providers or relay SLOP messages, but the provider (or authoritative backend behind it) must make the final allow/deny decision for every action.
 - **Multi-user servers** must use session-scoped state so that each user's state tree is isolated. Authentication happens at the transport level (WebSocket upgrade), not in SLOP messages. See [Sessions & Multi-User](../../docs/sdk/sessions.md) for SDK implementation patterns.

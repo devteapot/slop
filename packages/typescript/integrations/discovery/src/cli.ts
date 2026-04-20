@@ -32,7 +32,6 @@ server.tool(
   async () => handlers.listApps(),
 );
 
-// @ts-expect-error — MCP SDK's server.tool() has excessively deep type instantiation with Zod
 server.tool(
   "connect_app",
   isPluginMode

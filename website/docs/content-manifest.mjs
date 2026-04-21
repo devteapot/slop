@@ -79,6 +79,11 @@ export const docsPages = [
     description: "Connect Codex to SLOP-enabled applications with injected live state and a fixed MCP tool surface",
     redirects: ["/guides-advanced/codex"],
   }),
+  page("docs/guides/advanced/hermes.md", "guides/advanced/hermes.md", {
+    label: "Hermes Integration",
+    description: "Connect Hermes Agent to SLOP-enabled applications with injected live state and a fixed tool surface",
+    redirects: ["/guides-advanced/hermes"],
+  }),
   page("docs/guides/advanced/openclaw.md", "guides/advanced/openclaw.md", {
     label: "OpenClaw Integration",
     description: "Control SLOP-enabled applications through OpenClaw",
@@ -136,6 +141,10 @@ export const docsPages = [
   page("docs/api/openclaw-plugin.md", "api/openclaw-plugin.md", {
     label: "@slop-ai/openclaw-plugin",
     description: "OpenClaw plugin for discovering and controlling SLOP-enabled applications",
+  }),
+  page("docs/api/slop-hermes.md", "api/slop-hermes.md", {
+    label: "slop-hermes",
+    description: "Hermes Agent plugin for discovering and controlling SLOP-enabled applications",
   }),
   page("docs/api/python.md", "api/python.md", {
     label: "slop-ai (Python)",
@@ -243,6 +252,7 @@ export const docsSidebar = [
       pageItem("api/consumer"),
       pageItem("api/tanstack-start"),
       pageItem("api/openclaw-plugin"),
+      pageItem("api/slop-hermes"),
       pageItem("api/python", "slop-ai (Python)"),
       pageItem("api/go", "slop-ai (Go)"),
       pageItem("api/rust", "slop-ai (Rust)"),
@@ -275,6 +285,7 @@ export const docsSidebar = [
       pageItem("guides/advanced/agent-scaffolding", "Agent-Assisted Integration"),
       pageItem("guides/advanced/claude-code", "Claude Code Integration"),
       pageItem("guides/advanced/codex", "Codex Integration"),
+      pageItem("guides/advanced/hermes", "Hermes Integration"),
       pageItem("guides/advanced/openclaw", "OpenClaw Integration"),
       pageItem("guides/advanced/benchmarks", "Benchmarks: MCP vs SLOP"),
     ],

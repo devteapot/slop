@@ -15,6 +15,7 @@ from slop_ai.transports.asgi import SlopMiddleware
 
 - provider APIs via `SlopServer`
 - consumer APIs via `SlopConsumer`
+- discovery helpers via `slop_ai.discovery` for provider scanning, bridge relay, lazy connect, and AI-facing tool helpers
 - transport modules for ASGI, WebSocket, Unix socket, stdio, and matching client transports
 - scaling helpers such as `prepare_tree()` and `truncate_tree()`
 - LLM tool helpers such as `affordances_to_tools()` and `format_tree()`
@@ -30,3 +31,5 @@ from slop_ai.transports.asgi import SlopMiddleware
 
 - [Python guide](/guides/python)
 - [Consumer guide](/guides/consumer)
+- [Discovery & Bridge](/sdk/discovery)
+- [slop-hermes package](/api/slop-hermes) — Hermes Agent integration built on the Python discovery layer

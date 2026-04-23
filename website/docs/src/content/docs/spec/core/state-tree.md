@@ -34,6 +34,7 @@ A string that uniquely identifies a node within the tree. Must be stable across 
 - Unique among siblings (no two children of the same parent share an ID)
 - Stable across updates (the same logical entity keeps its ID)
 - Must not change when properties change
+- MUST NOT equal any reserved node-field keyword: `properties`, `children`, `affordances`, `meta`, `content_ref`, `id`, or `type`. These keywords have structural meaning in patch paths (see [Messages](/spec/core/messages#patch-path-syntax)), so an id colliding with one is unaddressable.
 
 ### `type`
 

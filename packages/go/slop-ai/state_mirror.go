@@ -101,6 +101,13 @@ func (sm *StateMirror) applyFieldAdd(node *WireNode, fieldPath []string, value a
 		node.Meta = &meta
 		return
 	}
+	if len(fieldPath) == 1 && fieldPath[0] == "content_ref" {
+		var cr WireContentRef
+		data, _ := json.Marshal(value)
+		_ = json.Unmarshal(data, &cr)
+		node.ContentRef = &cr
+		return
+	}
 }
 
 func (sm *StateMirror) applyRemove(segments []string) {
@@ -150,6 +157,10 @@ func (sm *StateMirror) applyFieldRemove(node *WireNode, fieldPath []string) {
 		node.Meta = nil
 		return
 	}
+	if len(fieldPath) == 1 && fieldPath[0] == "content_ref" {
+		node.ContentRef = nil
+		return
+	}
 }
 
 func (sm *StateMirror) applyReplace(segments []string, value any) {
@@ -189,6 +200,13 @@ func (sm *StateMirror) applyFieldReplace(node *WireNode, fieldPath []string, val
 		data, _ := json.Marshal(value)
 		_ = json.Unmarshal(data, &meta)
 		node.Meta = &meta
+		return
+	}
+	if len(fieldPath) == 1 && fieldPath[0] == "content_ref" {
+		var cr WireContentRef
+		data, _ := json.Marshal(value)
+		_ = json.Unmarshal(data, &cr)
+		node.ContentRef = &cr
 		return
 	}
 }

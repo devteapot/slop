@@ -148,6 +148,8 @@ Within `properties`, paths follow standard JSON Pointer key-based addressing. Th
 
 This design means patches are **stable across reordering** — moving a message from position 0 to position 5 does not invalidate paths that reference it by ID.
 
+**Reserved field keywords.** The segments `properties`, `children`, `affordances`, `meta`, and `content_ref` are **reserved**: when one appears as a segment while walking a node, the remaining path is interpreted relative to that field of the node rather than as a child-id lookup. A reserved keyword always takes precedence over child-id resolution, and node `id` values MUST NOT equal a reserved keyword (see [State Tree §id](./state-tree.md#id)). Once the path has descended into a non-node field (e.g. inside `properties` or `meta`), subsequent segments are plain JSON Pointer keys and the reservation no longer applies — a property literally named `properties` is addressed normally.
+
 **Version semantics:**
 - Versions are monotonically increasing integers, scoped to a subscription
 - The consumer can detect missed patches via version gaps

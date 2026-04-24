@@ -30,6 +30,33 @@ func TestValidateParams(t *testing.T) {
 		t.Fatalf("expected type error")
 	}
 
+	// enum — []any (JSON-decoded shape)
+	enumSchema := map[string]any{"enum": []any{"open", "closed"}}
+	if got := ValidateParams(enumSchema, "open"); got != "" {
+		t.Fatalf("expected []any enum match, got %q", got)
+	}
+	if got := ValidateParams(enumSchema, "other"); got == "" {
+		t.Fatalf("expected []any enum mismatch error")
+	}
+
+	// enum — []string (shape a Go handler would typically write)
+	enumStrSchema := map[string]any{"enum": []string{"open", "closed"}}
+	if got := ValidateParams(enumStrSchema, "open"); got != "" {
+		t.Fatalf("expected []string enum match, got %q", got)
+	}
+	if got := ValidateParams(enumStrSchema, "other"); got == "" {
+		t.Fatalf("expected []string enum mismatch error")
+	}
+
+	// enum — []int (typed numeric slice)
+	enumIntSchema := map[string]any{"enum": []int{1, 2, 3}}
+	if got := ValidateParams(enumIntSchema, 2); got != "" {
+		t.Fatalf("expected []int enum match, got %q", got)
+	}
+	if got := ValidateParams(enumIntSchema, 99); got == "" {
+		t.Fatalf("expected []int enum mismatch error")
+	}
+
 	// array items
 	schema = map[string]any{
 		"type":       "object",

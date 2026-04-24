@@ -3,6 +3,7 @@ package slop
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 // ValidateParams checks `params` against the affordance's JSON Schema and
@@ -25,7 +26,7 @@ func ValidateParams(schema map[string]any, params any) string {
 
 func validateParamsImpl(schema map[string]any, value any, path string) string {
 	if raw, ok := schema["enum"]; ok {
-		if list, ok := raw.([]any); ok {
+		if list, ok := enumList(raw); ok {
 			matched := false
 			for _, opt := range list {
 				if deepEqual(opt, value) {
@@ -108,6 +109,25 @@ func validateParamsImpl(schema map[string]any, value any, path string) string {
 		return fmt.Sprintf("%s must be null", path)
 	}
 	return ""
+}
+
+// enumList normalizes schema["enum"] into []any. Descriptors passed from
+// Go handler code often carry typed slices (e.g. []string{"open","closed"})
+// that we preserve verbatim for wire fidelity; the validator still needs to
+// iterate them. reflect-based fallback keeps every slice kind in scope.
+func enumList(raw any) ([]any, bool) {
+	if list, ok := raw.([]any); ok {
+		return list, true
+	}
+	v := reflect.ValueOf(raw)
+	if !v.IsValid() || v.Kind() != reflect.Slice {
+		return nil, false
+	}
+	out := make([]any, v.Len())
+	for i := 0; i < v.Len(); i++ {
+		out[i] = v.Index(i).Interface()
+	}
+	return out, true
 }
 
 // requiredKeys normalizes schema["required"], which may be []string when the

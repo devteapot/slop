@@ -226,6 +226,27 @@ func (sm *StateMirror) applyReplace(segments []string, value any) {
 		sm.applyFieldReplace(node, remaining, value)
 		return
 	}
+
+	// Replacing a child node by ID — find it in the parent's Children and swap.
+	if len(segments) < 2 {
+		return
+	}
+	parent, parentRemaining := sm.navigateTo(segments[:len(segments)-1])
+	if parent == nil || len(parentRemaining) > 0 {
+		return
+	}
+	childID := segments[len(segments)-1]
+	var newChild WireNode
+	data, _ := json.Marshal(value)
+	if err := json.Unmarshal(data, &newChild); err != nil {
+		return
+	}
+	for i, c := range parent.Children {
+		if c.ID == childID {
+			parent.Children[i] = newChild
+			return
+		}
+	}
 }
 
 func (sm *StateMirror) applyFieldReplace(node *WireNode, fieldPath []string, value any) {

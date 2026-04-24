@@ -122,6 +122,16 @@ export class StateMirror {
   }
 
   private applyReplace(segments: string[], value: unknown): void {
+    // Replacing a child node by ID: the last segment is a child ID under a node.
+    if (!this.isFieldSegment(segments)) {
+      const childId = segments[segments.length - 1];
+      const parent = this.resolveNode(segments.slice(0, -1));
+      if (parent?.children) {
+        const idx = parent.children.findIndex((c: SlopNode) => c.id === childId);
+        if (idx >= 0) parent.children[idx] = value as SlopNode;
+      }
+      return;
+    }
     const target = this.navigate(segments);
     if (target) target.parent[target.key] = value;
   }

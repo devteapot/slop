@@ -159,6 +159,17 @@ class StateMirror:
                 setattr(parent, key, None)
 
     def _apply_replace(self, segments: list[str], value: Any) -> None:
+        # Replacing a child node by ID: the last segment is a child ID under a node.
+        if not self._is_field_segment(segments):
+            child_id = segments[-1]
+            parent = self._resolve_node(segments[:-1])
+            if parent is not None and parent.children is not None:
+                for i, c in enumerate(parent.children):
+                    if c.id == child_id:
+                        parent.children[i] = value
+                        return
+            return
+
         target = self._navigate(segments)
         if target is not None:
             parent, key = target

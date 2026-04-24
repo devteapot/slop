@@ -75,27 +75,45 @@ export async function createMcpAppsBridge(
   const transport = buildTransport(options.provider);
   const consumer = new SlopConsumer(transport);
 
-  // Track connection state for partial-failure cleanup. Promise.all rejects
-  // when *either* side fails, but the other side may have already connected
-  // — leaking the open WebSocket and/or the postMessage listeners. The same
-  // applies to a subscribe() rejection after both sides connected.
+  // Track init state for partial-failure cleanup. Promise.all rejects as
+  // soon as one side fails, but the other connect promise may resolve
+  // *after* we've thrown — leaking its WebSocket or postMessage listeners.
+  // We use a shared `failed` flag so a late-successful connect immediately
+  // tears its own side down instead of waiting for the catch handler.
+  let failed = false;
   let consumerConnected = false;
   let appConnected = false;
-  const cleanupOnFailure = () => {
-    if (consumerConnected) consumer.disconnect();
-    if (appConnected) void app.close().catch(() => {});
-  };
+
+  const consumerPromise = consumer.connect().then(
+    () => {
+      if (failed) {
+        consumer.disconnect();
+        return;
+      }
+      consumerConnected = true;
+    },
+    (err) => {
+      failed = true;
+      throw err;
+    },
+  );
+  const appPromise = app.connect().then(
+    () => {
+      if (failed) {
+        void app.close().catch(() => {});
+        return;
+      }
+      appConnected = true;
+    },
+    (err) => {
+      failed = true;
+      throw err;
+    },
+  );
 
   let subscriptionId: string;
   try {
-    await Promise.all([
-      consumer.connect().then(() => {
-        consumerConnected = true;
-      }),
-      app.connect().then(() => {
-        appConnected = true;
-      }),
-    ]);
+    await Promise.all([consumerPromise, appPromise]);
 
     const subCfg = options.subscribe ?? {};
     const sub = await consumer.subscribe(
@@ -113,7 +131,9 @@ export async function createMcpAppsBridge(
     );
     subscriptionId = sub.id;
   } catch (err) {
-    cleanupOnFailure();
+    failed = true;
+    if (consumerConnected) consumer.disconnect();
+    if (appConnected) void app.close().catch(() => {});
     throw err;
   }
 

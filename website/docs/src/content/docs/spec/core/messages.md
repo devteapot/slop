@@ -108,6 +108,7 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
   "type": "snapshot",
   "id": "sub-1",            // Correlation: which subscribe/query this answers
   "version": 1,             // Monotonically increasing state version
+  "seq": 0,                 // Per-subscription sequence; always 0 on snapshot
   "tree": {                 // The state tree (see state-tree.md)
     "id": "root",
     "type": "root",
@@ -115,6 +116,10 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
   }
 }
 ```
+
+> `query` responses also use the `snapshot` message shape but omit `seq`
+> — there is no subscription to sequence against. See "Version and
+> sequence semantics" below.
 
 ### `patch`
 
@@ -125,6 +130,7 @@ Incremental update to a subscribed subtree. Uses operations modeled on [JSON Pat
   "type": "patch",
   "subscription": "sub-1",  // Which subscription this patch applies to
   "version": 2,             // New version after applying this patch
+  "seq": 1,                 // Per-subscription seq; MUST equal lastSeq + 1
   "ops": [
     { "op": "replace", "path": "/inbox/msg-42/properties/unread", "value": false },
     { "op": "add", "path": "/inbox/msg-99", "value": { "id": "msg-99", "type": "item", "properties": { "from": "dave", "subject": "New thread" } }, "index": 0 },
@@ -285,8 +291,8 @@ For efficiency, a provider may batch multiple patches into one message:
 {
   "type": "batch",
   "messages": [
-    { "type": "patch", "subscription": "sub-1", "version": 3, "ops": [ ... ] },
-    { "type": "patch", "subscription": "sub-2", "version": 7, "ops": [ ... ] }
+    { "type": "patch", "subscription": "sub-1", "version": 3, "seq": 2, "ops": [ ... ] },
+    { "type": "patch", "subscription": "sub-2", "version": 7, "seq": 5, "ops": [ ... ] }
   ]
 }
 ```

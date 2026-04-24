@@ -19,6 +19,14 @@ pub fn assemble_tree(
     root_name: &str,
 ) -> (SlopNode, HashMap<String, ActionHandler>) {
     validate_node_id(root_id);
+    // Validate every path segment up-front so that synthetic ancestor
+    // placeholders can never carry an id containing "/" or "~" — those
+    // would be unaddressable by patch paths (spec/core/state-tree.md §id).
+    for path in registrations.keys() {
+        for seg in path.split('/') {
+            validate_node_id(seg);
+        }
+    }
     let mut all_handlers: HashMap<String, ActionHandler> = HashMap::new();
     let mut nodes_by_path: HashMap<String, SlopNode> = HashMap::new();
 

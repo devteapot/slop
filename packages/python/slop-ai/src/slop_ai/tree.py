@@ -23,6 +23,12 @@ def assemble_tree(
     ``"path/action"`` → callable.
     """
     validate_node_id(root_id)
+    # Validate every path segment up-front so that synthetic ancestor
+    # placeholders can never carry an id containing "/" or "~" — those
+    # would be unaddressable by patch paths (spec/core/state-tree.md §id).
+    for path in registrations:
+        for segment in path.split("/"):
+            validate_node_id(segment)
     all_handlers: dict[str, ActionHandler] = {}
     nodes_by_path: dict[str, SlopNode] = {}
 

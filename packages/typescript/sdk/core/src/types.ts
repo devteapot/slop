@@ -83,6 +83,10 @@ export interface ContentRef {
   summary: string;
   preview?: string;
   encoding?: string;
+  /** Content hash (spec/extensions/content-references.md §hash) used for
+   *  cache validation and change detection. Providers SHOULD set this on
+   *  stable content. */
+  hash?: string;
 }
 
 export interface WindowDescriptor {

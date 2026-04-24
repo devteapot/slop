@@ -290,7 +290,14 @@ A code editor exposing its state:
           "affordances": [
             { "action": "save" },
             { "action": "close" },
-            { "action": "goto", "params": { "line": "number" } }
+            {
+              "action": "goto",
+              "params": {
+                "type": "object",
+                "properties": { "line": { "type": "integer" } },
+                "required": ["line"]
+              }
+            }
           ]
         },
         {

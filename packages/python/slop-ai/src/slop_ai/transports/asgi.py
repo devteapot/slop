@@ -125,11 +125,20 @@ class SlopMiddleware:
         if event["type"] != "websocket.connect":
             return
 
-        # Origin allowlist (only applies when client sent Origin).
+        # Origin allowlist. Browsers always send Origin; default-deny when
+        # no allowlist is configured per spec/core/transport.md §Security.
         origin = _scope_origin(scope)
-        if origin is not None and self.allowed_origins is not None and origin not in self.allowed_origins:
-            await send({"type": "websocket.close", "code": 4003})
-            return
+        if origin is not None:
+            if self.allowed_origins is None:
+                _log.warning(
+                    "[slop] refusing browser WebSocket upgrade: no allowed_origins configured. "
+                    "See spec/core/transport.md §Security considerations."
+                )
+                await send({"type": "websocket.close", "code": 4003})
+                return
+            if origin not in self.allowed_origins:
+                await send({"type": "websocket.close", "code": 4003})
+                return
 
         # Authentication. Default-deny non-loopback when no hook is configured.
         if self.authenticate is not None:

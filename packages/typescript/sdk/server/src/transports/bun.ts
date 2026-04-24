@@ -47,8 +47,17 @@ export function bunHandler(slop: SlopServer, options: BunHandlerOptions = {}) {
       // WebSocket upgrade
       if (url.pathname === path && req.headers.get("upgrade") === "websocket") {
         const origin = req.headers.get("origin");
-        if (origin !== null && allowedOrigins && !allowedOrigins.includes(origin)) {
-          return new Response("Forbidden", { status: 403 });
+        if (origin !== null) {
+          if (!allowedOrigins) {
+            console.warn(
+              "[slop] refusing browser WebSocket upgrade: no allowedOrigins configured. " +
+                "See spec/core/transport.md §Security considerations.",
+            );
+            return new Response("Forbidden", { status: 403 });
+          }
+          if (!allowedOrigins.includes(origin)) {
+            return new Response("Forbidden", { status: 403 });
+          }
         }
 
         const remote = (server.requestIP?.(req) as { address?: string } | null)?.address ?? "";

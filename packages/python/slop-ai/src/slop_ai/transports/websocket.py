@@ -87,8 +87,15 @@ async def serve(
             return _reject(404, "Not Found")
 
         origin = request.headers.get("Origin")
-        if origin is not None and origins_set is not None and origin not in origins_set:
-            return _reject(403, "Forbidden")
+        if origin is not None:
+            if origins_set is None:
+                _log.warning(
+                    "[slop] refusing browser WebSocket upgrade: no allowed_origins configured. "
+                    "See spec/core/transport.md §Security considerations."
+                )
+                return _reject(403, "Forbidden")
+            if origin not in origins_set:
+                return _reject(403, "Forbidden")
 
         if authenticate is not None:
             try:

@@ -55,11 +55,23 @@ export function attachSlop(slop: SlopServer, httpServer: HttpServer, options: At
       socket.destroy();
     };
 
-    // Origin allowlist (only applies when the client sent Origin, i.e. browser).
+    // Origin allowlist. When the client sent Origin (i.e. browser), an
+    // allowlist is required per spec/core/transport.md §Security
+    // considerations — default-deny if none is configured.
     const origin = req.headers.origin;
-    if (origin !== undefined && allowedOrigins && !allowedOrigins.includes(origin)) {
-      reject(403, "Forbidden");
-      return;
+    if (origin !== undefined) {
+      if (!allowedOrigins) {
+        console.warn(
+          "[slop] refusing browser WebSocket upgrade: no allowedOrigins configured. " +
+            "See spec/core/transport.md §Security considerations.",
+        );
+        reject(403, "Forbidden");
+        return;
+      }
+      if (!allowedOrigins.includes(origin)) {
+        reject(403, "Forbidden");
+        return;
+      }
     }
 
     // Authentication. If no authenticate hook is supplied, default-deny any

@@ -50,8 +50,17 @@ export function nitroHandler(slop: SlopServer, options: NitroHandlerOptions = {}
     async upgrade(req: NitroUpgradeRequest): Promise<globalThis.Response | undefined> {
       const originRaw = req.headers.origin;
       const origin = Array.isArray(originRaw) ? originRaw[0] : originRaw;
-      if (origin && allowedOrigins && !allowedOrigins.includes(origin)) {
-        return new globalThis.Response("Forbidden", { status: 403 });
+      if (origin) {
+        if (!allowedOrigins) {
+          console.warn(
+            "[slop] refusing browser WebSocket upgrade: no allowedOrigins configured. " +
+              "See spec/core/transport.md §Security considerations.",
+          );
+          return new globalThis.Response("Forbidden", { status: 403 });
+        }
+        if (!allowedOrigins.includes(origin)) {
+          return new globalThis.Response("Forbidden", { status: 403 });
+        }
       }
 
       if (authenticate) {

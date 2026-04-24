@@ -24,7 +24,10 @@ import { SlopServer } from "./server";
  *   })),
  * }));
  *
- * attachSlop(slop, httpServer);
+ * attachSlop(slop, httpServer, {
+ *   allowedOrigins: ["https://app.example.com"],
+ *   authenticate: async (req) => verifyBearer(req.headers.authorization),
+ * });
  * ```
  */
 export function createSlopServer<S = unknown>(options: SlopServerOptions<S>): SlopServer<S> {

@@ -1,13 +1,33 @@
 //! WebSocket transport using tokio-tungstenite.
 //!
+//! Per spec/core/transport.md §Security considerations, browser upgrades
+//! without a matching [`ServeOptions::allowed_origins`] entry and
+//! non-loopback upgrades without an [`ServeOptions::authenticate`] hook
+//! are rejected by default. The convenience [`serve`] helper binds to
+//! loopback only; use [`serve_with_options`] for public ports.
+//!
 //! ```no_run
+//! use std::sync::Arc;
 //! use slop_ai::SlopServer;
-//! use slop_ai::transport::websocket;
+//! use slop_ai::transport::websocket::{self, ServeOptions};
+//! use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request};
+//!
+//! fn verify_bearer(_req: &Request) -> Result<(), ErrorResponse> {
+//!     // Inspect req.headers() and return Ok(()) on success.
+//!     Ok(())
+//! }
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     let slop = SlopServer::new("my-app", "My App");
-//!     let handle = websocket::serve(&slop, "0.0.0.0:8765").await.unwrap();
+//!     let opts = ServeOptions {
+//!         authenticate: Some(Arc::new(verify_bearer)),
+//!         allowed_origins: vec!["https://app.example.com".into()],
+//!         ..Default::default()
+//!     };
+//!     let handle = websocket::serve_with_options(&slop, "0.0.0.0:8765", opts)
+//!         .await
+//!         .unwrap();
 //!     handle.await.unwrap();
 //! }
 //! ```

@@ -20,7 +20,13 @@ export interface AttachSlopOptions {
   authenticate?: (req: IncomingMessage) => boolean | Promise<boolean>;
   /**
    * Allowed `Origin` values for browser connections. Non-browser upgrades
-   * (no `Origin` header) are not checked. Defaults to same-origin only.
+   * (no `Origin` header) are not checked.
+   *
+   * Per spec/core/transport.md §Security considerations, WebSocket transports
+   * MUST require an Origin allowlist for browser upgrades. If this option is
+   * not supplied and the upgrade carries an `Origin` header, the handler
+   * responds `403`. Pass the explicit list of origins your app serves (for
+   * example `["https://app.example.com"]`) to accept browser clients.
    */
   allowedOrigins?: string[];
 }
@@ -33,7 +39,11 @@ export interface AttachSlopOptions {
  * import { attachSlop } from "@slop-ai/server/node";
  *
  * const server = createServer(app);
- * attachSlop(slop, server, { path: "/slop" });
+ * attachSlop(slop, server, {
+ *   path: "/slop",
+ *   allowedOrigins: ["https://app.example.com"],
+ *   authenticate: async (req) => verifyBearer(req.headers.authorization),
+ * });
  * server.listen(3000);
  * ```
  */

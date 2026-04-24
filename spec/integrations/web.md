@@ -610,7 +610,14 @@ import { attachSlop } from "@slop-ai/server/node";
 import { slop } from "./lib/slop";
 
 const server = createServer(app);
-attachSlop(slop, server, { path: "/slop" });  // handles WS upgrade + /.well-known/slop
+attachSlop(slop, server, {
+  path: "/slop",
+  // Required for non-loopback deployments — see spec/core/transport.md
+  // §Security considerations. Browser Origin and non-loopback upgrades
+  // are refused unless both hooks are configured.
+  allowedOrigins: ["https://app.example.com"],
+  authenticate: async (req) => verifyBearer(req.headers.authorization),
+});
 server.listen(3000);
 ```
 
@@ -626,7 +633,10 @@ listenUnix(slop, "/tmp/slop/my-app.sock", { register: true });
 **Multiple transports simultaneously:**
 
 ```ts
-attachSlop(slop, httpServer);     // remote consumers via WebSocket
+attachSlop(slop, httpServer, {
+  allowedOrigins: ["https://app.example.com"],
+  authenticate: async (req) => verifyBearer(req.headers.authorization),
+});                               // remote consumers via WebSocket
 listenUnix(slop);                 // local agents via Unix socket
 ```
 
@@ -643,7 +653,12 @@ One-liner integrations for popular frameworks:
 import { nitroHandler } from "@slop-ai/server/nitro";
 import { slop } from "../utils/slop";
 
-export default nitroHandler(slop);
+// `authenticate` and `allowedOrigins` are required for non-loopback
+// deployments — see spec/core/transport.md §Security considerations.
+export default nitroHandler(slop, {
+  allowedOrigins: ["https://app.example.com"],
+  authenticate: async (req) => verifyBearer(req.headers.authorization),
+});
 ```
 
 **Custom Vite app (for example SvelteKit in dev):**
@@ -654,7 +669,21 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { slopPlugin } from "@slop-ai/server/vite";
 import { slop } from "./src/lib/server/slop";
 
-export default { plugins: [sveltekit(), slopPlugin(slop)] };
+// `slopPlugin` forwards `allowedOrigins` and `authenticate` to attachSlop.
+// `allowedOrigins` is required for any browser upgrade, including a local
+// browser hitting http://localhost:5173 (the upgrade carries an `Origin`
+// header, and attachSlop default-denies when no allowlist is set).
+// `authenticate` is required for non-loopback upgrades (for example when
+// running `vite --host`). See spec/core/transport.md §Security.
+export default {
+  plugins: [
+    sveltekit(),
+    slopPlugin(slop, {
+      allowedOrigins: ["http://localhost:5173"],
+      authenticate: async (req) => verifyBearer(req.headers.authorization),
+    }),
+  ],
+};
 ```
 
 **Next.js (custom server with attachSlop):**
@@ -669,7 +698,10 @@ import { slop } from "./lib/slop";
 const app = next({ dev: true });
 await app.prepare();
 const server = createServer((req, res) => app.getRequestHandler()(req, res));
-attachSlop(slop, server);
+attachSlop(slop, server, {
+  allowedOrigins: ["https://app.example.com"],
+  authenticate: async (req) => verifyBearer(req.headers.authorization),
+});
 server.listen(3000);
 ```
 
@@ -883,8 +915,8 @@ Each integration implements these differently:
 | Integration | Server transport | Client refresh | Config |
 |---|---|---|---|
 | TanStack Start | `createWebSocketHandler()` / `slopVitePlugin()` from `@slop-ai/tanstack-start/server` | `router.invalidate()` via `useSlopUI()` | `useSlopUI()` in the root layout plus server helpers |
-| Custom Nitro app | `nitroHandler()` from `@slop-ai/server/nitro` | App-specific invalidation | `export default nitroHandler(slop)` |
-| Custom Vite app | `slopPlugin()` from `@slop-ai/server/vite` | App-specific invalidation | `plugins: [slopPlugin(slop)]` |
+| Custom Nitro app | `nitroHandler()` from `@slop-ai/server/nitro` | App-specific invalidation | `export default nitroHandler(slop, { allowedOrigins, authenticate })` |
+| Custom Vite app | `slopPlugin()` from `@slop-ai/server/vite` | App-specific invalidation | `plugins: [slopPlugin(slop, { allowedOrigins, authenticate })]` |
 
 #### Developer experience
 

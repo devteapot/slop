@@ -1,5 +1,9 @@
 """WebSocket transport for SLOP using the ``websockets`` library.
 
+Per spec/core/transport.md §Security considerations, browser upgrades without
+a matching ``allowed_origins`` entry and non-loopback upgrades without an
+``authenticate`` hook are rejected by default.
+
 Usage::
 
     from slop_ai import SlopServer
@@ -7,8 +11,17 @@ Usage::
 
     slop = SlopServer("my-app", "My App")
 
+    def _authenticate(request):
+        return verify_bearer(request.headers.get("Authorization"))
+
     async def main():
-        server = await serve(slop, host="0.0.0.0", port=8765)
+        server = await serve(
+            slop,
+            host="0.0.0.0",
+            port=8765,
+            authenticate=_authenticate,
+            allowed_origins=["https://app.example.com"],
+        )
         await server.wait_closed()
 """
 

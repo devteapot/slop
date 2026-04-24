@@ -33,7 +33,13 @@ slop.register("todos", () => ({
 }));
 
 const server = createServer(app);
-attachSlop(slop, server, { path: "/slop" });
+attachSlop(slop, server, {
+  path: "/slop",
+  // Required for non-loopback binds — see spec/core/transport.md
+  // §Security considerations.
+  allowedOrigins: ["https://app.example.com"],
+  authenticate: async (req) => verifyBearer(req.headers.authorization),
+});
 server.listen(3000);
 ```
 

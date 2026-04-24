@@ -93,15 +93,27 @@ slop.refresh(); // re-evaluate all register_fn closures, diff, broadcast
 ## WebSocket (standalone)
 
 ```rust
+use std::sync::Arc;
 use slop_ai::SlopServer;
-use slop_ai::transport::websocket;
+use slop_ai::transport::websocket::{self, ServeOptions};
 
 #[tokio::main]
 async fn main() {
     let slop = SlopServer::new("my-app", "My App");
     // ... register nodes ...
 
-    let handle = websocket::serve(&slop, "0.0.0.0:8765").await.unwrap();
+    // Required for non-loopback binds — see spec/core/transport.md
+    // §Security considerations. Browser upgrades without a matching
+    // origin, and non-loopback upgrades without `authenticate`, are
+    // rejected by default.
+    let opts = ServeOptions {
+        authenticate: Some(Arc::new(|req| verify_bearer(req))),
+        allowed_origins: vec!["https://app.example.com".into()],
+        ..Default::default()
+    };
+    let handle = websocket::serve_with_options(&slop, "0.0.0.0:8765", opts)
+        .await
+        .unwrap();
     handle.await.unwrap();
 }
 ```
@@ -214,8 +226,9 @@ cargo build --target wasm32-unknown-unknown --no-default-features
 ```rust
 let slop = SlopServer::new("app", "App");
 
-// WebSocket for remote consumers
-let ws_handle = websocket::serve(&slop, "0.0.0.0:8765").await?;
+// WebSocket for remote consumers (configure auth + allowed origins — see
+// the standalone example above and spec/core/transport.md §Security).
+let ws_handle = websocket::serve_with_options(&slop, "0.0.0.0:8765", opts).await?;
 
 // Unix socket for local agents
 let unix_handle = unix::listen(&slop, "/tmp/slop/app.sock").await?;

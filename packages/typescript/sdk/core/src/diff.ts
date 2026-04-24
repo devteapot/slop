@@ -1,4 +1,5 @@
-import type { SlopNode, PatchOp } from "./types";
+import { escapeJsonPointerSegment } from "./paths";
+import type { PatchOp, SlopNode } from "./types";
 
 /**
  * Recursively diff two SLOP trees and produce JSON Patch ops.
@@ -14,12 +15,13 @@ export function diffNodes(oldNode: SlopNode, newNode: SlopNode, basePath: string
   for (const key of allKeys) {
     const oldVal = oldProps[key];
     const newVal = newProps[key];
+    const escapedKey = escapeJsonPointerSegment(key);
     if (oldVal === undefined && newVal !== undefined) {
-      ops.push({ op: "add", path: `${basePath}/properties/${key}`, value: newVal });
+      ops.push({ op: "add", path: `${basePath}/properties/${escapedKey}`, value: newVal });
     } else if (oldVal !== undefined && newVal === undefined) {
-      ops.push({ op: "remove", path: `${basePath}/properties/${key}` });
+      ops.push({ op: "remove", path: `${basePath}/properties/${escapedKey}` });
     } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-      ops.push({ op: "replace", path: `${basePath}/properties/${key}`, value: newVal });
+      ops.push({ op: "replace", path: `${basePath}/properties/${escapedKey}`, value: newVal });
     }
   }
 

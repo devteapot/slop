@@ -34,6 +34,7 @@ A string that uniquely identifies a node within the tree. Must be stable across 
 - Stable across updates (the same logical entity keeps its ID)
 - Must not change when properties change
 - MUST NOT equal any reserved node-field keyword: `properties`, `children`, `affordances`, `meta`, `content_ref`, `id`, or `type`. These keywords have structural meaning in patch paths (see [Messages](./messages.md#patch-path-syntax)), so an id colliding with one is unaddressable.
+- MUST NOT contain the characters `/` (U+002F) or `~` (U+007E). Both are reserved in patch paths: `/` is the path segment delimiter and `~` is the JSON Pointer escape prefix (see [Messages](./messages.md#patch-path-syntax)). Providers that generate IDs from external sources (URLs, file paths, external IDs) MUST escape, hash, or otherwise transform those characters before using the value as a SLOP id.
 
 ### `type`
 

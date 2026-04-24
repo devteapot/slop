@@ -3,7 +3,24 @@ package slop
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
+
+// escapePointerSegment applies RFC 6901 JSON Pointer escaping for use inside
+// reserved field segments (properties, meta). Node ID segments must not
+// contain '/' or '~' and are not escaped.
+func escapePointerSegment(key string) string {
+	key = strings.ReplaceAll(key, "~", "~0")
+	key = strings.ReplaceAll(key, "/", "~1")
+	return key
+}
+
+// unescapePointerSegment reverses escapePointerSegment.
+func unescapePointerSegment(segment string) string {
+	segment = strings.ReplaceAll(segment, "~1", "/")
+	segment = strings.ReplaceAll(segment, "~0", "~")
+	return segment
+}
 
 // diffNodes recursively diffs two WireNode trees and returns JSON Patch operations.
 // Paths use node IDs for children segments (not array indices).
@@ -31,7 +48,7 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 	for key := range allKeys {
 		oldVal, oldOk := oldProps[key]
 		newVal, newOk := newProps[key]
-		path := fmt.Sprintf("%s/properties/%s", basePath, key)
+		path := fmt.Sprintf("%s/properties/%s", basePath, escapePointerSegment(key))
 
 		if !oldOk && newOk {
 			ops = append(ops, PatchOp{Op: "add", Path: path, Value: newVal})

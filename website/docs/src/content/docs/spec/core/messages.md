@@ -147,6 +147,12 @@ A path like `/inbox/msg-42/properties/unread` means:
 
 Within `properties`, paths follow standard JSON Pointer key-based addressing. The operations (`add`, `remove`, `replace`) have the same semantics as RFC 6902.
 
+**Escaping inside `/properties/…` and `/meta/…` segments.** Once a path has descended into a non-node field, property keys containing `/` or `~` MUST be escaped using JSON Pointer rules (RFC 6901 §4):
+- `~` encoded as `~0`
+- `/` encoded as `~1`
+
+So a property literally named `a/b~c` under `msg-42` is addressed as `/inbox/msg-42/properties/a~1b~0c`. Node-ID segments (the parts before reserved keywords like `properties`) are NOT escaped — node IDs are forbidden from containing `/` or `~` in the first place (see [State Tree §id](/spec/core/state-tree#id)).
+
 This design means patches are **stable across reordering** — moving a message from position 0 to position 5 does not invalidate paths that reference it by ID.
 
 **Reserved field keywords.** The segments `properties`, `children`, `affordances`, `meta`, and `content_ref` are **reserved**: when one appears as a segment while walking a node, the remaining path is interpreted relative to that field of the node rather than as a child-id lookup. A reserved keyword always takes precedence over child-id resolution, and node `id` values MUST NOT equal a reserved keyword (see [State Tree §id](/spec/core/state-tree#id)). Once the path has descended into a non-node field (e.g. inside `properties` or `meta`), subsequent segments are plain JSON Pointer keys and the reservation no longer applies — a property literally named `properties` is addressed normally.

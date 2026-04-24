@@ -10,6 +10,10 @@ from .types import SlopNode, PatchOp
 _NODE_FIELDS = frozenset({"properties", "meta", "affordances", "content_ref"})
 
 
+def _unescape_pointer(segment: str) -> str:
+    return segment.replace("~1", "/").replace("~0", "~")
+
+
 class StateMirror:
     """Mirrors a remote SLOP tree, applying snapshot and patch messages."""
 
@@ -52,10 +56,11 @@ class StateMirror:
         fields. All other segments are treated as child IDs.
         """
         current: Any = self._tree
+        in_field = False
         i = 0
         while i < len(segments) - 1:
             seg = segments[i]
-            if seg in _NODE_FIELDS:
+            if not in_field and seg in _NODE_FIELDS:
                 if seg == "meta":
                     current = getattr(current, "meta", None)
                 elif seg == "properties":
@@ -66,15 +71,24 @@ class StateMirror:
                     current = getattr(current, seg, None)
                 if current is None:
                     return None
-                i += 1
+                in_field = True
+            elif in_field:
+                key = _unescape_pointer(seg)
+                if isinstance(current, dict):
+                    current = current.get(key)
+                else:
+                    current = getattr(current, key, None)
+                if current is None:
+                    return None
             else:
-                # Child ID lookup
+                # Child ID lookup (node IDs are forbidden from containing / or ~)
                 child = _find_child(current, seg)
                 if child is None:
                     return None
                 current = child
-                i += 1
-        return (current, segments[-1])
+            i += 1
+        last = segments[-1]
+        return (current, _unescape_pointer(last) if in_field else last)
 
     def _is_field_segment(self, segments: list[str]) -> bool:
         """Check if the path targets a node field (not a child ID).

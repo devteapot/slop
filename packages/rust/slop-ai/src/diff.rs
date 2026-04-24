@@ -5,6 +5,17 @@
 
 use crate::types::{PatchOp, PatchOpKind, SlopNode};
 
+/// RFC 6901 JSON Pointer escape for property-key segments.
+/// Node ID segments must not contain '/' or '~' and are not escaped.
+pub fn escape_pointer_segment(key: &str) -> String {
+    key.replace('~', "~0").replace('/', "~1")
+}
+
+/// Reverse of `escape_pointer_segment`.
+pub fn unescape_pointer_segment(segment: &str) -> String {
+    segment.replace("~1", "/").replace("~0", "~")
+}
+
 /// Recursively diff two trees and return patch operations.
 pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchOp> {
     let mut ops = Vec::new();
@@ -104,20 +115,21 @@ fn diff_properties(old: &SlopNode, new: &SlopNode, base_path: &str, ops: &mut Ve
     for key in all_keys {
         let old_val = old_props.get(key);
         let new_val = new_props.get(key);
+        let esc = escape_pointer_segment(key);
         match (old_val, new_val) {
             (None, Some(v)) => ops.push(PatchOp {
                 op: PatchOpKind::Add,
-                path: format!("{base_path}/properties/{key}"),
+                path: format!("{base_path}/properties/{esc}"),
                 value: Some(v.clone()),
             }),
             (Some(_), None) => ops.push(PatchOp {
                 op: PatchOpKind::Remove,
-                path: format!("{base_path}/properties/{key}"),
+                path: format!("{base_path}/properties/{esc}"),
                 value: None,
             }),
             (Some(old_v), Some(new_v)) if old_v != new_v => ops.push(PatchOp {
                 op: PatchOpKind::Replace,
-                path: format!("{base_path}/properties/{key}"),
+                path: format!("{base_path}/properties/{esc}"),
                 value: Some(new_v.clone()),
             }),
             _ => {}

@@ -84,7 +84,7 @@ func (sm *StateMirror) applyFieldAdd(node *WireNode, fieldPath []string, value a
 		if node.Properties == nil {
 			node.Properties = Props{}
 		}
-		node.Properties[fieldPath[1]] = value
+		node.Properties[unescapePointerSegment(fieldPath[1])] = value
 		return
 	}
 	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
@@ -146,7 +146,7 @@ func (sm *StateMirror) applyRemove(segments []string) {
 
 func (sm *StateMirror) applyFieldRemove(node *WireNode, fieldPath []string) {
 	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
-		delete(node.Properties, fieldPath[1])
+		delete(node.Properties, unescapePointerSegment(fieldPath[1]))
 		return
 	}
 	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
@@ -185,7 +185,7 @@ func (sm *StateMirror) applyFieldReplace(node *WireNode, fieldPath []string, val
 		if node.Properties == nil {
 			node.Properties = Props{}
 		}
-		node.Properties[fieldPath[1]] = value
+		node.Properties[unescapePointerSegment(fieldPath[1])] = value
 		return
 	}
 	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {

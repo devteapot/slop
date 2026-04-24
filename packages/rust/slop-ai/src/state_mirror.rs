@@ -103,14 +103,14 @@ fn apply_in_properties(
         return;
     }
 
-    let key = &segments[0];
+    let key = crate::diff::unescape_pointer_segment(&segments[0]);
     let props = node.properties.get_or_insert_with(Map::new);
 
     if segments.len() == 1 {
         match op {
             PatchOpKind::Add | PatchOpKind::Replace => {
                 if let Some(val) = value {
-                    props.insert(key.clone(), val.clone());
+                    props.insert(key, val.clone());
                 }
             }
             PatchOpKind::Remove => {
@@ -360,14 +360,15 @@ fn apply_in_value(
         return;
     }
 
-    let (first, rest) = (&segments[0], &segments[1..]);
+    let (first_raw, rest) = (&segments[0], &segments[1..]);
+    let first = crate::diff::unescape_pointer_segment(first_raw);
 
     if let Some(obj) = target.as_object_mut() {
         if rest.is_empty() {
             match op {
                 PatchOpKind::Add | PatchOpKind::Replace => {
                     if let Some(val) = value {
-                        obj.insert(first.clone(), val.clone());
+                        obj.insert(first, val.clone());
                     }
                 }
                 PatchOpKind::Remove => {

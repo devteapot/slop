@@ -27,12 +27,13 @@ def diff_nodes(
     for key in sorted(all_keys):
         old_val = old_props.get(key)
         new_val = new_props.get(key)
+        esc = _escape_pointer(key)
         if old_val is None and new_val is not None:
-            ops.append(PatchOp(op="add", path=f"{base_path}/properties/{key}", value=new_val))
+            ops.append(PatchOp(op="add", path=f"{base_path}/properties/{esc}", value=new_val))
         elif old_val is not None and new_val is None:
-            ops.append(PatchOp(op="remove", path=f"{base_path}/properties/{key}"))
+            ops.append(PatchOp(op="remove", path=f"{base_path}/properties/{esc}"))
         elif _json_ne(old_val, new_val):
-            ops.append(PatchOp(op="replace", path=f"{base_path}/properties/{key}", value=new_val))
+            ops.append(PatchOp(op="replace", path=f"{base_path}/properties/{esc}", value=new_val))
 
     # --- affordances (replace entire list if changed) ---
     old_aff = [a.to_dict() for a in old.affordances] if old.affordances else None
@@ -77,6 +78,11 @@ def diff_nodes(
             ops.extend(diff_nodes(old_child, child, f"{base_path}/{child.id}"))
 
     return ops
+
+
+def _escape_pointer(key: str) -> str:
+    """RFC 6901 JSON Pointer escape for property-key segments."""
+    return key.replace("~", "~0").replace("/", "~1")
 
 
 def _json_ne(a: Any, b: Any) -> bool:

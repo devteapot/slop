@@ -1,6 +1,10 @@
-import type { SlopNode, PatchOp, SnapshotMessage, PatchMessage } from "./types";
+import type { PatchMessage, PatchOp, SlopNode, SnapshotMessage } from "./types";
 
 const NODE_FIELDS = new Set(["properties", "meta", "affordances", "content_ref"]);
+
+function unescapePointer(segment: string): string {
+  return segment.replace(/~1/g, "/").replace(/~0/g, "~");
+}
 
 export class StateMirror {
   private tree: SlopNode;
@@ -47,19 +51,26 @@ export class StateMirror {
    */
   private navigate(segments: string[]): { parent: any; key: string } | null {
     let current: any = this.tree;
+    let inField = false;
     for (let i = 0; i < segments.length - 1; i++) {
-      const seg = segments[i];
-      if (NODE_FIELDS.has(seg)) {
-        current = current[seg];
+      const raw = segments[i];
+      if (!inField && NODE_FIELDS.has(raw)) {
+        current = current[raw];
+        if (current === undefined) return null;
+        inField = true;
+      } else if (inField) {
+        const key = unescapePointer(raw);
+        current = current?.[key];
         if (current === undefined) return null;
       } else {
-        // Child ID lookup
-        const child = (current.children as SlopNode[])?.find((c) => c.id === seg);
+        // Child ID lookup (node IDs are forbidden from containing / or ~)
+        const child = (current.children as SlopNode[])?.find((c) => c.id === raw);
         if (!child) return null;
         current = child;
       }
     }
-    return { parent: current, key: segments[segments.length - 1] };
+    const last = segments[segments.length - 1];
+    return { parent: current, key: inField ? unescapePointer(last) : last };
   }
 
   private applyAdd(segments: string[], value: unknown): void {

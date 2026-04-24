@@ -24,7 +24,13 @@ impl StateMirror {
     pub fn apply_patch(&mut self, ops: &[PatchOp], version: u64) {
         for op in ops {
             let segments = parse_path(&op.path);
-            apply_one(&mut self.tree, &segments, &op.op, op.value.as_ref());
+            apply_one(
+                &mut self.tree,
+                &segments,
+                &op.op,
+                op.value.as_ref(),
+                op.index,
+            );
         }
         self.version = version;
     }
@@ -53,7 +59,13 @@ fn parse_path(path: &str) -> Vec<String> {
 }
 
 /// Recursively navigate the tree and apply a single patch op.
-fn apply_one(node: &mut SlopNode, segments: &[String], op: &PatchOpKind, value: Option<&Value>) {
+fn apply_one(
+    node: &mut SlopNode,
+    segments: &[String],
+    op: &PatchOpKind,
+    value: Option<&Value>,
+    index: Option<usize>,
+) {
     if segments.is_empty() {
         // Replace the entire node.
         if let PatchOpKind::Replace = op {
@@ -74,7 +86,7 @@ fn apply_one(node: &mut SlopNode, segments: &[String], op: &PatchOpKind, value: 
         "affordances" => apply_in_affordances(node, rest, op, value),
         "content_ref" => apply_in_content_ref(node, rest, op, value),
         // Any other segment is a child ID
-        child_id => apply_in_children(node, child_id, rest, op, value),
+        child_id => apply_in_children(node, child_id, rest, op, value, index),
     }
 }
 
@@ -99,6 +111,8 @@ fn apply_in_properties(
             PatchOpKind::Remove => {
                 node.properties = None;
             }
+
+            PatchOpKind::Move => {}
         }
         return;
     }
@@ -116,6 +130,8 @@ fn apply_in_properties(
             PatchOpKind::Remove => {
                 props.remove(key.as_str());
             }
+
+            PatchOpKind::Move => {}
         }
     } else {
         // Nested path inside a property value — operate on the JSON value.
@@ -133,6 +149,7 @@ fn apply_in_children(
     rest: &[String],
     op: &PatchOpKind,
     value: Option<&Value>,
+    index: Option<usize>,
 ) {
     let children = node.children.get_or_insert_with(Vec::new);
 
@@ -141,7 +158,13 @@ fn apply_in_children(
             PatchOpKind::Add => {
                 if let Some(val) = value {
                     if let Ok(child) = serde_json::from_value::<SlopNode>(val.clone()) {
-                        children.push(child);
+                        match index {
+                            Some(i) => {
+                                let clamped = i.min(children.len());
+                                children.insert(clamped, child);
+                            }
+                            None => children.push(child),
+                        }
                     }
                 }
             }
@@ -159,11 +182,20 @@ fn apply_in_children(
             PatchOpKind::Remove => {
                 children.retain(|c| c.id != child_id);
             }
+            PatchOpKind::Move => {
+                if let Some(dest) = index {
+                    if let Some(pos) = children.iter().position(|c| c.id == child_id) {
+                        let child = children.remove(pos);
+                        let clamped = dest.min(children.len());
+                        children.insert(clamped, child);
+                    }
+                }
+            }
         }
     } else {
         // Recurse into the child node.
         if let Some(child) = children.iter_mut().find(|c| c.id == child_id) {
-            apply_one(child, rest, op, value);
+            apply_one(child, rest, op, value, index);
         }
     }
 }
@@ -188,6 +220,8 @@ fn apply_in_meta(
             PatchOpKind::Remove => {
                 node.meta = None;
             }
+
+            PatchOpKind::Move => {}
         }
         return;
     }
@@ -204,6 +238,8 @@ fn apply_in_meta(
             PatchOpKind::Add | PatchOpKind::Replace => {
                 set_meta_field(meta, field, value);
             }
+
+            PatchOpKind::Move => {}
         }
     }
     // Deeper meta paths are uncommon; ignore for now.
@@ -238,7 +274,10 @@ fn set_meta_field(meta: &mut NodeMeta, field: &str, value: Option<&Value>) {
         "window" => {
             meta.window = value.and_then(|v| {
                 let arr = v.as_array()?;
-                Some((arr.first()?.as_u64()? as usize, arr.get(1)?.as_u64()? as usize))
+                Some((
+                    arr.first()?.as_u64()? as usize,
+                    arr.get(1)?.as_u64()? as usize,
+                ))
             });
         }
         "created" => {
@@ -273,6 +312,8 @@ fn apply_in_affordances(
             PatchOpKind::Remove => {
                 node.affordances = None;
             }
+
+            PatchOpKind::Move => {}
         }
         return;
     }
@@ -311,6 +352,8 @@ fn apply_in_affordances(
                         affs.remove(idx);
                     }
                 }
+
+                PatchOpKind::Move => {}
             }
         }
     }
@@ -340,6 +383,8 @@ fn apply_in_content_ref(
         PatchOpKind::Remove => {
             node.content_ref = None;
         }
+
+        PatchOpKind::Move => {}
     }
 }
 
@@ -374,6 +419,8 @@ fn apply_in_value(
                 PatchOpKind::Remove => {
                     obj.remove(first.as_str());
                 }
+
+                PatchOpKind::Move => {}
             }
         } else if let Some(child) = obj.get_mut(first.as_str()) {
             apply_in_value(child, rest, op, value);
@@ -401,6 +448,8 @@ fn apply_in_value(
                             arr.remove(idx);
                         }
                     }
+
+                    PatchOpKind::Move => {}
                 }
             } else if idx < arr.len() {
                 apply_in_value(&mut arr[idx], rest, op, value);
@@ -447,6 +496,7 @@ mod tests {
                 op: PatchOpKind::Replace,
                 path: "/counter/properties/count".into(),
                 value: Some(json!(42)),
+                index: None,
             }],
             2,
         );
@@ -463,6 +513,7 @@ mod tests {
                 op: PatchOpKind::Add,
                 path: "/counter/properties/label".into(),
                 value: Some(json!("Counter")),
+                index: None,
             }],
             2,
         );
@@ -478,6 +529,7 @@ mod tests {
                 op: PatchOpKind::Remove,
                 path: "/counter".into(),
                 value: None,
+                index: None,
             }],
             2,
         );
@@ -492,6 +544,7 @@ mod tests {
                 op: PatchOpKind::Add,
                 path: "/settings".into(),
                 value: Some(json!({"id": "settings", "type": "group"})),
+                index: None,
             }],
             2,
         );
@@ -508,6 +561,7 @@ mod tests {
                 op: PatchOpKind::Add,
                 path: "/counter/meta/salience".into(),
                 value: Some(json!(0.9)),
+                index: None,
             }],
             2,
         );
@@ -528,6 +582,7 @@ mod tests {
                 op: PatchOpKind::Remove,
                 path: "/meta/summary".into(),
                 value: None,
+                index: None,
             }],
             2,
         );
@@ -546,6 +601,7 @@ mod tests {
                     "mime": "text/plain",
                     "summary": "42 bytes"
                 })),
+                index: None,
             }],
             2,
         );
@@ -556,11 +612,7 @@ mod tests {
             .expect("content_ref should be set on the node");
         assert_eq!(cr.mime, "text/plain");
         // Must not have been pushed into children as a pseudo-child node.
-        let children_len = counter
-            .children
-            .as_ref()
-            .map(|c| c.len())
-            .unwrap_or(0);
+        let children_len = counter.children.as_ref().map(|c| c.len()).unwrap_or(0);
         assert_eq!(children_len, 0);
     }
 
@@ -583,6 +635,7 @@ mod tests {
                 op: PatchOpKind::Remove,
                 path: "/counter/content_ref".into(),
                 value: None,
+                index: None,
             }],
             2,
         );
@@ -602,11 +655,13 @@ mod tests {
                     op: PatchOpKind::Add,
                     path: "/counter/affordances".into(),
                     value: Some(json!([{"action": "cancel"}])),
+                    index: None,
                 },
                 PatchOp {
                     op: PatchOpKind::Add,
                     path: "/counter/meta".into(),
                     value: Some(json!({"summary": "done"})),
+                    index: None,
                 },
             ],
             2,
@@ -635,20 +690,55 @@ mod tests {
                     op: PatchOpKind::Replace,
                     path: "/counter/properties/count".into(),
                     value: Some(json!(10)),
+                    index: None,
                 },
                 PatchOp {
                     op: PatchOpKind::Add,
                     path: "/properties/version".into(),
                     value: Some(json!("2.0")),
+                    index: None,
                 },
             ],
             2,
         );
         let counter = &mirror.tree().children.as_ref().unwrap()[0];
         assert_eq!(counter.properties.as_ref().unwrap()["count"], 10);
-        assert_eq!(
-            mirror.tree().properties.as_ref().unwrap()["version"],
-            "2.0"
+        assert_eq!(mirror.tree().properties.as_ref().unwrap()["version"], "2.0");
+    }
+
+    #[test]
+    fn test_move_reorders_children() {
+        let tree = SlopNode {
+            id: "root".into(),
+            node_type: "root".into(),
+            properties: None,
+            children: Some(vec![
+                SlopNode::new("a", "item"),
+                SlopNode::new("b", "item"),
+                SlopNode::new("c", "item"),
+            ]),
+            affordances: None,
+            meta: None,
+            content_ref: None,
+        };
+        let mut mirror = StateMirror::new(tree, 1);
+        mirror.apply_patch(
+            &[PatchOp {
+                op: PatchOpKind::Move,
+                path: "/c".into(),
+                value: None,
+                index: Some(0),
+            }],
+            2,
         );
+        let ids: Vec<&str> = mirror
+            .tree()
+            .children
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|c| c.id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["c", "a", "b"]);
     }
 }

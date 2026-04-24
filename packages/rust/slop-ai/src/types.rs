@@ -165,13 +165,17 @@ pub enum Urgency {
     Critical,
 }
 
-/// A single JSON Patch (RFC 6902) operation.
+/// A single SLOP patch operation (modeled on RFC 6902).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PatchOp {
     pub op: PatchOpKind,
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Value>,
+    /// Zero-based destination index among siblings. Used by `move` (required)
+    /// and optionally by `add` when inserting a child at a specific position.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -180,6 +184,7 @@ pub enum PatchOpKind {
     Add,
     Remove,
     Replace,
+    Move,
 }
 
 /// Reference to content that can be fetched on demand.
@@ -260,6 +265,7 @@ mod tests {
             op: PatchOpKind::Replace,
             path: "/properties/count".into(),
             value: Some(json!(42)),
+            index: None,
         };
         let json = serde_json::to_value(&op).unwrap();
         assert_eq!(json["op"], "replace");

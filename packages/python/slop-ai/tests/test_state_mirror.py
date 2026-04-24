@@ -83,3 +83,59 @@ def test_nested_property_path_routes_into_properties() -> None:
     )
     t1 = mirror.get_tree().children[0].children[0]
     assert t1.properties["done"] is True
+
+
+def test_move_op_reorders_children() -> None:
+    mirror = StateMirror(
+        {
+            "version": 1,
+            "tree": {
+                "id": "root",
+                "type": "root",
+                "children": [
+                    {"id": "a", "type": "item"},
+                    {"id": "b", "type": "item"},
+                    {"id": "c", "type": "item"},
+                ],
+            },
+        }
+    )
+    mirror.apply_patch(
+        {
+            "version": 2,
+            "ops": [{"op": "move", "path": "/c", "index": 0}],
+        }
+    )
+    ids = [c.id for c in mirror.get_tree().children]
+    assert ids == ["c", "a", "b"]
+
+
+def test_indexed_add_inserts_at_position() -> None:
+    mirror = StateMirror(
+        {
+            "version": 1,
+            "tree": {
+                "id": "root",
+                "type": "root",
+                "children": [
+                    {"id": "a", "type": "item"},
+                    {"id": "c", "type": "item"},
+                ],
+            },
+        }
+    )
+    mirror.apply_patch(
+        {
+            "version": 2,
+            "ops": [
+                {
+                    "op": "add",
+                    "path": "/b",
+                    "value": {"id": "b", "type": "item"},
+                    "index": 1,
+                }
+            ],
+        }
+    )
+    ids = [c.id for c in mirror.get_tree().children]
+    assert ids == ["a", "b", "c"]

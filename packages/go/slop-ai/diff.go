@@ -97,25 +97,64 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 		newMap[new.Children[i].ID] = &new.Children[i]
 	}
 
-	// Removed
+	// Children: emit remove/add(index)/move so that the consumer reconstructs
+	// the exact target order.
+	working := make([]string, 0, len(old.Children))
 	for _, child := range old.Children {
 		if _, ok := newMap[child.ID]; !ok {
 			ops = append(ops, PatchOp{
 				Op:   "remove",
 				Path: fmt.Sprintf("%s/%s", basePath, child.ID),
 			})
+		} else {
+			working = append(working, child.ID)
 		}
 	}
 
-	// Added
-	for _, child := range new.Children {
+	for i := range new.Children {
+		child := new.Children[i]
 		if _, ok := oldMap[child.ID]; !ok {
+			idx := i
 			ops = append(ops, PatchOp{
 				Op:    "add",
 				Path:  fmt.Sprintf("%s/%s", basePath, child.ID),
 				Value: child,
+				Index: &idx,
 			})
+			// insert into working at position i
+			working = append(working, "")
+			copy(working[i+1:], working[i:])
+			working[i] = child.ID
 		}
+	}
+
+	for i := range new.Children {
+		target := new.Children[i].ID
+		if i < len(working) && working[i] == target {
+			continue
+		}
+		currentIdx := -1
+		for j := i; j < len(working); j++ {
+			if working[j] == target {
+				currentIdx = j
+				break
+			}
+		}
+		if currentIdx == -1 {
+			continue
+		}
+		idx := i
+		ops = append(ops, PatchOp{
+			Op:    "move",
+			Path:  fmt.Sprintf("%s/%s", basePath, target),
+			Index: &idx,
+		})
+		// move working[currentIdx] to position i
+		id := working[currentIdx]
+		working = append(working[:currentIdx], working[currentIdx+1:]...)
+		working = append(working, "")
+		copy(working[i+1:], working[i:])
+		working[i] = id
 	}
 
 	// Recursively diff shared children

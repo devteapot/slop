@@ -43,11 +43,27 @@ class StateMirror:
         if not segments:
             return
         if op.op == "add":
-            self._apply_add(segments, op.value)
+            self._apply_add(segments, op.value, op.index)
         elif op.op == "remove":
             self._apply_remove(segments)
         elif op.op == "replace":
             self._apply_replace(segments, op.value)
+        elif op.op == "move":
+            self._apply_move(segments, op.index)
+
+    def _apply_move(self, segments: list[str], index: int | None) -> None:
+        if index is None or self._is_field_segment(segments):
+            return
+        child_id = segments[-1]
+        parent = self._resolve_node(segments[:-1])
+        if parent is None or parent.children is None:
+            return
+        for i, c in enumerate(parent.children):
+            if c.id == child_id:
+                child = parent.children.pop(i)
+                clamped = max(0, min(index, len(parent.children)))
+                parent.children.insert(clamped, child)
+                return
 
     def _navigate(self, segments: list[str]) -> tuple[Any, str] | None:
         """Walk *segments* down the tree, returning (parent, final_key).
@@ -102,7 +118,7 @@ class StateMirror:
                 return True
         return False
 
-    def _apply_add(self, segments: list[str], value: Any) -> None:
+    def _apply_add(self, segments: list[str], value: Any, index: int | None = None) -> None:
         # Adding a child node
         if not self._is_field_segment(segments):
             parent = self._resolve_node(segments[:-1])
@@ -110,7 +126,11 @@ class StateMirror:
                 if parent.children is None:
                     parent.children = []
                 child = SlopNode.from_dict(value) if isinstance(value, dict) else value
-                parent.children.append(child)
+                if index is None:
+                    parent.children.append(child)
+                else:
+                    clamped = max(0, min(index, len(parent.children)))
+                    parent.children.insert(clamped, child)
             return
 
         target = self._navigate(segments)

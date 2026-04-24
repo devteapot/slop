@@ -179,18 +179,26 @@ class SlopNode:
 
 @dataclass
 class PatchOp:
-    """A single JSON Patch (RFC 6902) operation."""
+    """A single SLOP patch operation (modeled on RFC 6902)."""
 
-    op: Literal["add", "remove", "replace"]
+    op: Literal["add", "remove", "replace", "move"]
     path: str
     value: Any = None
+    index: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"op": self.op, "path": self.path}
-        if self.op != "remove":
+        if self.op not in ("remove", "move"):
             d["value"] = self.value
+        if self.index is not None:
+            d["index"] = self.index
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatchOp:
-        return cls(op=data["op"], path=data["path"], value=data.get("value"))
+        return cls(
+            op=data["op"],
+            path=data["path"],
+            value=data.get("value"),
+            index=data.get("index"),
+        )

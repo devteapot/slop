@@ -49,9 +49,16 @@ type WireMeta struct {
 	Updated       string   `json:"updated,omitempty"`
 }
 
-// PatchOp is a JSON Patch (RFC 6902) operation.
+// PatchOp is a SLOP patch operation (modeled on RFC 6902).
+//
+// Ops:
+//   - "add"     — create a field, or insert a child node at Index (append if Index is nil)
+//   - "remove"  — delete a field or child node
+//   - "replace" — overwrite a field or child node
+//   - "move"    — reorder an existing child to Index among its siblings
 type PatchOp struct {
-	Op    string `json:"op"`              // "add", "remove", "replace"
+	Op    string `json:"op"`
 	Path  string `json:"path"`
 	Value any    `json:"value,omitempty"`
+	Index *int   `json:"index,omitempty"`
 }

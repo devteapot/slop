@@ -64,24 +64,43 @@ export function diffNodes(oldNode: SlopNode, newNode: SlopNode, basePath: string
     }
   }
 
-  // Diff children
+  // Diff children — simulate apply order so indices stay accurate.
   const oldChildren = oldNode.children ?? [];
   const newChildren = newNode.children ?? [];
   const oldMap = new Map(oldChildren.map((c) => [c.id, c]));
   const newMap = new Map(newChildren.map((c) => [c.id, c]));
 
+  // 1. Remove children no longer present.
+  const working: string[] = [];
   for (const child of oldChildren) {
     if (!newMap.has(child.id)) {
       ops.push({ op: "remove", path: `${basePath}/${child.id}` });
+    } else {
+      working.push(child.id);
     }
   }
 
-  for (const child of newChildren) {
+  // 2. Insert new children at their target positions.
+  for (let i = 0; i < newChildren.length; i++) {
+    const child = newChildren[i];
     if (!oldMap.has(child.id)) {
-      ops.push({ op: "add", path: `${basePath}/${child.id}`, value: child });
+      ops.push({ op: "add", path: `${basePath}/${child.id}`, value: child, index: i });
+      working.splice(i, 0, child.id);
     }
   }
 
+  // 3. Emit move ops until the working order matches the target order.
+  for (let i = 0; i < newChildren.length; i++) {
+    const targetId = newChildren[i].id;
+    if (working[i] === targetId) continue;
+    const currentIdx = working.indexOf(targetId, i);
+    if (currentIdx === -1) continue;
+    ops.push({ op: "move", path: `${basePath}/${targetId}`, index: i });
+    working.splice(currentIdx, 1);
+    working.splice(i, 0, targetId);
+  }
+
+  // 4. Recurse into kept children.
   for (const child of newChildren) {
     const oldChild = oldMap.get(child.id);
     if (oldChild) {

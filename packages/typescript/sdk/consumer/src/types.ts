@@ -93,9 +93,10 @@ export interface SnapshotMessage {
   tree: SlopNode;
 }
 export interface PatchOp {
-  op: "add" | "remove" | "replace";
+  op: "add" | "remove" | "replace" | "move";
   path: string;
   value?: unknown;
+  index?: number;
 }
 export interface PatchMessage {
   type: "patch";

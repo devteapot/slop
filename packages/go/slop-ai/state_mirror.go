@@ -42,15 +42,50 @@ func (sm *StateMirror) applyOp(op PatchOp) {
 
 	switch op.Op {
 	case "add":
-		sm.applyAdd(segments, op.Value)
+		sm.applyAdd(segments, op.Value, op.Index)
 	case "remove":
 		sm.applyRemove(segments)
 	case "replace":
 		sm.applyReplace(segments, op.Value)
+	case "move":
+		sm.applyMove(segments, op.Index)
 	}
 }
 
-func (sm *StateMirror) applyAdd(segments []string, value any) {
+func (sm *StateMirror) applyMove(segments []string, index *int) {
+	if index == nil || len(segments) == 0 || isFieldPath(segments) {
+		return
+	}
+	childID := segments[len(segments)-1]
+	parent, parentRemaining := sm.navigateTo(segments[:len(segments)-1])
+	if parent == nil || len(parentRemaining) > 0 {
+		return
+	}
+	currentIdx := -1
+	for i, c := range parent.Children {
+		if c.ID == childID {
+			currentIdx = i
+			break
+		}
+	}
+	if currentIdx == -1 {
+		return
+	}
+	child := parent.Children[currentIdx]
+	parent.Children = append(parent.Children[:currentIdx], parent.Children[currentIdx+1:]...)
+	dest := *index
+	if dest < 0 {
+		dest = 0
+	}
+	if dest > len(parent.Children) {
+		dest = len(parent.Children)
+	}
+	parent.Children = append(parent.Children, WireNode{})
+	copy(parent.Children[dest+1:], parent.Children[dest:])
+	parent.Children[dest] = child
+}
+
+func (sm *StateMirror) applyAdd(segments []string, value any, index *int) {
 	if len(segments) == 0 {
 		return
 	}
@@ -68,7 +103,20 @@ func (sm *StateMirror) applyAdd(segments []string, value any) {
 		if child.ID == "" {
 			child.ID = segments[len(segments)-1]
 		}
-		parent.Children = append(parent.Children, child)
+		if index == nil {
+			parent.Children = append(parent.Children, child)
+		} else {
+			dest := *index
+			if dest < 0 {
+				dest = 0
+			}
+			if dest > len(parent.Children) {
+				dest = len(parent.Children)
+			}
+			parent.Children = append(parent.Children, WireNode{})
+			copy(parent.Children[dest+1:], parent.Children[dest:])
+			parent.Children[dest] = child
+		}
 		return
 	}
 

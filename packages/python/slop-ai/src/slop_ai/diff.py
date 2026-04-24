@@ -55,23 +55,42 @@ def diff_nodes(
         elif old_meta is not None:
             ops.append(PatchOp(op="remove", path=f"{base_path}/meta"))
 
-    # --- children ---
+    # --- children (ordered; emit remove/add(index)/move to preserve order) ---
     old_children = old.children or []
     new_children = new.children or []
     old_map = {c.id: c for c in old_children}
     new_map = {c.id: c for c in new_children}
 
-    # Removed
+    working: list[str] = []
     for child in old_children:
         if child.id not in new_map:
             ops.append(PatchOp(op="remove", path=f"{base_path}/{child.id}"))
+        else:
+            working.append(child.id)
 
-    # Added
-    for child in new_children:
+    for i, child in enumerate(new_children):
         if child.id not in old_map:
-            ops.append(PatchOp(op="add", path=f"{base_path}/{child.id}", value=child.to_dict()))
+            ops.append(
+                PatchOp(
+                    op="add",
+                    path=f"{base_path}/{child.id}",
+                    value=child.to_dict(),
+                    index=i,
+                )
+            )
+            working.insert(i, child.id)
 
-    # Recursively diff shared children
+    for i, child in enumerate(new_children):
+        if working[i] == child.id:
+            continue
+        try:
+            current_idx = working.index(child.id, i)
+        except ValueError:
+            continue
+        ops.append(PatchOp(op="move", path=f"{base_path}/{child.id}", index=i))
+        working.pop(current_idx)
+        working.insert(i, child.id)
+
     for child in new_children:
         old_child = old_map.get(child.id)
         if old_child is not None:

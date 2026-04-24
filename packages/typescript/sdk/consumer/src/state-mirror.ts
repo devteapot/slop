@@ -34,7 +34,7 @@ export class StateMirror {
     if (segments.length === 0) return;
     switch (op.op) {
       case "add":
-        this.applyAdd(segments, op.value);
+        this.applyAdd(segments, op.value, op.index);
         break;
       case "remove":
         this.applyRemove(segments);
@@ -42,7 +42,22 @@ export class StateMirror {
       case "replace":
         this.applyReplace(segments, op.value);
         break;
+      case "move":
+        this.applyMove(segments, op.index);
+        break;
     }
+  }
+
+  private applyMove(segments: string[], index: number | undefined): void {
+    if (index === undefined || this.isFieldSegment(segments)) return;
+    const childId = segments[segments.length - 1];
+    const parent = this.resolveNode(segments.slice(0, -1));
+    if (!parent?.children) return;
+    const currentIdx = parent.children.findIndex((c) => c.id === childId);
+    if (currentIdx === -1) return;
+    const [child] = parent.children.splice(currentIdx, 1);
+    const clamped = Math.max(0, Math.min(index, parent.children.length));
+    parent.children.splice(clamped, 0, child);
   }
 
   /**
@@ -73,13 +88,18 @@ export class StateMirror {
     return { parent: current, key: inField ? unescapePointer(last) : last };
   }
 
-  private applyAdd(segments: string[], value: unknown): void {
+  private applyAdd(segments: string[], value: unknown, index?: number): void {
     // Adding a child node: last segment is a child ID, parent is a node
     if (!this.isFieldSegment(segments)) {
       const parent = this.resolveNode(segments.slice(0, -1));
       if (parent) {
         if (!parent.children) parent.children = [];
-        parent.children.push(value as SlopNode);
+        if (index === undefined) {
+          parent.children.push(value as SlopNode);
+        } else {
+          const clamped = Math.max(0, Math.min(index, parent.children.length));
+          parent.children.splice(clamped, 0, value as SlopNode);
+        }
       }
       return;
     }

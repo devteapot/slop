@@ -45,9 +45,16 @@ export interface JsonSchema {
 }
 
 export interface PatchOp {
-  op: "add" | "remove" | "replace";
+  op: "add" | "remove" | "replace" | "move";
   path: string;
   value?: unknown;
+  /**
+   * Zero-based destination index among siblings.
+   * - For `add` on a child-node path: insert at this index (append if omitted).
+   * - For `move`: required — the child's new index among its siblings after
+   *   being removed from its current position.
+   */
+  index?: number;
 }
 
 // --- Developer-facing descriptor types ---

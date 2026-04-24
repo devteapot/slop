@@ -127,11 +127,20 @@ Incremental update to a subscribed subtree. Uses operations modeled on [JSON Pat
   "version": 2,             // New version after applying this patch
   "ops": [
     { "op": "replace", "path": "/inbox/msg-42/properties/unread", "value": false },
-    { "op": "add", "path": "/inbox/msg-99", "value": { "id": "msg-99", "type": "item", "properties": { "from": "dave", "subject": "New thread" } } },
-    { "op": "remove", "path": "/inbox/msg-10" }
+    { "op": "add", "path": "/inbox/msg-99", "value": { "id": "msg-99", "type": "item", "properties": { "from": "dave", "subject": "New thread" } }, "index": 0 },
+    { "op": "remove", "path": "/inbox/msg-10" },
+    { "op": "move", "path": "/inbox/msg-42", "index": 3 }
   ]
 }
 ```
+
+**Ops.** The operations are:
+| Op | Meaning |
+|---|---|
+| `add` | Create a field under a node, or insert a child node at `index` (or append if `index` is omitted). |
+| `remove` | Delete a field or child node. |
+| `replace` | Overwrite an existing field or child node. |
+| `move` | Reorder an existing child to a new zero-based `index` among its siblings. `path` is the child's current path (by ID); `index` is the destination position *after* removal from the current position. Required for changing the order of ordered children without tearing down and re-adding them. |
 
 ### Patch path syntax
 

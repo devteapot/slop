@@ -16,7 +16,6 @@ export type { OutputRequest, SubscriptionFilter } from "./provider";
 export type { OutputTreeOptions } from "./scaling";
 // Re-export schema types
 export type { ExtractPaths, ExtractSubSchema } from "./schema-types";
-
 // Transport interface
 export type { Transport } from "./transport";
 // Re-export types
@@ -38,6 +37,8 @@ export type {
   TaskHandle,
   WindowDescriptor,
 } from "./types";
+// Param validator
+export { validateParams } from "./validate-params";
 // Provider base (shared between client and server)
 // Async action result marker
 // Re-export helpers

@@ -486,6 +486,32 @@ func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[stri
 		return
 	}
 
+	// Spec: providers MUST validate invoke params against the affordance's
+	// declared schema before running the handler.
+	if aff := s.resolveAffordance(path, action); aff != nil {
+		var schema map[string]any
+		switch p := aff.Params.(type) {
+		case map[string]any:
+			schema = p
+		case nil:
+		default:
+			if b, err := json.Marshal(p); err == nil {
+				_ = json.Unmarshal(b, &schema)
+			}
+		}
+		if errMsg := ValidateParams(schema, map[string]any(params)); errMsg != "" {
+			if err := conn.Send(map[string]any{
+				"type":   "result",
+				"id":     msgID,
+				"status": "error",
+				"error":  map[string]any{"code": "invalid_params", "message": errMsg},
+			}); err != nil {
+				s.logger.Warn("failed to send message", "err", err)
+			}
+			return
+		}
+	}
+
 	result, err := handler.HandleAction(ctx, Params(params))
 	if err != nil {
 		if err := conn.Send(map[string]any{
@@ -532,6 +558,55 @@ func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[stri
 
 	// Auto-refresh after invoke
 	s.Refresh()
+}
+
+// resolveAffordance walks the current tree to find the affordance descriptor
+// for (path, action). Returns nil if the node or action can't be found.
+func (s *Server) resolveAffordance(path, action string) *Affordance {
+	rootPrefix := "/" + s.id
+	treePath := path
+	if treePath == rootPrefix {
+		treePath = "/"
+	} else if strings.HasPrefix(treePath, rootPrefix+"/") {
+		treePath = treePath[len(rootPrefix):]
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	node := &s.currentTree
+	if treePath != "/" {
+		node = findNodeByPath(&s.currentTree, treePath)
+	}
+	if node == nil {
+		return nil
+	}
+	for i := range node.Affordances {
+		if node.Affordances[i].Action == action {
+			return &node.Affordances[i]
+		}
+	}
+	return nil
+}
+
+func findNodeByPath(root *WireNode, path string) *WireNode {
+	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	current := root
+	for _, seg := range segments {
+		if seg == "" {
+			continue
+		}
+		found := false
+		for i := range current.Children {
+			if current.Children[i].ID == seg {
+				current = &current.Children[i]
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil
+		}
+	}
+	return current
 }
 
 func (s *Server) resolveHandlerKey(path, action string) string {

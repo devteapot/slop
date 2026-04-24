@@ -195,7 +195,11 @@ impl SlopServer {
     {
         let path = path.into();
         let name = name.into();
-        let key = if path.is_empty() { name.clone() } else { format!("{path}/{name}") };
+        let key = if path.is_empty() {
+            name.clone()
+        } else {
+            format!("{path}/{name}")
+        };
         let mut inner = self.inner.write().unwrap();
         inner.action_handlers.insert(key.clone(), Arc::new(handler));
         // Store minimal metadata for the affordance
@@ -226,7 +230,11 @@ impl SlopServer {
     {
         let path = path.into();
         let name = name.into();
-        let key = if path.is_empty() { name.clone() } else { format!("{path}/{name}") };
+        let key = if path.is_empty() {
+            name.clone()
+        } else {
+            format!("{path}/{name}")
+        };
         let mut inner = self.inner.write().unwrap();
         inner.action_handlers.insert(key.clone(), Arc::new(handler));
 
@@ -326,9 +334,13 @@ impl SlopServer {
                 let sub_id = msg_id;
                 let path = msg["path"].as_str().unwrap_or("/").to_string();
                 let depth = parse_depth(msg);
-                let max_nodes = msg.get("max_nodes").and_then(|v| v.as_u64()).map(|v| v as usize);
+                let max_nodes = msg
+                    .get("max_nodes")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
                 let filter_types = parse_filter_types(msg);
-                let filter_min_salience = msg.get("filter")
+                let filter_min_salience = msg
+                    .get("filter")
                     .and_then(|f| f.get("min_salience"))
                     .and_then(|v| v.as_f64());
 
@@ -336,8 +348,12 @@ impl SlopServer {
 
                 // Resolve subtree; send error if path not found
                 let output = get_output_tree(
-                    &inner.current_tree, &path, depth, max_nodes,
-                    filter_min_salience, filter_types.as_deref(),
+                    &inner.current_tree,
+                    &path,
+                    depth,
+                    max_nodes,
+                    filter_min_salience,
+                    filter_types.as_deref(),
                 );
 
                 match output {
@@ -360,29 +376,41 @@ impl SlopServer {
                         }));
                         let last_tree = Some(tree);
                         drop(inner);
-                        self.inner.write().unwrap().subscriptions.push(Subscription {
-                            id: sub_id,
-                            path,
-                            depth,
-                            max_nodes,
-                            filter_types,
-                            filter_min_salience,
-                            connection: Arc::clone(conn),
-                            last_tree,
-                        });
+                        self.inner
+                            .write()
+                            .unwrap()
+                            .subscriptions
+                            .push(Subscription {
+                                id: sub_id,
+                                path,
+                                depth,
+                                max_nodes,
+                                filter_types,
+                                filter_min_salience,
+                                connection: Arc::clone(conn),
+                                last_tree,
+                            });
                     }
                 }
             }
             "unsubscribe" => {
                 let sub_id = msg["id"].as_str().unwrap_or("");
-                self.inner.write().unwrap().subscriptions.retain(|s| s.id != sub_id);
+                self.inner
+                    .write()
+                    .unwrap()
+                    .subscriptions
+                    .retain(|s| s.id != sub_id);
             }
             "query" => {
                 let path = msg["path"].as_str().unwrap_or("/").to_string();
                 let depth = parse_depth(msg);
-                let max_nodes = msg.get("max_nodes").and_then(|v| v.as_u64()).map(|v| v as usize);
+                let max_nodes = msg
+                    .get("max_nodes")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
                 let filter_types = parse_filter_types(msg);
-                let filter_min_salience = msg.get("filter")
+                let filter_min_salience = msg
+                    .get("filter")
                     .and_then(|f| f.get("min_salience"))
                     .and_then(|v| v.as_f64());
                 let window = msg.get("window").and_then(|w| {
@@ -396,8 +424,12 @@ impl SlopServer {
 
                 let inner = self.inner.read().unwrap();
                 let output = get_output_tree(
-                    &inner.current_tree, &path, depth, max_nodes,
-                    filter_min_salience, filter_types.as_deref(),
+                    &inner.current_tree,
+                    &path,
+                    depth,
+                    max_nodes,
+                    filter_min_salience,
+                    filter_types.as_deref(),
                 );
 
                 match output {
@@ -419,7 +451,11 @@ impl SlopServer {
                                 let start = offset.min(total);
                                 let end = (offset + count).min(total);
                                 let windowed: Vec<SlopNode> = children[start..end].to_vec();
-                                tree.children = if windowed.is_empty() { None } else { Some(windowed) };
+                                tree.children = if windowed.is_empty() {
+                                    None
+                                } else {
+                                    Some(windowed)
+                                };
                                 // Record window metadata
                                 let meta = tree.meta.get_or_insert_with(Default::default);
                                 meta.total_children = Some(total);
@@ -456,12 +492,18 @@ impl SlopServer {
         let mut inner = self.inner.write().unwrap();
         let conn_ptr = Arc::as_ptr(conn);
         inner.connections.retain(|c| !Arc::ptr_eq(c, conn));
-        inner.subscriptions.retain(|s| !std::ptr::addr_eq(Arc::as_ptr(&s.connection), conn_ptr));
+        inner
+            .subscriptions
+            .retain(|s| !std::ptr::addr_eq(Arc::as_ptr(&s.connection), conn_ptr));
     }
 
     /// Register a callback fired after each tree change.
     pub fn on_change<F: Fn() + Send + Sync + 'static>(&self, callback: F) {
-        self.inner.write().unwrap().change_listeners.push(Box::new(callback));
+        self.inner
+            .write()
+            .unwrap()
+            .change_listeners
+            .push(Box::new(callback));
     }
 
     /// Close all connections and clean up.
@@ -501,6 +543,21 @@ impl SlopServer {
                 }));
             }
             Some(h) => {
+                // Spec: providers MUST validate invoke params against the
+                // affordance's declared schema before running the handler.
+                if let Some(schema) = self.resolve_affordance_params(path, action) {
+                    if let Some(err) =
+                        crate::validate_params::validate_params(Some(&schema), &params)
+                    {
+                        let _ = conn.send(&json!({
+                            "type": "result",
+                            "id": msg_id,
+                            "status": "error",
+                            "error": {"code": "invalid_params", "message": err}
+                        }));
+                        return;
+                    }
+                }
                 match h(&params) {
                     Ok(data) => {
                         let is_async = data
@@ -543,6 +600,43 @@ impl SlopServer {
     }
 }
 
+impl SlopServer {
+    /// Walk the current tree to find the affordance's `params` schema for
+    /// (path, action). Returns `None` if the node or action is absent.
+    fn resolve_affordance_params(&self, path: &str, action: &str) -> Option<Value> {
+        let inner = self.inner.read().unwrap();
+        let id = &inner.id;
+        let root_prefix = format!("/{id}");
+        let tree_path = if path == root_prefix {
+            "/".to_string()
+        } else if path.starts_with(&format!("{root_prefix}/")) {
+            path[root_prefix.len()..].to_string()
+        } else {
+            path.to_string()
+        };
+        let node = if tree_path == "/" {
+            Some(&inner.current_tree)
+        } else {
+            find_node_by_path(&inner.current_tree, &tree_path)
+        };
+        let affordances = node?.affordances.as_ref()?;
+        let aff = affordances.iter().find(|a| a.action == action)?;
+        aff.params.clone()
+    }
+}
+
+fn find_node_by_path<'a>(root: &'a SlopNode, path: &str) -> Option<&'a SlopNode> {
+    let mut current = root;
+    for seg in path.trim_start_matches('/').split('/') {
+        if seg.is_empty() {
+            continue;
+        }
+        let children = current.children.as_ref()?;
+        current = children.iter().find(|c| c.id == seg)?;
+    }
+    Some(current)
+}
+
 /// A scoped view of a `SlopServer` that prefixes all paths.
 pub struct ScopedServer {
     server: SlopServer,
@@ -551,21 +645,24 @@ pub struct ScopedServer {
 
 impl ScopedServer {
     pub fn register(&self, path: &str, descriptor: Value) {
-        self.server.register(format!("{}/{path}", self.prefix), descriptor);
+        self.server
+            .register(format!("{}/{path}", self.prefix), descriptor);
     }
 
     pub fn register_fn<F>(&self, path: &str, f: F)
     where
         F: Fn() -> Value + Send + Sync + 'static,
     {
-        self.server.register_fn(format!("{}/{path}", self.prefix), f);
+        self.server
+            .register_fn(format!("{}/{path}", self.prefix), f);
     }
 
     pub fn action<F>(&self, path: &str, name: impl Into<String>, handler: F)
     where
         F: Fn(&Value) -> Result<Option<Value>> + Send + Sync + 'static,
     {
-        self.server.action(format!("{}/{path}", self.prefix), name, handler);
+        self.server
+            .action(format!("{}/{path}", self.prefix), name, handler);
     }
 
     pub fn unregister(&self, path: &str) {
@@ -639,11 +736,7 @@ fn broadcast_patches(inner: &mut Inner) {
 
         let ops = match &sub.last_tree {
             Some(old) => diff_nodes(old, &new_tree, ""),
-            None => diff_nodes(
-                &SlopNode::new(&inner.id, "root"),
-                &new_tree,
-                "",
-            ),
+            None => diff_nodes(&SlopNode::new(&inner.id, "root"), &new_tree, ""),
         };
         if !ops.is_empty() {
             let ops_val = serde_json::to_value(&ops).unwrap();
@@ -740,9 +833,10 @@ fn merge_action_metadata(
                     for (name, opts) in meta_obj {
                         if actions.contains_key(name) {
                             // Merge metadata into existing action (fill gaps)
-                            if let (Some(existing), Some(new)) =
-                                (actions.get_mut(name).and_then(|v| v.as_object_mut()), opts.as_object())
-                            {
+                            if let (Some(existing), Some(new)) = (
+                                actions.get_mut(name).and_then(|v| v.as_object_mut()),
+                                opts.as_object(),
+                            ) {
                                 for (k, v) in new {
                                     if !existing.contains_key(k) {
                                         existing.insert(k.clone(), v.clone());
@@ -804,7 +898,10 @@ mod tests {
     #[test]
     fn test_register_static() {
         let slop = SlopServer::new("app", "App");
-        slop.register("status", json!({"type": "status", "props": {"healthy": true}}));
+        slop.register(
+            "status",
+            json!({"type": "status", "props": {"healthy": true}}),
+        );
         assert_eq!(slop.version(), 1);
         let tree = slop.tree();
         assert_eq!(tree.children.as_ref().unwrap().len(), 1);
@@ -822,11 +919,23 @@ mod tests {
             json!({"type": "status", "props": {"count": n}})
         });
 
-        assert_eq!(slop.tree().children.as_ref().unwrap()[0].properties.as_ref().unwrap()["count"], 0);
+        assert_eq!(
+            slop.tree().children.as_ref().unwrap()[0]
+                .properties
+                .as_ref()
+                .unwrap()["count"],
+            0
+        );
 
         *counter.lock().unwrap() = 5;
         slop.refresh();
-        assert_eq!(slop.tree().children.as_ref().unwrap()[0].properties.as_ref().unwrap()["count"], 5);
+        assert_eq!(
+            slop.tree().children.as_ref().unwrap()[0]
+                .properties
+                .as_ref()
+                .unwrap()["count"],
+            5
+        );
     }
 
     fn as_dyn(conn: &Arc<MockConnection>) -> Arc<dyn Connection> {
@@ -878,12 +987,15 @@ mod tests {
         let conn = MockConnection::new();
         let dyn_conn = as_dyn(&conn);
         slop.handle_connection(dyn_conn.clone());
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "invoke",
-            "id": "inv-1",
-            "path": "/app/counter",
-            "action": "increment"
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "invoke",
+                "id": "inv-1",
+                "path": "/app/counter",
+                "action": "increment"
+            }),
+        );
 
         let messages = conn.messages();
         let result = messages.iter().find(|m| m["type"] == "result").unwrap();
@@ -897,12 +1009,15 @@ mod tests {
         let conn = MockConnection::new();
         let dyn_conn = as_dyn(&conn);
         slop.handle_connection(dyn_conn.clone());
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "invoke",
-            "id": "inv-1",
-            "path": "/app/missing",
-            "action": "do_it"
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "invoke",
+                "id": "inv-1",
+                "path": "/app/missing",
+                "action": "do_it"
+            }),
+        );
 
         let messages = conn.messages();
         let result = messages.iter().find(|m| m["type"] == "result").unwrap();
@@ -914,7 +1029,10 @@ mod tests {
     fn test_scope() {
         let slop = SlopServer::new("app", "App");
         let settings = slop.scope("settings");
-        settings.register("account", json!({"type": "group", "props": {"email": "a@b.com"}}));
+        settings.register(
+            "account",
+            json!({"type": "group", "props": {"email": "a@b.com"}}),
+        );
 
         let tree = slop.tree();
         let settings_node = &tree.children.as_ref().unwrap()[0];
@@ -961,12 +1079,15 @@ mod tests {
 
         // Subscribe with depth 1 — at depth=1, root shows children, but parent's
         // children (child) are collapsed to stubs.
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "subscribe",
-            "id": "sub-depth",
-            "path": "/",
-            "depth": 1
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "subscribe",
+                "id": "sub-depth",
+                "path": "/",
+                "depth": 1
+            }),
+        );
 
         let messages = conn.messages();
         let snapshot = messages.iter().find(|m| m["type"] == "snapshot").unwrap();
@@ -974,7 +1095,8 @@ mod tests {
 
         let tree_val = &snapshot["tree"];
         let parent = tree_val["children"]
-            .as_array().unwrap()
+            .as_array()
+            .unwrap()
             .iter()
             .find(|c| c["id"] == "parent")
             .unwrap();
@@ -989,25 +1111,34 @@ mod tests {
     fn test_subscribe_with_salience_filter() {
         let slop = SlopServer::new("app", "App");
         // Register two nodes with different salience
-        slop.register("high", json!({
-            "type": "item",
-            "meta": {"salience": 0.9}
-        }));
-        slop.register("low", json!({
-            "type": "item",
-            "meta": {"salience": 0.1}
-        }));
+        slop.register(
+            "high",
+            json!({
+                "type": "item",
+                "meta": {"salience": 0.9}
+            }),
+        );
+        slop.register(
+            "low",
+            json!({
+                "type": "item",
+                "meta": {"salience": 0.1}
+            }),
+        );
 
         let conn = MockConnection::new();
         let dyn_conn = as_dyn(&conn);
         slop.handle_connection(dyn_conn.clone());
 
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "subscribe",
-            "id": "sub-filter",
-            "path": "/",
-            "filter": {"min_salience": 0.5}
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "subscribe",
+                "id": "sub-filter",
+                "path": "/",
+                "filter": {"min_salience": 0.5}
+            }),
+        );
 
         let messages = conn.messages();
         let snapshot = messages.iter().find(|m| m["type"] == "snapshot").unwrap();
@@ -1025,10 +1156,13 @@ mod tests {
         let dyn_conn = as_dyn(&conn);
         slop.handle_connection(dyn_conn.clone());
 
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "bogus",
-            "id": "req-99"
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "bogus",
+                "id": "req-99"
+            }),
+        );
 
         let messages = conn.messages();
         let error = messages.iter().find(|m| m["type"] == "error").unwrap();
@@ -1045,11 +1179,14 @@ mod tests {
         let dyn_conn = as_dyn(&conn);
         slop.handle_connection(dyn_conn.clone());
 
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "subscribe",
-            "id": "sub-bad",
-            "path": "/nonexistent/deep"
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "subscribe",
+                "id": "sub-bad",
+                "path": "/nonexistent/deep"
+            }),
+        );
 
         let messages = conn.messages();
         let error = messages.iter().find(|m| m["type"] == "error").unwrap();
@@ -1094,16 +1231,19 @@ mod tests {
     fn test_query_with_window() {
         let slop = SlopServer::new("app", "App");
         // Register a collection with items (array children)
-        slop.register("items", json!({
-            "type": "collection",
-            "items": [
-                {"id": "a", "type": "item"},
-                {"id": "b", "type": "item"},
-                {"id": "c", "type": "item"},
-                {"id": "d", "type": "item"},
-                {"id": "e", "type": "item"}
-            ]
-        }));
+        slop.register(
+            "items",
+            json!({
+                "type": "collection",
+                "items": [
+                    {"id": "a", "type": "item"},
+                    {"id": "b", "type": "item"},
+                    {"id": "c", "type": "item"},
+                    {"id": "d", "type": "item"},
+                    {"id": "e", "type": "item"}
+                ]
+            }),
+        );
 
         let conn = MockConnection::new();
         let dyn_conn = as_dyn(&conn);
@@ -1111,13 +1251,16 @@ mod tests {
 
         // Query with window [1, 2] — should get items b and c
         // Path is /items (child of root)
-        slop.handle_message(&dyn_conn, &json!({
-            "type": "query",
-            "id": "q-win",
-            "path": "/items",
-            "depth": -1,
-            "window": [1, 2]
-        }));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "query",
+                "id": "q-win",
+                "path": "/items",
+                "depth": -1,
+                "window": [1, 2]
+            }),
+        );
 
         let messages = conn.messages();
         let snapshot = messages.iter().find(|m| m["id"] == "q-win").unwrap();

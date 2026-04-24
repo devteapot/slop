@@ -7,11 +7,12 @@
  * `broadcast()` to push updates to consumers.
  */
 
-import type { SlopNode, PatchOp, ActionHandler, NodeDescriptor, SlopClientOptions } from "./types";
-import { AsyncActionResult } from "./types";
-import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
-import { prepareTree, getSubtree } from "./scaling";
+import { getSubtree, prepareTree } from "./scaling";
+import { assembleTree } from "./tree-assembler";
+import type { ActionHandler, Affordance, NodeDescriptor, PatchOp, SlopClientOptions, SlopNode } from "./types";
+import { AsyncActionResult } from "./types";
+import { validateParams } from "./validate-params";
 
 /** Subscription filter from a consumer's subscribe message. */
 export interface SubscriptionFilter {
@@ -84,6 +85,16 @@ export abstract class ProviderBase<S = unknown> {
     }
   }
 
+  /** Look up the affordance descriptor for a path+action in the current tree. */
+  resolveAffordance(path: string, action: string): Affordance | undefined {
+    const rootPrefix = `/${this.options.id}`;
+    let treePath = path;
+    if (treePath === rootPrefix) treePath = "/";
+    else if (treePath.startsWith(`${rootPrefix}/`)) treePath = treePath.slice(rootPrefix.length);
+    const node = treePath === "/" ? this.currentTree : getSubtree(this.currentTree, treePath);
+    return node?.affordances?.find((a) => a.action === action);
+  }
+
   /** Resolve an action handler by path + action name. */
   resolveHandler(path: string, action: string): ActionHandler | undefined {
     const rootPrefix = `/${this.options.id}/`;
@@ -119,6 +130,23 @@ export abstract class ProviderBase<S = unknown> {
           message: `No handler for ${msg.action} at ${msg.path}`,
         },
       };
+    }
+
+    // Spec: providers MUST validate invoke params against the affordance's
+    // declared schema before running the handler. The handler can still
+    // enforce richer invariants, but we catch shape mismatches here so the
+    // invalid_params code is reliable across SDKs.
+    const affordance = this.resolveAffordance(msg.path, msg.action);
+    if (affordance?.params) {
+      const err = validateParams(affordance.params, msg.params ?? {});
+      if (err) {
+        return {
+          type: "result",
+          id: msg.id,
+          status: "error",
+          error: { code: "invalid_params", message: err },
+        };
+      }
     }
 
     try {

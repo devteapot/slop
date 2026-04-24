@@ -124,7 +124,7 @@ Affordances are invoked via the `invoke` message (see [Messages](/spec/core/mess
 
 The provider:
 1. Validates the action exists on the target node
-2. Validates parameters against the affordance's `params` schema
+2. Validates parameters against the affordance's `params` schema. If the schema is a JSON Schema and the supplied `params` don't conform, the provider MUST return `result { status: "error", error.code: "invalid_params" }` without invoking the handler. Reference SDKs (`@slop-ai/core`, `slop-ai` Python, Go, Rust) ship a shared validator and invoke it automatically before dispatch; independent implementations MUST do the same so the `invalid_params` code is reliable across the protocol.
 3. Re-validates that the action is still allowed under the provider's current state, session permissions, and app policy
 4. Executes the action
 5. Returns a `result` message

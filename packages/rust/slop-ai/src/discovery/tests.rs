@@ -138,14 +138,18 @@ where
         if check().await {
             return;
         }
-        assert!(tokio::time::Instant::now() < deadline, "condition not met before timeout");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "condition not met before timeout"
+        );
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 
 async fn read_text_message<S>(stream: &mut S) -> Value
 where
-    S: StreamExt<Item = std::result::Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
+    S: StreamExt<Item = std::result::Result<Message, tokio_tungstenite::tungstenite::Error>>
+        + Unpin,
 {
     while let Some(Ok(message)) = stream.next().await {
         if let Message::Text(text) = message {
@@ -213,7 +217,8 @@ impl Bridge for FakeBridge {
                     .ok_or_else(|| SlopError::Transport("missing provider key".to_string()))?;
                 if let Some(listeners) = subscribers.get(provider_key) {
                     for sender in listeners.values() {
-                        let _ = sender.send(json!({"type": "hello", "provider": {"name": "Browser App"}}));
+                        let _ = sender
+                            .send(json!({"type": "hello", "provider": {"name": "Browser App"}}));
                     }
                 }
             }

@@ -1,5 +1,6 @@
-# MCP Interoperability
-
+---
+title: "MCP Interoperability"
+---
 The Model Context Protocol (MCP) and SLOP solve overlapping but distinct problems:
 
 - **MCP** is a tool-call RPC. A server advertises tools; a client (the model host) invokes them.
@@ -21,7 +22,7 @@ Where MCP and SLOP overlap, SLOP's semantics are authoritative for live state tr
 
 The MCP Apps extension (SEP-1865, Jan 2026) lets an MCP tool return a UI resource that the host renders in a sandboxed iframe. The host and iframe exchange JSON-RPC over `postMessage`.
 
-This is the same transport SLOP already specifies for in-browser providers (see [transport.md](../core/transport.md)). An MCP Apps iframe is therefore a valid SLOP postMessage endpoint with one translation step.
+This is the same transport SLOP already specifies for in-browser providers (see [transport.md](/spec/core/transport)). An MCP Apps iframe is therefore a valid SLOP postMessage endpoint with one translation step.
 
 ### Bridge shape
 
@@ -70,7 +71,7 @@ The bridge adapter is responsible for demultiplexing: MCP Apps frames (no `slop`
 Two deployment shapes are supported:
 
 - **In-iframe provider** — client-only state lives inside the iframe bundle. The descriptor reports `{ "type": "postmessage" }`. No network egress from the iframe.
-- **Remote provider** — the iframe runs only the consumer and a thin relay that forwards SLOP messages to an authoritative WebSocket provider. The relay must enforce the security rules in [transport.md](../core/transport.md): bridges are not the security boundary.
+- **Remote provider** — the iframe runs only the consumer and a thin relay that forwards SLOP messages to an authoritative WebSocket provider. The relay must enforce the security rules in [transport.md](/spec/core/transport): bridges are not the security boundary.
 
 ## Current MCP primitives
 
@@ -103,7 +104,7 @@ Reference implementations live under `packages/typescript/integrations/claude/`.
 
 ## Discovery alignment
 
-The MCP 2026 roadmap calls for a standard metadata format served via `.well-known` so registries can learn what a server does without connecting. That metadata format is roadmap work, not part of the current MCP core spec. SLOP already specifies `/.well-known/slop` (see [transport.md](../core/transport.md)).
+The MCP 2026 roadmap calls for a standard metadata format served via `.well-known` so registries can learn what a server does without connecting. That metadata format is roadmap work, not part of the current MCP core spec. SLOP already specifies `/.well-known/slop` (see [transport.md](/spec/core/transport)).
 
 Servers that speak both protocols SHOULD publish the SLOP descriptor and the MCP metadata accepted by their target MCP registries or hosts. If MCP standardizes a root `.well-known` capability descriptor, a dual-speaking server can publish both:
 
@@ -116,7 +117,7 @@ A registry or agent picks the descriptor it speaks. The two files do not referen
 
 ## Security boundary
 
-An MCP host relaying SLOP messages — whether through MCP Apps or an MCP proxy — is a bridge, not an authority. The SLOP provider (or the backend behind it) MUST re-authorize every invoke against live state and caller identity, as required by [transport.md](../core/transport.md). Iframe sandboxing and MCP tool consent prompts are defense in depth, not a substitute for provider-side enforcement.
+An MCP host relaying SLOP messages — whether through MCP Apps or an MCP proxy — is a bridge, not an authority. The SLOP provider (or the backend behind it) MUST re-authorize every invoke against live state and caller identity, as required by [transport.md](/spec/core/transport). Iframe sandboxing and MCP tool consent prompts are defense in depth, not a substitute for provider-side enforcement.
 
 ## Non-goals
 

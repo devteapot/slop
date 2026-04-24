@@ -1,8 +1,10 @@
-# MCP Apps Bridge
-
+---
+title: "MCP Apps Bridge"
+description: "Expose SLOP providers through MCP Apps and model-context projections"
+---
 Expose a SLOP provider inside an MCP Apps host (Claude, ChatGPT, Goose, VS Code) so an embedded SLOP consumer can subscribe to live state, project selected state into model context, and invoke affordances from the chat surface.
 
-This guide is the developer-facing complement to the normative [MCP Interoperability](../../../spec/integrations/mcp.md) spec.
+This guide is the developer-facing complement to the normative [MCP Interoperability](/spec/integrations/mcp) spec.
 
 ## When to use this
 
@@ -12,11 +14,11 @@ Use the MCP Apps bridge when:
 - You want a single integration that reaches MCP Apps hosts without implementing each host's UI extension API separately.
 - You already have a SLOP provider and do not want to rewrite it as an MCP tool server.
 
-Use the [MCP proxy](./claude-code.md) instead when your target host doesn't support MCP Apps yet, or when you want a flat tool catalog rather than live state.
+Use the [MCP proxy](/guides/advanced/claude-code) instead when your target host doesn't support MCP Apps yet, or when you want a flat tool catalog rather than live state.
 
 ## How it works
 
-MCP Apps lets an MCP tool return a `ui://` resource. The host fetches it and renders it in a sandboxed iframe, wiring a JSON-RPC channel over `postMessage`. That `postMessage` channel is already a [native SLOP transport](../../../spec/core/transport.md#postmessage-convention), so the bridge is a thin multiplexer.
+MCP Apps lets an MCP tool return a `ui://` resource. The host fetches it and renders it in a sandboxed iframe, wiring a JSON-RPC channel over `postMessage`. That `postMessage` channel is already a [native SLOP transport](/spec/core/transport#postmessage-convention), so the bridge is a thin multiplexer.
 
 ```
 MCP host ──► open_slop_view tool
@@ -90,4 +92,4 @@ For remote providers, the iframe's WebSocket relay should use a short-lived toke
 
 ## Future direction
 
-If MCP standardizes event-driven resource updates or a SLOP-specific extension, the bridge can move from `updateModelContext` projections to a direct `slop/subscribe` stream over MCP. See the [MCP extension future work entry](../../../spec/limitations.md#no-formal-mcp-extension) for the planned SEP.
+If MCP standardizes event-driven resource updates or a SLOP-specific extension, the bridge can move from `updateModelContext` projections to a direct `slop/subscribe` stream over MCP. See the [MCP extension future work entry](/spec/limitations#no-formal-mcp-extension) for the planned SEP.

@@ -79,6 +79,11 @@ export const docsPages = [
     description: "Connect Codex to SLOP-enabled applications with injected live state and a fixed MCP tool surface",
     redirects: ["/guides-advanced/codex"],
   }),
+  page("docs/guides/advanced/mcp-bridge.md", "guides/advanced/mcp-bridge.md", {
+    label: "MCP Apps Bridge",
+    description: "Expose SLOP providers through MCP Apps and model-context projections",
+    redirects: ["/guides-advanced/mcp-bridge"],
+  }),
   page("docs/guides/advanced/openclaw.md", "guides/advanced/openclaw.md", {
     label: "OpenClaw Integration",
     description: "Control SLOP-enabled applications through OpenClaw",
@@ -162,6 +167,7 @@ export const docsPages = [
   page("spec/integrations/adapters.md", "spec/integrations/adapters.md"),
   page("spec/integrations/web.md", "spec/integrations/web.md"),
   page("spec/integrations/desktop.md", "spec/integrations/desktop.md"),
+  page("spec/integrations/mcp.md", "spec/integrations/mcp.md"),
   page("spec/limitations.md", "spec/limitations.md", {
     label: "Known Limitations & Future Work",
   }),
@@ -275,6 +281,7 @@ export const docsSidebar = [
       pageItem("guides/advanced/agent-scaffolding", "Agent-Assisted Integration"),
       pageItem("guides/advanced/claude-code", "Claude Code Integration"),
       pageItem("guides/advanced/codex", "Codex Integration"),
+      pageItem("guides/advanced/mcp-bridge", "MCP Apps Bridge"),
       pageItem("guides/advanced/openclaw", "OpenClaw Integration"),
       pageItem("guides/advanced/benchmarks", "Benchmarks: MCP vs SLOP"),
     ],

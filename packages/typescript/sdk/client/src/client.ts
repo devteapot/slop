@@ -19,6 +19,8 @@ interface Subscription {
   path: string;
   depth: number;
   filter?: SubscriptionFilter;
+  max_nodes?: number;
+  window?: [number, number];
   lastTree: SlopNode | null;
   transport: Transport; // which transport this subscription came from
   /** Per-subscription sequence number. See spec/core/messages.md. */
@@ -165,6 +167,8 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         path: sub.path,
         depth: sub.depth,
         filter: sub.filter,
+        max_nodes: sub.max_nodes,
+        window: sub.window,
       });
 
       if (!sub.lastTree) {
@@ -228,12 +232,16 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
           path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
+          max_nodes: msg.max_nodes,
+          window: msg.window,
         });
         this.subscriptions.set(msg.id, {
           id: msg.id,
           path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
+          max_nodes: msg.max_nodes,
+          window: msg.window,
           lastTree: structuredClone(outputTree),
           transport,
           seq: 0,
@@ -262,7 +270,15 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
           });
           break;
         }
-        transport.send(this.snapshotMessage(msg.id, { path, depth: msg.depth, filter: msg.filter }));
+        transport.send(
+          this.snapshotMessage(msg.id, {
+            path,
+            depth: msg.depth,
+            filter: msg.filter,
+            max_nodes: msg.max_nodes,
+            window: msg.window,
+          }),
+        );
         break;
       }
 

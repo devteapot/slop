@@ -132,7 +132,9 @@ export async function createMcpAppsBridge(
       consumer.off("patch", onPatch);
       consumer.unsubscribe(subscriptionId);
       consumer.disconnect();
-      // ext-apps App has no explicit close; GC handles it when the iframe unmounts.
+      // Close the ext-apps Protocol so postMessage listeners detach cleanly —
+      // matters in long-lived iframes/SPAs where dispose can be called many times.
+      void app.close().catch(() => {});
     },
   };
 }

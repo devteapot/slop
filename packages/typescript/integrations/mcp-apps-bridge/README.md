@@ -4,7 +4,7 @@ Render a SLOP provider inside an MCP Apps iframe.
 
 The bridge demultiplexes the sandboxed iframe's `postMessage` channel between MCP Apps (ext-apps `App`) and SLOP (snapshots, patches, invocations), then projects salience-filtered state into `app.updateModelContext()` so the host model sees what the user sees.
 
-See the [MCP Apps Bridge guide](https://docs.slopai.dev/guides/advanced/mcp-bridge/) for usage and the [MCP Interoperability spec](https://docs.slopai.dev/spec/integrations/mcp/) for the protocol-level contract.
+See the [MCP Apps Bridge guide](https://docs.slopai.dev/guides/advanced/mcp-bridge/) for end-to-end setup, and the [demo](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge) for a runnable reference.
 
 ## Install
 

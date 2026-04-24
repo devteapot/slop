@@ -73,25 +73,29 @@ export function registerSlopView(
   const htmlSource = options.html;
   const baseMeta = (options.resourceMeta?._meta as Record<string, unknown>) ?? {};
   const baseUi = (baseMeta.ui as Record<string, unknown>) ?? {};
+  const baseCsp = (baseUi.csp as Record<string, unknown>) ?? {};
+
+  // Merge connectDomains into the caller-supplied CSP block. Caller wins on
+  // collisions inside csp (so an explicit empty connectDomains still beats us).
+  const mergedCsp: Record<string, unknown> = {
+    ...(options.connectDomains && { connectDomains: options.connectDomains }),
+    ...baseCsp,
+  };
+  const mergedUi: Record<string, unknown> = {
+    ...baseUi,
+    ...(Object.keys(mergedCsp).length > 0 && { csp: mergedCsp }),
+  };
   const mergedMeta: Record<string, unknown> = {
     ...options.resourceMeta,
-    _meta: {
-      ...baseMeta,
-      ui: {
-        ...baseUi,
-        ...(options.connectDomains && {
-          csp: { connectDomains: options.connectDomains, ...((baseUi.csp as object) ?? {}) },
-        }),
-      },
-    },
+    _meta: { ...baseMeta, ui: mergedUi },
   };
 
   // ext-apps spec: when resources/read content items carry their own _meta.ui,
   // it takes precedence over the listing-level metadata. Hosts (notably VS Code)
-  // tend to read CSP from the content item, so we duplicate the declaration here.
-  const contentMeta = options.connectDomains
-    ? { ui: { csp: { connectDomains: options.connectDomains } } }
-    : undefined;
+  // tend to read CSP from the content item, so we duplicate the FULL merged UI
+  // metadata — not just connectDomains — to keep listing and content in sync.
+  const hasUiMeta = Object.keys(mergedUi).length > 0;
+  const contentMeta = hasUiMeta ? { ui: mergedUi } : undefined;
 
   registerAppResource(
     server as Pick<McpServer, "registerResource">,
@@ -172,7 +176,7 @@ export async function registerSlopTools(
   const prefix = options.toolNamePrefix ?? "";
 
   function buildHandler(
-    resolved: { path: string | null; action: string },
+    resolved: { path: string | null; action: string; targets?: string[] },
   ): (args: Record<string, unknown> | undefined) => Promise<{
     content: { type: "text"; text: string }[];
     isError?: boolean;
@@ -186,7 +190,22 @@ export async function registerSlopTools(
           return {
             isError: true,
             content: [
-              { type: "text" as const, text: `missing required \`target\` parameter` },
+              { type: "text" as const, text: "missing required `target` parameter" },
+            ],
+          };
+        }
+        // Restrict invocation to targets that actually exposed this affordance
+        // in the current snapshot. Without this gate a model could invoke the
+        // grouped action on any path the provider happens to handle, including
+        // nodes outside the salience-filtered subscription.
+        if (resolved.targets && !resolved.targets.includes(target)) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text" as const,
+                text: `target \`${target}\` is not a valid path for action \`${resolved.action}\`. Valid: ${resolved.targets.slice(0, 5).join(", ")}${resolved.targets.length > 5 ? ", …" : ""}`,
+              },
             ],
           };
         }
@@ -194,13 +213,17 @@ export async function registerSlopTools(
         delete params.target;
       }
       const result = await consumer.invoke(path, resolved.action, params);
+      if (result.status === "error") {
+        const code = result.error?.code ?? "error";
+        const message = result.error?.message ?? "(no message)";
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: `[${code}] ${message}` }],
+        };
+      }
       const data = result.data ?? result.status ?? "ok";
-      const text =
-        typeof data === "string" ? data : JSON.stringify(data, null, 2);
-      return {
-        content: [{ type: "text" as const, text }],
-        ...(result.status === "error" && { isError: true }),
-      };
+      const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      return { content: [{ type: "text" as const, text }] };
     };
   }
 

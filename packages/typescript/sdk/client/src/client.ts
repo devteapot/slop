@@ -20,7 +20,6 @@ interface Subscription {
   depth: number;
   filter?: SubscriptionFilter;
   max_nodes?: number;
-  window?: [number, number];
   lastTree: SlopNode | null;
   transport: Transport; // which transport this subscription came from
   /** Per-subscription sequence number. See spec/core/messages.md. */
@@ -168,7 +167,6 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         depth: sub.depth,
         filter: sub.filter,
         max_nodes: sub.max_nodes,
-        window: sub.window,
       });
 
       if (!sub.lastTree) {
@@ -228,12 +226,12 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
           });
           break;
         }
+        // `window` is query-only per spec/core/transport.md §Capabilities.
         const outputTree = this.getOutputTree({
           path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
           max_nodes: msg.max_nodes,
-          window: msg.window,
         });
         this.subscriptions.set(msg.id, {
           id: msg.id,
@@ -241,7 +239,6 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
           depth: msg.depth ?? -1,
           filter: msg.filter,
           max_nodes: msg.max_nodes,
-          window: msg.window,
           lastTree: structuredClone(outputTree),
           transport,
           seq: 0,

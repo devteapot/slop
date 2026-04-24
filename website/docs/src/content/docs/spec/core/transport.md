@@ -247,19 +247,31 @@ The consumer may then send subscriptions, queries, or invocations. No handshake 
 
 ## Capabilities
 
-Capabilities declare which features a provider supports. Consumers must not rely on capabilities the provider hasn't declared.
+Capabilities are declared by the provider in its `hello` message. They are load-bearing: both sides use them to decide what requests are meaningful, and the provider's reaction to a request that depends on an undeclared capability MUST be deterministic.
 
-| Capability | Meaning |
-|---|---|
-| `state` | Provider exposes a state tree (required) |
-| `patches` | Provider sends incremental patches after snapshots |
-| `affordances` | Nodes may include affordances |
-| `attention` | Nodes may include salience/attention metadata |
-| `windowing` | Collections support windowed queries |
-| `async` | Provider may return `accepted` status on invoke results |
-| `content_refs` | Nodes may include `content_ref` fields |
+| Capability | Meaning | If absent, provider MUST |
+|---|---|---|
+| `state` | Provider exposes a state tree. **Required** — every provider declares this. | n/a — absence means "not a SLOP provider" and the consumer should disconnect. |
+| `patches` | After a `snapshot`, the provider sends `patch` messages as state changes. | Still answer `subscribe` with a `snapshot` (state is observable at subscribe time), but never emit `patch`. Consumers MAY resubscribe/re-query to get a fresh state. Consumers SHOULD prefer `query` for one-shot reads when they know the provider does not support patches. |
+| `affordances` | Nodes may carry `affordances`. `invoke` is meaningful. | Reject `invoke` with `{ status: "error", error: { code: "not_supported" } }`. The state tree MUST NOT contain any `affordances` arrays. |
+| `attention` | Nodes may carry `meta.salience`, `meta.urgency`, `meta.pinned`, etc. | Ignore `filter.min_salience` on `subscribe`/`query`; do not emit salience/urgency fields in `meta`. |
+| `windowing` | `query`/`subscribe` honor `window: [offset, count]`. | Ignore the `window` field and return the full child list (subject to other limits). Consumers that rely on windowing for large collections SHOULD check this capability first. |
+| `async` | Actions may complete asynchronously; `invoke` may return `status: "accepted"`. | Never return `accepted`. Consumers that do not declare async support will correctly treat any stray `accepted` as `ok`, but providers SHOULD NOT emit it when the capability is absent. |
+| `content_refs` | Nodes may include `content_ref` for out-of-band content. `fetch_content` requests are meaningful. | No `content_ref` fields appear in the tree. `fetch_content` (if sent) is rejected with `not_supported`. |
 
-`state` is the only required capability. Everything else is opt-in.
+`state` is the only required capability. Everything else is opt-in. A provider that advertises *only* `state` is a valid, read-only, snapshot-at-a-moment SLOP provider (useful for logs, reports, or static state dumps).
+
+**Consumer obligations.**
+
+- Consumers MUST NOT assume a capability is present just because the provider answered a related request. Always check the `hello.provider.capabilities` array.
+- Consumers that require a capability the provider didn't advertise SHOULD disconnect rather than probe (reduces noise in provider logs).
+- Reference consumer SDKs expose the received capability list so application code can branch on it.
+
+**Provider obligations.**
+
+- Providers MUST advertise every capability they actually use. Emitting an `affordances` array without declaring `affordances` is a protocol violation.
+- Providers MUST honor the "if absent" column above. If a provider does not support `patches`, it MUST NOT emit patches even if the consumer subscribed — consumers that can't fall back to polling will silently miss updates otherwise.
+- The `hello` capability list is authoritative for the lifetime of the connection. Capabilities do not change mid-connection; to change them, the provider must disconnect and the consumer must reconnect.
 
 ## Security considerations
 

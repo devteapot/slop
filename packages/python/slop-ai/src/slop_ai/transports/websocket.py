@@ -24,6 +24,8 @@ from typing import Any, Awaitable, Callable, Iterable
 try:
     import websockets
     from websockets.asyncio.server import Server, ServerConnection, serve as ws_serve
+    from websockets.datastructures import Headers
+    from websockets.http11 import Request, Response
 except ImportError as e:
     raise ImportError(
         "websockets is required for the WebSocket transport. "
@@ -50,6 +52,12 @@ def _is_loopback_remote(ws: ServerConnection) -> bool:
         return host in ("localhost", "::1")
 
 
+def _reject(status: int, reason: str) -> Response:
+    body = reason.encode() + b"\n"
+    headers = Headers([("Content-Length", str(len(body))), ("Content-Type", "text/plain; charset=utf-8")])
+    return Response(status, reason, headers, body)
+
+
 async def serve(
     slop: SlopServer,
     host: str = "localhost",
@@ -71,41 +79,36 @@ async def serve(
 
     origins_set = set(allowed_origins) if allowed_origins is not None else None
 
-    async def handler(ws: ServerConnection) -> None:
-        if ws.request is None:
-            await ws.close(4000, "Bad Request")
-            return
+    async def process_request(ws: ServerConnection, request: Request) -> Response | None:
+        # Reject during the HTTP upgrade — before the WebSocket is accepted —
+        # per spec/core/transport.md §Security considerations.
+        request_path = request.path.split("?", 1)[0]
+        if request_path != path:
+            return _reject(404, "Not Found")
 
-        if ws.request.path != path:
-            await ws.close(4004, f"Not found: {ws.request.path}")
-            return
-
-        # Origin allowlist (only applies for browser clients that send Origin).
-        origin = ws.request.headers.get("Origin")
+        origin = request.headers.get("Origin")
         if origin is not None and origins_set is not None and origin not in origins_set:
-            await ws.close(4003, "Forbidden")
-            return
+            return _reject(403, "Forbidden")
 
-        # Authentication. Default-deny non-loopback when no hook is configured.
         if authenticate is not None:
             try:
-                result = authenticate(ws.request)
+                result = authenticate(request)
                 if inspect.isawaitable(result):
                     result = await result
                 if not result:
-                    await ws.close(4401, "Unauthorized")
-                    return
+                    return _reject(401, "Unauthorized")
             except Exception:
-                await ws.close(4401, "Unauthorized")
-                return
+                return _reject(401, "Unauthorized")
         elif not _is_loopback_remote(ws):
             _log.warning(
                 "[slop] refusing non-loopback WebSocket upgrade: no authenticate hook configured. "
                 "See spec/core/transport.md §Security considerations."
             )
-            await ws.close(4401, "Unauthorized")
-            return
+            return _reject(401, "Unauthorized")
 
+        return None
+
+    async def handler(ws: ServerConnection) -> None:
         conn = _WsConnection(ws)
         slop.handle_connection(conn)
 
@@ -119,7 +122,7 @@ async def serve(
         finally:
             slop.handle_disconnect(conn)
 
-    server = await ws_serve(handler, host, port)
+    server = await ws_serve(handler, host, port, process_request=process_request)
     return server
 
 

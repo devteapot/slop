@@ -220,14 +220,21 @@ class SlopConsumer:
                     self._mirrors.pop(sub_id, None)
                     sub = self._subscriptions.get(sub_id)
                     if self._connection is not None:
-                        asyncio.ensure_future(self._send({"type": "unsubscribe", "id": sub_id}))
-                        if sub is not None:
-                            asyncio.ensure_future(self._send({
-                                "type": "subscribe",
-                                "id": sub_id,
-                                "path": sub["path"],
-                                "depth": sub["depth"],
-                            }))
+                        # Send unsubscribe then subscribe in a single awaited
+                        # sequence so ordering is preserved even if _send
+                        # yields. Spec/core/messages.md §Gap recovery requires
+                        # the resubscribe to follow the unsubscribe.
+                        async def _resubscribe(sid: str = sub_id, s: dict | None = sub) -> None:
+                            await self._send({"type": "unsubscribe", "id": sid})
+                            if s is not None:
+                                await self._send({
+                                    "type": "subscribe",
+                                    "id": sid,
+                                    "path": s["path"],
+                                    "depth": s["depth"],
+                                })
+
+                        asyncio.ensure_future(_resubscribe())
                     for handler in self._on_gap:
                         handler(sub_id, gap.expected, gap.received)
                 else:

@@ -15,12 +15,33 @@ from .types import Affordance, ContentRef, NodeMeta, SlopNode
 ActionHandler = Callable[..., Any]
 
 
+_RESERVED_NODE_ID_KEYWORDS = frozenset(
+    {"properties", "children", "affordances", "meta", "content_ref", "id", "type"}
+)
+
+
+def validate_node_id(node_id: Any) -> None:
+    """Enforce spec constraints on node IDs (see spec/core/state-tree.md)."""
+    if not isinstance(node_id, str) or not node_id:
+        raise ValueError("SLOP node id must be a non-empty string")
+    if node_id in _RESERVED_NODE_ID_KEYWORDS:
+        raise ValueError(
+            f'SLOP node id "{node_id}" collides with a reserved field keyword '
+            "(properties, children, affordances, meta, content_ref, id, type)"
+        )
+    if "/" in node_id or "~" in node_id:
+        raise ValueError(
+            f'SLOP node id "{node_id}" must not contain "/" or "~" — these are reserved in patch paths'
+        )
+
+
 def normalize_descriptor(
     path: str,
     node_id: str,
     descriptor: dict[str, Any],
 ) -> tuple[SlopNode, dict[str, ActionHandler]]:
     """Convert a descriptor dict into a ``SlopNode`` and handler map."""
+    validate_node_id(node_id)
     handlers: dict[str, ActionHandler] = {}
     children: list[SlopNode] = []
 
@@ -90,6 +111,7 @@ def _normalize_item(
     item: dict[str, Any],
 ) -> tuple[SlopNode, dict[str, ActionHandler]]:
     """Convert an item descriptor dict into a SlopNode."""
+    validate_node_id(item.get("id"))
     handlers: dict[str, ActionHandler] = {}
     children: list[SlopNode] = []
 

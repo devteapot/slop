@@ -1,14 +1,15 @@
+import { validateNodeId } from "./paths";
 import type {
-  SlopNode,
-  Affordance,
-  JsonSchema,
-  ActionHandler,
-  NodeMeta,
-  ContentRef,
-  NodeDescriptor,
-  ItemDescriptor,
   Action,
+  ActionHandler,
+  Affordance,
+  ContentRef,
+  ItemDescriptor,
+  JsonSchema,
+  NodeDescriptor,
+  NodeMeta,
   ParamDef,
+  SlopNode,
 } from "./types";
 
 export interface NormalizationResult {
@@ -21,6 +22,7 @@ export interface NormalizationResult {
  * and extract action handlers into a flat map keyed by "{path}/{action}".
  */
 export function normalizeDescriptor(path: string, id: string, descriptor: NodeDescriptor): NormalizationResult {
+  validateNodeId(id);
   const handlers = new Map<string, ActionHandler>();
   const children: SlopNode[] = [];
 
@@ -86,6 +88,7 @@ export function normalizeDescriptor(path: string, id: string, descriptor: NodeDe
 }
 
 function normalizeItem(path: string, item: ItemDescriptor): NormalizationResult {
+  validateNodeId(item.id);
   const handlers = new Map<string, ActionHandler>();
   const children: SlopNode[] = [];
 

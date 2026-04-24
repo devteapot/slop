@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from .descriptor import ActionHandler, normalize_descriptor
+from .descriptor import ActionHandler, normalize_descriptor, validate_node_id
 from .types import SlopNode
 
 
@@ -22,6 +22,7 @@ def assemble_tree(
     Returns ``(tree, handlers)`` where *handlers* maps
     ``"path/action"`` → callable.
     """
+    validate_node_id(root_id)
     all_handlers: dict[str, ActionHandler] = {}
     nodes_by_path: dict[str, SlopNode] = {}
 

@@ -8,6 +8,7 @@ import (
 // assembleTree builds a hierarchical WireNode tree from flat path-based registrations.
 // Missing ancestors are created as synthetic placeholder nodes.
 func assembleTree(registrations map[string]Node, rootID, rootName string) (WireNode, map[string]Handler) {
+	validateNodeID(rootID)
 	allHandlers := map[string]Handler{}
 	nodesByPath := map[string]WireNode{}
 

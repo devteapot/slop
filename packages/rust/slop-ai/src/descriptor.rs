@@ -15,12 +15,43 @@ use crate::types::{Affordance, Estimate, NodeMeta, SlopNode};
 /// An action handler receives params and returns optional result data.
 pub type ActionHandler = Arc<dyn Fn(&Value) -> Result<Option<Value>> + Send + Sync>;
 
+const RESERVED_NODE_ID_KEYWORDS: &[&str] = &[
+    "properties",
+    "children",
+    "affordances",
+    "meta",
+    "content_ref",
+    "id",
+    "type",
+];
+
+/// Enforce spec constraints on node IDs (see spec/core/state-tree.md).
+///
+/// Panics on invalid input since this represents a programming error at the
+/// provider boundary; providers that derive IDs from external data must sanitize first.
+pub fn validate_node_id(id: &str) {
+    if id.is_empty() {
+        panic!("SLOP node id must be a non-empty string");
+    }
+    if RESERVED_NODE_ID_KEYWORDS.contains(&id) {
+        panic!(
+            "SLOP node id \"{id}\" collides with a reserved field keyword (properties, children, affordances, meta, content_ref, id, type)"
+        );
+    }
+    if id.contains('/') || id.contains('~') {
+        panic!(
+            "SLOP node id \"{id}\" must not contain \"/\" or \"~\" — these are reserved in patch paths"
+        );
+    }
+}
+
 /// Normalize a descriptor `Value` into a `SlopNode` and handler map.
 pub fn normalize_descriptor(
     path: &str,
     id: &str,
     descriptor: &Value,
 ) -> (SlopNode, HashMap<String, ActionHandler>) {
+    validate_node_id(id);
     let mut handlers: HashMap<String, ActionHandler> = HashMap::new();
     let mut children: Vec<SlopNode> = Vec::new();
     let mut meta = extract_meta(descriptor);
@@ -100,6 +131,7 @@ pub fn normalize_descriptor(
 }
 
 fn normalize_item(path: &str, item: &Value) -> (SlopNode, HashMap<String, ActionHandler>) {
+    validate_node_id(item["id"].as_str().unwrap_or(""));
     let mut handlers: HashMap<String, ActionHandler> = HashMap::new();
     let mut children: Vec<SlopNode> = Vec::new();
 

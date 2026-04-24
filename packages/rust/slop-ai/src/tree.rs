@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::descriptor::{normalize_descriptor, ActionHandler};
+use crate::descriptor::{normalize_descriptor, validate_node_id, ActionHandler};
 use crate::types::SlopNode;
 
 /// Build a hierarchical `SlopNode` tree from flat registrations.
@@ -18,6 +18,7 @@ pub fn assemble_tree(
     root_id: &str,
     root_name: &str,
 ) -> (SlopNode, HashMap<String, ActionHandler>) {
+    validate_node_id(root_id);
     let mut all_handlers: HashMap<String, ActionHandler> = HashMap::new();
     let mut nodes_by_path: HashMap<String, SlopNode> = HashMap::new();
 

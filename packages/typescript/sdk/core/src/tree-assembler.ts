@@ -1,5 +1,6 @@
-import type { SlopNode, ActionHandler, NodeDescriptor } from "./types";
 import { normalizeDescriptor } from "./descriptor";
+import { validateNodeId } from "./paths";
+import type { ActionHandler, NodeDescriptor, SlopNode } from "./types";
 
 export interface AssemblyResult {
   tree: SlopNode;
@@ -15,6 +16,7 @@ export function assembleTree(
   rootId: string,
   rootName: string,
 ): AssemblyResult {
+  validateNodeId(rootId);
   const allHandlers = new Map<string, ActionHandler>();
   const nodesByPath = new Map<string, SlopNode>();
 

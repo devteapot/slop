@@ -170,11 +170,11 @@ func (sm *StateMirror) applyAdd(segments []string, value any, index *int) {
 }
 
 func (sm *StateMirror) applyFieldAdd(node *WireNode, fieldPath []string, value any) {
-	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
+	if len(fieldPath) >= 2 && fieldPath[0] == "properties" {
 		if node.Properties == nil {
 			node.Properties = Props{}
 		}
-		node.Properties[unescapePointerSegment(fieldPath[1])] = value
+		setJSONPointer(node.Properties, fieldPath[1:], value)
 		return
 	}
 	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
@@ -216,10 +216,9 @@ func (sm *StateMirror) applyRemove(segments []string) {
 		return
 	}
 
-	// Removing a child by ID — navigate to parent
-	if len(segments) < 2 {
-		return
-	}
+	// Removing a child by ID — navigate to parent. Top-level children have
+	// segments of length 1; the parent is the root (navigateTo of an empty
+	// slice returns &sm.tree).
 	parent, parentRemaining := sm.navigateTo(segments[:len(segments)-1])
 	if parent == nil || len(parentRemaining) > 0 {
 		return
@@ -235,8 +234,8 @@ func (sm *StateMirror) applyRemove(segments []string) {
 }
 
 func (sm *StateMirror) applyFieldRemove(node *WireNode, fieldPath []string) {
-	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
-		delete(node.Properties, unescapePointerSegment(fieldPath[1]))
+	if len(fieldPath) >= 2 && fieldPath[0] == "properties" {
+		removeJSONPointer(node.Properties, fieldPath[1:])
 		return
 	}
 	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
@@ -269,10 +268,8 @@ func (sm *StateMirror) applyReplace(segments []string, value any) {
 		return
 	}
 
-	// Replacing a child node by ID — find it in the parent's Children and swap.
-	if len(segments) < 2 {
-		return
-	}
+	// Replacing a child node by ID — find it in the parent's Children and
+	// swap. Top-level children (len(segments) == 1) navigate to root parent.
 	parent, parentRemaining := sm.navigateTo(segments[:len(segments)-1])
 	if parent == nil || len(parentRemaining) > 0 {
 		return
@@ -292,11 +289,11 @@ func (sm *StateMirror) applyReplace(segments []string, value any) {
 }
 
 func (sm *StateMirror) applyFieldReplace(node *WireNode, fieldPath []string, value any) {
-	if len(fieldPath) == 2 && fieldPath[0] == "properties" {
+	if len(fieldPath) >= 2 && fieldPath[0] == "properties" {
 		if node.Properties == nil {
 			node.Properties = Props{}
 		}
-		node.Properties[unescapePointerSegment(fieldPath[1])] = value
+		setJSONPointer(node.Properties, fieldPath[1:], value)
 		return
 	}
 	if len(fieldPath) == 1 && fieldPath[0] == "affordances" {
@@ -374,6 +371,43 @@ func splitPath(path string) []string {
 		}
 	}
 	return out
+}
+
+// setJSONPointer walks into a properties map, creating intermediate objects
+// as needed, and sets the leaf key to value. Segments are JSON Pointer
+// tokens and are unescaped per RFC 6901.
+func setJSONPointer(root map[string]any, segments []string, value any) {
+	if len(segments) == 0 {
+		return
+	}
+	current := root
+	for i := 0; i < len(segments)-1; i++ {
+		key := unescapePointerSegment(segments[i])
+		next, ok := current[key].(map[string]any)
+		if !ok {
+			next = map[string]any{}
+			current[key] = next
+		}
+		current = next
+	}
+	current[unescapePointerSegment(segments[len(segments)-1])] = value
+}
+
+// removeJSONPointer walks into a properties map and deletes the leaf key.
+func removeJSONPointer(root map[string]any, segments []string) {
+	if root == nil || len(segments) == 0 {
+		return
+	}
+	current := root
+	for i := 0; i < len(segments)-1; i++ {
+		key := unescapePointerSegment(segments[i])
+		next, ok := current[key].(map[string]any)
+		if !ok {
+			return
+		}
+		current = next
+	}
+	delete(current, unescapePointerSegment(segments[len(segments)-1]))
 }
 
 // unmarshalWireNode converts an arbitrary value (typically map[string]any) to a WireNode.

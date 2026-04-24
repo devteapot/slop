@@ -13,16 +13,24 @@ function escape(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
+function setStatus(text: string): void {
+  const status = document.getElementById("status");
+  if (status) status.textContent = text;
+}
+
 function render(tree: SlopNode | null): void {
-  const root = document.getElementById("root");
+  const root = document.getElementById("board");
   if (!root) return;
   if (!tree) {
-    root.innerHTML = `<p>Connecting to SLOP provider…</p>`;
+    root.innerHTML = `<p style="opacity:.6">waiting for snapshot…</p>`;
     return;
   }
   const cols = tree.children ?? [];
+  if (cols.length === 0) {
+    root.innerHTML = `<p style="opacity:.6">tree present but no columns yet (root has no children)</p>`;
+    return;
+  }
   root.innerHTML = `
-    <h1>Kanban — SLOP inside MCP Apps</h1>
     <div class="cols">
       ${cols
         .map((col) => {
@@ -46,12 +54,23 @@ function render(tree: SlopNode | null): void {
     </div>`;
 }
 
-const bridge = await createMcpAppsBridge({
-  provider: { mode: "ws", url: SLOP_URL },
-  subscribe: { depth: -1, minSalience: 0.3 },
-  projection: { header: "# Kanban — live state from the iframe" },
-  appInfo: { name: "mcp-apps-bridge-demo", version: "0.1.1" },
-});
+// Render the shell immediately so the iframe is never visually blank, even if
+// the WS connect hangs or throws.
+render(null);
+setStatus("connecting…");
 
-render(bridge.getTree());
-bridge.consumer.on("patch", () => render(bridge.getTree()));
+try {
+  const bridge = await createMcpAppsBridge({
+    provider: { mode: "ws", url: SLOP_URL },
+    subscribe: { depth: -1, minSalience: 0.3 },
+    projection: { header: "# Kanban — live state from the iframe" },
+    appInfo: { name: "mcp-apps-bridge-demo", version: "0.1.1" },
+  });
+
+  setStatus("connected");
+  render(bridge.getTree());
+  bridge.consumer.on("patch", () => render(bridge.getTree()));
+} catch (err) {
+  setStatus(`error: ${err instanceof Error ? err.message : String(err)}`);
+  console.error("[mcp-apps-bridge-demo] bridge init failed:", err);
+}

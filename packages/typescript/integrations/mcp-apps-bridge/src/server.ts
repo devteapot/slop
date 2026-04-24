@@ -31,6 +31,14 @@ export interface RegisterSlopViewOptions {
    * top of the MCP Apps mime-type default.
    */
   resourceMeta?: Record<string, unknown>;
+  /**
+   * Origins the iframe is allowed to make network requests to (CSP `connect-src`).
+   * Sandboxed hosts (e.g. VS Code's webview) block all network by default — list
+   * any WebSocket/HTTP origins the iframe needs to reach the SLOP provider.
+   *
+   * @example ["ws://127.0.0.1:7411"]
+   */
+  connectDomains?: string[];
 }
 
 /**
@@ -63,12 +71,33 @@ export function registerSlopView(
 
   const resourceName = options.resourceName ?? options.toolName;
   const htmlSource = options.html;
+  const baseMeta = (options.resourceMeta?._meta as Record<string, unknown>) ?? {};
+  const baseUi = (baseMeta.ui as Record<string, unknown>) ?? {};
+  const mergedMeta: Record<string, unknown> = {
+    ...options.resourceMeta,
+    _meta: {
+      ...baseMeta,
+      ui: {
+        ...baseUi,
+        ...(options.connectDomains && {
+          csp: { connectDomains: options.connectDomains, ...((baseUi.csp as object) ?? {}) },
+        }),
+      },
+    },
+  };
+
+  // ext-apps spec: when resources/read content items carry their own _meta.ui,
+  // it takes precedence over the listing-level metadata. Hosts (notably VS Code)
+  // tend to read CSP from the content item, so we duplicate the declaration here.
+  const contentMeta = options.connectDomains
+    ? { ui: { csp: { connectDomains: options.connectDomains } } }
+    : undefined;
 
   registerAppResource(
     server as Pick<McpServer, "registerResource">,
     resourceName,
     options.resourceUri,
-    options.resourceMeta ?? {},
+    mergedMeta,
     async () => {
       const text = typeof htmlSource === "function" ? await htmlSource() : htmlSource;
       return {
@@ -77,6 +106,7 @@ export function registerSlopView(
             uri: options.resourceUri,
             mimeType: RESOURCE_MIME_TYPE,
             text,
+            ...(contentMeta && { _meta: contentMeta }),
           },
         ],
       };

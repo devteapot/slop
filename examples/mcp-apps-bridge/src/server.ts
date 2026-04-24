@@ -107,6 +107,9 @@ registerSlopView(mcp, {
   resourceUri: RESOURCE_URI,
   resourceName: "Kanban View",
   html: () => readFile(iframePath, "utf8"),
+  // Sandboxed iframes (VS Code webview, etc.) block all network by default.
+  // Whitelist the local SLOP provider so the iframe can subscribe over WS.
+  connectDomains: [`ws://127.0.0.1:${PORT}`],
 });
 
 await registerSlopTools(mcp, {

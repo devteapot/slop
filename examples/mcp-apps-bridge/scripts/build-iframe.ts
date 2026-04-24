@@ -40,7 +40,9 @@ const html = `<!doctype html>
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <h1>Kanban — SLOP inside MCP Apps</h1>
+    <div id="status" style="font-size: 11px; opacity: 0.6; margin-bottom: 8px;">booting…</div>
+    <div id="board"></div>
     <script type="module">${js}</script>
   </body>
 </html>

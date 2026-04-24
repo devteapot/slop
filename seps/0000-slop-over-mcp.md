@@ -12,7 +12,7 @@
 
 This SEP defines `experimental/slop`, an optional MCP extension that lets an MCP server expose a live, semantic state tree to an MCP client. It adds three methods — `slop/subscribe`, `slop/unsubscribe`, `slop/invoke` — and three server-to-client notifications — `notifications/slop/snapshot`, `notifications/slop/patch`, `notifications/slop/attention` — carried over the existing Streamable HTTP and stdio transports.
 
-The extension reuses MCP's initialization handshake, transport, and session semantics unchanged. It is strictly additive: clients and servers that do not declare `experimental/slop` negotiate it away during initialization and continue to interoperate over the core protocol.
+The extension reuses MCP's initialization handshake, transport, and session semantics unchanged. It is strictly additive: a server that does not declare `experimental/slop` rejects `slop/*` methods with a standard JSON-RPC "method not found" error, and a client that is not extension-aware simply never calls them. Continued interoperation over the core protocol is unaffected in either direction.
 
 SLOP is an existing open protocol for AI state observation ([spec](https://github.com/devteapot/slop/tree/main/spec)). This SEP defines how a SLOP provider's wire semantics can be carried by MCP so that existing MCP clients can subscribe to SLOP state without a separate transport.
 
@@ -199,6 +199,7 @@ This SEP adds no new transport. Methods and notifications ride MCP's Streamable 
 
 - A server that declares `experimental/slop` over Streamable HTTP MUST support server-initiated SSE on the GET endpoint defined by the Streamable HTTP spec. Returning `405` on GET while advertising `experimental/slop` is a conformance violation.
 - A server MUST deliver `notifications/slop/snapshot`, `notifications/slop/patch`, and `notifications/slop/attention` on that SSE stream.
+- A client over Streamable HTTP MUST establish the GET SSE stream before issuing its first `slop/subscribe`. A server that receives `slop/subscribe` from a client without an active GET SSE stream MUST reject it with JSON-RPC error `-32002` ("SSE stream required") and MUST NOT queue notifications for a future stream. This keeps the subscription lifecycle coupled to the stream lifecycle and avoids unbounded server-side buffers.
 - A server SHOULD set SSE event IDs on every notification it emits so clients can use `Last-Event-ID` for redelivery if the core transport supports it. Event-ID-based resumption is best-effort: clients MUST NOT assume redelivery and MUST be prepared to reissue `slop/subscribe` on reconnect.
 
 **Reconnection and subscription state.** A client that reconnects (new `MCP-Session-Id`, or same session after SSE drop without successful `Last-Event-ID` replay) MUST reissue `slop/subscribe` for subscriptions it wants to resume. Servers are not required to retain subscription state across MCP sessions by default; see Open Questions for an opt-in persistence path.

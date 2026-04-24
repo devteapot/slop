@@ -44,6 +44,15 @@ export function listenUnix(
   });
 
   server.listen(socketPath, () => {
+    // Lock the socket down before registering — other local users must not be
+    // able to connect. Node creates the socket with mode `0777 & ~umask`,
+    // which is typically `0755` and therefore world-connectable.
+    // See spec/core/transport.md §Security considerations.
+    try {
+      chmodSync(socketPath, 0o600);
+    } catch (e) {
+      console.warn(`[slop] failed to chmod socket ${socketPath} to 0600:`, e);
+    }
     if (options.register) {
       registerProvider(slop.id, slop.name, socketPath);
     }

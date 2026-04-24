@@ -143,7 +143,7 @@ This SEP uses a two-layer error model:
   |-----------|-----------------------|-------------------------------------------------------------------------------------------------|
   | `-32050`  | SSE stream required   | Streamable HTTP client called `slop/subscribe` without an active server-to-client GET SSE stream.|
   | `-32051`  | Unknown subscriptionId| Request references a `subscriptionId` the server does not have an active subscription for.      |
-  | `-32052`  | Capability not declared| Server does not declare `experimental/slop`, or does not declare the required sub-capability (e.g. `async`, `affordances`). |
+  | `-32052`  | Sub-capability not declared | Request requires a sub-capability the server did not declare (e.g. `async: true` for an async affordance, `affordances: true` for `slop/invoke`, `attention: true` for attention subscriptions). A server that does not declare `experimental/slop` at all returns `-32601` (Method not found) instead. |
 
   These codes are deliberately outside the codes already used by the MCP core specification (e.g. `-32002` for "Resource not found" in `resources/*`), so that shared client error handling can distinguish SLOP extension errors from resource errors without inspecting the method name.
 

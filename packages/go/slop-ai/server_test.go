@@ -460,4 +460,14 @@ func TestQueryWithWindow(t *testing.T) {
 	if len(tree.Children) != 2 {
 		t.Fatalf("expected 2 children in window, got %d", len(tree.Children))
 	}
+	// Spec: windowed queries set meta.window and meta.total_children.
+	if tree.Meta == nil || tree.Meta.Window == nil {
+		t.Fatalf("expected meta.window to be set")
+	}
+	if got := *tree.Meta.Window; got[0] != 1 || got[1] != 2 {
+		t.Fatalf("expected meta.window=[1,2] got %v", got)
+	}
+	if tree.Meta.TotalChildren == nil {
+		t.Fatalf("expected meta.total_children to be set")
+	}
 }

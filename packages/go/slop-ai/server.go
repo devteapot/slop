@@ -332,14 +332,23 @@ func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[str
 			return
 		}
 
-		// Apply window [offset, count] to children
+		// Apply window [offset, count] to children.
+		// Per spec/core/attention.md §optimization pipeline (step 4),
+		// windowing MUST also set meta.window and meta.total_children so
+		// the consumer knows which slice it got and how many siblings exist.
 		if w, ok := msg["window"].([]any); ok && len(w) == 2 {
 			offset := jsonIntFromAny(w[0])
 			count := jsonIntFromAny(w[1])
-			if offset < len(outTree.Children) {
+			total := len(outTree.Children)
+			if outTree.Meta == nil {
+				outTree.Meta = &WireMeta{}
+			}
+			outTree.Meta.TotalChildren = &total
+			outTree.Meta.Window = &[2]int{offset, count}
+			if offset < total {
 				end := offset + count
-				if end > len(outTree.Children) {
-					end = len(outTree.Children)
+				if end > total {
+					end = total
 				}
 				outTree.Children = outTree.Children[offset:end]
 			} else {

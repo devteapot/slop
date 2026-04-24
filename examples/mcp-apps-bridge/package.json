@@ -6,7 +6,7 @@
   "description": "Demo MCP Apps server that serves a sandboxed iframe backed by a SLOP provider via @slop-ai/mcp-apps-bridge.",
   "scripts": {
     "build:iframe": "bun run scripts/build-iframe.ts",
-    "build:server": "bun build src/server.ts --outdir dist --format esm --target node --external '@modelcontextprotocol/*'",
+    "build:server": "bun build src/server.ts --outdir dist --format esm --target node --external '@modelcontextprotocol/*' --external '@slop-ai/*' --external 'ws'",
     "build": "bun run build:iframe && bun run build:server",
     "start": "bun dist/server.js",
     "dev": "bun run build && bun dist/server.js"
@@ -17,7 +17,8 @@
     "@slop-ai/client": "workspace:*",
     "@slop-ai/consumer": "workspace:*",
     "@slop-ai/core": "workspace:*",
-    "@slop-ai/mcp-apps-bridge": "workspace:*"
+    "@slop-ai/mcp-apps-bridge": "workspace:*",
+    "@slop-ai/server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

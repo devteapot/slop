@@ -26,7 +26,7 @@
     "directory": "packages/typescript/integrations/mcp-apps-bridge"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/server.ts --outdir dist --format esm --target browser --external '@slop-ai/*' --external '@modelcontextprotocol/*' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/server.ts --outdir dist --format esm --target browser --external '@slop-ai/*' --external '@modelcontextprotocol/*' --external 'zod' && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -34,14 +34,17 @@
   },
   "peerDependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.0",
-    "@modelcontextprotocol/sdk": "^1.12.0"
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
   },
   "peerDependenciesMeta": {
-    "@modelcontextprotocol/sdk": { "optional": true }
+    "@modelcontextprotocol/sdk": { "optional": true },
+    "zod": { "optional": true }
   },
   "devDependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
-    "@types/node": "^25.6.0"
+    "@types/node": "^25.6.0",
+    "zod": "^3.25.0"
   }
 }

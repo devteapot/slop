@@ -1,99 +1,57 @@
 // Iframe bundle — runs inside the sandboxed MCP Apps view.
 //
-// 1. Boots a tiny in-iframe SLOP provider via @slop-ai/client (postMessage transport).
-// 2. Uses @slop-ai/mcp-apps-bridge to consume it and push salience-filtered
-//    markdown projections into the host model through ext-apps' App.
+// Connects (over WebSocket) to the SLOP provider that the MCP server hosts in
+// the same process. The bridge handles the model-context projection; this file
+// only renders the visible UI from the consumer's mirrored tree.
 
-import { createSlop, action } from "@slop-ai/client";
 import { createMcpAppsBridge } from "@slop-ai/mcp-apps-bridge";
+import type { SlopNode } from "@slop-ai/consumer/browser";
 
-type Card = { id: string; title: string; done: boolean };
-type Column = { id: "todo" | "doing" | "done"; title: string; cards: Card[] };
-
-const state: { columns: Column[] } = {
-  columns: [
-    { id: "todo", title: "Todo", cards: [{ id: "c1", title: "Wire bridge", done: false }] },
-    { id: "doing", title: "Doing", cards: [{ id: "c2", title: "Write demo", done: false }] },
-    { id: "done", title: "Done", cards: [] },
-  ],
-};
-
-const slop = createSlop({ id: "mcp-apps-bridge-demo", name: "MCP Apps Bridge Demo" });
-
-function registerAll() {
-  for (const col of state.columns) {
-    slop.register(col.id, {
-      type: "group",
-      props: { title: col.title, count: col.cards.length },
-      meta: { salience: col.cards.length > 0 ? 0.8 : 0.4 },
-      actions: {
-        add_card: action(
-          { title: "string" } as const,
-          ({ title }) => {
-            col.cards.push({ id: `c${Date.now()}`, title, done: false });
-            registerAll();
-            renderUI();
-          },
-          { label: `Add card to ${col.title}` },
-        ),
-      },
-      items: col.cards.map((c) => ({
-        id: c.id,
-        props: { title: c.title, done: c.done },
-        meta: { salience: c.done ? 0.3 : 0.7 },
-        actions: {
-          toggle: action(
-            () => {
-              c.done = !c.done;
-              registerAll();
-              renderUI();
-            },
-            { idempotent: true, label: "Toggle done" },
-          ),
-          delete: action(
-            () => {
-              col.cards = col.cards.filter((x) => x.id !== c.id);
-              registerAll();
-              renderUI();
-            },
-            { dangerous: true, label: "Delete" },
-          ),
-        },
-      })),
-    });
-  }
-}
-
-function renderUI() {
-  const root = document.getElementById("root");
-  if (!root) return;
-  root.innerHTML = `
-    <h1>Kanban — SLOP inside MCP Apps</h1>
-    <div class="cols">
-      ${state.columns
-        .map(
-          (col) => `
-        <div class="col">
-          <h2>${col.title} (${col.cards.length})</h2>
-          <ul>${col.cards
-            .map((c) => `<li class="${c.done ? "done" : ""}">${escape(c.title)}</li>`)
-            .join("")}</ul>
-        </div>`,
-        )
-        .join("")}
-    </div>`;
-}
+const SLOP_URL = "ws://127.0.0.1:7411/slop";
 
 function escape(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
-registerAll();
-renderUI();
+function render(tree: SlopNode | null): void {
+  const root = document.getElementById("root");
+  if (!root) return;
+  if (!tree) {
+    root.innerHTML = `<p>Connecting to SLOP provider…</p>`;
+    return;
+  }
+  const cols = tree.children ?? [];
+  root.innerHTML = `
+    <h1>Kanban — SLOP inside MCP Apps</h1>
+    <div class="cols">
+      ${cols
+        .map((col) => {
+          const title = (col.properties?.title as string) ?? col.id;
+          const items = col.children ?? [];
+          return `
+            <div class="col">
+              <h2>${escape(title)} (${items.length})</h2>
+              <ul>
+                ${items
+                  .map((c) => {
+                    const cardTitle = (c.properties?.title as string) ?? c.id;
+                    const done = c.properties?.done === true;
+                    return `<li class="${done ? "done" : ""}">${escape(cardTitle)}</li>`;
+                  })
+                  .join("")}
+              </ul>
+            </div>`;
+        })
+        .join("")}
+    </div>`;
+}
 
-void createMcpAppsBridge({
-  provider: { mode: "postmessage" },
+const bridge = await createMcpAppsBridge({
+  provider: { mode: "ws", url: SLOP_URL },
   subscribe: { depth: -1, minSalience: 0.3 },
   projection: { header: "# Kanban — live state from the iframe" },
-  appInfo: { name: "mcp-apps-bridge-demo", version: "0.1.0" },
+  appInfo: { name: "mcp-apps-bridge-demo", version: "0.1.1" },
 });
+
+render(bridge.getTree());
+bridge.consumer.on("patch", () => render(bridge.getTree()));

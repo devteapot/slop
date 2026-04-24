@@ -13,6 +13,7 @@ export function createBridgeRelay(port: chrome.runtime.Port) {
 
   const windowListener = (event: MessageEvent) => {
     if (!active || event.source !== window) return;
+    if (event.origin !== window.location.origin) return;
     if (!isBridgeWindowMessage(event.data)) return;
     // Ignore messages we posted ourselves (bridge-relay → window echo)
     if (event.data[RELAY_TAG]) return;
@@ -27,7 +28,9 @@ export function createBridgeRelay(port: chrome.runtime.Port) {
       return;
     }
     if (msg.type === "slop-to-provider" && active) {
-      window.postMessage({ slop: true, [RELAY_TAG]: true, message: msg.message }, "*");
+      // Same-window bridge: post to this document's own origin rather than "*"
+      // to avoid leaking SLOP messages to third-party iframes embedded here.
+      window.postMessage({ slop: true, [RELAY_TAG]: true, message: msg.message }, window.location.origin);
     }
   };
 

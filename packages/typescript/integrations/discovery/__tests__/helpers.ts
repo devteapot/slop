@@ -1,11 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import WebSocket, { WebSocketServer } from "ws";
 
 export function createTempDir(prefix: string): string {
-  return mkdtempSync(join(tmpdir(), `${prefix}-`));
+  const dir = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  if (process.platform !== "win32") chmodSync(dir, 0o700);
+  return dir;
 }
 
 export function removeTempDir(path: string) {
@@ -13,7 +15,9 @@ export function removeTempDir(path: string) {
 }
 
 export function writeDescriptor(dir: string, fileName: string, descriptor: unknown) {
-  writeFileSync(join(dir, fileName), JSON.stringify(descriptor, null, 2));
+  const p = join(dir, fileName);
+  writeFileSync(p, JSON.stringify(descriptor, null, 2), { mode: 0o600 });
+  if (process.platform !== "win32") chmodSync(p, 0o600);
 }
 
 export async function waitUntil(

@@ -22,6 +22,11 @@ use super::types::DiscoveryServiceOptions;
 async fn service_scans_and_prunes_descriptors() {
     let providers_dir = temp_dir("slop-rust-discovery-scan");
     std::fs::create_dir_all(&providers_dir).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&providers_dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
     let descriptor_path = providers_dir.join("test-app.json");
     std::fs::write(
         &descriptor_path,
@@ -34,6 +39,11 @@ async fn service_scans_and_prunes_descriptors() {
 }"#,
     )
     .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&descriptor_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
 
     let service = DiscoveryService::new(DiscoveryServiceOptions {
         providers_dirs: vec![providers_dir.clone()],

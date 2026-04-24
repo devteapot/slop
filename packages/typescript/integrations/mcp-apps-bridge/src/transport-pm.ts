@@ -18,7 +18,10 @@ export class SameWindowPostMessageTransport implements ClientTransport {
 
   constructor(options: { targetWindow?: Window; origin?: string } = {}) {
     this.targetWindow = options.targetWindow ?? window;
-    this.originFilter = options.origin ?? "*";
+    // Spec: never "*". Default to this window's own origin, which is correct
+    // for the common same-window MCP Apps case. Cross-origin hosts MUST pass
+    // an explicit `origin`.
+    this.originFilter = options.origin ?? window.location.origin;
   }
 
   async connect(): Promise<Connection> {
@@ -27,6 +30,7 @@ export class SameWindowPostMessageTransport implements ClientTransport {
 
     const listener = (event: MessageEvent) => {
       if (event.source !== this.targetWindow) return;
+      if (event.origin !== this.originFilter) return;
       if (event.data?.slop !== true) return;
       const msg = event.data.message as SlopMessage | undefined;
       if (!msg || typeof (msg as { type?: unknown }).type !== "string") return;

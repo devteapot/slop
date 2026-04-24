@@ -49,10 +49,18 @@ All SLOP messages are wrapped in a postMessage envelope:
 window.postMessage({
   slop: true,              // Identifies this as a SLOP message
   message: { ... }         // The SLOP message (subscribe, snapshot, patch, etc.)
-}, "*");
+}, targetOrigin);          // Must be an explicit origin, NOT "*"
 ```
 
 The `slop: true` field distinguishes SLOP traffic from other postMessage usage on the page. Both sides filter on this field.
+
+**Origin and source verification (REQUIRED).** `slop: true` is an in-band hint, not a security boundary — any script on the page can forge it. Implementations MUST:
+
+- **Sender:** pass an explicit `targetOrigin` to `postMessage`. Never use `"*"` in production. Use the origin of the counterpart window (e.g. the expected extension bridge origin, or the page's own `window.location.origin` when the provider is same-origin).
+- **Receiver:** on every `message` event, verify `event.origin` against an allowlist before inspecting `event.data`. If the handshake expects a specific window (e.g. a known iframe), also check `event.source` identity. Reject anything that fails either check without reading the payload.
+- **Do not echo untrusted messages.** Relays/bridges MUST re-check origin on every hop; never forward messages whose origin was not verified on entry.
+
+Using `"*"` as a targetOrigin leaks SLOP messages (which may contain invoke results, patches, or consumer intent) to any window that happens to be on the page, including third-party iframes. This is a privacy and integrity failure, not merely a best-practice violation.
 
 **Connection handshake:**
 
@@ -81,6 +89,16 @@ Providers register themselves by creating a descriptor file in a well-known dire
 ~/.slop/providers/          # User-level providers
 /tmp/slop/providers/        # Session-level providers (ephemeral)
 ```
+
+**Filesystem hardening (REQUIRED).** These directories are shared across processes (especially `/tmp/slop/providers/` on multi-user systems), so descriptors and the directory itself are trust-sensitive:
+
+- The directory MUST exist with mode `0700` and be owned by the current user. Consumers MUST refuse to scan a provider directory whose owner is not the current user, or whose mode grants group/other access.
+- Descriptor files MUST be created with mode `0600`.
+- Descriptors MUST be written atomically: write to a same-directory temp file (e.g. `{app-id}.json.tmp.{pid}`) and `rename(2)` into place. Never leave a partially written descriptor visible.
+- Filenames MUST match `^[a-z0-9][a-z0-9._-]{0,63}\.json$`. Consumers MUST ignore files whose names do not match, and MUST NOT treat any segment of the filename as a path (no `/`, no `..`).
+- On read, consumers MUST re-verify owner and mode after `open()` (e.g. `fstat`) and ignore descriptors that fail either check. This closes TOCTOU races if a non-conforming file appears mid-scan.
+
+On Windows, which lacks POSIX modes, consumers MUST use the per-user `%LOCALAPPDATA%\slop\providers\` location and rely on the ACL inherited from that directory; a world-writable fallback is NOT acceptable.
 
 Each provider writes a JSON file named `{app-id}.json`:
 
@@ -244,8 +262,9 @@ Capabilities declare which features a provider supports. Consumers must not rely
 
 ## Security considerations
 
-- **Local transports** (Unix sockets, stdio) inherit filesystem permissions. Providers should set restrictive permissions on socket files (0600).
+- **Local transports** (Unix sockets, stdio) inherit filesystem permissions. Providers MUST set socket file mode to `0600` and MUST NOT place sockets in world-writable directories. Provider descriptor files and their enclosing directory are subject to the hardening rules in [Local discovery](#local-discovery) (owner check, `0700`/`0600`, atomic rename, filename allowlist).
 - **WebSocket transports** must require authentication for non-localhost connections. A bearer token in the initial HTTP upgrade request is the simplest approach.
+- **postMessage transports** MUST NOT use `"*"` as a `targetOrigin` and MUST verify `event.origin` on every received message. See [postMessage convention](#postmessage-convention).
 - **Providers should not expose secrets** in the state tree. The state tree is a projection, not an internal dump — treat it like a public API surface.
 - **Affordance invocations are untrusted input.** Providers must validate all parameters, just as they would for any API endpoint.
 - **Prompt injection is in scope.** A consumer may send fabricated, stale, or policy-violating `invoke` messages regardless of what the tree previously showed. Providers must re-authorize every invoke against live state, caller identity, and resource policy.

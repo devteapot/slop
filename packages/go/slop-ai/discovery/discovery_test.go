@@ -16,6 +16,9 @@ func TestServiceScansAndPrunesDescriptors(t *testing.T) {
 	t.Parallel()
 
 	providersDir := t.TempDir()
+	if err := os.Chmod(providersDir, 0o700); err != nil {
+		t.Fatalf("chmod dir: %v", err)
+	}
 	descriptorPath := filepath.Join(providersDir, "test-app.json")
 	descriptor := `{
 		"id": "test-app",
@@ -24,7 +27,7 @@ func TestServiceScansAndPrunesDescriptors(t *testing.T) {
 		"transport": {"type": "unix", "path": "/tmp/slop/test-app.sock"},
 		"capabilities": ["state"]
 	}`
-	if err := os.WriteFile(descriptorPath, []byte(descriptor), 0o644); err != nil {
+	if err := os.WriteFile(descriptorPath, []byte(descriptor), 0o600); err != nil {
 		t.Fatalf("write descriptor: %v", err)
 	}
 

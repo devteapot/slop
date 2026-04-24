@@ -609,12 +609,21 @@ impl DiscoveryService {
         let dirs = self.inner.lock().await.options.providers_dirs.clone();
         let mut descriptors = Vec::new();
         for dir in dirs {
+            if !descriptor_dir_ok(&dir) {
+                continue;
+            }
             let Ok(entries) = std::fs::read_dir(&dir) else {
                 continue;
             };
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if !descriptor_filename_ok(name) {
+                    continue;
+                }
+                if !descriptor_file_ok(&path) {
                     continue;
                 }
 
@@ -724,4 +733,76 @@ fn fire_callbacks(callbacks: Vec<ProviderChangeCallback>) {
     for callback in callbacks {
         callback();
     }
+}
+
+// --- Descriptor hardening helpers ---------------------------------------------
+//
+// See spec/core/transport.md §local discovery: provider dirs and descriptors
+// must be owned by the current user and mode-restricted. Filenames follow a
+// strict allowlist to keep path traversal and surprising characters out.
+
+fn descriptor_filename_ok(name: &str) -> bool {
+    if name.len() > 64 + 5 {
+        // 64-char id + ".json"
+        return false;
+    }
+    let Some(stem) = name.strip_suffix(".json") else {
+        return false;
+    };
+    let mut chars = stem.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() {
+        return false;
+    }
+    for c in chars {
+        if !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-') {
+            return false;
+        }
+    }
+    true
+}
+
+#[cfg(unix)]
+fn descriptor_dir_ok(path: &std::path::Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_dir() {
+        return false;
+    }
+    // Mode check only — the Rust stdlib doesn't expose getuid(); callers MUST
+    // ensure `providers_dirs` points at user-owned paths. The mode gate still
+    // catches the common world-writable failure mode.
+    if meta.mode() & 0o077 != 0 {
+        return false;
+    }
+    true
+}
+
+#[cfg(unix)]
+fn descriptor_file_ok(path: &std::path::Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    if meta.mode() & 0o077 != 0 {
+        return false;
+    }
+    true
+}
+
+#[cfg(not(unix))]
+fn descriptor_dir_ok(path: &std::path::Path) -> bool {
+    path.is_dir()
+}
+
+#[cfg(not(unix))]
+fn descriptor_file_ok(path: &std::path::Path) -> bool {
+    path.is_file()
 }

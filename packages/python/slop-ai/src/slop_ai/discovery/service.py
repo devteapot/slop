@@ -6,9 +6,14 @@ import asyncio
 import contextlib
 import json
 import os
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+# Descriptor filenames: lowercase id plus `.json`. Keeps path traversal and
+# surprising characters out. See spec/core/transport.md §local discovery.
+_DESCRIPTOR_FILENAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}\.json$")
 
 from slop_ai.consumer import SlopConsumer
 from slop_ai.transports.unix_client import UnixClientTransport
@@ -441,14 +446,58 @@ class DiscoveryService:
 
     def _read_descriptors(self) -> list[ProviderDescriptor]:
         descriptors: list[ProviderDescriptor] = []
+        my_uid = os.getuid() if hasattr(os, "getuid") else -1
+        is_posix = os.name == "posix"
         for directory in self._providers_dirs:
             if not directory.exists():
                 continue
+            try:
+                dir_stat = directory.stat()
+            except OSError as exc:
+                self._log_error(f"[slop] stat({directory}) failed: {exc}")
+                continue
+            if my_uid != -1 and dir_stat.st_uid != my_uid:
+                self._log_error(
+                    f"[slop] Skipping {directory}: not owned by current user"
+                )
+                continue
+            if is_posix and (dir_stat.st_mode & 0o077) != 0:
+                self._log_error(
+                    f"[slop] Skipping {directory}: mode "
+                    f"{dir_stat.st_mode & 0o777:o} grants group/other access; expected 0700"
+                )
+                continue
             for path in directory.glob("*.json"):
+                if not _DESCRIPTOR_FILENAME_RE.match(path.name):
+                    continue
                 try:
-                    data = json.loads(path.read_text())
+                    fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                except OSError as exc:
+                    self._log_error(f"[slop] open({path.name}) failed: {exc}")
+                    continue
+                try:
+                    st = os.fstat(fd)
+                    if my_uid != -1 and st.st_uid != my_uid:
+                        self._log_error(
+                            f"[slop] Skipping {path.name}: not owned by current user"
+                        )
+                        continue
+                    if is_posix and (st.st_mode & 0o077) != 0:
+                        self._log_error(
+                            f"[slop] Skipping {path.name}: mode "
+                            f"{st.st_mode & 0o777:o} grants group/other access; expected 0600"
+                        )
+                        continue
+                    with os.fdopen(fd, "r", encoding="utf-8", closefd=True) as fp:
+                        fd = -1  # ownership transferred
+                        data = json.load(fp)
                 except Exception as exc:
-                    self._log_error(f"[slop] Failed to parse {path.name}: {exc}")
+                    self._log_error(f"[slop] Failed to read {path.name}: {exc}")
+                    if fd != -1:
+                        try:
+                            os.close(fd)
+                        except OSError:
+                            pass
                     continue
                 descriptor = descriptor_from_dict(data, source="local")
                 if descriptor is None:

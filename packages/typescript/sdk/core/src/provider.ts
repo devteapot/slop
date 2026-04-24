@@ -151,20 +151,35 @@ export abstract class ProviderBase<S = unknown> {
 
     try {
       const data = await handler(msg.params ?? {});
-      const isAsync = data instanceof AsyncActionResult;
-      const resultData = isAsync
-        ? (data.data ?? {})
-        : data && typeof data === "object"
-          ? (data as Record<string, unknown>)
-          : {};
+      // Two equivalent async-action conventions per spec/extensions/async-actions.md:
+      // (1) return an AsyncActionResult instance (idiomatic TS), or
+      // (2) return a plain object with { __async: true, taskId, ... } (wire-level,
+      //     shared with the Python/Go/Rust SDKs).
+      const isAsyncInstance = data instanceof AsyncActionResult;
+      const isAsyncDict =
+        !isAsyncInstance &&
+        data !== null &&
+        typeof data === "object" &&
+        (data as Record<string, unknown>).__async === true;
+      const isAsync = isAsyncInstance || isAsyncDict;
+
+      let resultData: Record<string, unknown>;
+      if (isAsyncInstance) {
+        resultData = { taskId: data.taskId, ...(data.data ?? {}) };
+      } else if (isAsyncDict) {
+        // Strip the marker; everything else (including taskId) is passed through.
+        const { __async: _discard, ...rest } = data as Record<string, unknown>;
+        resultData = rest;
+      } else {
+        resultData = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+      }
+
       const result: Record<string, unknown> = {
         type: "result",
         id: msg.id,
         status: isAsync ? "accepted" : "ok",
       };
-      if (isAsync) {
-        result.data = { taskId: data.taskId, ...resultData };
-      } else if (Object.keys(resultData).length > 0) {
+      if (isAsync || Object.keys(resultData).length > 0) {
         result.data = resultData;
       }
       // Auto-refresh

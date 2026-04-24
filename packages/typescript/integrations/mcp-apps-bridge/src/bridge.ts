@@ -7,6 +7,7 @@ import {
   type SlopNode,
   WebSocketClientTransport,
 } from "@slop-ai/consumer/browser";
+import { connectBoth } from "./init-cleanup";
 import { createProjector, type ProjectionOptions } from "./projection";
 import { SameWindowPostMessageTransport } from "./transport-pm";
 
@@ -73,46 +74,11 @@ export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promis
   const transport = buildTransport(options.provider);
   const consumer = new SlopConsumer(transport);
 
-  // Track init state for partial-failure cleanup. Promise.all rejects as
-  // soon as one side fails, but the other connect promise may resolve
-  // *after* we've thrown — leaking its WebSocket or postMessage listeners.
-  // We use a shared `failed` flag so a late-successful connect immediately
-  // tears its own side down instead of waiting for the catch handler.
-  let failed = false;
-  let consumerConnected = false;
-  let appConnected = false;
-
-  const consumerPromise = consumer.connect().then(
-    () => {
-      if (failed) {
-        consumer.disconnect();
-        return;
-      }
-      consumerConnected = true;
-    },
-    (err) => {
-      failed = true;
-      throw err;
-    },
-  );
-  const appPromise = app.connect().then(
-    () => {
-      if (failed) {
-        void app.close().catch(() => {});
-        return;
-      }
-      appConnected = true;
-    },
-    (err) => {
-      failed = true;
-      throw err;
-    },
-  );
+  // Race-safe connect: see `connectBoth` for the cleanup guarantees.
+  await connectBoth(consumer, app);
 
   let subscriptionId: string;
   try {
-    await Promise.all([consumerPromise, appPromise]);
-
     const subCfg = options.subscribe ?? {};
     const sub = await consumer.subscribe(subCfg.path ?? "/", subCfg.depth ?? 1, {
       ...(subCfg.maxNodes != null && { max_nodes: subCfg.maxNodes }),
@@ -125,9 +91,8 @@ export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promis
     });
     subscriptionId = sub.id;
   } catch (err) {
-    failed = true;
-    if (consumerConnected) consumer.disconnect();
-    if (appConnected) void app.close().catch(() => {});
+    consumer.disconnect();
+    void app.close().catch(() => {});
     throw err;
   }
 

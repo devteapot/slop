@@ -49,10 +49,18 @@ All SLOP messages are wrapped in a postMessage envelope:
 window.postMessage({
   slop: true,              // Identifies this as a SLOP message
   message: { ... }         // The SLOP message (subscribe, snapshot, patch, etc.)
-}, "*");
+}, targetOrigin);          // Must be an explicit origin, NOT "*"
 ```
 
 The `slop: true` field distinguishes SLOP traffic from other postMessage usage on the page. Both sides filter on this field.
+
+**Origin and source verification (REQUIRED).** `slop: true` is an in-band hint, not a security boundary — any script on the page can forge it. Implementations MUST:
+
+- **Sender:** pass an explicit `targetOrigin` to `postMessage`. Never use `"*"` in production. Use the origin of the counterpart window (e.g. the expected extension bridge origin, or the page's own `window.location.origin` when the provider is same-origin).
+- **Receiver:** on every `message` event, verify `event.origin` against an allowlist before inspecting `event.data`. If the handshake expects a specific window (e.g. a known iframe), also check `event.source` identity. Reject anything that fails either check without reading the payload.
+- **Do not echo untrusted messages.** Relays/bridges MUST re-check origin on every hop; never forward messages whose origin was not verified on entry.
+
+Using `"*"` as a targetOrigin leaks SLOP messages (which may contain invoke results, patches, or consumer intent) to any window that happens to be on the page, including third-party iframes. This is a privacy and integrity failure, not merely a best-practice violation.
 
 **Connection handshake:**
 
@@ -81,6 +89,16 @@ Providers register themselves by creating a descriptor file in a well-known dire
 ~/.slop/providers/          # User-level providers
 /tmp/slop/providers/        # Session-level providers (ephemeral)
 ```
+
+**Filesystem hardening (REQUIRED).** These directories are shared across processes (especially `/tmp/slop/providers/` on multi-user systems), so descriptors and the directory itself are trust-sensitive:
+
+- The directory MUST exist with mode `0700` and be owned by the current user. Consumers MUST refuse to scan a provider directory whose owner is not the current user, or whose mode grants group/other access.
+- Descriptor files MUST be created with mode `0600`.
+- Descriptors MUST be written atomically: write to a same-directory temp file (e.g. `{app-id}.json.tmp.{pid}`) and `rename(2)` into place. Never leave a partially written descriptor visible.
+- Filenames MUST match `^[a-z0-9][a-z0-9._-]{0,63}\.json$`. Consumers MUST ignore files whose names do not match, and MUST NOT treat any segment of the filename as a path (no `/`, no `..`).
+- On read, consumers MUST re-verify owner and mode after `open()` (e.g. `fstat`) and ignore descriptors that fail either check. This closes TOCTOU races if a non-conforming file appears mid-scan.
+
+On Windows, which lacks POSIX modes, consumers MUST use the per-user `%LOCALAPPDATA%\slop\providers\` location and rely on the ACL inherited from that directory; a world-writable fallback is NOT acceptable.
 
 Each provider writes a JSON file named `{app-id}.json`:
 
@@ -228,24 +246,41 @@ The consumer may then send subscriptions, queries, or invocations. No handshake 
 
 ## Capabilities
 
-Capabilities declare which features a provider supports. Consumers must not rely on capabilities the provider hasn't declared.
+Capabilities are declared by the provider in its `hello` message. They are load-bearing: both sides use them to decide what requests are meaningful, and the provider's reaction to a request that depends on an undeclared capability MUST be deterministic.
 
-| Capability | Meaning |
-|---|---|
-| `state` | Provider exposes a state tree (required) |
-| `patches` | Provider sends incremental patches after snapshots |
-| `affordances` | Nodes may include affordances |
-| `attention` | Nodes may include salience/attention metadata |
-| `windowing` | Collections support windowed queries |
-| `async` | Provider may return `accepted` status on invoke results |
-| `content_refs` | Nodes may include `content_ref` fields |
+| Capability | Meaning | If absent, provider MUST |
+|---|---|---|
+| `state` | Provider exposes a state tree. **Required** — every provider declares this. | n/a — absence means "not a SLOP provider" and the consumer should disconnect. |
+| `patches` | After a `snapshot`, the provider sends `patch` messages as state changes. | Still answer `subscribe` with a `snapshot` (state is observable at subscribe time), but never emit `patch`. Consumers MAY resubscribe/re-query to get a fresh state. Consumers SHOULD prefer `query` for one-shot reads when they know the provider does not support patches. |
+| `affordances` | Nodes may carry `affordances`. `invoke` is meaningful. | Reject `invoke` with `{ status: "error", error: { code: "not_supported" } }`. The state tree MUST NOT contain any `affordances` arrays. |
+| `attention` | Nodes may carry `meta.salience`, `meta.urgency`, `meta.pinned`, etc. | Ignore `filter.min_salience` on `subscribe`/`query`; do not emit salience/urgency fields in `meta`. |
+| `windowing` | `query` honors `window: [offset, count]` for paginating large child lists. `subscribe` does not accept `window`. | Ignore the `window` field on `query` and return the full child list (subject to other limits). Consumers that rely on windowing for large collections SHOULD check this capability first. |
+| `async` | Actions may complete asynchronously; `invoke` may return `status: "accepted"`. | Never return `accepted`. Consumers treat any stray `accepted` as `ok` (see [messages.md §invoke result](messages.md#extended-result-statuses)), but providers SHOULD NOT emit it when the capability is absent. |
+| `content_refs` | Nodes may include `content_ref` for out-of-band content. The provider exposes a `read_content` affordance (invoked via the standard `invoke` message) to return inline content for `slop://` references. See [content-references.md](../extensions/content-references.md). | No `content_ref` fields appear in the tree. An `invoke` targeting a `read_content` affordance is rejected like any other unknown action. |
 
-`state` is the only required capability. Everything else is opt-in.
+`state` is the only required capability. Everything else is opt-in. A provider that advertises *only* `state` is a valid, read-only, snapshot-at-a-moment SLOP provider (useful for logs, reports, or static state dumps).
+
+**Consumer obligations.**
+
+- Consumers MUST NOT assume a capability is present just because the provider answered a related request. Always check the `hello.provider.capabilities` array.
+- Consumers that require a capability the provider didn't advertise SHOULD disconnect rather than probe (reduces noise in provider logs).
+- Reference consumer SDKs expose the received capability list so application code can branch on it.
+
+**Provider obligations.**
+
+- Providers MUST advertise every capability they actually use. Emitting an `affordances` array without declaring `affordances` is a protocol violation.
+- Providers MUST honor the "if absent" column above. If a provider does not support `patches`, it MUST NOT emit patches even if the consumer subscribed — consumers that can't fall back to polling will silently miss updates otherwise.
+- The `hello` capability list is authoritative for the lifetime of the connection. Capabilities do not change mid-connection; to change them, the provider must disconnect and the consumer must reconnect.
 
 ## Security considerations
 
-- **Local transports** (Unix sockets, stdio) inherit filesystem permissions. Providers should set restrictive permissions on socket files (0600).
-- **WebSocket transports** must require authentication for non-localhost connections. A bearer token in the initial HTTP upgrade request is the simplest approach.
+- **Local transports** (Unix sockets, stdio) inherit filesystem permissions. Providers MUST set socket file mode to `0600` and MUST NOT place sockets in world-writable directories. Provider descriptor files and their enclosing directory are subject to the hardening rules in [Local discovery](#local-discovery) (owner check, `0700`/`0600`, atomic rename, filename allowlist).
+- **WebSocket transports** MUST authenticate every connection that is not bound to `127.0.0.1` / `::1`. The authentication check happens *during* the HTTP upgrade — before the WebSocket is accepted and before any SLOP message is delivered. Reference SDKs expose an `authenticate(request)` hook on every WebSocket handler (TypeScript Node/Bun/Nitro, Go `WebSocketHandlerWithOptions`, Python `serve(..., authenticate=...)` and `SlopMiddleware(..., authenticate=...)`, Rust `websocket::serve_with_options` and `slop_router_with_options`); implementers MUST wire this hook and reject the upgrade (`401`/`403`) when it returns false or throws. SDKs MUST default-deny when no `authenticate` hook is configured — accepting upgrades silently is a protocol violation.
+  - The recommended transport of the credential is an `Authorization: Bearer <token>` HTTP header on the upgrade request. Tokens MUST be opaque and high-entropy; never accept tokens as URL path segments (they leak into proxies and access logs).
+  - When a header is impractical (browser `WebSocket` constructor cannot set `Authorization`), implementers MAY instead pass the token in the WebSocket `Sec-WebSocket-Protocol` subprotocol (for example, `["slop.bearer", "<token>"]`), verify it during upgrade, and echo back only the non-secret subprotocol label on accept.
+  - Tokens MUST be compared in constant time and MUST NOT be logged. Servers MUST also validate the request `Origin` against an allowlist when the connection originates from a browser; `Origin: null` or a wildcard MUST NOT be accepted in production. Development-only origin bypass flags are acceptable only when they default to off and the server logs a clear warning when active.
+  - Bridges and proxies MUST NOT weaken this rule. A non-loopback WebSocket that the provider believes is loopback (because a bridge terminated TLS for it) is still a multi-tenant surface — the provider MUST authenticate every connection unless it has a transport-level guarantee that the peer is the same user.
+- **postMessage transports** MUST NOT use `"*"` as a `targetOrigin` and MUST verify `event.origin` on every received message. See [postMessage convention](#postmessage-convention).
 - **Providers should not expose secrets** in the state tree. The state tree is a projection, not an internal dump — treat it like a public API surface.
 - **Affordance invocations are untrusted input.** Providers must validate all parameters, just as they would for any API endpoint.
 - **Prompt injection is in scope.** A consumer may send fabricated, stale, or policy-violating `invoke` messages regardless of what the tree previously showed. Providers must re-authorize every invoke against live state, caller identity, and resource policy.

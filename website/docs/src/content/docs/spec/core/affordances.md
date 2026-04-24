@@ -52,10 +52,30 @@ Key differences:
 | `action` | yes | string | Action identifier, unique within the node |
 | `label` | no | string | Human-readable name |
 | `description` | no | string | Explains what this does (for AI) |
-| `params` | no | JSON Schema | Parameter schema (if the action takes input) |
+| `params` | no | JSON Schema subset (see below) | Parameter schema (if the action takes input) |
 | `dangerous` | no | boolean | If true, consumer should confirm before invoking |
 | `idempotent` | no | boolean | If true, safe to call multiple times |
 | `estimate` | no | string | Duration hint: `"instant"`, `"fast"` (<1s), `"slow"` (>1s), `"async"` (background) |
+
+### `params` schema dialect
+
+`params` uses a deliberately small subset of JSON Schema — the part reference SDKs actually enforce on every `invoke`. Providers SHOULD stick to this subset; consumers and reference validators MUST at minimum enforce the keywords below and MAY treat other keywords as informational hints.
+
+**Enforced keywords:**
+
+| Keyword | Applies to | Behavior |
+|---|---|---|
+| `type` | any | One of `"object"`, `"array"`, `"string"`, `"number"`, `"integer"`, `"boolean"`, `"null"`. Mismatch rejects with `invalid_params`. |
+| `properties` | `object` | Each named property is validated against its sub-schema when present. |
+| `required` | `object` | Listed keys MUST be present. |
+| `items` | `array` | Each element is validated against the schema (array-of-schemas / tuple form is not part of the subset). |
+| `enum` | any | Value must deep-equal one of the listed members. |
+
+**Informational keywords.** `description`, `default`, `title`, `examples` — these are carried through to consumers (AI models and humans reading the affordance) but do not affect validation.
+
+**Keywords outside the subset.** `additionalProperties`, `minimum`/`maximum`, `minLength`/`maxLength`, `pattern`, `format`, `oneOf`/`anyOf`/`allOf`, `$ref`, `const`, etc. are **not** part of the SLOP subset. Reference validators silently accept values regardless of these keywords — do not rely on them for enforcement. A provider that needs tighter validation MUST re-check inside the handler before acting on the params.
+
+This subset is what the reference validators in `packages/typescript/sdk/core`, `packages/python/slop-ai`, `packages/go/slop-ai`, and `packages/rust/slop-ai` implement. Keeping the protocol-level contract this narrow keeps cross-language SDKs interoperable and keeps affordance schemas cheap to encode into model context.
 
 ### Parameterless affordances
 
@@ -124,7 +144,7 @@ Affordances are invoked via the `invoke` message (see [Messages](/spec/core/mess
 
 The provider:
 1. Validates the action exists on the target node
-2. Validates parameters against the affordance's `params` schema
+2. Validates parameters against the affordance's `params` schema. If the schema is a JSON Schema and the supplied `params` don't conform, the provider MUST return `result { status: "error", error.code: "invalid_params" }` without invoking the handler. Reference SDKs (`@slop-ai/core`, `slop-ai` Python, Go, Rust) ship a shared validator and invoke it automatically before dispatch; independent implementations MUST do the same so the `invalid_params` code is reliable across the protocol.
 3. Re-validates that the action is still allowed under the provider's current state, session permissions, and app policy
 4. Executes the action
 5. Returns a `result` message

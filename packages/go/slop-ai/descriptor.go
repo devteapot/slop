@@ -1,10 +1,45 @@
 package slop
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+var reservedNodeIDKeywords = map[string]struct{}{
+	"properties":  {},
+	"children":    {},
+	"affordances": {},
+	"meta":        {},
+	"content_ref": {},
+	"id":          {},
+	"type":        {},
+}
+
+// validateNodeID enforces spec constraints on node IDs (see spec/core/state-tree.md).
+// It panics on invalid input since this represents a programming error at the
+// provider boundary; providers that derive IDs from external data must sanitize first.
+func validateNodeID(id string) {
+	if id == "" {
+		panic("SLOP node id must be a non-empty string")
+	}
+	if _, ok := reservedNodeIDKeywords[id]; ok {
+		panic(fmt.Sprintf(
+			"SLOP node id %q collides with a reserved field keyword (properties, children, affordances, meta, content_ref, id, type)",
+			id,
+		))
+	}
+	if strings.ContainsAny(id, "/~") {
+		panic(fmt.Sprintf(
+			"SLOP node id %q must not contain \"/\" or \"~\" — these are reserved in patch paths",
+			id,
+		))
+	}
+}
 
 // normalizeDescriptor converts a developer-facing Node into a WireNode
 // and extracts action handlers into a flat map keyed by "path/action".
 func normalizeDescriptor(path, id string, node Node) (WireNode, map[string]Handler) {
+	validateNodeID(id)
 	handlers := map[string]Handler{}
 	var children []WireNode
 	meta := extractMeta(node.Summary, node.Meta)
@@ -87,6 +122,7 @@ func normalizeDescriptor(path, id string, node Node) (WireNode, map[string]Handl
 }
 
 func normalizeItem(path string, item Item) (WireNode, map[string]Handler) {
+	validateNodeID(item.ID)
 	handlers := map[string]Handler{}
 	var children []WireNode
 

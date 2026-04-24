@@ -20,28 +20,38 @@ type ClientTransport interface {
 	Connect(ctx context.Context) (ClientConnection, error)
 }
 
+// subscriptionRecord stores the parameters used to create a subscription so
+// the consumer can resubscribe on gap recovery.
+type subscriptionRecord struct {
+	path  string
+	depth int
+}
+
 // Consumer connects to a SLOP provider and mirrors state.
 type Consumer struct {
-	transport  ClientTransport
-	conn       ClientConnection
-	mirrors    map[string]*StateMirror
-	pending    map[string]chan map[string]any
-	subCounter int
-	reqCounter int
-	mu         sync.Mutex
+	transport     ClientTransport
+	conn          ClientConnection
+	mirrors       map[string]*StateMirror
+	subscriptions map[string]subscriptionRecord
+	pending       map[string]chan map[string]any
+	subCounter    int
+	reqCounter    int
+	mu            sync.Mutex
 
 	onPatch      []func(subID string, ops []PatchOp, version int)
 	onDisconnect []func()
 	onError      []func(code, message string)
 	onEvent      []func(name string, data any)
+	onGap        []func(subID string, expected, received uint64)
 }
 
 // NewConsumer creates a Consumer that will use the given transport to connect.
 func NewConsumer(transport ClientTransport) *Consumer {
 	return &Consumer{
-		transport: transport,
-		mirrors:   map[string]*StateMirror{},
-		pending:   map[string]chan map[string]any{},
+		transport:     transport,
+		mirrors:       map[string]*StateMirror{},
+		subscriptions: map[string]subscriptionRecord{},
+		pending:       map[string]chan map[string]any{},
 	}
 }
 
@@ -91,10 +101,11 @@ func (c *Consumer) handleMessage(msg map[string]any, helloCh chan map[string]any
 	case "snapshot":
 		id, _ := msg["id"].(string)
 		version := jsonInt(msg["version"])
+		seq := uint64(jsonInt(msg["seq"]))
 		tree := unmarshalWireNodeFromAny(msg["tree"])
 
 		c.mu.Lock()
-		c.mirrors[id] = NewStateMirror(tree, version)
+		c.mirrors[id] = NewStateMirrorFromSnapshot(tree, version, seq)
 		ch, hasPending := c.pending[id]
 		if hasPending {
 			delete(c.pending, id)
@@ -112,15 +123,54 @@ func (c *Consumer) handleMessage(msg map[string]any, helloCh chan map[string]any
 		}
 		version := jsonInt(msg["version"])
 		ops := unmarshalPatchOps(msg["ops"])
+		hasSeq := msg["seq"] != nil
+		seq := uint64(jsonInt(msg["seq"]))
 
 		c.mu.Lock()
 		mirror, ok := c.mirrors[id]
+		var gapErr *SubscriptionGapError
 		if ok {
-			mirror.ApplyPatch(ops, version)
+			if hasSeq {
+				if err := mirror.ApplyPatchWithSeq(ops, version, seq); err != nil {
+					if ge, isGap := err.(*SubscriptionGapError); isGap {
+						gapErr = ge
+					}
+				}
+			} else {
+				mirror.ApplyPatch(ops, version)
+			}
 		}
 		handlers := make([]func(string, []PatchOp, int), len(c.onPatch))
 		copy(handlers, c.onPatch)
+		var gapHandlers []func(string, uint64, uint64)
+		var sub subscriptionRecord
+		var hasSub bool
+		if gapErr != nil {
+			// Spec: consumer MUST unsubscribe and fresh-subscribe to recover.
+			delete(c.mirrors, id)
+			sub, hasSub = c.subscriptions[id]
+			gapHandlers = make([]func(string, uint64, uint64), len(c.onGap))
+			copy(gapHandlers, c.onGap)
+		}
 		c.mu.Unlock()
+
+		if gapErr != nil {
+			if c.conn != nil {
+				_ = c.conn.Send(map[string]any{"type": "unsubscribe", "id": id})
+				if hasSub {
+					_ = c.conn.Send(map[string]any{
+						"type":  "subscribe",
+						"id":    id,
+						"path":  sub.path,
+						"depth": sub.depth,
+					})
+				}
+			}
+			for _, fn := range gapHandlers {
+				fn(id, gapErr.Expected, gapErr.Received)
+			}
+			return
+		}
 
 		for _, fn := range handlers {
 			fn(id, ops, version)
@@ -198,6 +248,7 @@ func (c *Consumer) Subscribe(ctx context.Context, path string, depth int) (strin
 	id := fmt.Sprintf("sub_%d", c.subCounter)
 	ch := make(chan map[string]any, 1)
 	c.pending[id] = ch
+	c.subscriptions[id] = subscriptionRecord{path: path, depth: depth}
 	c.mu.Unlock()
 
 	err := c.conn.Send(map[string]any{
@@ -229,6 +280,7 @@ func (c *Consumer) Subscribe(ctx context.Context, path string, depth int) (strin
 func (c *Consumer) Unsubscribe(id string) {
 	c.mu.Lock()
 	delete(c.mirrors, id)
+	delete(c.subscriptions, id)
 	c.mu.Unlock()
 
 	if c.conn != nil {
@@ -364,6 +416,15 @@ func (c *Consumer) OnEvent(fn func(name string, data any)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.onEvent = append(c.onEvent, fn)
+}
+
+// OnGap registers a callback invoked when a per-subscription seq gap is
+// detected and the consumer has initiated an unsubscribe+resubscribe recovery.
+// The callback receives the subscription id, expected seq, and received seq.
+func (c *Consumer) OnGap(fn func(subID string, expected, received uint64)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onGap = append(c.onGap, fn)
 }
 
 // --- helpers ---

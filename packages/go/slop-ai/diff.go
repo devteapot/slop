@@ -3,7 +3,24 @@ package slop
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
+
+// escapePointerSegment applies RFC 6901 JSON Pointer escaping for use inside
+// reserved field segments (properties, meta). Node ID segments must not
+// contain '/' or '~' and are not escaped.
+func escapePointerSegment(key string) string {
+	key = strings.ReplaceAll(key, "~", "~0")
+	key = strings.ReplaceAll(key, "/", "~1")
+	return key
+}
+
+// unescapePointerSegment reverses escapePointerSegment.
+func unescapePointerSegment(segment string) string {
+	segment = strings.ReplaceAll(segment, "~1", "/")
+	segment = strings.ReplaceAll(segment, "~0", "~")
+	return segment
+}
 
 // diffNodes recursively diffs two WireNode trees and returns JSON Patch operations.
 // Paths use node IDs for children segments (not array indices).
@@ -31,7 +48,7 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 	for key := range allKeys {
 		oldVal, oldOk := oldProps[key]
 		newVal, newOk := newProps[key]
-		path := fmt.Sprintf("%s/properties/%s", basePath, key)
+		path := fmt.Sprintf("%s/properties/%s", basePath, escapePointerSegment(key))
 
 		if !oldOk && newOk {
 			ops = append(ops, PatchOp{Op: "add", Path: path, Value: newVal})
@@ -80,25 +97,64 @@ func diffNodes(old, new *WireNode, basePath string) []PatchOp {
 		newMap[new.Children[i].ID] = &new.Children[i]
 	}
 
-	// Removed
+	// Children: emit remove/add(index)/move so that the consumer reconstructs
+	// the exact target order.
+	working := make([]string, 0, len(old.Children))
 	for _, child := range old.Children {
 		if _, ok := newMap[child.ID]; !ok {
 			ops = append(ops, PatchOp{
 				Op:   "remove",
 				Path: fmt.Sprintf("%s/%s", basePath, child.ID),
 			})
+		} else {
+			working = append(working, child.ID)
 		}
 	}
 
-	// Added
-	for _, child := range new.Children {
+	for i := range new.Children {
+		child := new.Children[i]
 		if _, ok := oldMap[child.ID]; !ok {
+			idx := i
 			ops = append(ops, PatchOp{
 				Op:    "add",
 				Path:  fmt.Sprintf("%s/%s", basePath, child.ID),
 				Value: child,
+				Index: &idx,
 			})
+			// insert into working at position i
+			working = append(working, "")
+			copy(working[i+1:], working[i:])
+			working[i] = child.ID
 		}
+	}
+
+	for i := range new.Children {
+		target := new.Children[i].ID
+		if i < len(working) && working[i] == target {
+			continue
+		}
+		currentIdx := -1
+		for j := i; j < len(working); j++ {
+			if working[j] == target {
+				currentIdx = j
+				break
+			}
+		}
+		if currentIdx == -1 {
+			continue
+		}
+		idx := i
+		ops = append(ops, PatchOp{
+			Op:    "move",
+			Path:  fmt.Sprintf("%s/%s", basePath, target),
+			Index: &idx,
+		})
+		// move working[currentIdx] to position i
+		id := working[currentIdx]
+		working = append(working[:currentIdx], working[currentIdx+1:]...)
+		working = append(working, "")
+		copy(working[i+1:], working[i:])
+		working[i] = id
 	}
 
 	// Recursively diff shared children

@@ -53,12 +53,25 @@ from slop_ai.transports.websocket import serve
 
 slop = SlopServer("my-app", "My App")
 
+def _authenticate(request):
+    # Inspect request.headers and return True to accept. Required for any
+    # non-loopback binding — see spec/core/transport.md §Security considerations.
+    return verify_bearer(request.headers.get("Authorization"))
+
 async def main():
-    server = await serve(slop, host="0.0.0.0", port=8765)
+    server = await serve(
+        slop,
+        host="0.0.0.0",
+        port=8765,
+        authenticate=_authenticate,
+        allowed_origins=["https://app.example.com"],
+    )
     await server.wait_closed()
 
 asyncio.run(main())
 ```
+
+Binding to loopback (`host="127.0.0.1"`) and omitting both hooks is fine for local-only dev, but any publicly reachable port MUST configure both.
 
 ## Unix socket and stdio
 

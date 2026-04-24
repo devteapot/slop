@@ -68,6 +68,7 @@ pub mod tools;
 pub mod transport;
 pub mod tree;
 pub mod types;
+pub mod validate_params;
 
 #[cfg(feature = "native")]
 pub mod consumer;
@@ -77,11 +78,11 @@ pub mod discovery;
 
 // Re-export main types at crate root
 pub use error::{Result, SlopError};
-pub use server::{ActionOptions, Connection, ScopedServer, SlopServer};
 pub use scaling::{
     auto_compact, count_nodes, filter_tree, get_subtree, prepare_tree, truncate_tree,
     OutputTreeOptions,
 };
+pub use server::{ActionOptions, Connection, ScopedServer, SlopServer};
 pub use state_mirror::StateMirror;
 pub use tools::{affordances_to_tools, format_tree, LlmFunction, LlmTool, ToolResolution, ToolSet};
 pub use types::{

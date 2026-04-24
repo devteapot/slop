@@ -116,11 +116,43 @@ pub async fn listen(slop: &SlopServer, socket_path: &str) -> Result<JoinHandle<(
     Ok(handle)
 }
 
+/// Check whether `id` is a valid descriptor filename stem.
+/// See spec/core/transport.md §Local discovery.
+fn is_valid_descriptor_stem(id: &str) -> bool {
+    let len = id.len();
+    if len == 0 || len > 64 {
+        return false;
+    }
+    let bytes = id.as_bytes();
+    if !(bytes[0].is_ascii_lowercase() || bytes[0].is_ascii_digit()) {
+        return false;
+    }
+    bytes
+        .iter()
+        .all(|&b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.' || b == b'_' || b == b'-')
+}
+
 /// Write a discovery descriptor to `~/.slop/providers/`.
+///
+/// The providers directory is created with mode 0700 and the descriptor is
+/// written atomically (write to a same-directory temp file, then rename) with
+/// mode 0600. See spec/core/transport.md §Local discovery.
 pub fn register_provider(id: &str, name: &str, socket_path: &str) -> Result<()> {
+    if !is_valid_descriptor_stem(id) {
+        return Err(SlopError::Transport(format!(
+            "provider id {id:?} is not a valid descriptor filename stem",
+        )));
+    }
     let home = dirs_home()?;
     let providers_dir = Path::new(&home).join(".slop").join("providers");
     std::fs::create_dir_all(&providers_dir).map_err(|e| SlopError::Transport(e.to_string()))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&providers_dir, std::fs::Permissions::from_mode(0o700))
+            .map_err(|e| SlopError::Transport(e.to_string()))?;
+    }
 
     let descriptor = serde_json::json!({
         "id": id,
@@ -131,14 +163,33 @@ pub fn register_provider(id: &str, name: &str, socket_path: &str) -> Result<()> 
         "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"]
     });
 
-    let path = providers_dir.join(format!("{id}.json"));
-    std::fs::write(&path, serde_json::to_string_pretty(&descriptor)?)
+    let final_path = providers_dir.join(format!("{id}.json"));
+    let tmp_path = providers_dir.join(format!("{id}.json.tmp.{}", std::process::id()));
+    std::fs::write(&tmp_path, serde_json::to_string_pretty(&descriptor)?)
         .map_err(|e| SlopError::Transport(e.to_string()))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(e) = std::fs::set_permissions(&tmp_path, std::fs::Permissions::from_mode(0o600))
+        {
+            let _ = std::fs::remove_file(&tmp_path);
+            return Err(SlopError::Transport(e.to_string()));
+        }
+    }
+
+    std::fs::rename(&tmp_path, &final_path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp_path);
+        SlopError::Transport(e.to_string())
+    })?;
     Ok(())
 }
 
 /// Remove a discovery descriptor from `~/.slop/providers/`.
 pub fn unregister_provider(id: &str) -> Result<()> {
+    if !is_valid_descriptor_stem(id) {
+        return Ok(());
+    }
     let home = dirs_home()?;
     let path = Path::new(&home)
         .join(".slop")

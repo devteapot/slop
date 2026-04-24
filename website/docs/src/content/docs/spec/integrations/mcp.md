@@ -61,8 +61,10 @@ The `@modelcontextprotocol/ext-apps` `App` helper exposes convenience APIs over 
 Inside the iframe the wire envelope is the standard SLOP postMessage form:
 
 ```jsonc
-window.postMessage({ slop: true, message: { ... } }, "*");
+window.postMessage({ slop: true, message: { ... } }, targetOrigin);
 ```
+
+`targetOrigin` MUST be an explicit origin, never `"*"` — see the [transport spec](/spec/core/transport) for origin and source verification requirements. In an MCP Apps iframe, use the host page's origin (as delivered by the MCP Apps handshake); the bridge MUST verify `event.origin` on every inbound message before inspecting `event.data`.
 
 The bridge adapter is responsible for demultiplexing: MCP Apps frames (no `slop` field) go to the MCP host; frames with `slop: true` go to the SLOP consumer.
 

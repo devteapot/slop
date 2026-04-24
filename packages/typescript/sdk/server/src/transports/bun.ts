@@ -1,4 +1,4 @@
-import type { SlopServer, Connection } from "../server";
+import type { Connection, SlopServer } from "../server";
 
 /**
  * Create a Bun.serve handler for SLOP.
@@ -18,18 +18,66 @@ import type { SlopServer, Connection } from "../server";
  * });
  * ```
  */
-export function bunHandler(slop: SlopServer, options: { path?: string; discovery?: boolean } = {}) {
+export interface BunHandlerOptions {
+  path?: string;
+  discovery?: boolean;
+  /**
+   * Authenticate the incoming upgrade request. Return `true` to accept,
+   * `false` to reject with `401`. See spec/core/transport.md §Security.
+   *
+   * If not supplied, non-loopback upgrades are rejected with `401` by default.
+   */
+  authenticate?: (req: Request) => boolean | Promise<boolean>;
+  /** Allowed `Origin` values for browser upgrades. */
+  allowedOrigins?: string[];
+}
+
+export function bunHandler(slop: SlopServer, options: BunHandlerOptions = {}) {
   const path = options.path ?? "/slop";
   const discovery = options.discovery !== false;
+  const authenticate = options.authenticate;
+  const allowedOrigins = options.allowedOrigins;
 
   const connections = new WeakMap<any, Connection>();
 
   return {
-    fetch(req: Request, server: any): Response | undefined {
+    async fetch(req: Request, server: any): Promise<Response | undefined> {
       const url = new URL(req.url);
 
       // WebSocket upgrade
       if (url.pathname === path && req.headers.get("upgrade") === "websocket") {
+        const origin = req.headers.get("origin");
+        if (origin !== null) {
+          if (!allowedOrigins) {
+            console.warn(
+              "[slop] refusing browser WebSocket upgrade: no allowedOrigins configured. " +
+                "See spec/core/transport.md §Security considerations.",
+            );
+            return new Response("Forbidden", { status: 403 });
+          }
+          if (!allowedOrigins.includes(origin)) {
+            return new Response("Forbidden", { status: 403 });
+          }
+        }
+
+        const remote = (server.requestIP?.(req) as { address?: string } | null)?.address ?? "";
+        const isLoopback = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
+
+        if (authenticate) {
+          try {
+            const ok = await authenticate(req);
+            if (!ok) return new Response("Unauthorized", { status: 401 });
+          } catch {
+            return new Response("Unauthorized", { status: 401 });
+          }
+        } else if (!isLoopback) {
+          console.warn(
+            "[slop] refusing non-loopback WebSocket upgrade: no authenticate hook configured. " +
+              "See spec/core/transport.md §Security considerations.",
+          );
+          return new Response("Unauthorized", { status: 401 });
+        }
+
         const upgraded = server.upgrade(req);
         if (upgraded) return undefined;
         return new Response("WebSocket upgrade failed", { status: 500 });

@@ -1,49 +1,62 @@
-import { ProviderBase } from "./provider";
-import { AsyncActionResult } from "./types";
-import { pick, omit, action } from "./helpers";
-import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
-import { prepareTree, getSubtree, truncateTree, autoCompact, filterTree, countNodes } from "./scaling";
+import { action, omit, pick } from "./helpers";
+import { ProviderBase, SubtreeNotFoundError } from "./provider";
+import { autoCompact, countNodes, filterTree, getSubtree, prepareTree, truncateTree } from "./scaling";
+import { assembleTree } from "./tree-assembler";
+import { AsyncActionResult } from "./types";
 
-// Provider base (shared between client and server)
-export { ProviderBase };
-export type { SubscriptionFilter, OutputRequest } from "./provider";
-
-// Async action result marker
-export { AsyncActionResult };
-
-// Re-export types
-export type {
-  SlopClient,
-  SlopClientOptions,
-  NodeDescriptor,
-  ItemDescriptor,
-  Action,
-  ActionHandler,
-  ParamDef,
-  SlopNode,
-  Affordance,
-  NodeMeta,
-  JsonSchema,
-  PatchOp,
-  ContentRef,
-  WindowDescriptor,
-  TaskHandle,
-  InferParams,
-} from "./types";
-
-// Transport interface
-export type { Transport } from "./transport";
-
+// Path utilities
+export {
+  escapeJsonPointerSegment,
+  isValidNodeId,
+  unescapeJsonPointerSegment,
+  validateNodeId,
+} from "./paths";
+export type { OutputRequest, SubscriptionFilter } from "./provider";
+export type { OutputTreeOptions } from "./scaling";
 // Re-export schema types
 export type { ExtractPaths, ExtractSubSchema } from "./schema-types";
-
+// Transport interface
+export type { Transport } from "./transport";
+// Re-export types
+export type {
+  Action,
+  ActionHandler,
+  Affordance,
+  ContentRef,
+  InferParams,
+  ItemDescriptor,
+  JsonSchema,
+  NodeDescriptor,
+  NodeMeta,
+  ParamDef,
+  PatchOp,
+  SlopClient,
+  SlopClientOptions,
+  SlopNode,
+  TaskHandle,
+  WindowDescriptor,
+} from "./types";
+// Param validator
+export { validateParams } from "./validate-params";
+// Provider base (shared between client and server)
+// Async action result marker
 // Re-export helpers
-export { pick, omit, action };
-
 // Re-export internals for advanced use
-export { assembleTree, diffNodes };
-
 // Scaling utilities
-export { prepareTree, getSubtree, truncateTree, autoCompact, filterTree, countNodes };
-export type { OutputTreeOptions } from "./scaling";
+export {
+  AsyncActionResult,
+  action,
+  assembleTree,
+  autoCompact,
+  countNodes,
+  diffNodes,
+  filterTree,
+  getSubtree,
+  omit,
+  ProviderBase,
+  pick,
+  prepareTree,
+  SubtreeNotFoundError,
+  truncateTree,
+};

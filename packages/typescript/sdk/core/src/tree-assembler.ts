@@ -1,5 +1,6 @@
-import type { SlopNode, ActionHandler, NodeDescriptor } from "./types";
 import { normalizeDescriptor } from "./descriptor";
+import { validateNodeId } from "./paths";
+import type { ActionHandler, NodeDescriptor, SlopNode } from "./types";
 
 export interface AssemblyResult {
   tree: SlopNode;
@@ -15,6 +16,17 @@ export function assembleTree(
   rootId: string,
   rootName: string,
 ): AssemblyResult {
+  validateNodeId(rootId);
+  // Validate every path segment before any registrations produce synthetic
+  // placeholders. Without this, a registration like "bad~parent/child" only
+  // validates `child` (the last segment) and the intermediate `bad~parent`
+  // becomes an unaddressable synthetic node — `~` is reserved for JSON
+  // Pointer escaping and forbidden in node IDs (spec/core/state-tree.md §id).
+  for (const path of registrations.keys()) {
+    for (const segment of path.split("/")) {
+      validateNodeId(segment);
+    }
+  }
   const allHandlers = new Map<string, ActionHandler>();
   const nodesByPath = new Map<string, SlopNode>();
 

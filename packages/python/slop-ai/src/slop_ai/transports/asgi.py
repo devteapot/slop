@@ -20,16 +20,43 @@ Or mount as a standalone ASGI app::
 from __future__ import annotations
 
 import asyncio
+import inspect
+import ipaddress
 import json
-from typing import Any, Callable, Awaitable
+import logging
+from typing import Any, Awaitable, Callable, Iterable
 
 from slop_ai.server import SlopServer
+
+_log = logging.getLogger(__name__)
 
 # ASGI type aliases
 Scope = dict[str, Any]
 Receive = Callable[[], Awaitable[dict[str, Any]]]
 Send = Callable[[dict[str, Any]], Awaitable[None]]
 ASGIApp = Callable[[Scope, Receive, Send], Awaitable[None]]
+
+# Authenticate hook: receives the ASGI scope and returns True to accept.
+# May be sync or async; raising is treated the same as returning False.
+Authenticator = Callable[[Scope], "bool | Awaitable[bool]"]
+
+
+def _scope_is_loopback(scope: Scope) -> bool:
+    client = scope.get("client")
+    if not client:
+        return False
+    host = client[0] if isinstance(client, (list, tuple)) else str(client)
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host in ("localhost", "::1")
+
+
+def _scope_origin(scope: Scope) -> str | None:
+    for name, value in scope.get("headers", []):
+        if name == b"origin":
+            return value.decode()
+    return None
 
 
 class _WebSocketConnection:
@@ -69,11 +96,15 @@ class SlopMiddleware:
         *,
         path: str = "/slop",
         discovery: bool = True,
+        authenticate: Authenticator | None = None,
+        allowed_origins: Iterable[str] | None = None,
     ) -> None:
         self.app = app
         self.slop = slop
         self.path = path
         self.discovery = discovery
+        self.authenticate = authenticate
+        self.allowed_origins = set(allowed_origins) if allowed_origins is not None else None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "websocket" and scope.get("path") == self.path:
@@ -93,6 +124,42 @@ class SlopMiddleware:
         event = await receive()
         if event["type"] != "websocket.connect":
             return
+
+        # Origin allowlist. Browsers always send Origin; default-deny when
+        # no allowlist is configured per spec/core/transport.md §Security.
+        origin = _scope_origin(scope)
+        if origin is not None:
+            if self.allowed_origins is None:
+                _log.warning(
+                    "[slop] refusing browser WebSocket upgrade: no allowed_origins configured. "
+                    "See spec/core/transport.md §Security considerations."
+                )
+                await send({"type": "websocket.close", "code": 4003})
+                return
+            if origin not in self.allowed_origins:
+                await send({"type": "websocket.close", "code": 4003})
+                return
+
+        # Authentication. Default-deny non-loopback when no hook is configured.
+        if self.authenticate is not None:
+            try:
+                result = self.authenticate(scope)
+                if inspect.isawaitable(result):
+                    result = await result
+                if not result:
+                    await send({"type": "websocket.close", "code": 4401})
+                    return
+            except Exception:
+                await send({"type": "websocket.close", "code": 4401})
+                return
+        elif not _scope_is_loopback(scope):
+            _log.warning(
+                "[slop] refusing non-loopback WebSocket upgrade: no authenticate hook configured. "
+                "See spec/core/transport.md §Security considerations."
+            )
+            await send({"type": "websocket.close", "code": 4401})
+            return
+
         await send({"type": "websocket.accept"})
 
         conn = _WebSocketConnection(send)
@@ -154,6 +221,8 @@ def asgi_app(
     *,
     path: str = "/slop",
     discovery: bool = True,
+    authenticate: Authenticator | None = None,
+    allowed_origins: Iterable[str] | None = None,
 ) -> ASGIApp:
     """Return a standalone ASGI application for SLOP.
 
@@ -174,4 +243,11 @@ def asgi_app(
             })
             await send({"type": "http.response.body", "body": b"Not Found"})
 
-    return SlopMiddleware(_not_found, slop, path=path, discovery=discovery)
+    return SlopMiddleware(
+        _not_found,
+        slop,
+        path=path,
+        discovery=discovery,
+        authenticate=authenticate,
+        allowed_origins=allowed_origins,
+    )

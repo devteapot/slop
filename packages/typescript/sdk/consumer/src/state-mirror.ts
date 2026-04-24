@@ -1,17 +1,46 @@
-import type { SlopNode, PatchOp, SnapshotMessage, PatchMessage } from "./types";
+import type { PatchMessage, PatchOp, SlopNode, SnapshotMessage } from "./types";
 
 const NODE_FIELDS = new Set(["properties", "meta", "affordances", "content_ref"]);
+
+function unescapePointer(segment: string): string {
+  return segment.replace(/~1/g, "/").replace(/~0/g, "~");
+}
+
+/** Thrown when a patch's `seq` is not exactly `lastSeq + 1`. */
+export class SubscriptionGapError extends Error {
+  constructor(
+    public readonly subscription: string,
+    public readonly expected: number,
+    public readonly received: number,
+  ) {
+    super(`SLOP subscription ${subscription} gap: expected seq ${expected}, got ${received}`);
+    this.name = "SubscriptionGapError";
+  }
+}
 
 export class StateMirror {
   private tree: SlopNode;
   private version: number;
+  /** Last per-subscription sequence number. Snapshot resets to 0. */
+  private seq: number;
 
   constructor(snapshot: SnapshotMessage) {
     this.tree = structuredClone(snapshot.tree);
     this.version = snapshot.version;
+    this.seq = snapshot.seq ?? 0;
   }
 
   applyPatch(patch: PatchMessage): void {
+    // Per spec/core/messages.md, seq MUST be exactly lastSeq + 1. Older
+    // providers that don't emit seq leave the field undefined — skip gap
+    // detection in that case so mixed-version deployments still work.
+    if (patch.seq !== undefined) {
+      const expected = this.seq + 1;
+      if (patch.seq !== expected) {
+        throw new SubscriptionGapError("", expected, patch.seq);
+      }
+      this.seq = patch.seq;
+    }
     for (const op of patch.ops) {
       this.applyOp(op);
     }
@@ -24,13 +53,16 @@ export class StateMirror {
   getVersion(): number {
     return this.version;
   }
+  getSeq(): number {
+    return this.seq;
+  }
 
   private applyOp(op: PatchOp): void {
     const segments = op.path.split("/").filter(Boolean);
     if (segments.length === 0) return;
     switch (op.op) {
       case "add":
-        this.applyAdd(segments, op.value);
+        this.applyAdd(segments, op.value, op.index);
         break;
       case "remove":
         this.applyRemove(segments);
@@ -38,7 +70,22 @@ export class StateMirror {
       case "replace":
         this.applyReplace(segments, op.value);
         break;
+      case "move":
+        this.applyMove(segments, op.index);
+        break;
     }
+  }
+
+  private applyMove(segments: string[], index: number | undefined): void {
+    if (index === undefined || this.isFieldSegment(segments)) return;
+    const childId = segments[segments.length - 1];
+    const parent = this.resolveNode(segments.slice(0, -1));
+    if (!parent?.children) return;
+    const currentIdx = parent.children.findIndex((c) => c.id === childId);
+    if (currentIdx === -1) return;
+    const [child] = parent.children.splice(currentIdx, 1);
+    const clamped = Math.max(0, Math.min(index, parent.children.length));
+    parent.children.splice(clamped, 0, child);
   }
 
   /**
@@ -47,28 +94,40 @@ export class StateMirror {
    */
   private navigate(segments: string[]): { parent: any; key: string } | null {
     let current: any = this.tree;
+    let inField = false;
     for (let i = 0; i < segments.length - 1; i++) {
-      const seg = segments[i];
-      if (NODE_FIELDS.has(seg)) {
-        current = current[seg];
+      const raw = segments[i];
+      if (!inField && NODE_FIELDS.has(raw)) {
+        current = current[raw];
+        if (current === undefined) return null;
+        inField = true;
+      } else if (inField) {
+        const key = unescapePointer(raw);
+        current = current?.[key];
         if (current === undefined) return null;
       } else {
-        // Child ID lookup
-        const child = (current.children as SlopNode[])?.find((c) => c.id === seg);
+        // Child ID lookup (node IDs are forbidden from containing / or ~)
+        const child = (current.children as SlopNode[])?.find((c) => c.id === raw);
         if (!child) return null;
         current = child;
       }
     }
-    return { parent: current, key: segments[segments.length - 1] };
+    const last = segments[segments.length - 1];
+    return { parent: current, key: inField ? unescapePointer(last) : last };
   }
 
-  private applyAdd(segments: string[], value: unknown): void {
+  private applyAdd(segments: string[], value: unknown, index?: number): void {
     // Adding a child node: last segment is a child ID, parent is a node
     if (!this.isFieldSegment(segments)) {
       const parent = this.resolveNode(segments.slice(0, -1));
       if (parent) {
         if (!parent.children) parent.children = [];
-        parent.children.push(value as SlopNode);
+        if (index === undefined) {
+          parent.children.push(value as SlopNode);
+        } else {
+          const clamped = Math.max(0, Math.min(index, parent.children.length));
+          parent.children.splice(clamped, 0, value as SlopNode);
+        }
       }
       return;
     }
@@ -91,6 +150,16 @@ export class StateMirror {
   }
 
   private applyReplace(segments: string[], value: unknown): void {
+    // Replacing a child node by ID: the last segment is a child ID under a node.
+    if (!this.isFieldSegment(segments)) {
+      const childId = segments[segments.length - 1];
+      const parent = this.resolveNode(segments.slice(0, -1));
+      if (parent?.children) {
+        const idx = parent.children.findIndex((c: SlopNode) => c.id === childId);
+        if (idx >= 0) parent.children[idx] = value as SlopNode;
+      }
+      return;
+    }
     const target = this.navigate(segments);
     if (target) target.parent[target.key] = value;
   }

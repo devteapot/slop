@@ -26,6 +26,13 @@ type PatchCallback = Arc<dyn Fn(&str, &[PatchOp], u64) + Send + Sync>;
 type DisconnectCallback = Arc<dyn Fn() + Send + Sync>;
 type ErrorCallback = Arc<dyn Fn(&str, &str, &str) + Send + Sync>;
 type EventCallback = Arc<dyn Fn(&str, Option<&Value>) + Send + Sync>;
+type GapCallback = Arc<dyn Fn(&str, u64, u64) + Send + Sync>;
+
+#[derive(Clone)]
+struct SubscriptionRecord {
+    path: String,
+    depth: i32,
+}
 
 // ---------------------------------------------------------------------------
 // Transport trait
@@ -54,6 +61,7 @@ pub struct SlopConsumer {
 struct ConsumerInner {
     sender: Option<mpsc::UnboundedSender<Value>>,
     mirrors: HashMap<String, StateMirror>,
+    subscriptions: HashMap<String, SubscriptionRecord>,
     pending: HashMap<String, oneshot::Sender<Value>>,
     sub_counter: u32,
     req_counter: u32,
@@ -61,6 +69,7 @@ struct ConsumerInner {
     disconnect_callbacks: Vec<DisconnectCallback>,
     error_callbacks: Vec<ErrorCallback>,
     event_callbacks: Vec<EventCallback>,
+    gap_callbacks: Vec<GapCallback>,
 }
 
 impl SlopConsumer {
@@ -70,6 +79,7 @@ impl SlopConsumer {
             inner: Arc::new(Mutex::new(ConsumerInner {
                 sender: None,
                 mirrors: HashMap::new(),
+                subscriptions: HashMap::new(),
                 pending: HashMap::new(),
                 sub_counter: 0,
                 req_counter: 0,
@@ -77,6 +87,7 @@ impl SlopConsumer {
                 disconnect_callbacks: Vec::new(),
                 error_callbacks: Vec::new(),
                 event_callbacks: Vec::new(),
+                gap_callbacks: Vec::new(),
             })),
         }
     }
@@ -124,6 +135,13 @@ impl SlopConsumer {
             let sub_id = format!("sub-{}", inner.sub_counter);
             let (tx, rx) = oneshot::channel();
             inner.pending.insert(sub_id.clone(), tx);
+            inner.subscriptions.insert(
+                sub_id.clone(),
+                SubscriptionRecord {
+                    path: path.to_string(),
+                    depth,
+                },
+            );
             self.send_inner(
                 &inner,
                 json!({
@@ -138,12 +156,16 @@ impl SlopConsumer {
 
         let snapshot = rx.await.map_err(|_| SlopError::ConnectionClosed)?;
         let version = snapshot["version"].as_u64().unwrap_or(0);
+        let seq = snapshot["seq"].as_u64().unwrap_or(0);
         let tree: SlopNode =
             serde_json::from_value(snapshot["tree"].clone()).map_err(SlopError::Serialization)?;
 
         {
             let mut inner = self.inner.lock().await;
-            inner.mirrors.insert(sub_id.clone(), StateMirror::new(tree.clone(), version));
+            inner.mirrors.insert(
+                sub_id.clone(),
+                StateMirror::new_with_seq(tree.clone(), version, seq),
+            );
         }
 
         Ok((sub_id, tree))
@@ -153,6 +175,7 @@ impl SlopConsumer {
     pub async fn unsubscribe(&self, id: &str) {
         let mut inner = self.inner.lock().await;
         inner.mirrors.remove(id);
+        inner.subscriptions.remove(id);
         let _ = self.send_inner(
             &inner,
             json!({"type": "unsubscribe", "id": id}),
@@ -241,6 +264,7 @@ impl SlopConsumer {
         let mut inner = self.inner.lock().await;
         inner.sender = None;
         inner.mirrors.clear();
+        inner.subscriptions.clear();
         inner.pending.clear();
     }
 
@@ -284,6 +308,17 @@ impl SlopConsumer {
         inner.event_callbacks.push(Arc::new(callback));
     }
 
+    /// Register a callback invoked when a per-subscription seq gap is
+    /// detected and the consumer has initiated unsubscribe+resubscribe
+    /// recovery. The callback receives `(subscription_id, expected, received)`.
+    pub async fn on_gap<F>(&self, callback: F)
+    where
+        F: Fn(&str, u64, u64) + Send + Sync + 'static,
+    {
+        let mut inner = self.inner.lock().await;
+        inner.gap_callbacks.push(Arc::new(callback));
+    }
+
     // -- internals --
 
     fn send_inner(
@@ -313,15 +348,16 @@ impl SlopConsumer {
                 // If we have a mirror for this subscription, update it.
                 if let Some(mirror) = locked.mirrors.get_mut(&msg_id) {
                     let version = msg["version"].as_u64().unwrap_or(0);
+                    let seq = msg["seq"].as_u64().unwrap_or(0);
                     if let Ok(tree) = serde_json::from_value::<SlopNode>(msg["tree"].clone()) {
-                        *mirror = StateMirror::new(tree, version);
+                        *mirror = StateMirror::new_with_seq(tree, version, seq);
                     }
                 }
             }
             "patch" => {
                 let sub_id = msg["subscription"].as_str().unwrap_or(&msg_id).to_string();
-                let mut locked = inner.lock().await;
                 let version = msg["version"].as_u64().unwrap_or(0);
+                let seq_opt = msg["seq"].as_u64();
                 let ops: Vec<PatchOp> = msg["ops"]
                     .as_array()
                     .map(|arr| {
@@ -331,8 +367,46 @@ impl SlopConsumer {
                     })
                     .unwrap_or_default();
 
+                let mut locked = inner.lock().await;
+                let mut gap: Option<(u64, u64)> = None;
                 if let Some(mirror) = locked.mirrors.get_mut(&sub_id) {
-                    mirror.apply_patch(&ops, version);
+                    match seq_opt {
+                        Some(seq) => match mirror.apply_patch_with_seq(&ops, version, seq) {
+                            Ok(()) => {}
+                            Err(err) => {
+                                gap = Some((err.expected, err.received));
+                            }
+                        },
+                        None => {
+                            mirror.apply_patch(&ops, version);
+                        }
+                    }
+                }
+
+                if let Some((expected, received)) = gap {
+                    // Spec: consumer MUST unsubscribe + fresh-subscribe to recover.
+                    locked.mirrors.remove(&sub_id);
+                    let sub = locked.subscriptions.get(&sub_id).cloned();
+                    let _ = locked
+                        .sender
+                        .as_ref()
+                        .map(|tx| tx.send(json!({"type": "unsubscribe", "id": &sub_id})));
+                    if let Some(sub) = sub {
+                        let _ = locked.sender.as_ref().map(|tx| {
+                            tx.send(json!({
+                                "type": "subscribe",
+                                "id": &sub_id,
+                                "path": sub.path,
+                                "depth": sub.depth,
+                            }))
+                        });
+                    }
+                    let callbacks: Vec<_> = locked.gap_callbacks.clone();
+                    drop(locked);
+                    for cb in &callbacks {
+                        cb(&sub_id, expected, received);
+                    }
+                    return;
                 }
 
                 // Fire patch callbacks.

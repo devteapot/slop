@@ -137,9 +137,17 @@ impl DiscoveryService {
                 inner.idle_task.take(),
                 inner.bridge_task.take(),
             ];
-            let reconnect_tasks = inner.reconnect_tasks.drain().map(|(_, task)| task).collect::<Vec<_>>();
+            let reconnect_tasks = inner
+                .reconnect_tasks
+                .drain()
+                .map(|(_, task)| task)
+                .collect::<Vec<_>>();
             let bridge = inner.bridge.take();
-            let providers = inner.providers.drain().map(|(_, provider)| provider).collect::<Vec<_>>();
+            let providers = inner
+                .providers
+                .drain()
+                .map(|(_, provider)| provider)
+                .collect::<Vec<_>>();
             inner.local_descriptors.clear();
             inner.last_accessed.clear();
             inner.reconnect_attempts.clear();
@@ -178,7 +186,12 @@ impl DiscoveryService {
         let mut descriptors = local;
         if let Some(bridge) = bridge {
             if bridge.running() {
-                descriptors.extend(bridge.providers().into_iter().map(|provider| provider.to_descriptor()));
+                descriptors.extend(
+                    bridge
+                        .providers()
+                        .into_iter()
+                        .map(|provider| provider.to_descriptor()),
+                );
             }
         }
         descriptors
@@ -198,7 +211,10 @@ impl DiscoveryService {
     pub async fn get_provider(&self, id: &str) -> Option<ConnectedProvider> {
         let mut inner = self.inner.lock().await;
         let provider = inner.providers.get(id).cloned();
-        if provider.as_ref().is_some_and(|provider| provider.status == ProviderStatus::Connected) {
+        if provider
+            .as_ref()
+            .is_some_and(|provider| provider.status == ProviderStatus::Connected)
+        {
             inner.last_accessed.insert(id.to_string(), Instant::now());
         }
         provider.filter(|provider| provider.status == ProviderStatus::Connected)
@@ -275,7 +291,10 @@ impl DiscoveryService {
             return;
         }
 
-        let server = Arc::new(BridgeServer::new(&options.bridge_addr, &options.bridge_path));
+        let server = Arc::new(BridgeServer::new(
+            &options.bridge_addr,
+            &options.bridge_path,
+        ));
         if server.start().await.is_ok() {
             self.attach_bridge(server as Arc<dyn Bridge>).await;
             return;
@@ -313,14 +332,23 @@ impl DiscoveryService {
         let bridge_descriptors = bridge
             .as_ref()
             .filter(|bridge| bridge.running())
-            .map(|bridge| bridge.providers().into_iter().map(|provider| provider.to_descriptor()).collect::<Vec<_>>())
+            .map(|bridge| {
+                bridge
+                    .providers()
+                    .into_iter()
+                    .map(|provider| provider.to_descriptor())
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         let all_descriptors = descriptors
             .iter()
             .cloned()
             .chain(bridge_descriptors.iter().cloned())
             .collect::<Vec<_>>();
-        let all_ids = all_descriptors.iter().map(|descriptor| descriptor.id.clone()).collect::<HashSet<_>>();
+        let all_ids = all_descriptors
+            .iter()
+            .map(|descriptor| descriptor.id.clone())
+            .collect::<HashSet<_>>();
 
         let (removed_providers, callbacks, auto_connect, started) = {
             let mut inner = self.inner.lock().await;
@@ -435,13 +463,18 @@ impl DiscoveryService {
         }
     }
 
-    async fn connect_provider(&self, descriptor: ProviderDescriptor) -> Result<Option<ConnectedProvider>> {
+    async fn connect_provider(
+        &self,
+        descriptor: ProviderDescriptor,
+    ) -> Result<Option<ConnectedProvider>> {
         loop {
             let mut inner = self.inner.lock().await;
             if let Some(existing) = inner.providers.get(&descriptor.id).cloned() {
                 match existing.status {
                     ProviderStatus::Connected => {
-                        inner.last_accessed.insert(descriptor.id.clone(), Instant::now());
+                        inner
+                            .last_accessed
+                            .insert(descriptor.id.clone(), Instant::now());
                         return Ok(Some(existing));
                     }
                     ProviderStatus::Connecting => {
@@ -474,11 +507,15 @@ impl DiscoveryService {
 
             let hello = timeout(timeout_duration, consumer.connect(transport.as_ref()))
                 .await
-                .map_err(|_| SlopError::Transport("connection timed out after 10s".to_string()))??;
+                .map_err(|_| {
+                    SlopError::Transport("connection timed out after 10s".to_string())
+                })??;
 
             let (subscription_id, _tree) = timeout(timeout_duration, consumer.subscribe("/", -1))
                 .await
-                .map_err(|_| SlopError::Transport("subscription timed out after 10s".to_string()))??;
+                .map_err(|_| {
+                    SlopError::Transport("subscription timed out after 10s".to_string())
+                })??;
 
             let provider_name = hello["provider"]["name"]
                 .as_str()
@@ -500,7 +537,8 @@ impl DiscoveryService {
             let disconnect_name = provider_name.clone();
             consumer
                 .on_disconnect(move || {
-                    service.spawn_handle_disconnect(disconnect_desc.clone(), disconnect_name.clone());
+                    service
+                        .spawn_handle_disconnect(disconnect_desc.clone(), disconnect_name.clone());
                 })
                 .await;
 
@@ -514,10 +552,14 @@ impl DiscoveryService {
                     subscription_id,
                     status: ProviderStatus::Connected,
                 };
-                inner.last_accessed.insert(descriptor.id.clone(), Instant::now());
+                inner
+                    .last_accessed
+                    .insert(descriptor.id.clone(), Instant::now());
                 inner.reconnect_attempts.remove(&descriptor.id);
                 inner.intentional_disconnects.remove(&descriptor.id);
-                inner.providers.insert(descriptor.id.clone(), provider.clone());
+                inner
+                    .providers
+                    .insert(descriptor.id.clone(), provider.clone());
                 provider
             };
 
@@ -534,10 +576,23 @@ impl DiscoveryService {
             let intentional = inner.intentional_disconnects.remove(&descriptor.id);
             let callbacks = inner.callbacks.clone();
             if intentional || !inner.started {
-                (intentional, callbacks, inner.started, 0, Duration::from_secs(0))
+                (
+                    intentional,
+                    callbacks,
+                    inner.started,
+                    0,
+                    Duration::from_secs(0),
+                )
             } else {
-                let attempt = inner.reconnect_attempts.get(&descriptor.id).copied().unwrap_or(0) + 1;
-                inner.reconnect_attempts.insert(descriptor.id.clone(), attempt);
+                let attempt = inner
+                    .reconnect_attempts
+                    .get(&descriptor.id)
+                    .copied()
+                    .unwrap_or(0)
+                    + 1;
+                inner
+                    .reconnect_attempts
+                    .insert(descriptor.id.clone(), attempt);
                 let multiplier = 1u32.checked_shl(attempt - 1).unwrap_or(u32::MAX);
                 let delay = inner
                     .options
@@ -577,7 +632,9 @@ impl DiscoveryService {
         let mut inner = self.inner.lock().await;
         if let Some(provider) = inner.providers.get(id_or_name).cloned() {
             if provider.status == ProviderStatus::Connected {
-                inner.last_accessed.insert(provider.id.clone(), Instant::now());
+                inner
+                    .last_accessed
+                    .insert(provider.id.clone(), Instant::now());
                 return Some(provider);
             }
         }
@@ -592,36 +649,43 @@ impl DiscoveryService {
             })
             .cloned();
         if let Some(provider) = provider.clone() {
-            inner.last_accessed.insert(provider.id.clone(), Instant::now());
+            inner
+                .last_accessed
+                .insert(provider.id.clone(), Instant::now());
         }
         provider
     }
 
     async fn find_descriptor(&self, id_or_name: &str) -> Option<ProviderDescriptor> {
         let needle = id_or_name.to_lowercase();
-        self.get_discovered()
-            .await
-            .into_iter()
-            .find(|descriptor| descriptor.id == id_or_name || descriptor.name.to_lowercase().contains(&needle))
+        self.get_discovered().await.into_iter().find(|descriptor| {
+            descriptor.id == id_or_name || descriptor.name.to_lowercase().contains(&needle)
+        })
     }
 
     async fn read_descriptors(&self) -> Vec<ProviderDescriptor> {
         let dirs = self.inner.lock().await.options.providers_dirs.clone();
         let mut descriptors = Vec::new();
         for dir in dirs {
+            if !descriptor_dir_ok(&dir) {
+                continue;
+            }
             let Ok(entries) = std::fs::read_dir(&dir) else {
                 continue;
             };
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-                    continue;
-                }
-
-                let Ok(content) = std::fs::read_to_string(&path) else {
+                let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
                     continue;
                 };
-                let Ok(mut descriptor) = serde_json::from_str::<ProviderDescriptor>(&content) else {
+                if !descriptor_filename_ok(name) {
+                    continue;
+                }
+                let Some(content) = read_descriptor_file(&path) else {
+                    continue;
+                };
+                let Ok(mut descriptor) = serde_json::from_str::<ProviderDescriptor>(&content)
+                else {
                     continue;
                 };
                 if !is_valid_descriptor(&descriptor) {
@@ -664,16 +728,12 @@ fn create_transport(
     bridge: Option<Arc<dyn Bridge>>,
 ) -> Option<Box<dyn ClientTransport + Send + Sync>> {
     match descriptor.transport.transport_type.as_str() {
-        "unix" => descriptor
-            .transport
-            .path
-            .as_ref()
-            .map(|path| Box::new(UnixClientTransport::new(path)) as Box<dyn ClientTransport + Send + Sync>),
-        "ws" => descriptor
-            .transport
-            .url
-            .as_ref()
-            .map(|url| Box::new(WsClientTransport::new(url)) as Box<dyn ClientTransport + Send + Sync>),
+        "unix" => descriptor.transport.path.as_ref().map(|path| {
+            Box::new(UnixClientTransport::new(path)) as Box<dyn ClientTransport + Send + Sync>
+        }),
+        "ws" => descriptor.transport.url.as_ref().map(|url| {
+            Box::new(WsClientTransport::new(url)) as Box<dyn ClientTransport + Send + Sync>
+        }),
         "relay" => descriptor.provider_key.as_ref().and_then(|provider_key| {
             bridge.map(|bridge| {
                 Box::new(BridgeRelayTransport::new(bridge, provider_key.clone()))
@@ -687,7 +747,10 @@ fn create_transport(
 fn is_valid_descriptor(descriptor: &ProviderDescriptor) -> bool {
     !descriptor.id.is_empty()
         && !descriptor.name.is_empty()
-        && matches!(descriptor.transport.transport_type.as_str(), "unix" | "ws" | "stdio" | "relay")
+        && matches!(
+            descriptor.transport.transport_type.as_str(),
+            "unix" | "ws" | "stdio" | "relay"
+        )
 }
 
 fn directory_signature(dir: &Path) -> Vec<String> {
@@ -710,7 +773,9 @@ fn directory_signature(dir: &Path) -> Vec<String> {
                 .unwrap_or(0);
             signature.push(format!(
                 "{}:{}:{}",
-                path.file_name().and_then(|name| name.to_str()).unwrap_or_default(),
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default(),
                 modified,
                 metadata.len()
             ));
@@ -724,4 +789,100 @@ fn fire_callbacks(callbacks: Vec<ProviderChangeCallback>) {
     for callback in callbacks {
         callback();
     }
+}
+
+// --- Descriptor hardening helpers ---------------------------------------------
+//
+// See spec/core/transport.md §local discovery: provider dirs and descriptors
+// must be owned by the current user and mode-restricted. Filenames follow a
+// strict allowlist to keep path traversal and surprising characters out.
+
+fn descriptor_filename_ok(name: &str) -> bool {
+    if name.len() > 64 + 5 {
+        // 64-char id + ".json"
+        return false;
+    }
+    let Some(stem) = name.strip_suffix(".json") else {
+        return false;
+    };
+    let mut chars = stem.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() && !first.is_ascii_digit() {
+        return false;
+    }
+    for c in chars {
+        if !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-') {
+            return false;
+        }
+    }
+    true
+}
+
+#[cfg(unix)]
+fn current_uid() -> u32 {
+    // libc::getuid is a simple syscall and always succeeds. We avoid adding a
+    // `libc` crate dependency just for this one call by declaring the extern
+    // directly.
+    unsafe extern "C" {
+        fn getuid() -> u32;
+    }
+    unsafe { getuid() }
+}
+
+#[cfg(unix)]
+fn descriptor_dir_ok(path: &std::path::Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    if !meta.is_dir() {
+        return false;
+    }
+    if meta.uid() != current_uid() {
+        return false;
+    }
+    if meta.mode() & 0o077 != 0 {
+        return false;
+    }
+    true
+}
+
+/// Opens the descriptor file and reads it from the same file handle after
+/// verifying ownership and mode via `fstat` (not a second `stat` on the path).
+/// This closes the TOCTOU window where a non-conforming file could be swapped
+/// in between the permission check and the read.
+#[cfg(unix)]
+fn read_descriptor_file(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
+    use std::os::unix::fs::MetadataExt;
+
+    let mut file = std::fs::File::open(path).ok()?;
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    if meta.uid() != current_uid() {
+        return None;
+    }
+    if meta.mode() & 0o077 != 0 {
+        return None;
+    }
+    let mut content = String::new();
+    file.read_to_string(&mut content).ok()?;
+    Some(content)
+}
+
+#[cfg(not(unix))]
+fn descriptor_dir_ok(path: &std::path::Path) -> bool {
+    path.is_dir()
+}
+
+#[cfg(not(unix))]
+fn read_descriptor_file(path: &std::path::Path) -> Option<String> {
+    if !path.is_file() {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
 }

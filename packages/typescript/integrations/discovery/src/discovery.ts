@@ -1,14 +1,29 @@
-import { readFileSync, readdirSync, existsSync, watch, type FSWatcher } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
 import {
+  closeSync,
+  existsSync,
+  type FSWatcher,
+  fstatSync,
+  openSync,
+  readdirSync,
+  readSync,
+  statSync,
+  watch,
+} from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+/** Descriptor filenames: lowercase id plus `.json`. Keeps path traversal and
+ *  surprising characters out. See spec/core/transport.md §local discovery. */
+const DESCRIPTOR_FILENAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}\.json$/;
+
+import {
+  type ClientTransport,
+  NodeSocketClientTransport,
   SlopConsumer,
   WebSocketClientTransport,
-  NodeSocketClientTransport,
-  type ClientTransport,
 } from "@slop-ai/consumer";
-import { DEFAULT_BRIDGE_URL, createBridgeClient, type Bridge, type BridgeProvider } from "./bridge-client";
-import { DEFAULT_BRIDGE_HOST, DEFAULT_BRIDGE_PATH, DEFAULT_BRIDGE_PORT, createBridgeServer } from "./bridge-server";
+import { type Bridge, type BridgeProvider, createBridgeClient, DEFAULT_BRIDGE_URL } from "./bridge-client";
+import { createBridgeServer, DEFAULT_BRIDGE_HOST, DEFAULT_BRIDGE_PATH, DEFAULT_BRIDGE_PORT } from "./bridge-server";
 import { BridgeRelayTransport } from "./relay-transport";
 
 const DEFAULT_PROVIDERS_DIRS = [
@@ -149,13 +164,54 @@ export function createDiscoveryService(options: DiscoveryOptions = {}): Discover
 
   function readDescriptors(): ProviderDescriptor[] {
     const descriptors: ProviderDescriptor[] = [];
+    const myUid = typeof process.getuid === "function" ? process.getuid() : -1;
     for (const dir of providersDirs) {
       if (!existsSync(dir)) continue;
+
+      // Hardening: reject provider dirs we don't own, or that grant group/other
+      // access. A world-writable /tmp/slop/providers is a privilege-escalation
+      // hazard (another user could drop a descriptor pointing at their socket).
+      try {
+        const dirStat = statSync(dir);
+        if (!dirStat.isDirectory()) continue;
+        if (myUid !== -1 && dirStat.uid !== myUid) {
+          log.error(`[slop] Skipping ${dir}: not owned by current user`);
+          continue;
+        }
+        if (process.platform !== "win32" && (dirStat.mode & 0o077) !== 0) {
+          log.error(
+            `[slop] Skipping ${dir}: mode ${(dirStat.mode & 0o777).toString(8)} grants group/other access; expected 0700`,
+          );
+          continue;
+        }
+      } catch (e: any) {
+        log.error(`[slop] stat(${dir}) failed: ${e.message}`);
+        continue;
+      }
+
       for (const file of readdirSync(dir)) {
-        if (!file.endsWith(".json")) continue;
+        if (!DESCRIPTOR_FILENAME_RE.test(file)) continue;
+        const path = join(dir, file);
+        let fd = -1;
         try {
-          const content = readFileSync(join(dir, file), "utf-8");
-          const desc = JSON.parse(content);
+          fd = openSync(path, "r");
+          // Re-stat via fd to close TOCTOU: a file present at readdir may have
+          // been swapped for something attacker-controlled before open().
+          const st = fstatSync(fd);
+          if (!st.isFile()) continue;
+          if (myUid !== -1 && st.uid !== myUid) {
+            log.error(`[slop] Skipping ${file}: not owned by current user`);
+            continue;
+          }
+          if (process.platform !== "win32" && (st.mode & 0o077) !== 0) {
+            log.error(
+              `[slop] Skipping ${file}: mode ${(st.mode & 0o777).toString(8)} grants group/other access; expected 0600`,
+            );
+            continue;
+          }
+          const buf = Buffer.alloc(st.size);
+          if (st.size > 0) readSync(fd, buf, 0, st.size, 0);
+          const desc = JSON.parse(buf.toString("utf-8"));
           if (!isValidDescriptor(desc)) {
             log.error(`[slop] Invalid descriptor in ${file}: missing required fields`);
             continue;
@@ -163,7 +219,13 @@ export function createDiscoveryService(options: DiscoveryOptions = {}): Discover
           desc.source = "local";
           descriptors.push(desc);
         } catch (e: any) {
-          log.error(`[slop] Failed to parse ${file}: ${e.message}`);
+          log.error(`[slop] Failed to read ${file}: ${e.message}`);
+        } finally {
+          if (fd !== -1) {
+            try {
+              closeSync(fd);
+            } catch {}
+          }
         }
       }
     }
@@ -293,7 +355,7 @@ export function createDiscoveryService(options: DiscoveryOptions = {}): Discover
             if (getAllDescriptors().some((d) => d.id === desc.id)) {
               const attempt = (reconnectAttempts.get(desc.id) ?? 0) + 1;
               reconnectAttempts.set(desc.id, attempt);
-              const delay = Math.min(reconnectBaseDelayMs * Math.pow(2, attempt - 1), maxReconnectDelayMs);
+              const delay = Math.min(reconnectBaseDelayMs * 2 ** (attempt - 1), maxReconnectDelayMs);
               log.info(`[slop] Will reconnect to ${entry.name} in ${delay / 1000}s (attempt ${attempt})`);
               clearReconnectTimer(desc.id);
               reconnectTimers.set(

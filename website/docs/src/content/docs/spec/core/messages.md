@@ -108,6 +108,7 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
   "type": "snapshot",
   "id": "sub-1",            // Correlation: which subscribe/query this answers
   "version": 1,             // Monotonically increasing state version
+  "seq": 0,                 // Per-subscription sequence; always 0 on snapshot
   "tree": {                 // The state tree (see state-tree.md)
     "id": "root",
     "type": "root",
@@ -115,6 +116,10 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
   }
 }
 ```
+
+> `query` responses also use the `snapshot` message shape but omit `seq`
+> — there is no subscription to sequence against. See "Version and
+> sequence semantics" below.
 
 ### `patch`
 
@@ -125,13 +130,23 @@ Incremental update to a subscribed subtree. Uses operations modeled on [JSON Pat
   "type": "patch",
   "subscription": "sub-1",  // Which subscription this patch applies to
   "version": 2,             // New version after applying this patch
+  "seq": 1,                 // Per-subscription seq; MUST equal lastSeq + 1
   "ops": [
     { "op": "replace", "path": "/inbox/msg-42/properties/unread", "value": false },
-    { "op": "add", "path": "/inbox/msg-99", "value": { "id": "msg-99", "type": "item", "properties": { "from": "dave", "subject": "New thread" } } },
-    { "op": "remove", "path": "/inbox/msg-10" }
+    { "op": "add", "path": "/inbox/msg-99", "value": { "id": "msg-99", "type": "item", "properties": { "from": "dave", "subject": "New thread" } }, "index": 0 },
+    { "op": "remove", "path": "/inbox/msg-10" },
+    { "op": "move", "path": "/inbox/msg-42", "index": 3 }
   ]
 }
 ```
+
+**Ops.** The operations are:
+| Op | Meaning |
+|---|---|
+| `add` | Create a field under a node, or insert a child node at `index` (or append if `index` is omitted). |
+| `remove` | Delete a field or child node. |
+| `replace` | Overwrite an existing field or child node. |
+| `move` | Reorder an existing child to a new zero-based `index` among its siblings. `path` is the child's current path (by ID); `index` is the destination position *after* removal from the current position. Required for changing the order of ordered children without tearing down and re-adding them. |
 
 ### Patch path syntax
 
@@ -147,14 +162,34 @@ A path like `/inbox/msg-42/properties/unread` means:
 
 Within `properties`, paths follow standard JSON Pointer key-based addressing. The operations (`add`, `remove`, `replace`) have the same semantics as RFC 6902.
 
+**Escaping inside `/properties/…` and `/meta/…` segments.** Once a path has descended into a non-node field, property keys containing `/` or `~` MUST be escaped using JSON Pointer rules (RFC 6901 §4):
+- `~` encoded as `~0`
+- `/` encoded as `~1`
+
+So a property literally named `a/b~c` under `msg-42` is addressed as `/inbox/msg-42/properties/a~1b~0c`. Node-ID segments (the parts before reserved keywords like `properties`) are NOT escaped — node IDs are forbidden from containing `/` or `~` in the first place (see [State Tree §id](/spec/core/state-tree#id)).
+
 This design means patches are **stable across reordering** — moving a message from position 0 to position 5 does not invalidate paths that reference it by ID.
 
 **Reserved field keywords.** The segments `properties`, `children`, `affordances`, `meta`, and `content_ref` are **reserved**: when one appears as a segment while walking a node, the remaining path is interpreted relative to that field of the node rather than as a child-id lookup. A reserved keyword always takes precedence over child-id resolution, and node `id` values MUST NOT equal a reserved keyword (see [State Tree §id](/spec/core/state-tree#id)). Once the path has descended into a non-node field (e.g. inside `properties` or `meta`), subsequent segments are plain JSON Pointer keys and the reservation no longer applies — a property literally named `properties` is addressed normally.
 
-**Version semantics:**
-- Versions are monotonically increasing integers, scoped to a subscription
-- The consumer can detect missed patches via version gaps
-- If a gap is detected, the consumer should re-subscribe to get a fresh snapshot
+**Version and sequence semantics:**
+
+SLOP messages carry two monotonically increasing integers, each with a distinct job:
+
+- `version` — a single *provider-global* counter. Every change that produces patches increments it, and that integer is stamped on every message emitted to any active subscription or query response until the next change. Two consumers subscribing at the same moment see the same `version`; two subscriptions on one consumer are directly comparable. `version` is the right field for re-base and staleness checks (e.g., "discard buffered patches whose version ≤ the latest snapshot's version").
+- `seq` — a *per-subscription* counter. The provider assigns `seq: 0` to the initial `snapshot` answering a `subscribe`, and `seq: 1, 2, 3, …` to successive `patch` messages on that subscription. `seq` is the right field for gap detection, because the provider only emits patches to subscriptions whose projected subtree actually changed — so `version` can advance between two consecutive patches on a given subscription without any values in between, making version-based gap detection unsound.
+
+`snapshot` and `patch` MUST carry both fields. `query` responses carry the provider's current `version` but no `seq` (there is no subscription to sequence against).
+
+Consumer rules:
+
+- On the initial `snapshot` for a subscription, the consumer records `lastSeq = 0` and `lastVersion = snapshot.version`.
+- On each `patch`, the consumer asserts `patch.seq == lastSeq + 1`. If it is greater, a patch was lost and the consumer MUST recover by sending `unsubscribe` then a fresh `subscribe` (or equivalent resubscribe). The provider answers with a new `snapshot` whose `seq: 0` re-bases the sequence, and any buffered patches whose `version ≤ snapshot.version` MUST be discarded.
+- `version` decreases are protocol violations; a consumer seeing one MAY disconnect.
+
+This is also what providers emit when applying backpressure (see [Rate limiting and backpressure](#rate-limiting-and-backpressure)): a fresh `snapshot` carrying the current version and `seq: 0` — the consumer treats it as a re-base.
+
+Reference SDKs expose the global counter via `ProviderBase.getVersion()` (TypeScript), `SlopServer::version()` (Rust), `Server.Version()` (Go), and the `version` field on Python's `SlopServer`. Per-subscription `seq` is tracked inside the subscription record on each side and MUST NOT be visible to application code.
 
 ### `result`
 
@@ -256,8 +291,8 @@ For efficiency, a provider may batch multiple patches into one message:
 {
   "type": "batch",
   "messages": [
-    { "type": "patch", "subscription": "sub-1", "version": 3, "ops": [ ... ] },
-    { "type": "patch", "subscription": "sub-2", "version": 7, "ops": [ ... ] }
+    { "type": "patch", "subscription": "sub-1", "version": 3, "seq": 2, "ops": [ ... ] },
+    { "type": "patch", "subscription": "sub-2", "version": 7, "seq": 5, "ops": [ ... ] }
   ]
 }
 ```
@@ -267,5 +302,5 @@ Consumers must support `batch` messages by unwrapping and processing each inner 
 ## Rate limiting and backpressure
 
 - Providers should coalesce rapid state changes into fewer patches (e.g., debounce at 50–100ms).
-- If a consumer is slow to read, the provider may skip intermediate versions and send a fresh snapshot instead of accumulated patches.
+- If a consumer is slow to read, the provider may skip intermediate versions and send a fresh `snapshot` (stamped with the current provider version) instead of accumulated patches. The snapshot replaces any buffered state for that subscription; consumers MUST discard patches for that subscription whose `version` is ≤ the snapshot's `version`.
 - Consumers can signal backpressure by sending a `pause` / `resume` for a subscription (optional capability, not required in v0.1).

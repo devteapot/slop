@@ -22,6 +22,11 @@ use super::types::DiscoveryServiceOptions;
 async fn service_scans_and_prunes_descriptors() {
     let providers_dir = temp_dir("slop-rust-discovery-scan");
     std::fs::create_dir_all(&providers_dir).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&providers_dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
     let descriptor_path = providers_dir.join("test-app.json");
     std::fs::write(
         &descriptor_path,
@@ -34,6 +39,11 @@ async fn service_scans_and_prunes_descriptors() {
 }"#,
     )
     .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&descriptor_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
 
     let service = DiscoveryService::new(DiscoveryServiceOptions {
         providers_dirs: vec![providers_dir.clone()],
@@ -128,14 +138,18 @@ where
         if check().await {
             return;
         }
-        assert!(tokio::time::Instant::now() < deadline, "condition not met before timeout");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "condition not met before timeout"
+        );
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 
 async fn read_text_message<S>(stream: &mut S) -> Value
 where
-    S: StreamExt<Item = std::result::Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
+    S: StreamExt<Item = std::result::Result<Message, tokio_tungstenite::tungstenite::Error>>
+        + Unpin,
 {
     while let Some(Ok(message)) = stream.next().await {
         if let Message::Text(text) = message {
@@ -203,7 +217,8 @@ impl Bridge for FakeBridge {
                     .ok_or_else(|| SlopError::Transport("missing provider key".to_string()))?;
                 if let Some(listeners) = subscribers.get(provider_key) {
                     for sender in listeners.values() {
-                        let _ = sender.send(json!({"type": "hello", "provider": {"name": "Browser App"}}));
+                        let _ = sender
+                            .send(json!({"type": "hello", "provider": {"name": "Browser App"}}));
                     }
                 }
             }

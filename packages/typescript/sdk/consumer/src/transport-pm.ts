@@ -1,4 +1,4 @@
-import type { ClientTransport, Connection, SlopMessage, MessageHandler } from "./types";
+import type { ClientTransport, Connection, MessageHandler, SlopMessage } from "./types";
 
 /** Chrome extension runtime port (declared here to avoid @types/chrome dependency) */
 interface ChromePort {

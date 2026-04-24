@@ -1,11 +1,11 @@
 // Browser-safe entry point — excludes Node.js transports
 
 import { SlopConsumer as SlopConsumerImpl } from "./consumer";
-import { StateMirror as StateMirrorImpl } from "./state-mirror";
-import { WebSocketClientTransport as WebSocketClientTransportImpl } from "./transport-ws";
-import { PostMessageClientTransport as PostMessageClientTransportImpl } from "./transport-pm";
-import { affordancesToTools as affordancesToToolsImpl, formatTree as formatTreeImpl } from "./tools";
 import { Emitter as EmitterImpl } from "./emitter";
+import { StateMirror as StateMirrorImpl } from "./state-mirror";
+import { affordancesToTools as affordancesToToolsImpl, formatTree as formatTreeImpl } from "./tools";
+import { PostMessageClientTransport as PostMessageClientTransportImpl } from "./transport-pm";
+import { WebSocketClientTransport as WebSocketClientTransportImpl } from "./transport-ws";
 
 // Consumer
 export const SlopConsumer = SlopConsumerImpl;
@@ -22,7 +22,7 @@ export type PostMessageClientTransport = InstanceType<typeof PostMessageClientTr
 // LLM tool utilities
 export const affordancesToTools = affordancesToToolsImpl;
 export const formatTree = formatTreeImpl;
-export type { LlmTool, ToolSet, ChatMessage } from "./tools";
+export type { ChatMessage, LlmTool, ToolSet } from "./tools";
 
 // Emitter
 export const Emitter = EmitterImpl;
@@ -30,23 +30,23 @@ export type Emitter = InstanceType<typeof EmitterImpl>;
 
 // Types
 export type {
-  SlopNode,
-  NodeMeta,
   Affordance,
-  JsonSchema,
-  PatchOp,
-  SlopMessage,
+  ClientTransport,
+  Connection,
   ConsumerMessage,
-  ProviderMessage,
   HelloMessage,
-  SnapshotMessage,
+  InvokeMessage,
+  JsonSchema,
+  MessageHandler,
+  NodeMeta,
   PatchMessage,
+  PatchOp,
+  ProviderMessage,
+  QueryMessage,
   ResultMessage,
+  SlopMessage,
+  SlopNode,
+  SnapshotMessage,
   SubscribeMessage,
   UnsubscribeMessage,
-  QueryMessage,
-  InvokeMessage,
-  Connection,
-  ClientTransport,
-  MessageHandler,
 } from "./types";

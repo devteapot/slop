@@ -4,11 +4,14 @@ import { SameWindowPostMessageTransport } from "../src/transport-pm";
 
 // Minimal browser shim — Bun test runs in Node, so we stand up a synthetic
 // `window` + `MessageEvent` surface that mirrors what the transport uses.
-type Listener = (event: { source: unknown; data: unknown }) => void;
+type Listener = (event: { source: unknown; origin: string; data: unknown }) => void;
+
+const TEST_ORIGIN = "https://test.example";
 
 class FakeWindow {
   listeners: Listener[] = [];
   posted: { data: unknown; origin: string }[] = [];
+  location = { origin: TEST_ORIGIN };
 
   addEventListener(type: string, fn: Listener) {
     if (type === "message") this.listeners.push(fn);
@@ -21,8 +24,8 @@ class FakeWindow {
   postMessage(data: unknown, origin: string) {
     this.posted.push({ data, origin });
   }
-  dispatchFromSource(source: unknown, data: unknown) {
-    for (const fn of this.listeners) fn({ source, data });
+  dispatchFromSource(source: unknown, data: unknown, origin: string = TEST_ORIGIN) {
+    for (const fn of this.listeners) fn({ source, origin, data });
   }
 }
 

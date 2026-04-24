@@ -38,6 +38,7 @@ from .types import SlopNode, NodeMeta, PatchOp
 from .tree import assemble_tree
 from .diff import diff_nodes
 from .scaling import prepare_tree, get_subtree, OutputTreeOptions
+from .validate_params import validate_params
 
 
 @runtime_checkable
@@ -240,6 +241,7 @@ class SlopServer:
                 "type": "snapshot",
                 "id": msg["id"],
                 "version": self._version,
+                "seq": 0,
                 "tree": output.to_dict(),
             })
 
@@ -396,6 +398,21 @@ class SlopServer:
             })
             return
 
+        # Spec: providers MUST validate invoke params against the affordance's
+        # declared schema before running the handler.
+        affordance = self._resolve_affordance(path, action)
+        if affordance is not None:
+            schema = affordance.get("params")
+            err = validate_params(schema, params)
+            if err:
+                conn.send({
+                    "type": "result",
+                    "id": msg["id"],
+                    "status": "error",
+                    "error": {"code": "invalid_params", "message": err},
+                })
+                return
+
         try:
             data = handler(params)
             # Await if coroutine
@@ -436,6 +453,25 @@ class SlopServer:
 
         key = f"{clean}/{action}" if clean else action
         return self._current_handlers.get(key)
+
+    def _resolve_affordance(self, path: str, action: str) -> dict[str, Any] | None:
+        root_prefix = f"/{self.id}"
+        tree_path = path
+        if tree_path == root_prefix:
+            tree_path = "/"
+        elif tree_path.startswith(root_prefix + "/"):
+            tree_path = tree_path[len(root_prefix):]
+        node = self._current_tree if tree_path == "/" else get_subtree(self._current_tree, tree_path)
+        if node is None or not node.affordances:
+            return None
+        for aff in node.affordances:
+            if isinstance(aff, dict):
+                if aff.get("action") == action:
+                    return aff
+            else:
+                if getattr(aff, "action", None) == action:
+                    return aff.to_dict() if hasattr(aff, "to_dict") else None
+        return None
 
     def _get_output_tree(
         self,
@@ -478,10 +514,12 @@ class SlopServer:
                     continue
                 sub_ops = diff_nodes(sub.last_tree, new_tree)
                 if sub_ops:
+                    sub.seq += 1
                     sub.connection.send({
                         "type": "patch",
                         "subscription": sub.id,
                         "version": self._version,
+                        "seq": sub.seq,
                         "ops": [op.to_dict() for op in sub_ops],
                     })
                     sub.last_tree = copy.deepcopy(new_tree)
@@ -490,7 +528,7 @@ class SlopServer:
 
 
 class _Subscription:
-    __slots__ = ("id", "path", "depth", "max_nodes", "filter_", "connection", "last_tree")
+    __slots__ = ("id", "path", "depth", "max_nodes", "filter_", "connection", "last_tree", "seq")
 
     def __init__(
         self,
@@ -509,6 +547,8 @@ class _Subscription:
         self.filter_ = filter_
         self.connection = connection
         self.last_tree = last_tree
+        # Per-subscription sequence number; see spec/core/messages.md.
+        self.seq = 0
 
 
 class _ScopedServer:

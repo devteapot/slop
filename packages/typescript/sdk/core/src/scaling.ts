@@ -60,15 +60,17 @@ export function getSubtree(root: SlopNode, path: string): SlopNode | undefined {
 }
 
 /**
- * Truncate a tree at the given depth. Nodes beyond the depth become stubs
- * with `meta.total_children` and `meta.summary`.
+ * Truncate a tree at the given depth. Nodes beyond the depth become
+ * **depth stubs** — `id`, `type`, and `meta` only (see spec/core/state-tree.md
+ * §depth stub vs compacted node). `properties`, `affordances`, `children`, and
+ * `content_ref` are dropped. For budget-driven collapsing that preserves
+ * properties and affordances, use `autoCompact` instead.
  */
 export function truncateTree(node: SlopNode, depth: number): SlopNode {
   if (depth <= 0 && node.children?.length) {
     return {
       id: node.id,
       type: node.type,
-      ...(node.properties && { properties: node.properties }),
       meta: {
         ...node.meta,
         total_children: node.children.length,

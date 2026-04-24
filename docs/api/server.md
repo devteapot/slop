@@ -63,7 +63,15 @@ import { createServer } from "node:http";
 import { attachSlop } from "@slop-ai/server/node";
 
 const server = createServer(app);
-attachSlop(slop, server, { path: "/slop" });
+attachSlop(slop, server, {
+  path: "/slop",
+  // Required when the server is reachable off-loopback. Browser upgrades
+  // are rejected unless `allowedOrigins` matches the `Origin` header, and
+  // non-loopback upgrades are rejected unless `authenticate` approves them.
+  // See spec/core/transport.md §Security considerations.
+  allowedOrigins: ["https://app.example.com"],
+  authenticate: async (req) => verifyBearer(req.headers.authorization),
+});
 server.listen(3000);
 ```
 

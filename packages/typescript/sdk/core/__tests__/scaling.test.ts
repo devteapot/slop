@@ -259,9 +259,13 @@ describe("truncateTree", () => {
     expect(countNodes(truncated)).toBe(countNodes(tree));
   });
 
-  test("truncated stubs preserve properties", () => {
+  test("depth stubs drop properties, affordances, children (spec: state-tree §depth stub vs compacted node)", () => {
     const truncated = truncateTree(makeDeepTree(), 1);
-    expect(truncated.children![0].properties?.label).toBe("A");
+    const stub = truncated.children![0];
+    expect(stub.properties).toBeUndefined();
+    expect(stub.children).toBeUndefined();
+    expect(stub.affordances).toBeUndefined();
+    expect(stub.meta?.total_children).toBeGreaterThan(0);
   });
 
   test("leaf nodes unaffected", () => {

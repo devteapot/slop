@@ -106,3 +106,61 @@ func TestNestedPropertyPathRoutesIntoProperties(t *testing.T) {
 		t.Fatalf("expected properties.done=true on t1, got %v", t1.Properties["done"])
 	}
 }
+
+func TestMoveReordersChildren(t *testing.T) {
+	tree := WireNode{
+		ID:   "root",
+		Type: "root",
+		Children: []WireNode{
+			{ID: "a", Type: "item"},
+			{ID: "b", Type: "item"},
+			{ID: "c", Type: "item"},
+		},
+	}
+	m := NewStateMirror(tree, 1)
+	idx := 0
+	m.ApplyPatch([]PatchOp{{Op: "move", Path: "/c", Index: &idx}}, 2)
+
+	got := []string{}
+	for _, c := range m.Tree().Children {
+		got = append(got, c.ID)
+	}
+	want := []string{"c", "a", "b"}
+	if len(got) != len(want) {
+		t.Fatalf("want %v got %v", want, got)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("want %v got %v", want, got)
+		}
+	}
+}
+
+func TestIndexedAddInsertsAtPosition(t *testing.T) {
+	tree := WireNode{
+		ID:   "root",
+		Type: "root",
+		Children: []WireNode{
+			{ID: "a", Type: "item"},
+			{ID: "c", Type: "item"},
+		},
+	}
+	m := NewStateMirror(tree, 1)
+	idx := 1
+	m.ApplyPatch([]PatchOp{{
+		Op:    "add",
+		Path:  "/b",
+		Value: map[string]any{"id": "b", "type": "item"},
+		Index: &idx,
+	}}, 2)
+	got := []string{}
+	for _, c := range m.Tree().Children {
+		got = append(got, c.ID)
+	}
+	want := []string{"a", "b", "c"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("want %v got %v", want, got)
+		}
+	}
+}

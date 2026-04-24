@@ -1,26 +1,29 @@
-import { ProviderBase, diffNodes, AsyncActionResult } from "@slop-ai/core";
 import type {
-  SlopNode,
-  PatchOp,
-  ActionHandler,
   Action,
-  ParamDef,
+  ActionHandler,
+  InferParams,
   NodeDescriptor,
+  ParamDef,
+  PatchOp,
   SlopClient,
   SlopClientOptions,
-  TaskHandle,
-  InferParams,
+  SlopNode,
   SubscriptionFilter,
+  TaskHandle,
   Transport,
 } from "@slop-ai/core";
+import { AsyncActionResult, diffNodes, getSubtree, ProviderBase } from "@slop-ai/core";
 
 interface Subscription {
   id: string;
   path: string;
   depth: number;
   filter?: SubscriptionFilter;
+  max_nodes?: number;
   lastTree: SlopNode | null;
   transport: Transport; // which transport this subscription came from
+  /** Per-subscription sequence number. See spec/core/messages.md. */
+  seq: number;
 }
 
 /**
@@ -163,14 +166,17 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         path: sub.path,
         depth: sub.depth,
         filter: sub.filter,
+        max_nodes: sub.max_nodes,
       });
 
       if (!sub.lastTree) {
         sub.lastTree = structuredClone(newTree);
+        sub.seq = 0;
         sub.transport.send({
           type: "snapshot",
           id: sub.id,
           version,
+          seq: 0,
           tree: newTree,
         });
         continue;
@@ -180,10 +186,12 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
       sub.lastTree = structuredClone(newTree);
 
       if (ops.length > 0) {
+        sub.seq += 1;
         sub.transport.send({
           type: "patch",
           subscription: sub.id,
           version,
+          seq: sub.seq,
           ops,
         });
       }
@@ -209,23 +217,37 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         break;
 
       case "subscribe": {
+        const path = msg.path ?? "/";
+        if (path !== "/" && !getSubtree(this.getTree(), path)) {
+          transport.send({
+            type: "error",
+            id: msg.id,
+            error: { code: "not_found", message: `Path ${path} not found` },
+          });
+          break;
+        }
+        // `window` is query-only per spec/core/transport.md §Capabilities.
         const outputTree = this.getOutputTree({
-          path: msg.path ?? "/",
+          path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
+          max_nodes: msg.max_nodes,
         });
         this.subscriptions.set(msg.id, {
           id: msg.id,
-          path: msg.path ?? "/",
+          path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
+          max_nodes: msg.max_nodes,
           lastTree: structuredClone(outputTree),
           transport,
+          seq: 0,
         });
         transport.send({
           type: "snapshot",
           id: msg.id,
           version: this.getVersion(),
+          seq: 0,
           tree: outputTree,
         });
         break;
@@ -235,9 +257,27 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         this.subscriptions.delete(msg.id);
         break;
 
-      case "query":
-        transport.send(this.snapshotMessage(msg.id, { path: msg.path, depth: msg.depth, filter: msg.filter }));
+      case "query": {
+        const path = msg.path ?? "/";
+        if (path !== "/" && !getSubtree(this.getTree(), path)) {
+          transport.send({
+            type: "error",
+            id: msg.id,
+            error: { code: "not_found", message: `Path ${path} not found` },
+          });
+          break;
+        }
+        transport.send(
+          this.snapshotMessage(msg.id, {
+            path,
+            depth: msg.depth,
+            filter: msg.filter,
+            max_nodes: msg.max_nodes,
+            window: msg.window,
+          }),
+        );
         break;
+      }
 
       case "invoke":
         this.handleInvoke(msg, transport);

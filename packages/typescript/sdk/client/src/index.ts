@@ -1,5 +1,5 @@
-import { SlopClientImpl } from "./client";
 import type { SlopClient, SlopClientOptions, Transport } from "@slop-ai/core";
+import { SlopClientImpl } from "./client";
 import { createPostMessageTransport } from "./postmessage-transport";
 import { createWebSocketTransport } from "./websocket-transport";
 
@@ -60,49 +60,48 @@ export function createSlop<S = unknown>(options: CreateSlopOptions<S>): SlopClie
   return client;
 }
 
-// Export the client class
-export { SlopClientImpl } from "./client";
+export type {
+  Action,
+  ActionHandler,
+  Affordance,
+  ContentRef,
+  ExtractPaths,
+  ExtractSubSchema,
+  InferParams,
+  ItemDescriptor,
+  JsonSchema,
+  NodeDescriptor,
+  NodeMeta,
+  OutputRequest,
+  OutputTreeOptions,
+  ParamDef,
+  PatchOp,
+  SlopClient,
+  SlopClientOptions,
+  SlopNode,
+  SubscriptionFilter,
+  TaskHandle,
+  Transport,
+  WindowDescriptor,
+} from "@slop-ai/core";
 
 // Re-export core types and utilities for convenience
 export {
-  ProviderBase,
-  pick,
-  omit,
   action,
   assembleTree,
-  diffNodes,
-  prepareTree,
-  getSubtree,
-  truncateTree,
   autoCompact,
-  filterTree,
   countNodes,
+  diffNodes,
+  filterTree,
+  getSubtree,
+  omit,
+  ProviderBase,
+  pick,
+  prepareTree,
+  truncateTree,
 } from "@slop-ai/core";
-
-export type {
-  SlopClient,
-  SlopClientOptions,
-  NodeDescriptor,
-  ItemDescriptor,
-  Action,
-  ActionHandler,
-  ParamDef,
-  SlopNode,
-  Affordance,
-  NodeMeta,
-  JsonSchema,
-  PatchOp,
-  ContentRef,
-  WindowDescriptor,
-  TaskHandle,
-  InferParams,
-  Transport,
-  ExtractPaths,
-  ExtractSubSchema,
-  SubscriptionFilter,
-  OutputRequest,
-  OutputTreeOptions,
-} from "@slop-ai/core";
+// Export the client class
+export { SlopClientImpl } from "./client";
 
 export { createPostMessageTransport } from "./postmessage-transport";
 export { createWebSocketTransport } from "./websocket-transport";

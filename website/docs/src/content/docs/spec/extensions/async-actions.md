@@ -230,7 +230,7 @@ slop.register("ci", {
 
 ### The `__async` return convention
 
-When a handler returns an object with `__async: true`, the provider sends `status: "accepted"` instead of `status: "ok"`:
+Action handlers signal an asynchronous action by returning an object with `__async: true`. The provider then sends `status: "accepted"` instead of `status: "ok"`. The marker is stripped before the result is serialized — everything else on the returned object (including `taskId`) is passed through to `result.data`:
 
 ```ts
 // Handler returns:
@@ -241,6 +241,8 @@ return { __async: true, taskId: "deploy-123" };
 ```
 
 If the handler doesn't return `__async: true`, the behavior is unchanged — `status: "ok"` as before. This is backwards-compatible.
+
+**Cross-SDK convention.** `{ __async: true, taskId, ... }` is the canonical, wire-level marker and every reference SDK (TypeScript, Python, Go, Rust) accepts it. TypeScript additionally accepts an `AsyncActionResult(taskId, data?)` instance as idiomatic sugar that serializes to the same shape. Both are equivalent — pick whichever fits the host language best. Custom SDKs MUST implement the dict form; the class form is optional.
 
 ## AI interaction flow
 

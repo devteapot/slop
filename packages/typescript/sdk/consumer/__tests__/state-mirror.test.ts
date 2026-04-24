@@ -1,6 +1,6 @@
-import { describe, test, expect } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { StateMirror } from "../src/state-mirror";
-import type { SlopNode, SnapshotMessage, PatchMessage } from "../src/types";
+import type { PatchMessage, SlopNode, SnapshotMessage } from "../src/types";
 
 const snapshot: SnapshotMessage = {
   type: "snapshot",
@@ -82,5 +82,21 @@ describe("StateMirror", () => {
     expect(tree.children![0].properties?.count).toBe(3);
     expect(tree.children![0].children).toHaveLength(3);
     expect(tree.children![0].children![0].properties?.done).toBe(true);
+  });
+
+  test("unescapes RFC 6901 property keys when applying patches", () => {
+    const mirror = new StateMirror(snapshot);
+    mirror.applyPatch({
+      type: "patch",
+      subscription: "sub-1",
+      version: 2,
+      ops: [
+        { op: "add", path: "/todos/t1/properties/a~1b", value: "slash" },
+        { op: "add", path: "/todos/t1/properties/c~0d", value: "tilde" },
+      ],
+    });
+    const t1 = mirror.getTree().children![0].children![0];
+    expect(t1.properties?.["a/b"]).toBe("slash");
+    expect(t1.properties?.["c~d"]).toBe("tilde");
   });
 });

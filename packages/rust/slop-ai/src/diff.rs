@@ -5,6 +5,17 @@
 
 use crate::types::{PatchOp, PatchOpKind, SlopNode};
 
+/// RFC 6901 JSON Pointer escape for property-key segments.
+/// Node ID segments must not contain '/' or '~' and are not escaped.
+pub fn escape_pointer_segment(key: &str) -> String {
+    key.replace('~', "~0").replace('/', "~1")
+}
+
+/// Reverse of `escape_pointer_segment`.
+pub fn unescape_pointer_segment(segment: &str) -> String {
+    segment.replace("~1", "/").replace("~0", "~")
+}
+
 /// Recursively diff two trees and return patch operations.
 pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchOp> {
     let mut ops = Vec::new();
@@ -13,19 +24,31 @@ pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchO
     diff_properties(old, new, base_path, &mut ops);
 
     // --- affordances (replace entire list if changed) ---
-    let old_aff = old.affordances.as_ref().map(|a| serde_json::to_value(a).unwrap());
-    let new_aff = new.affordances.as_ref().map(|a| serde_json::to_value(a).unwrap());
+    let old_aff = old
+        .affordances
+        .as_ref()
+        .map(|a| serde_json::to_value(a).unwrap());
+    let new_aff = new
+        .affordances
+        .as_ref()
+        .map(|a| serde_json::to_value(a).unwrap());
     if old_aff != new_aff {
         match (&old_aff, &new_aff) {
             (_, Some(val)) => ops.push(PatchOp {
-                op: if old_aff.is_some() { PatchOpKind::Replace } else { PatchOpKind::Add },
+                op: if old_aff.is_some() {
+                    PatchOpKind::Replace
+                } else {
+                    PatchOpKind::Add
+                },
                 path: format!("{base_path}/affordances"),
                 value: Some(val.clone()),
+                index: None,
             }),
             (Some(_), None) => ops.push(PatchOp {
                 op: PatchOpKind::Remove,
                 path: format!("{base_path}/affordances"),
                 value: None,
+                index: None,
             }),
             (None, None) => {}
         }
@@ -37,20 +60,26 @@ pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchO
     if old_meta != new_meta {
         match (&old_meta, &new_meta) {
             (_, Some(val)) => ops.push(PatchOp {
-                op: if old_meta.is_some() { PatchOpKind::Replace } else { PatchOpKind::Add },
+                op: if old_meta.is_some() {
+                    PatchOpKind::Replace
+                } else {
+                    PatchOpKind::Add
+                },
                 path: format!("{base_path}/meta"),
                 value: Some(val.clone()),
+                index: None,
             }),
             (Some(_), None) => ops.push(PatchOp {
                 op: PatchOpKind::Remove,
                 path: format!("{base_path}/meta"),
                 value: None,
+                index: None,
             }),
             (None, None) => {}
         }
     }
 
-    // --- children ---
+    // --- children (ordered; emit remove/add(index)/move to preserve order) ---
     let old_children = old.children.as_deref().unwrap_or(&[]);
     let new_children = new.children.as_deref().unwrap_or(&[]);
 
@@ -59,29 +88,49 @@ pub fn diff_nodes(old: &SlopNode, new: &SlopNode, base_path: &str) -> Vec<PatchO
     let new_ids: std::collections::HashMap<&str, &SlopNode> =
         new_children.iter().map(|c| (c.id.as_str(), c)).collect();
 
-    // Removed children
+    let mut working: Vec<String> = Vec::new();
     for child in old_children {
         if !new_ids.contains_key(child.id.as_str()) {
             ops.push(PatchOp {
                 op: PatchOpKind::Remove,
                 path: format!("{base_path}/{}", child.id),
                 value: None,
+                index: None,
             });
+        } else {
+            working.push(child.id.clone());
         }
     }
 
-    // Added children
-    for child in new_children {
+    for (i, child) in new_children.iter().enumerate() {
         if !old_ids.contains_key(child.id.as_str()) {
             ops.push(PatchOp {
                 op: PatchOpKind::Add,
                 path: format!("{base_path}/{}", child.id),
                 value: Some(serde_json::to_value(child).unwrap()),
+                index: Some(i),
             });
+            working.insert(i, child.id.clone());
         }
     }
 
-    // Recursively diff shared children
+    for (i, child) in new_children.iter().enumerate() {
+        if working.get(i).map(String::as_str) == Some(child.id.as_str()) {
+            continue;
+        }
+        let current_idx = working.iter().position(|id| id == &child.id);
+        if let Some(ci) = current_idx {
+            ops.push(PatchOp {
+                op: PatchOpKind::Move,
+                path: format!("{base_path}/{}", child.id),
+                value: None,
+                index: Some(i),
+            });
+            let id = working.remove(ci);
+            working.insert(i, id);
+        }
+    }
+
     for child in new_children {
         if let Some(old_child) = old_ids.get(child.id.as_str()) {
             let child_path = format!("{base_path}/{}", child.id);
@@ -104,21 +153,25 @@ fn diff_properties(old: &SlopNode, new: &SlopNode, base_path: &str, ops: &mut Ve
     for key in all_keys {
         let old_val = old_props.get(key);
         let new_val = new_props.get(key);
+        let esc = escape_pointer_segment(key);
         match (old_val, new_val) {
             (None, Some(v)) => ops.push(PatchOp {
                 op: PatchOpKind::Add,
-                path: format!("{base_path}/properties/{key}"),
+                path: format!("{base_path}/properties/{esc}"),
                 value: Some(v.clone()),
+                index: None,
             }),
             (Some(_), None) => ops.push(PatchOp {
                 op: PatchOpKind::Remove,
-                path: format!("{base_path}/properties/{key}"),
+                path: format!("{base_path}/properties/{esc}"),
                 value: None,
+                index: None,
             }),
             (Some(old_v), Some(new_v)) if old_v != new_v => ops.push(PatchOp {
                 op: PatchOpKind::Replace,
-                path: format!("{base_path}/properties/{key}"),
+                path: format!("{base_path}/properties/{esc}"),
                 value: Some(new_v.clone()),
+                index: None,
             }),
             _ => {}
         }
@@ -188,9 +241,15 @@ mod tests {
 
     #[test]
     fn test_child_added() {
-        let old = SlopNode { children: Some(vec![]), ..node("x") };
+        let old = SlopNode {
+            children: Some(vec![]),
+            ..node("x")
+        };
         let child = node("c1");
-        let new = SlopNode { children: Some(vec![child]), ..node("x") };
+        let new = SlopNode {
+            children: Some(vec![child]),
+            ..node("x")
+        };
         let ops = diff_nodes(&old, &new, "");
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].op, PatchOpKind::Add);
@@ -200,8 +259,14 @@ mod tests {
     #[test]
     fn test_child_removed() {
         let child = node("c1");
-        let old = SlopNode { children: Some(vec![child]), ..node("x") };
-        let new = SlopNode { children: Some(vec![]), ..node("x") };
+        let old = SlopNode {
+            children: Some(vec![child]),
+            ..node("x")
+        };
+        let new = SlopNode {
+            children: Some(vec![]),
+            ..node("x")
+        };
         let ops = diff_nodes(&old, &new, "");
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].op, PatchOpKind::Remove);
@@ -233,11 +298,17 @@ mod tests {
     #[test]
     fn test_meta_changed() {
         let old = SlopNode {
-            meta: Some(NodeMeta { salience: Some(0.5), ..NodeMeta::new() }),
+            meta: Some(NodeMeta {
+                salience: Some(0.5),
+                ..NodeMeta::new()
+            }),
             ..node("x")
         };
         let new = SlopNode {
-            meta: Some(NodeMeta { salience: Some(0.9), ..NodeMeta::new() }),
+            meta: Some(NodeMeta {
+                salience: Some(0.9),
+                ..NodeMeta::new()
+            }),
             ..node("x")
         };
         let ops = diff_nodes(&old, &new, "");

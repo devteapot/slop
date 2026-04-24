@@ -58,14 +58,19 @@ def get_subtree(root: SlopNode, path: str) -> SlopNode | None:
 
 
 def truncate_tree(node: SlopNode, depth: int) -> SlopNode:
-    """Collapse nodes beyond depth to stubs with meta.total_children."""
+    """Collapse nodes beyond *depth* into depth stubs.
+
+    Depth stubs carry only ``id``, ``type``, and ``meta`` — no
+    ``properties``, ``children``, ``affordances``, or ``content_ref``. For
+    budget-driven collapsing that preserves ``properties`` and ``affordances``,
+    see :func:`auto_compact` (spec/core/state-tree.md §depth stub vs compacted node).
+    """
     if depth <= 0 and node.children:
         meta = copy.copy(node.meta) if node.meta else NodeMeta()
         meta.total_children = len(node.children)
         return SlopNode(
             id=node.id,
             type=node.type,
-            properties=node.properties,
             meta=meta,
         )
     if not node.children:

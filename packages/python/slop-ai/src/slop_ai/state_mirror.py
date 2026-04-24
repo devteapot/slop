@@ -10,15 +10,40 @@ from .types import SlopNode, PatchOp
 _NODE_FIELDS = frozenset({"properties", "meta", "affordances", "content_ref"})
 
 
+def _unescape_pointer(segment: str) -> str:
+    return segment.replace("~1", "/").replace("~0", "~")
+
+
+class SubscriptionGapError(Exception):
+    """Raised when a patch's ``seq`` is not exactly ``last_seq + 1``."""
+
+    def __init__(self, expected: int, received: int) -> None:
+        super().__init__(f"SLOP subscription gap: expected seq {expected}, got {received}")
+        self.expected = expected
+        self.received = received
+
+
 class StateMirror:
     """Mirrors a remote SLOP tree, applying snapshot and patch messages."""
 
     def __init__(self, snapshot: dict[str, Any]) -> None:
         self._tree = SlopNode.from_dict(copy.deepcopy(snapshot["tree"]))
         self._version: int = snapshot["version"]
+        self._seq: int = snapshot.get("seq", 0)
 
     def apply_patch(self, patch: dict[str, Any]) -> None:
-        """Apply a patch message (list of ops) to the local tree."""
+        """Apply a patch message (list of ops) to the local tree.
+
+        Raises :class:`SubscriptionGapError` when ``patch["seq"]`` is present
+        and does not equal ``self._seq + 1``. Patches without ``seq`` skip
+        gap detection for compatibility with older providers.
+        """
+        seq = patch.get("seq")
+        if seq is not None:
+            expected = self._seq + 1
+            if seq != expected:
+                raise SubscriptionGapError(expected, seq)
+            self._seq = seq
         for op_data in patch["ops"]:
             op = PatchOp.from_dict(op_data) if isinstance(op_data, dict) else op_data
             self._apply_op(op)
@@ -30,6 +55,9 @@ class StateMirror:
     def get_version(self) -> int:
         return self._version
 
+    def get_seq(self) -> int:
+        return self._seq
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
@@ -39,11 +67,27 @@ class StateMirror:
         if not segments:
             return
         if op.op == "add":
-            self._apply_add(segments, op.value)
+            self._apply_add(segments, op.value, op.index)
         elif op.op == "remove":
             self._apply_remove(segments)
         elif op.op == "replace":
             self._apply_replace(segments, op.value)
+        elif op.op == "move":
+            self._apply_move(segments, op.index)
+
+    def _apply_move(self, segments: list[str], index: int | None) -> None:
+        if index is None or self._is_field_segment(segments):
+            return
+        child_id = segments[-1]
+        parent = self._resolve_node(segments[:-1])
+        if parent is None or parent.children is None:
+            return
+        for i, c in enumerate(parent.children):
+            if c.id == child_id:
+                child = parent.children.pop(i)
+                clamped = max(0, min(index, len(parent.children)))
+                parent.children.insert(clamped, child)
+                return
 
     def _navigate(self, segments: list[str]) -> tuple[Any, str] | None:
         """Walk *segments* down the tree, returning (parent, final_key).
@@ -52,10 +96,11 @@ class StateMirror:
         fields. All other segments are treated as child IDs.
         """
         current: Any = self._tree
+        in_field = False
         i = 0
         while i < len(segments) - 1:
             seg = segments[i]
-            if seg in _NODE_FIELDS:
+            if not in_field and seg in _NODE_FIELDS:
                 if seg == "meta":
                     current = getattr(current, "meta", None)
                 elif seg == "properties":
@@ -66,15 +111,24 @@ class StateMirror:
                     current = getattr(current, seg, None)
                 if current is None:
                     return None
-                i += 1
+                in_field = True
+            elif in_field:
+                key = _unescape_pointer(seg)
+                if isinstance(current, dict):
+                    current = current.get(key)
+                else:
+                    current = getattr(current, key, None)
+                if current is None:
+                    return None
             else:
-                # Child ID lookup
+                # Child ID lookup (node IDs are forbidden from containing / or ~)
                 child = _find_child(current, seg)
                 if child is None:
                     return None
                 current = child
-                i += 1
-        return (current, segments[-1])
+            i += 1
+        last = segments[-1]
+        return (current, _unescape_pointer(last) if in_field else last)
 
     def _is_field_segment(self, segments: list[str]) -> bool:
         """Check if the path targets a node field (not a child ID).
@@ -88,7 +142,7 @@ class StateMirror:
                 return True
         return False
 
-    def _apply_add(self, segments: list[str], value: Any) -> None:
+    def _apply_add(self, segments: list[str], value: Any, index: int | None = None) -> None:
         # Adding a child node
         if not self._is_field_segment(segments):
             parent = self._resolve_node(segments[:-1])
@@ -96,7 +150,11 @@ class StateMirror:
                 if parent.children is None:
                     parent.children = []
                 child = SlopNode.from_dict(value) if isinstance(value, dict) else value
-                parent.children.append(child)
+                if index is None:
+                    parent.children.append(child)
+                else:
+                    clamped = max(0, min(index, len(parent.children)))
+                    parent.children.insert(clamped, child)
             return
 
         target = self._navigate(segments)
@@ -125,6 +183,18 @@ class StateMirror:
                 setattr(parent, key, None)
 
     def _apply_replace(self, segments: list[str], value: Any) -> None:
+        # Replacing a child node by ID: the last segment is a child ID under a node.
+        if not self._is_field_segment(segments):
+            child_id = segments[-1]
+            parent = self._resolve_node(segments[:-1])
+            if parent is not None and parent.children is not None:
+                new_child = SlopNode.from_dict(value) if isinstance(value, dict) else value
+                for i, c in enumerate(parent.children):
+                    if c.id == child_id:
+                        parent.children[i] = new_child
+                        return
+            return
+
         target = self._navigate(segments)
         if target is not None:
             parent, key = target

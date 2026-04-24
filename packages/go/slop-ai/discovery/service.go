@@ -5,13 +5,21 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	slop "github.com/devteapot/slop/packages/go/slop-ai"
 	"github.com/fsnotify/fsnotify"
 )
+
+// descriptorFilenameRE matches lowercase id plus `.json`. Keeps path
+// traversal and surprising characters out of the scan loop. See
+// spec/core/transport.md §local discovery.
+var descriptorFilenameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}\.json$`)
 
 var validTransportTypes = map[string]struct{}{
 	"unix":  {},
@@ -520,21 +528,63 @@ func (s *Service) createTransport(desc ProviderDescriptor) slop.ClientTransport 
 
 func (s *Service) readDescriptors() []ProviderDescriptor {
 	var descriptors []ProviderDescriptor
+	myUID := os.Getuid()
+	isPosix := runtime.GOOS != "windows"
 	for _, dir := range s.config.providersDirs {
+		dirInfo, err := os.Stat(dir)
+		if err != nil || !dirInfo.IsDir() {
+			continue
+		}
+		// Hardening: reject provider dirs we don't own or that grant
+		// group/other access. A world-writable /tmp/slop/providers is a
+		// privilege-escalation hazard.
+		if sys, ok := dirInfo.Sys().(*syscall.Stat_t); ok && myUID >= 0 && int(sys.Uid) != myUID {
+			s.config.logger.errorf("[slop] Skipping %s: not owned by current user", dir)
+			continue
+		}
+		if isPosix && dirInfo.Mode().Perm()&0o077 != 0 {
+			s.config.logger.errorf("[slop] Skipping %s: mode %o grants group/other access; expected 0700", dir, dirInfo.Mode().Perm())
+			continue
+		}
+
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			name := entry.Name()
+			if entry.IsDir() || !descriptorFilenameRE.MatchString(name) {
 				continue
 			}
-			path := filepath.Join(dir, entry.Name())
-			content, err := os.ReadFile(path)
+			path := filepath.Join(dir, name)
+
+			f, err := os.OpenFile(path, os.O_RDONLY, 0)
 			if err != nil {
+				s.config.logger.errorf("[slop] open(%s) failed: %v", path, err)
+				continue
+			}
+			fi, err := f.Stat()
+			if err != nil {
+				f.Close()
+				continue
+			}
+			if sys, ok := fi.Sys().(*syscall.Stat_t); ok && myUID >= 0 && int(sys.Uid) != myUID {
+				s.config.logger.errorf("[slop] Skipping %s: not owned by current user", name)
+				f.Close()
+				continue
+			}
+			if isPosix && fi.Mode().Perm()&0o077 != 0 {
+				s.config.logger.errorf("[slop] Skipping %s: mode %o grants group/other access; expected 0600", name, fi.Mode().Perm())
+				f.Close()
+				continue
+			}
+			content := make([]byte, fi.Size())
+			if _, err := f.Read(content); err != nil && fi.Size() > 0 {
+				f.Close()
 				s.config.logger.errorf("[slop] Failed to read %s: %v", path, err)
 				continue
 			}
+			f.Close()
 
 			var desc ProviderDescriptor
 			if err := json.Unmarshal(content, &desc); err != nil {

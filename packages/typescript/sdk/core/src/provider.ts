@@ -7,16 +7,25 @@
  * `broadcast()` to push updates to consumers.
  */
 
-import type { SlopNode, PatchOp, ActionHandler, NodeDescriptor, SlopClientOptions } from "./types";
-import { AsyncActionResult } from "./types";
-import { assembleTree } from "./tree-assembler";
 import { diffNodes } from "./diff";
-import { prepareTree, getSubtree } from "./scaling";
+import { getSubtree, prepareTree } from "./scaling";
+import { assembleTree } from "./tree-assembler";
+import type { ActionHandler, Affordance, NodeDescriptor, PatchOp, SlopClientOptions, SlopNode } from "./types";
+import { AsyncActionResult } from "./types";
+import { validateParams } from "./validate-params";
 
 /** Subscription filter from a consumer's subscribe message. */
 export interface SubscriptionFilter {
   types?: string[];
   min_salience?: number;
+}
+
+/** Thrown when a subscribe/query references a path that does not exist in the current tree. */
+export class SubtreeNotFoundError extends Error {
+  constructor(public readonly path: string) {
+    super(`Path ${path} not found`);
+    this.name = "SubtreeNotFoundError";
+  }
 }
 
 /** Options for resolving output trees. */
@@ -84,6 +93,16 @@ export abstract class ProviderBase<S = unknown> {
     }
   }
 
+  /** Look up the affordance descriptor for a path+action in the current tree. */
+  resolveAffordance(path: string, action: string): Affordance | undefined {
+    const rootPrefix = `/${this.options.id}`;
+    let treePath = path;
+    if (treePath === rootPrefix) treePath = "/";
+    else if (treePath.startsWith(`${rootPrefix}/`)) treePath = treePath.slice(rootPrefix.length);
+    const node = treePath === "/" ? this.currentTree : getSubtree(this.currentTree, treePath);
+    return node?.affordances?.find((a) => a.action === action);
+  }
+
   /** Resolve an action handler by path + action name. */
   resolveHandler(path: string, action: string): ActionHandler | undefined {
     const rootPrefix = `/${this.options.id}/`;
@@ -121,22 +140,54 @@ export abstract class ProviderBase<S = unknown> {
       };
     }
 
+    // Spec: providers MUST validate invoke params against the affordance's
+    // declared schema before running the handler. The handler can still
+    // enforce richer invariants, but we catch shape mismatches here so the
+    // invalid_params code is reliable across SDKs.
+    const affordance = this.resolveAffordance(msg.path, msg.action);
+    if (affordance?.params) {
+      const err = validateParams(affordance.params, msg.params ?? {});
+      if (err) {
+        return {
+          type: "result",
+          id: msg.id,
+          status: "error",
+          error: { code: "invalid_params", message: err },
+        };
+      }
+    }
+
     try {
       const data = await handler(msg.params ?? {});
-      const isAsync = data instanceof AsyncActionResult;
-      const resultData = isAsync
-        ? (data.data ?? {})
-        : data && typeof data === "object"
-          ? (data as Record<string, unknown>)
-          : {};
+      // Two equivalent async-action conventions per spec/extensions/async-actions.md:
+      // (1) return an AsyncActionResult instance (idiomatic TS), or
+      // (2) return a plain object with { __async: true, taskId, ... } (wire-level,
+      //     shared with the Python/Go/Rust SDKs).
+      const isAsyncInstance = data instanceof AsyncActionResult;
+      const isAsyncDict =
+        !isAsyncInstance &&
+        data !== null &&
+        typeof data === "object" &&
+        (data as Record<string, unknown>).__async === true;
+      const isAsync = isAsyncInstance || isAsyncDict;
+
+      let resultData: Record<string, unknown>;
+      if (isAsyncInstance) {
+        resultData = { taskId: data.taskId, ...(data.data ?? {}) };
+      } else if (isAsyncDict) {
+        // Strip the marker; everything else (including taskId) is passed through.
+        const { __async: _discard, ...rest } = data as Record<string, unknown>;
+        resultData = rest;
+      } else {
+        resultData = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+      }
+
       const result: Record<string, unknown> = {
         type: "result",
         id: msg.id,
         status: isAsync ? "accepted" : "ok",
       };
-      if (isAsync) {
-        result.data = { taskId: data.taskId, ...resultData };
-      } else if (Object.keys(resultData).length > 0) {
+      if (isAsync || Object.keys(resultData).length > 0) {
         result.data = resultData;
       }
       // Auto-refresh
@@ -168,9 +219,22 @@ export abstract class ProviderBase<S = unknown> {
     };
   }
 
-  /** Prepare the tree for output, applying path, depth, filter, window, and global options. */
+  /**
+   * Prepare the tree for output, applying path, depth, filter, window, and global options.
+   *
+   * Throws `SubtreeNotFoundError` when `request.path` is set and does not resolve
+   * to a node — callers MUST translate this into a `not_found` error response
+   * rather than silently returning the root tree.
+   */
   getOutputTree(request?: OutputRequest): SlopNode {
-    let tree = request?.path ? (getSubtree(this.currentTree, request.path) ?? this.currentTree) : this.currentTree;
+    let tree: SlopNode;
+    if (request?.path && request.path !== "/") {
+      const sub = getSubtree(this.currentTree, request.path);
+      if (!sub) throw new SubtreeNotFoundError(request.path);
+      tree = sub;
+    } else {
+      tree = this.currentTree;
+    }
 
     tree = prepareTree(tree, {
       maxDepth: request?.depth != null && request.depth >= 0 ? request.depth : this.options.maxDepth,

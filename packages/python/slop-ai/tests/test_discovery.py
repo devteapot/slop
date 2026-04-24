@@ -25,6 +25,9 @@ from slop_ai.discovery.models import (
 
 def test_service_scans_and_prunes_descriptors(tmp_path: Path) -> None:
     async def _run() -> None:
+        import os
+
+        os.chmod(tmp_path, 0o700)
         descriptor_path = tmp_path / "test-app.json"
         descriptor_path.write_text(
             json.dumps(
@@ -37,6 +40,7 @@ def test_service_scans_and_prunes_descriptors(tmp_path: Path) -> None:
                 }
             )
         )
+        os.chmod(descriptor_path, 0o600)
 
         service = DiscoveryService(
             DiscoveryOptions(

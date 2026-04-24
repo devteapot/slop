@@ -8,6 +8,16 @@ import (
 // assembleTree builds a hierarchical WireNode tree from flat path-based registrations.
 // Missing ancestors are created as synthetic placeholder nodes.
 func assembleTree(registrations map[string]Node, rootID, rootName string) (WireNode, map[string]Handler) {
+	validateNodeID(rootID)
+	// Validate every path segment up-front so that synthetic ancestor
+	// placeholders (created below) can never carry an id containing "/"
+	// or "~" — those would be unaddressable by patch paths. See
+	// spec/core/state-tree.md §id.
+	for path := range registrations {
+		for _, seg := range strings.Split(path, "/") {
+			validateNodeID(seg)
+		}
+	}
 	allHandlers := map[string]Handler{}
 	nodesByPath := map[string]WireNode{}
 

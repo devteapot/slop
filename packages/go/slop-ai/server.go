@@ -10,14 +10,16 @@ import (
 )
 
 type subscription struct {
-	id              string
-	path            string
-	depth           int
-	maxNodes        *int
-	filterTypes     []string
-	filterMinSal    *float64
-	connection      Connection
-	lastTree        *WireNode
+	id           string
+	path         string
+	depth        int
+	maxNodes     *int
+	filterTypes  []string
+	filterMinSal *float64
+	connection   Connection
+	lastTree     *WireNode
+	// Per-subscription sequence number. See spec/core/messages.md.
+	seq uint64
 }
 
 // Server is a SLOP provider that manages state registrations, connections,
@@ -255,6 +257,7 @@ func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[str
 			"type":    "snapshot",
 			"id":      subID,
 			"version": ver,
+			"seq":     uint64(0),
 			"tree":    wireNodeToMap(*outTree),
 		}); err != nil {
 			s.logger.Warn("failed to send message", "err", err)
@@ -267,6 +270,7 @@ func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[str
 			filterTypes:  filterTypes,
 			filterMinSal: filterMinSal,
 			lastTree:     &initTree,
+			seq:          0,
 		})
 		s.mu.Unlock()
 
@@ -332,14 +336,23 @@ func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[str
 			return
 		}
 
-		// Apply window [offset, count] to children
+		// Apply window [offset, count] to children.
+		// Per spec/core/attention.md §optimization pipeline (step 4),
+		// windowing MUST also set meta.window and meta.total_children so
+		// the consumer knows which slice it got and how many siblings exist.
 		if w, ok := msg["window"].([]any); ok && len(w) == 2 {
 			offset := jsonIntFromAny(w[0])
 			count := jsonIntFromAny(w[1])
-			if offset < len(outTree.Children) {
+			total := len(outTree.Children)
+			if outTree.Meta == nil {
+				outTree.Meta = &WireMeta{}
+			}
+			outTree.Meta.TotalChildren = &total
+			outTree.Meta.Window = &[2]int{offset, count}
+			if offset < total {
 				end := offset + count
-				if end > len(outTree.Children) {
-					end = len(outTree.Children)
+				if end > total {
+					end = total
 				}
 				outTree.Children = outTree.Children[offset:end]
 			} else {
@@ -486,6 +499,32 @@ func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[stri
 		return
 	}
 
+	// Spec: providers MUST validate invoke params against the affordance's
+	// declared schema before running the handler.
+	if aff := s.resolveAffordance(path, action); aff != nil {
+		var schema map[string]any
+		switch p := aff.Params.(type) {
+		case map[string]any:
+			schema = p
+		case nil:
+		default:
+			if b, err := json.Marshal(p); err == nil {
+				_ = json.Unmarshal(b, &schema)
+			}
+		}
+		if errMsg := ValidateParams(schema, map[string]any(params)); errMsg != "" {
+			if err := conn.Send(map[string]any{
+				"type":   "result",
+				"id":     msgID,
+				"status": "error",
+				"error":  map[string]any{"code": "invalid_params", "message": errMsg},
+			}); err != nil {
+				s.logger.Warn("failed to send message", "err", err)
+			}
+			return
+		}
+	}
+
 	result, err := handler.HandleAction(ctx, Params(params))
 	if err != nil {
 		if err := conn.Send(map[string]any{
@@ -532,6 +571,55 @@ func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[stri
 
 	// Auto-refresh after invoke
 	s.Refresh()
+}
+
+// resolveAffordance walks the current tree to find the affordance descriptor
+// for (path, action). Returns nil if the node or action can't be found.
+func (s *Server) resolveAffordance(path, action string) *Affordance {
+	rootPrefix := "/" + s.id
+	treePath := path
+	if treePath == rootPrefix {
+		treePath = "/"
+	} else if strings.HasPrefix(treePath, rootPrefix+"/") {
+		treePath = treePath[len(rootPrefix):]
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	node := &s.currentTree
+	if treePath != "/" {
+		node = findNodeByPath(&s.currentTree, treePath)
+	}
+	if node == nil {
+		return nil
+	}
+	for i := range node.Affordances {
+		if node.Affordances[i].Action == action {
+			return &node.Affordances[i]
+		}
+	}
+	return nil
+}
+
+func findNodeByPath(root *WireNode, path string) *WireNode {
+	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	current := root
+	for _, seg := range segments {
+		if seg == "" {
+			continue
+		}
+		found := false
+		for i := range current.Children {
+			if current.Children[i].ID == seg {
+				current = &current.Children[i]
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil
+		}
+	}
+	return current
 }
 
 func (s *Server) resolveHandlerKey(path, action string) string {
@@ -591,10 +679,12 @@ func (s *Server) broadcastPatches() {
 		if len(ops) == 0 {
 			continue
 		}
+		sub.seq++
 		if err := sub.connection.Send(map[string]any{
 			"type":         "patch",
 			"subscription": sub.id,
 			"version":      s.version,
+			"seq":          sub.seq,
 			"ops":          ops,
 		}); err != nil {
 			s.logger.Warn("failed to send message", "err", err)

@@ -188,9 +188,10 @@ class StateMirror:
             child_id = segments[-1]
             parent = self._resolve_node(segments[:-1])
             if parent is not None and parent.children is not None:
+                new_child = SlopNode.from_dict(value) if isinstance(value, dict) else value
                 for i, c in enumerate(parent.children):
                     if c.id == child_id:
-                        parent.children[i] = value
+                        parent.children[i] = new_child
                         return
             return
 

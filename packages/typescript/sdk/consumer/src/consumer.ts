@@ -14,9 +14,16 @@ import type {
   SlopNode,
 } from "./types";
 
+interface SubscriptionRecord {
+  path: string;
+  depth: number;
+  options?: { max_nodes?: number; filter?: { types?: string[]; min_salience?: number } };
+}
+
 export class SlopConsumer extends Emitter {
   private connection: Connection | null = null;
   private mirrors = new Map<string, StateMirror>();
+  private subscriptions = new Map<string, SubscriptionRecord>();
   private pending = new Map<string, { resolve: (v: any) => void; reject: (e: any) => void }>();
   private transport: ClientTransport;
   private subCounter = 0;
@@ -49,25 +56,33 @@ export class SlopConsumer extends Emitter {
     options?: { max_nodes?: number; filter?: { types?: string[]; min_salience?: number } },
   ): Promise<{ id: string; snapshot: SlopNode }> {
     const id = `sub-${++this.subCounter}`;
+    this.subscriptions.set(id, { path, depth, options });
     return new Promise((resolve, reject) => {
       this.pending.set(id, {
         resolve: (snapshot: SlopNode) => resolve({ id, snapshot }),
         reject,
       });
-      this.connection!.send({
-        type: "subscribe",
-        id,
-        path,
-        depth,
-        ...(options?.max_nodes != null && { max_nodes: options.max_nodes }),
-        ...(options?.filter && { filter: options.filter }),
-      });
+      this.sendSubscribe(id);
     });
   }
 
   unsubscribe(id: string): void {
     this.mirrors.delete(id);
+    this.subscriptions.delete(id);
     this.connection?.send({ type: "unsubscribe", id });
+  }
+
+  private sendSubscribe(id: string): void {
+    const sub = this.subscriptions.get(id);
+    if (!sub) return;
+    this.connection?.send({
+      type: "subscribe",
+      id,
+      path: sub.path,
+      depth: sub.depth,
+      ...(sub.options?.max_nodes != null && { max_nodes: sub.options.max_nodes }),
+      ...(sub.options?.filter && { filter: sub.options.filter }),
+    });
   }
 
   async query(
@@ -145,12 +160,15 @@ export class SlopConsumer extends Emitter {
           this.emit("patch", msg.subscription, msg.ops, msg.version);
         } catch (err) {
           if (err instanceof SubscriptionGapError) {
-            // Gap detected — drop the mirror and re-subscribe to close the
-            // gap by construction. Any buffered patches for this subscription
-            // will be discarded when the fresh snapshot arrives.
+            // Gap detected — drop the mirror and resubscribe to close the gap
+            // by construction. Per spec/core/messages.md, consumer MUST send
+            // unsubscribe followed by a fresh subscribe; buffered patches
+            // for this subscription are discarded when the new snapshot
+            // arrives (version ≤ snapshot.version).
             this.mirrors.delete(msg.subscription);
             this.connection?.send({ type: "unsubscribe", id: msg.subscription });
             this.emit("gap", msg.subscription, err.expected, err.received);
+            this.sendSubscribe(msg.subscription);
           } else {
             throw err;
           }

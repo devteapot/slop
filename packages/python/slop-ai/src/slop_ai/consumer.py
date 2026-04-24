@@ -6,7 +6,7 @@ import asyncio
 from typing import Any, Callable, Protocol
 
 from .types import SlopNode, PatchOp
-from .state_mirror import StateMirror
+from .state_mirror import StateMirror, SubscriptionGapError
 
 
 # ---------------------------------------------------------------
@@ -36,6 +36,7 @@ PatchHandler = Callable[[str, list[dict[str, Any]], int], None]
 DisconnectHandler = Callable[[], None]
 ErrorHandler = Callable[[dict[str, Any]], None]
 EventHandler = Callable[[str, Any], None]
+GapHandler = Callable[[str, int, int], None]
 
 
 # ---------------------------------------------------------------
@@ -58,6 +59,7 @@ class SlopConsumer:
         self._timeout = timeout
         self._connection: ClientConnection | None = None
         self._mirrors: dict[str, StateMirror] = {}
+        self._subscriptions: dict[str, dict[str, Any]] = {}
         self._pending: dict[str, asyncio.Future[Any]] = {}
         self._sub_counter = 0
         self._req_counter = 0
@@ -67,6 +69,7 @@ class SlopConsumer:
         self._on_disconnect: list[DisconnectHandler] = []
         self._on_error: list[ErrorHandler] = []
         self._on_event: list[EventHandler] = []
+        self._on_gap: list[GapHandler] = []
 
     # -- public event registration ----------------------------------
 
@@ -85,6 +88,12 @@ class SlopConsumer:
     def on_event(self, handler: EventHandler) -> None:
         """Register a handler called on ``event`` messages: ``handler(name, data)``."""
         self._on_event.append(handler)
+
+    def on_gap(self, handler: GapHandler) -> None:
+        """Register a handler called when a per-subscription seq gap triggers
+        unsubscribe+resubscribe recovery: ``handler(sub_id, expected, received)``.
+        """
+        self._on_gap.append(handler)
 
     # -- lifecycle ---------------------------------------------------
 
@@ -119,6 +128,7 @@ class SlopConsumer:
         self._sub_counter += 1
         sub_id = f"sub-{self._sub_counter}"
 
+        self._subscriptions[sub_id] = {"path": path, "depth": depth}
         future = self._make_future(sub_id)
         await self._send({"type": "subscribe", "id": sub_id, "path": path, "depth": depth})
         snapshot_tree: SlopNode = await asyncio.wait_for(future, timeout=self._timeout)
@@ -127,6 +137,7 @@ class SlopConsumer:
     def unsubscribe(self, sub_id: str) -> None:
         """Unsubscribe from a subscription."""
         self._mirrors.pop(sub_id, None)
+        self._subscriptions.pop(sub_id, None)
         if self._connection is not None:
             asyncio.ensure_future(self._send({"type": "unsubscribe", "id": sub_id}))
 
@@ -199,8 +210,28 @@ class SlopConsumer:
             sub_id = msg["subscription"]
             mirror = self._mirrors.get(sub_id)
             if mirror is not None:
-                mirror.apply_patch(msg)
-                self._emit_patch(sub_id, msg.get("ops", []), msg.get("version", 0))
+                try:
+                    mirror.apply_patch(msg)
+                except SubscriptionGapError as gap:
+                    # Spec: consumer MUST unsubscribe and fresh-subscribe to
+                    # recover. Drop the mirror, send both messages, and fire
+                    # gap handlers. Buffered patches are discarded when the
+                    # new snapshot arrives (version ≤ snapshot.version).
+                    self._mirrors.pop(sub_id, None)
+                    sub = self._subscriptions.get(sub_id)
+                    if self._connection is not None:
+                        asyncio.ensure_future(self._send({"type": "unsubscribe", "id": sub_id}))
+                        if sub is not None:
+                            asyncio.ensure_future(self._send({
+                                "type": "subscribe",
+                                "id": sub_id,
+                                "path": sub["path"],
+                                "depth": sub["depth"],
+                            }))
+                    for handler in self._on_gap:
+                        handler(sub_id, gap.expected, gap.received)
+                else:
+                    self._emit_patch(sub_id, msg.get("ops", []), msg.get("version", 0))
 
         elif msg_type == "result":
             future = self._pending.pop(msg.get("id", ""), None)

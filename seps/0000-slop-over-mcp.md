@@ -28,7 +28,7 @@ Today this is handled either by:
 2. **Screenshot + vision.** Expensive, lossy, fragile, and loses the semantic information the application already has.
 3. **Custom transports outside MCP.** Fragments tooling; every MCP host must learn a new wire.
 
-SLOP solves this problem with a state tree + JSON Patch subscription model, plus contextual affordances living on nodes rather than in a global registry. But SLOP today requires hosts to adopt a new transport. Carrying SLOP over MCP — as an optional extension — lets every existing MCP host consume SLOP without changing clients, and lets every SLOP provider reach those hosts without re-implementing MCP's tool and resource surfaces.
+SLOP solves this problem with a state tree and JSON Patch-style subscription model, plus contextual affordances living on nodes rather than in a global registry. But SLOP today requires hosts to adopt a new transport. Carrying SLOP over MCP — as an optional extension — lets MCP clients reach SLOP providers over a transport and session model they already implement, and lets SLOP providers interoperate with MCP hosts without publishing a second, parallel transport. Clients still need extension-aware code to speak `slop/*`; this SEP removes the transport divergence, not the client-side implementation work.
 
 This SEP is deliberately scoped to the **wire adaptation**. The semantic model (state tree, patch format, affordance shape, salience, attention) is defined by the SLOP specification and is referenced here normatively.
 
@@ -46,18 +46,23 @@ A server that supports this extension MUST declare the capability during initial
         "version": "0.1",
         "subscribe": true,
         "affordances": true,
-        "attention": true
+        "attention": true,
+        "async": false
       }
     }
   }
 }
 ```
 
-Sub-flags correspond to SLOP capabilities (see [SLOP transport spec, §Capabilities](https://github.com/devteapot/slop/blob/main/spec/core/transport.md)). `version` is the SLOP protocol version the server implements.
+Sub-flags correspond to SLOP capabilities (see [SLOP transport spec, §Capabilities](https://github.com/devteapot/slop/blob/main/spec/core/transport.md)). `version` is the SLOP protocol version the server implements. `async` indicates whether the server supports `accepted` results on `slop/invoke` (see §2.3).
 
-A client that supports this extension MAY declare the capability; declaration is informational only — servers do not gate behavior on it beyond noting that the peer understands SLOP semantics.
+Negotiation is **server-declared, client-initiated**:
 
-Servers and clients that do not declare the capability MUST ignore `slop/*` methods and notifications per the standard MCP extension rules.
+- A server MUST declare `experimental/slop` to accept any `slop/*` request or emit any `notifications/slop/*`.
+- A client MAY declare `experimental/slop` for symmetry and introspection, but the server does not gate behavior on it. A server MUST NOT emit `notifications/slop/*` unless the client has opened at least one active subscription via `slop/subscribe` — which is itself the client's opt-in signal.
+- A client that did not declare `experimental/slop` and does not call `slop/subscribe` will never see `slop/*` traffic; a server that did not declare it will reject `slop/*` requests with JSON-RPC error `-32601` (Method not found).
+
+This resolves the apparent tension between "client declaration is informational" and "clients that do not declare the capability never see traffic": subscription state, not capability declaration, is what gates server-to-client notifications.
 
 ### 2. Methods
 
@@ -105,17 +110,37 @@ Invoke an affordance on a node. Semantics match the SLOP `invoke` message.
 
 When `observedVersion` and `subscriptionId` are provided together, the server MAY reject the invocation with `error.code = "conflict"` if the affordance is no longer valid at the current server version. Clients SHOULD include them whenever they invoke an affordance they learned about through a subscription — it lets the server give a precise denial reason instead of a generic error.
 
-**Result:**
+**Result (success or business outcome):**
 
 ```jsonc
 {
-  "status": "ok" | "accepted" | "error",
-  "data": { /* ... */ },
-  "error": { "code": "unauthorized" | "conflict" | "invalid" | "internal", "message": "..." }
+  "status": "ok" | "accepted",
+  "data": { /* ... */ }
 }
 ```
 
-Servers supporting the `async` sub-capability MAY return `accepted` and continue delivering progress via `notifications/slop/patch` on the affected subtree.
+**Result (business error — affordance-level failure):**
+
+```jsonc
+{
+  "status": "error",
+  "error": {
+    "code": "unauthorized" | "conflict" | "invalid" | "internal",
+    "message": "..."
+  }
+}
+```
+
+Servers supporting the `async` sub-capability MAY return `{ "status": "accepted" }` and continue delivering progress via `notifications/slop/patch` on the affected subtree. Servers that do not declare `async: true` MUST NOT return `accepted`.
+
+### Error model
+
+This SEP uses a two-layer error model:
+
+- **Protocol-layer failures** (unknown method, malformed params, schema violation, unknown `subscriptionId`, missing required capability) are returned as standard [JSON-RPC errors](https://www.jsonrpc.org/specification#error_object) in the response's `error` field. Use existing JSON-RPC codes: `-32601` (Method not found), `-32602` (Invalid params), and the reserved server error range for extension-specific protocol errors.
+- **Business-layer failures** on `slop/invoke` (the affordance exists but cannot currently be executed: not authorized, stale version, invalid input, internal failure) are returned as a successful JSON-RPC response whose `result` carries `status: "error"` and a SLOP-native `error` object. This mirrors SLOP's existing `result` message shape and keeps re-authorization denials distinguishable from protocol errors.
+
+A `conflict` business error indicates that the affordance was valid at `observedVersion` but is not valid at the current server version — this is the re-authorization path mandated by §Security Implications.
 
 ### 3. Notifications
 
@@ -170,7 +195,15 @@ Salience / focus hint. Non-structural; does not affect the tree itself.
 
 This SEP adds no new transport. Methods and notifications ride MCP's Streamable HTTP and stdio transports exactly as defined in the core specification.
 
-On Streamable HTTP, snapshot and patch notifications are delivered on the server-to-client SSE stream established by the session. Standard `MCP-Session-Id` and `Last-Event-ID` semantics apply for reconnection. A client that reconnects MUST reissue `slop/subscribe` for subscriptions it wants to resume; servers are not required to retain subscription state across sessions.
+**Streamable HTTP requirements.** The core Streamable HTTP spec makes server-to-client SSE optional — a compliant MCP server MAY return `405 Method Not Allowed` for the GET that opens the server→client stream. Long-lived SLOP subscriptions cannot work without that stream. Therefore:
+
+- A server that declares `experimental/slop` over Streamable HTTP MUST support server-initiated SSE on the GET endpoint defined by the Streamable HTTP spec. Returning `405` on GET while advertising `experimental/slop` is a conformance violation.
+- A server MUST deliver `notifications/slop/snapshot`, `notifications/slop/patch`, and `notifications/slop/attention` on that SSE stream.
+- A server SHOULD set SSE event IDs on every notification it emits so clients can use `Last-Event-ID` for redelivery if the core transport supports it. Event-ID-based resumption is best-effort: clients MUST NOT assume redelivery and MUST be prepared to reissue `slop/subscribe` on reconnect.
+
+**Reconnection and subscription state.** A client that reconnects (new `MCP-Session-Id`, or same session after SSE drop without successful `Last-Event-ID` replay) MUST reissue `slop/subscribe` for subscriptions it wants to resume. Servers are not required to retain subscription state across MCP sessions by default; see Open Questions for an opt-in persistence path.
+
+**stdio.** No changes — notifications and requests are framed per the core stdio transport spec. All requirements in this section other than the SSE/GET requirement apply trivially.
 
 ### 5. Relationship to MCP resources and tools
 
@@ -201,8 +234,8 @@ Snapshots, patches, and attention cues have different cost and caching profiles.
 
 This SEP is fully backward compatible with the core MCP specification.
 
-- Clients that do not declare `experimental/slop` never see `slop/*` traffic.
-- Servers that do not declare `experimental/slop` never receive `slop/*` requests.
+- Clients that are not extension-aware never call `slop/*` methods and therefore never receive `notifications/slop/*` (see §1 for why subscription state, not capability declaration, is the gate). A server MUST NOT push `slop/*` notifications to a client that has no active subscription.
+- Servers that do not declare `experimental/slop` reject `slop/*` requests with JSON-RPC `-32601` (Method not found). Clients MUST treat this as "extension unsupported" and fall back.
 - Servers MAY support this extension and `tools/*` / `resources/*` simultaneously; clients choose which surface to use based on negotiated capabilities.
 - The wire additions do not reuse any method name or notification prefix already defined by the core specification.
 
@@ -262,7 +295,7 @@ Tradeoff accepted: hosts cannot reuse their existing `tools/call` dispatch and c
 
 ## Open Questions for Sponsor Review
 
-1. **Subscription lifetime across reconnects.** The draft says servers are not required to retain subscription state across MCP sessions; clients re-subscribe after reconnect. Should there be an opt-in mechanism — e.g. a server-declared sub-capability — for session-persistent subscriptions keyed by `MCP-Session-Id`?
-2. **Error taxonomy mapping.** SLOP defines `unauthorized` / `conflict` / `invalid` / `internal` on affordance results. Should these surface as JSON-RPC error codes, as `error.data` on a generic code, or both?
-3. **Extension versioning cadence.** Does the `version` field in the capability track the upstream SLOP spec version lock-step, or does the extension version independently?
-4. **Promotion criteria.** What specifically moves this from `experimental/slop` to a non-experimental capability — one reference implementation, two independent implementations, production deployment, or a defined soak window?
+1. **Subscription lifetime across reconnects.** The draft says servers are not required to retain subscription state across MCP sessions; clients re-subscribe after reconnect. Should there be an opt-in mechanism — e.g. a server-declared `persistent: true` sub-capability — for session-persistent subscriptions keyed by `MCP-Session-Id`?
+2. **Extension versioning cadence.** Does the `version` field in the capability track the upstream SLOP spec version lock-step, or does the extension version independently?
+3. **Promotion criteria.** What specifically moves this from `experimental/slop` to a non-experimental capability — one reference implementation, two independent implementations, production deployment, or a defined soak window?
+4. **Relationship to MCP Tasks.** MCP's experimental Tasks primitive ([SEP-1686](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1686)) covers long-running tool invocations with retry/expiry semantics. This draft deliberately keeps async affordance invocation SLOP-native (`accepted` + patches on the affected subtree) so that SLOP providers do not need to grow Tasks-awareness. Should a future revision add an opt-in bridge where `slop/invoke` that returns `accepted` is *also* surfaced as an MCP task, for hosts that already render task progress? Current position: out of scope for the initial SEP.

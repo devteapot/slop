@@ -18,12 +18,16 @@ import asyncio
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from slop_ai.server import SlopServer
 
 logger = logging.getLogger("slop")
+
+# See spec/core/transport.md §Local discovery.
+_DESCRIPTOR_FILENAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 
 
 class _NdjsonConnection:
@@ -109,9 +113,20 @@ async def listen(
 
 
 def _register_provider(id: str, name: str, socket_path: str) -> None:
-    """Write a discovery descriptor to ``~/.slop/providers/``."""
+    """Write a discovery descriptor to ``~/.slop/providers/``.
+
+    The providers directory is created with mode 0700 and the descriptor is
+    written atomically (write to a same-directory temp file, then rename) with
+    mode 0600. See spec/core/transport.md §Local discovery.
+    """
+    if not _DESCRIPTOR_FILENAME_RE.match(id):
+        raise ValueError(
+            f"provider id {id!r} is not a valid descriptor filename stem "
+            f"(must match {_DESCRIPTOR_FILENAME_RE.pattern})"
+        )
     providers_dir = Path.home() / ".slop" / "providers"
     providers_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(providers_dir, 0o700)
     descriptor = {
         "id": id,
         "name": name,
@@ -120,11 +135,27 @@ def _register_provider(id: str, name: str, socket_path: str) -> None:
         "pid": os.getpid(),
         "capabilities": ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"],
     }
-    (providers_dir / f"{id}.json").write_text(json.dumps(descriptor, indent=2))
+    data = json.dumps(descriptor, indent=2)
+    final_path = providers_dir / f"{id}.json"
+    tmp_path = providers_dir / f"{id}.json.tmp.{os.getpid()}"
+    fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(data)
+        os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, final_path)
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def unregister_provider(id: str) -> None:
     """Remove a discovery descriptor from ``~/.slop/providers/``."""
+    if not _DESCRIPTOR_FILENAME_RE.match(id):
+        return
     path = Path.home() / ".slop" / "providers" / f"{id}.json"
     try:
         path.unlink()

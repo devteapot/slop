@@ -1,18 +1,18 @@
-import { ProviderBase, diffNodes, AsyncActionResult } from "@slop-ai/core";
 import type {
-  SlopNode,
-  PatchOp,
-  ActionHandler,
   Action,
-  ParamDef,
+  ActionHandler,
+  InferParams,
   NodeDescriptor,
+  ParamDef,
+  PatchOp,
   SlopClient,
   SlopClientOptions,
-  TaskHandle,
-  InferParams,
+  SlopNode,
   SubscriptionFilter,
+  TaskHandle,
   Transport,
 } from "@slop-ai/core";
+import { AsyncActionResult, diffNodes, getSubtree, ProviderBase } from "@slop-ai/core";
 
 interface Subscription {
   id: string;
@@ -209,14 +209,23 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         break;
 
       case "subscribe": {
+        const path = msg.path ?? "/";
+        if (path !== "/" && !getSubtree(this.getTree(), path)) {
+          transport.send({
+            type: "error",
+            id: msg.id,
+            error: { code: "not_found", message: `Path ${path} not found` },
+          });
+          break;
+        }
         const outputTree = this.getOutputTree({
-          path: msg.path ?? "/",
+          path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
         });
         this.subscriptions.set(msg.id, {
           id: msg.id,
-          path: msg.path ?? "/",
+          path,
           depth: msg.depth ?? -1,
           filter: msg.filter,
           lastTree: structuredClone(outputTree),
@@ -235,9 +244,19 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
         this.subscriptions.delete(msg.id);
         break;
 
-      case "query":
-        transport.send(this.snapshotMessage(msg.id, { path: msg.path, depth: msg.depth, filter: msg.filter }));
+      case "query": {
+        const path = msg.path ?? "/";
+        if (path !== "/" && !getSubtree(this.getTree(), path)) {
+          transport.send({
+            type: "error",
+            id: msg.id,
+            error: { code: "not_found", message: `Path ${path} not found` },
+          });
+          break;
+        }
+        transport.send(this.snapshotMessage(msg.id, { path, depth: msg.depth, filter: msg.filter }));
         break;
+      }
 
       case "invoke":
         this.handleInvoke(msg, transport);

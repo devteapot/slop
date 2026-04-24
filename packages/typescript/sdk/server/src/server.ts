@@ -1,12 +1,12 @@
-import { ProviderBase, diffNodes, getSubtree } from "@slop-ai/core";
 import type {
-  SlopNode,
-  PatchOp,
   ActionHandler,
   NodeDescriptor,
+  PatchOp,
   SlopClientOptions,
+  SlopNode,
   SubscriptionFilter,
 } from "@slop-ai/core";
+import { diffNodes, getSubtree, ProviderBase } from "@slop-ai/core";
 
 /** A descriptor function that returns a NodeDescriptor when called. */
 export type DescriptorFn = () => NodeDescriptor;
@@ -167,9 +167,18 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
       }
 
       case "query": {
+        const path = msg.path ?? "/";
+        if (path !== "/" && !getSubtree(this.getTree(), path)) {
+          conn.send({
+            type: "error",
+            id: msg.id,
+            error: { code: "not_found", message: `Path ${path} not found` },
+          });
+          break;
+        }
         conn.send(
           this.snapshotMessage(msg.id, {
-            path: msg.path,
+            path,
             depth: msg.depth,
             max_nodes: msg.max_nodes,
             filter: msg.filter,

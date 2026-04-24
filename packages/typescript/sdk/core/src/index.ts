@@ -1,6 +1,6 @@
 import { diffNodes } from "./diff";
 import { action, omit, pick } from "./helpers";
-import { ProviderBase } from "./provider";
+import { ProviderBase, SubtreeNotFoundError } from "./provider";
 import { autoCompact, countNodes, filterTree, getSubtree, prepareTree, truncateTree } from "./scaling";
 import { assembleTree } from "./tree-assembler";
 import { AsyncActionResult } from "./types";
@@ -57,5 +57,6 @@ export {
   ProviderBase,
   pick,
   prepareTree,
+  SubtreeNotFoundError,
   truncateTree,
 };

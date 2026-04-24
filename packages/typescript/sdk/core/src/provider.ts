@@ -20,6 +20,14 @@ export interface SubscriptionFilter {
   min_salience?: number;
 }
 
+/** Thrown when a subscribe/query references a path that does not exist in the current tree. */
+export class SubtreeNotFoundError extends Error {
+  constructor(public readonly path: string) {
+    super(`Path ${path} not found`);
+    this.name = "SubtreeNotFoundError";
+  }
+}
+
 /** Options for resolving output trees. */
 export interface OutputRequest {
   path?: string;
@@ -211,9 +219,22 @@ export abstract class ProviderBase<S = unknown> {
     };
   }
 
-  /** Prepare the tree for output, applying path, depth, filter, window, and global options. */
+  /**
+   * Prepare the tree for output, applying path, depth, filter, window, and global options.
+   *
+   * Throws `SubtreeNotFoundError` when `request.path` is set and does not resolve
+   * to a node — callers MUST translate this into a `not_found` error response
+   * rather than silently returning the root tree.
+   */
   getOutputTree(request?: OutputRequest): SlopNode {
-    let tree = request?.path ? (getSubtree(this.currentTree, request.path) ?? this.currentTree) : this.currentTree;
+    let tree: SlopNode;
+    if (request?.path && request.path !== "/") {
+      const sub = getSubtree(this.currentTree, request.path);
+      if (!sub) throw new SubtreeNotFoundError(request.path);
+      tree = sub;
+    } else {
+      tree = this.currentTree;
+    }
 
     tree = prepareTree(tree, {
       maxDepth: request?.depth != null && request.depth >= 0 ? request.depth : this.options.maxDepth,

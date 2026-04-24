@@ -8,10 +8,16 @@ func TestValidateParams(t *testing.T) {
 		t.Fatalf("nil schema should be ok, got %q", got)
 	}
 
-	// required
+	// required — []any (JSON-decoded shape)
 	got := ValidateParams(map[string]any{"type": "object", "required": []any{"body"}}, map[string]any{})
 	if got == "" {
-		t.Fatalf("expected required error")
+		t.Fatalf("expected required error for []any")
+	}
+
+	// required — []string (shape emitted by normalizeParams)
+	got = ValidateParams(map[string]any{"type": "object", "required": []string{"body"}}, map[string]any{})
+	if got == "" {
+		t.Fatalf("expected required error for []string")
 	}
 
 	// wrong type

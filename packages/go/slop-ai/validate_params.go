@@ -47,15 +47,9 @@ func validateParamsImpl(schema map[string]any, value any, path string) string {
 		if !ok {
 			return fmt.Sprintf("%s must be an object", path)
 		}
-		if req, ok := schema["required"].([]any); ok {
-			for _, r := range req {
-				key, _ := r.(string)
-				if key == "" {
-					continue
-				}
-				if _, present := obj[key]; !present {
-					return fmt.Sprintf("%s.%s is required", path, key)
-				}
+		for _, key := range requiredKeys(schema["required"]) {
+			if _, present := obj[key]; !present {
+				return fmt.Sprintf("%s.%s is required", path, key)
 			}
 		}
 		if props, ok := schema["properties"].(map[string]any); ok {
@@ -114,6 +108,30 @@ func validateParamsImpl(schema map[string]any, value any, path string) string {
 		return fmt.Sprintf("%s must be null", path)
 	}
 	return ""
+}
+
+// requiredKeys normalizes schema["required"], which may be []string when the
+// schema was built from Go via normalizeParams or []any when decoded from JSON.
+func requiredKeys(raw any) []string {
+	switch v := raw.(type) {
+	case []string:
+		out := make([]string, 0, len(v))
+		for _, k := range v {
+			if k != "" {
+				out = append(out, k)
+			}
+		}
+		return out
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, r := range v {
+			if k, ok := r.(string); ok && k != "" {
+				out = append(out, k)
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 func deepEqual(a, b any) bool {

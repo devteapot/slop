@@ -137,7 +137,16 @@ Servers supporting the `async` sub-capability MAY return `{ "status": "accepted"
 
 This SEP uses a two-layer error model:
 
-- **Protocol-layer failures** (unknown method, malformed params, schema violation, unknown `subscriptionId`, missing required capability) are returned as standard [JSON-RPC errors](https://www.jsonrpc.org/specification#error_object) in the response's `error` field. Use existing JSON-RPC codes: `-32601` (Method not found), `-32602` (Invalid params), and the reserved server error range for extension-specific protocol errors.
+- **Protocol-layer failures** (unknown method, malformed params, schema violation, unknown `subscriptionId`, missing required capability) are returned as standard [JSON-RPC errors](https://www.jsonrpc.org/specification#error_object) in the response's `error` field. Standard JSON-RPC codes — `-32601` (Method not found), `-32602` (Invalid params) — apply as usual. Extension-specific protocol errors use the `-32050`…`-32059` block, reserved by this SEP within the JSON-RPC implementation-defined server error range (`-32099` to `-32000`):
+
+  | Code      | Name                  | Meaning                                                                                         |
+  |-----------|-----------------------|-------------------------------------------------------------------------------------------------|
+  | `-32050`  | SSE stream required   | Streamable HTTP client called `slop/subscribe` without an active server-to-client GET SSE stream.|
+  | `-32051`  | Unknown subscriptionId| Request references a `subscriptionId` the server does not have an active subscription for.      |
+  | `-32052`  | Capability not declared| Server does not declare `experimental/slop`, or does not declare the required sub-capability (e.g. `async`, `affordances`). |
+
+  These codes are deliberately outside the codes already used by the MCP core specification (e.g. `-32002` for "Resource not found" in `resources/*`), so that shared client error handling can distinguish SLOP extension errors from resource errors without inspecting the method name.
+
 - **Business-layer failures** on `slop/invoke` (the affordance exists but cannot currently be executed: not authorized, stale version, invalid input, internal failure) are returned as a successful JSON-RPC response whose `result` carries `status: "error"` and a SLOP-native `error` object. This mirrors SLOP's existing `result` message shape and keeps re-authorization denials distinguishable from protocol errors.
 
 A `conflict` business error indicates that the affordance was valid at `observedVersion` but is not valid at the current server version — this is the re-authorization path mandated by §Security Implications.
@@ -199,7 +208,7 @@ This SEP adds no new transport. Methods and notifications ride MCP's Streamable 
 
 - A server that declares `experimental/slop` over Streamable HTTP MUST support server-initiated SSE on the GET endpoint defined by the Streamable HTTP spec. Returning `405` on GET while advertising `experimental/slop` is a conformance violation.
 - A server MUST deliver `notifications/slop/snapshot`, `notifications/slop/patch`, and `notifications/slop/attention` on that SSE stream.
-- A client over Streamable HTTP MUST establish the GET SSE stream before issuing its first `slop/subscribe`. A server that receives `slop/subscribe` from a client without an active GET SSE stream MUST reject it with JSON-RPC error `-32002` ("SSE stream required") and MUST NOT queue notifications for a future stream. This keeps the subscription lifecycle coupled to the stream lifecycle and avoids unbounded server-side buffers.
+- A client over Streamable HTTP MUST establish the GET SSE stream before issuing its first `slop/subscribe`. A server that receives `slop/subscribe` from a client without an active GET SSE stream MUST reject it with JSON-RPC error `-32050` ("SSE stream required"; see §2.3 "Error model") and MUST NOT queue notifications for a future stream. This keeps the subscription lifecycle coupled to the stream lifecycle and avoids unbounded server-side buffers.
 - A server SHOULD set SSE event IDs on every notification it emits so clients can use `Last-Event-ID` for redelivery if the core transport supports it. Event-ID-based resumption is best-effort: clients MUST NOT assume redelivery and MUST be prepared to reissue `slop/subscribe` on reconnect.
 
 **Reconnection and subscription state.** A client that reconnects (new `MCP-Session-Id`, or same session after SSE drop without successful `Last-Event-ID` replay) MUST reissue `slop/subscribe` for subscriptions it wants to resume. Servers are not required to retain subscription state across MCP sessions by default; see Open Questions for an opt-in persistence path.

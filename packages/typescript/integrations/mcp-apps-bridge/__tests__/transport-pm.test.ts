@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach } from "bun:test";
-import { SameWindowPostMessageTransport } from "../src/transport-pm";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { SlopMessage } from "@slop-ai/consumer";
+import { SameWindowPostMessageTransport } from "../src/transport-pm";
 
 // Minimal browser shim — Bun test runs in Node, so we stand up a synthetic
 // `window` + `MessageEvent` surface that mirrors what the transport uses.

@@ -1,6 +1,6 @@
-import { describe, test, expect } from "bun:test";
-import { createProjector, renderMarkdown } from "../src/projection";
+import { describe, expect, test } from "bun:test";
 import type { SlopNode } from "@slop-ai/consumer";
+import { createProjector, renderMarkdown } from "../src/projection";
 
 const tree: SlopNode = {
   id: "root",
@@ -59,9 +59,12 @@ describe("createProjector", () => {
 
   test("flush runs pending projection synchronously", () => {
     let calls = 0;
-    const projector = createProjector((_t) => {
-      calls += 1;
-    }, { debounceMs: 1000 });
+    const projector = createProjector(
+      (_t) => {
+        calls += 1;
+      },
+      { debounceMs: 1000 },
+    );
 
     projector.schedule(tree);
     expect(calls).toBe(0);
@@ -72,9 +75,12 @@ describe("createProjector", () => {
 
   test("custom format function overrides markdown", () => {
     let payload = "";
-    const projector = createProjector((t) => {
-      payload = t;
-    }, { debounceMs: 0, format: (t) => `raw:${t.id}` });
+    const projector = createProjector(
+      (t) => {
+        payload = t;
+      },
+      { debounceMs: 0, format: (t) => `raw:${t.id}` },
+    );
 
     projector.schedule(tree);
     projector.flush();
@@ -84,9 +90,12 @@ describe("createProjector", () => {
 
   test("dispose cancels pending projection", async () => {
     let calls = 0;
-    const projector = createProjector(() => {
-      calls += 1;
-    }, { debounceMs: 10 });
+    const projector = createProjector(
+      () => {
+        calls += 1;
+      },
+      { debounceMs: 10 },
+    );
 
     projector.schedule(tree);
     projector.dispose();

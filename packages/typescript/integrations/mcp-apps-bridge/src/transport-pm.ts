@@ -1,9 +1,4 @@
-import type {
-  ClientTransport,
-  Connection,
-  MessageHandler,
-  SlopMessage,
-} from "@slop-ai/consumer/browser";
+import type { ClientTransport, Connection, MessageHandler, SlopMessage } from "@slop-ai/consumer/browser";
 
 /**
  * Consumer-side postMessage transport for same-window SLOP providers.
@@ -40,10 +35,7 @@ export class SameWindowPostMessageTransport implements ClientTransport {
     window.addEventListener("message", listener);
 
     // Handshake — identical to the Chrome-extension flow, but over window.postMessage.
-    this.targetWindow.postMessage(
-      { slop: true, message: { type: "connect" } },
-      this.originFilter,
-    );
+    this.targetWindow.postMessage({ slop: true, message: { type: "connect" } }, this.originFilter);
 
     return {
       send: (m: SlopMessage) => {

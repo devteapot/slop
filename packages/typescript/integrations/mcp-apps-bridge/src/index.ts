@@ -5,10 +5,10 @@ export {
   type ProviderConfig,
   type SubscribeConfig,
 } from "./bridge";
-export { SameWindowPostMessageTransport } from "./transport-pm";
 export {
   createProjector,
-  renderMarkdown,
   type ProjectionFormat,
   type ProjectionOptions,
+  renderMarkdown,
 } from "./projection";
+export { SameWindowPostMessageTransport } from "./transport-pm";

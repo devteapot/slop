@@ -1,11 +1,7 @@
-import {
-  RESOURCE_MIME_TYPE,
-  registerAppResource,
-  registerAppTool,
-} from "@modelcontextprotocol/ext-apps/server";
+import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SlopConsumer, WebSocketClientTransport, affordancesToTools } from "@slop-ai/consumer";
 import type { SlopNode } from "@slop-ai/consumer";
+import { affordancesToTools, SlopConsumer, WebSocketClientTransport } from "@slop-ai/consumer";
 import { z } from "zod";
 
 // Permissive object schema — accepts any JSON-serializable record so the model
@@ -175,23 +171,21 @@ export async function registerSlopTools(
   const registered = new Map<string, RegisteredTool>();
   const prefix = options.toolNamePrefix ?? "";
 
-  function buildHandler(
-    resolved: { path: string | null; action: string; targets?: string[] },
-  ): (args: Record<string, unknown> | undefined) => Promise<{
+  function buildHandler(resolved: { path: string | null; action: string; targets?: string[] }): (
+    args: Record<string, unknown> | undefined,
+  ) => Promise<{
     content: { type: "text"; text: string }[];
     isError?: boolean;
   }> {
     return async (args) => {
       let path = resolved.path;
-      let params: Record<string, unknown> = { ...(args ?? {}) };
+      const params: Record<string, unknown> = { ...(args ?? {}) };
       if (path === null) {
         const target = params.target;
         if (typeof target !== "string") {
           return {
             isError: true,
-            content: [
-              { type: "text" as const, text: "missing required `target` parameter" },
-            ],
+            content: [{ type: "text" as const, text: "missing required `target` parameter" }],
           };
         }
         // Restrict invocation to targets that actually exposed this affordance
@@ -239,14 +233,8 @@ export async function registerSlopTools(
       const resolved = toolSet.resolve(t.function.name);
       if (!resolved) continue;
       const handler = buildHandler(resolved);
-      const description = describeWithParams(
-        t.function.description,
-        t.function.parameters,
-        resolved.targets,
-      );
-      const meta = options.uiResourceUri
-        ? { ui: { resourceUri: options.uiResourceUri } }
-        : undefined;
+      const description = describeWithParams(t.function.description, t.function.parameters, resolved.targets);
+      const meta = options.uiResourceUri ? { ui: { resourceUri: options.uiResourceUri } } : undefined;
       const existing = registered.get(name);
       if (existing) {
         existing.update({
@@ -291,11 +279,7 @@ export async function registerSlopTools(
 
   // The MCP SDK only accepts Zod schemas for inputSchema; we inline JSON-schema
   // hints into the tool description until JSON-Schema → Zod conversion lands.
-  function describeWithParams(
-    base: string,
-    params: Record<string, unknown> | undefined,
-    targets?: string[],
-  ): string {
+  function describeWithParams(base: string, params: Record<string, unknown> | undefined, targets?: string[]): string {
     const props = (params?.properties as Record<string, { type?: string; description?: string }>) ?? {};
     const required = (params?.required as string[]) ?? [];
     const lines = Object.entries(props).map(([k, v]) => {

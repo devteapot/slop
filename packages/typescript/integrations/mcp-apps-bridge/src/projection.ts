@@ -1,5 +1,5 @@
-import { affordancesToTools, formatTree } from "@slop-ai/consumer/browser";
 import type { SlopNode } from "@slop-ai/consumer/browser";
+import { affordancesToTools, formatTree } from "@slop-ai/consumer/browser";
 
 export type ProjectionFormat = "markdown" | ((tree: SlopNode) => string);
 
@@ -26,16 +26,13 @@ export function renderMarkdown(tree: SlopNode, header?: string): string {
           .map((t) => {
             const resolved = toolSet.resolve(t.function.name);
             const action = resolved?.action ?? t.function.name;
-            const pathInfo = resolved?.path
-              ? `on \`${resolved.path}\``
-              : `${resolved?.targets?.length ?? 0} targets`;
+            const pathInfo = resolved?.path ? `on \`${resolved.path}\`` : `${resolved?.targets?.length ?? 0} targets`;
             return `  - **${action}** ${pathInfo}: ${t.function.description}`;
           })
           .join("\n");
 
   const body =
-    `### State\n\`\`\`\n${formatTree(tree)}\n\`\`\`\n\n` +
-    `### Actions (${toolSet.tools.length})\n${actionsText}\n`;
+    `### State\n\`\`\`\n${formatTree(tree)}\n\`\`\`\n\n` + `### Actions (${toolSet.tools.length})\n${actionsText}\n`;
 
   return header ? `${header}\n\n${body}` : body;
 }
@@ -64,8 +61,7 @@ export function createProjector(
       timer = null;
     }
     if (!pendingTree) return;
-    const text =
-      format === "markdown" ? renderMarkdown(pendingTree, options.header) : format(pendingTree);
+    const text = format === "markdown" ? renderMarkdown(pendingTree, options.header) : format(pendingTree);
     pendingTree = null;
     apply(text);
   }

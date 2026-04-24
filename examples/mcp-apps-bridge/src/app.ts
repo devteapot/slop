@@ -4,12 +4,12 @@
 // the same process. The bridge handles the model-context projection; this file
 // only renders the visible UI from the consumer's mirrored tree.
 
-import { createMcpAppsBridge } from "@slop-ai/mcp-apps-bridge";
 import type { SlopNode } from "@slop-ai/consumer/browser";
+import { createMcpAppsBridge } from "@slop-ai/mcp-apps-bridge";
 
 const SLOP_URL = "ws://127.0.0.1:7411/slop";
 
-function escape(s: string): string {
+function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
@@ -38,13 +38,13 @@ function render(tree: SlopNode | null): void {
           const items = col.children ?? [];
           return `
             <div class="col">
-              <h2>${escape(title)} (${items.length})</h2>
+              <h2>${escapeHtml(title)} (${items.length})</h2>
               <ul>
                 ${items
                   .map((c) => {
                     const cardTitle = (c.properties?.title as string) ?? c.id;
                     const done = c.properties?.done === true;
-                    return `<li class="${done ? "done" : ""}">${escape(cardTitle)}</li>`;
+                    return `<li class="${done ? "done" : ""}">${escapeHtml(cardTitle)}</li>`;
                   })
                   .join("")}
               </ul>

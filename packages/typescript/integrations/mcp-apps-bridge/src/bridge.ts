@@ -1,14 +1,14 @@
-import {
-  SlopConsumer,
-  WebSocketClientTransport,
-  type ClientTransport,
-  type ResultMessage,
-  type SlopNode,
-} from "@slop-ai/consumer/browser";
 import { App } from "@modelcontextprotocol/ext-apps";
 import type { Implementation } from "@modelcontextprotocol/sdk/types.js";
-import { SameWindowPostMessageTransport } from "./transport-pm";
+import {
+  type ClientTransport,
+  type ResultMessage,
+  SlopConsumer,
+  type SlopNode,
+  WebSocketClientTransport,
+} from "@slop-ai/consumer/browser";
 import { createProjector, type ProjectionOptions } from "./projection";
+import { SameWindowPostMessageTransport } from "./transport-pm";
 
 export type ProviderConfig =
   | { mode: "ws"; url: string }
@@ -63,9 +63,7 @@ function buildTransport(cfg: ProviderConfig): ClientTransport {
  * - Pushes salience-filtered markdown projections of the state tree into `app.updateModelContext`
  *   on every snapshot or patch, debounced to avoid flooding the host.
  */
-export async function createMcpAppsBridge(
-  options: McpAppsBridgeOptions,
-): Promise<McpAppsBridge> {
+export async function createMcpAppsBridge(options: McpAppsBridgeOptions): Promise<McpAppsBridge> {
   const appInfo: Implementation = options.appInfo ?? {
     name: "slop-bridge",
     version: "0.1.0",
@@ -116,19 +114,15 @@ export async function createMcpAppsBridge(
     await Promise.all([consumerPromise, appPromise]);
 
     const subCfg = options.subscribe ?? {};
-    const sub = await consumer.subscribe(
-      subCfg.path ?? "/",
-      subCfg.depth ?? 1,
-      {
-        ...(subCfg.maxNodes != null && { max_nodes: subCfg.maxNodes }),
-        ...((subCfg.minSalience != null || subCfg.types) && {
-          filter: {
-            ...(subCfg.minSalience != null && { min_salience: subCfg.minSalience }),
-            ...(subCfg.types && { types: subCfg.types }),
-          },
-        }),
-      },
-    );
+    const sub = await consumer.subscribe(subCfg.path ?? "/", subCfg.depth ?? 1, {
+      ...(subCfg.maxNodes != null && { max_nodes: subCfg.maxNodes }),
+      ...((subCfg.minSalience != null || subCfg.types) && {
+        filter: {
+          ...(subCfg.minSalience != null && { min_salience: subCfg.minSalience }),
+          ...(subCfg.types && { types: subCfg.types }),
+        },
+      }),
+    });
     subscriptionId = sub.id;
   } catch (err) {
     failed = true;
@@ -137,14 +131,11 @@ export async function createMcpAppsBridge(
     throw err;
   }
 
-  const projector = createProjector(
-    (text) => {
-      // Fire-and-forget: the host may reject updates before hello completes,
-      // which we treat as non-fatal and just drop.
-      app.updateModelContext({ content: [{ type: "text", text }] }).catch(() => {});
-    },
-    options.projection ?? {},
-  );
+  const projector = createProjector((text) => {
+    // Fire-and-forget: the host may reject updates before hello completes,
+    // which we treat as non-fatal and just drop.
+    app.updateModelContext({ content: [{ type: "text", text }] }).catch(() => {});
+  }, options.projection ?? {});
 
   // Initial projection from the snapshot.
   const initial = consumer.getTree(subscriptionId);

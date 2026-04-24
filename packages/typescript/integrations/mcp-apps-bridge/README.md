@@ -33,5 +33,11 @@ registerSlopView(server, {
   description: "Live kanban board",
   resourceUri: "ui://kanban/slop",
   html: await readFile(new URL("./dist/slop.html", import.meta.url), "utf8"),
+  // Required when the iframe in `ws` mode runs in a sandboxed host (VS Code,
+  // Claude). Whitelists the origins the iframe is allowed to reach. Must
+  // include the SLOP provider URL above.
+  connectDomains: ["ws://localhost:3737"],
 });
 ```
+
+Pair with `registerSlopTools(server, { url })` if you also want the model to invoke SLOP affordances directly from chat. See the [full guide](https://docs.slopai.dev/guides/advanced/mcp-bridge/) for the complete setup including the WS provider process.

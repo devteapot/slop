@@ -75,25 +75,47 @@ export async function createMcpAppsBridge(
   const transport = buildTransport(options.provider);
   const consumer = new SlopConsumer(transport);
 
-  // Connect both sides in parallel — host and provider are independent.
-  const [helloMaybe] = await Promise.all([consumer.connect(), app.connect()]);
-  // Surface the provider hello via bridge metadata in case the caller wants to inspect it.
-  void helloMaybe;
+  // Track connection state for partial-failure cleanup. Promise.all rejects
+  // when *either* side fails, but the other side may have already connected
+  // — leaking the open WebSocket and/or the postMessage listeners. The same
+  // applies to a subscribe() rejection after both sides connected.
+  let consumerConnected = false;
+  let appConnected = false;
+  const cleanupOnFailure = () => {
+    if (consumerConnected) consumer.disconnect();
+    if (appConnected) void app.close().catch(() => {});
+  };
 
-  const subCfg = options.subscribe ?? {};
-  const { id: subscriptionId } = await consumer.subscribe(
-    subCfg.path ?? "/",
-    subCfg.depth ?? 1,
-    {
-      ...(subCfg.maxNodes != null && { max_nodes: subCfg.maxNodes }),
-      ...((subCfg.minSalience != null || subCfg.types) && {
-        filter: {
-          ...(subCfg.minSalience != null && { min_salience: subCfg.minSalience }),
-          ...(subCfg.types && { types: subCfg.types }),
-        },
+  let subscriptionId: string;
+  try {
+    await Promise.all([
+      consumer.connect().then(() => {
+        consumerConnected = true;
       }),
-    },
-  );
+      app.connect().then(() => {
+        appConnected = true;
+      }),
+    ]);
+
+    const subCfg = options.subscribe ?? {};
+    const sub = await consumer.subscribe(
+      subCfg.path ?? "/",
+      subCfg.depth ?? 1,
+      {
+        ...(subCfg.maxNodes != null && { max_nodes: subCfg.maxNodes }),
+        ...((subCfg.minSalience != null || subCfg.types) && {
+          filter: {
+            ...(subCfg.minSalience != null && { min_salience: subCfg.minSalience }),
+            ...(subCfg.types && { types: subCfg.types }),
+          },
+        }),
+      },
+    );
+    subscriptionId = sub.id;
+  } catch (err) {
+    cleanupOnFailure();
+    throw err;
+  }
 
   const projector = createProjector(
     (text) => {

@@ -681,11 +681,7 @@ impl DiscoveryService {
                 if !descriptor_filename_ok(name) {
                     continue;
                 }
-                if !descriptor_file_ok(&path) {
-                    continue;
-                }
-
-                let Ok(content) = std::fs::read_to_string(&path) else {
+                let Some(content) = read_descriptor_file(&path) else {
                     continue;
                 };
                 let Ok(mut descriptor) = serde_json::from_str::<ProviderDescriptor>(&content)
@@ -825,6 +821,17 @@ fn descriptor_filename_ok(name: &str) -> bool {
 }
 
 #[cfg(unix)]
+fn current_uid() -> u32 {
+    // libc::getuid is a simple syscall and always succeeds. We avoid adding a
+    // `libc` crate dependency just for this one call by declaring the extern
+    // directly.
+    unsafe extern "C" {
+        fn getuid() -> u32;
+    }
+    unsafe { getuid() }
+}
+
+#[cfg(unix)]
 fn descriptor_dir_ok(path: &std::path::Path) -> bool {
     use std::os::unix::fs::MetadataExt;
     let Ok(meta) = std::fs::metadata(path) else {
@@ -833,28 +840,38 @@ fn descriptor_dir_ok(path: &std::path::Path) -> bool {
     if !meta.is_dir() {
         return false;
     }
-    // Mode check only — the Rust stdlib doesn't expose getuid(); callers MUST
-    // ensure `providers_dirs` points at user-owned paths. The mode gate still
-    // catches the common world-writable failure mode.
+    if meta.uid() != current_uid() {
+        return false;
+    }
     if meta.mode() & 0o077 != 0 {
         return false;
     }
     true
 }
 
+/// Opens the descriptor file and reads it from the same file handle after
+/// verifying ownership and mode via `fstat` (not a second `stat` on the path).
+/// This closes the TOCTOU window where a non-conforming file could be swapped
+/// in between the permission check and the read.
 #[cfg(unix)]
-fn descriptor_file_ok(path: &std::path::Path) -> bool {
+fn read_descriptor_file(path: &std::path::Path) -> Option<String> {
+    use std::io::Read;
     use std::os::unix::fs::MetadataExt;
-    let Ok(meta) = std::fs::metadata(path) else {
-        return false;
-    };
+
+    let mut file = std::fs::File::open(path).ok()?;
+    let meta = file.metadata().ok()?;
     if !meta.is_file() {
-        return false;
+        return None;
+    }
+    if meta.uid() != current_uid() {
+        return None;
     }
     if meta.mode() & 0o077 != 0 {
-        return false;
+        return None;
     }
-    true
+    let mut content = String::new();
+    file.read_to_string(&mut content).ok()?;
+    Some(content)
 }
 
 #[cfg(not(unix))]
@@ -863,6 +880,9 @@ fn descriptor_dir_ok(path: &std::path::Path) -> bool {
 }
 
 #[cfg(not(unix))]
-fn descriptor_file_ok(path: &std::path::Path) -> bool {
-    path.is_file()
+fn read_descriptor_file(path: &std::path::Path) -> Option<String> {
+    if !path.is_file() {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
 }

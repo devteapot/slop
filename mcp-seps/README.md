@@ -1,6 +1,6 @@
-# SEPs (Specification Enhancement Proposals)
+# MCP SEP Drafts
 
-This directory holds drafts of MCP SEPs that the SLOP project intends to submit to the [Model Context Protocol specification repository](https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/seps).
+The SLOP project drafts MCP SEPs here before submitting them to the [Model Context Protocol specification repository](https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/seps).
 
 Nothing in this directory is an accepted MCP SEP. Each file is a working draft that will be moved into the MCP `seps/` directory once it has a sponsor and a reference implementation. See the [MCP SEP Guidelines](https://modelcontextprotocol.io/community/sep-guidelines) for the full process.
 

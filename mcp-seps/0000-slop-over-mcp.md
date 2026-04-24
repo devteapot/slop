@@ -6,7 +6,7 @@
 - **Author(s)**: SLOP maintainers (contact: https://slopai.dev)
 - **Issue**: TBD
 
-> This SEP is a work-in-progress draft maintained in the SLOP repository under `seps/`. It has not yet been submitted to the MCP `seps/` directory and has no assigned SEP number.
+> This SEP is a work-in-progress draft maintained in the SLOP repository under `mcp-seps/`. It has not yet been submitted to the MCP `seps/` directory and has no assigned SEP number.
 
 ## Abstract
 

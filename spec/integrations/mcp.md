@@ -120,5 +120,5 @@ An MCP host relaying SLOP messages — whether through MCP Apps or an MCP proxy 
 
 ## Non-goals
 
-- SLOP does not define an MCP extension SEP in this version. A pre-sponsor draft titled "SLOP over MCP" — registering `experimental/slop` as an MCP capability and specifying `slop/subscribe` / `slop/unsubscribe` / `slop/invoke` methods plus snapshot, patch, and attention notifications — is kept in-repo at [`seps/0000-slop-over-mcp.md`](https://github.com/devteapot/slop/blob/main/seps/0000-slop-over-mcp.md). It will be submitted to the MCP SEP directory once it has a sponsor and a reference implementation.
+- SLOP does not define an MCP extension SEP in this version. A pre-sponsor draft titled "SLOP over MCP" — registering `experimental/slop` as an MCP capability and specifying `slop/subscribe` / `slop/unsubscribe` / `slop/invoke` methods plus snapshot, patch, and attention notifications — is kept in-repo at [`mcp-seps/0000-slop-over-mcp.md`](https://github.com/devteapot/slop/blob/main/mcp-seps/0000-slop-over-mcp.md). It will be submitted to the MCP SEP directory once it has a sponsor and a reference implementation.
 - SLOP does not attempt to be rendered as an MCP tool list. The state tree is not a flat tool catalog, and flattening it defeats the purpose of the protocol.

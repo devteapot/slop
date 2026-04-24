@@ -148,6 +148,7 @@ Full results and methodology: [Benchmarks: MCP vs SLOP](https://docs.slopai.dev/
 ```
 slop/
 ├── spec/                           # Protocol specification
+├── mcp-seps/                       # Draft MCP SEPs related to SLOP
 ├── docs/sdk/                       # SDK architecture & implementation guides
 ├── packages/
 │   ├── typescript/

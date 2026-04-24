@@ -36,6 +36,24 @@ describe("validateParams", () => {
     expect(err).toContain("status");
   });
 
+  it("accepts enum object member regardless of key order", () => {
+    // Python/Go/Rust compare enum members structurally; JS historically used
+    // JSON.stringify which is order-sensitive. Make sure we match.
+    const err = validateParams(
+      {
+        type: "object",
+        properties: {
+          target: {
+            type: "object",
+            enum: [{ x: 1, y: 2 }],
+          },
+        },
+      },
+      { target: { y: 2, x: 1 } },
+    );
+    expect(err).toBeNull();
+  });
+
   it("validates nested arrays", () => {
     const ok = validateParams(
       {

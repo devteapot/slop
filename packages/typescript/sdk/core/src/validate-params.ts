@@ -74,8 +74,33 @@ function validate(schema: JsonSchema, value: unknown, path: string): string | nu
 function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (typeof a !== typeof b) return false;
-  if (a && b && typeof a === "object") {
-    return JSON.stringify(a) === JSON.stringify(b);
+  if (a === null || b === null) return false;
+  if (typeof a !== "object") return false;
+
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+  if (aIsArray !== bIsArray) return false;
+
+  if (aIsArray) {
+    const arrB = b as unknown[];
+    if (a.length !== arrB.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], arrB[i])) return false;
+    }
+    return true;
   }
-  return false;
+
+  // Object: compare by key set, not by serialized order. Python/Go/Rust
+  // validators treat {a,b} and {b,a} as equal; TypeScript must too, otherwise
+  // enum deep-equality rejects semantically identical JSON across SDKs.
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    if (!Object.hasOwn(objB, k)) return false;
+    if (!deepEqual(objA[k], objB[k])) return false;
+  }
+  return true;
 }

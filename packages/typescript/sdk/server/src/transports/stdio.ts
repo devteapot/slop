@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import type { SlopServer, Connection } from "../server";
+import type { Connection, SlopServer } from "../server";
 
 /**
  * Listen for a single SLOP consumer on stdin/stdout (NDJSON).

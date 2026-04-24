@@ -10,7 +10,7 @@ The `@slop-ai/mcp-apps-bridge` package handles three things:
 - **`registerSlopView`** — server-side helper that wires the MCP tool + `ui://` resource + sandbox CSP.
 - **`registerSlopTools`** — server-side helper that mirrors every SLOP affordance as a callable MCP tool, with `tools/listChanged` resync on every patch.
 
-For an end-to-end runnable example, see [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge).
+This guide is the developer-facing complement to the normative [MCP Interoperability spec](/spec/integrations/mcp). For an end-to-end runnable example, see [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge).
 
 ## When to use this
 
@@ -172,4 +172,4 @@ If the iframe shows `error: WebSocket connection failed`, the most common cause 
 
 ## Future direction
 
-When MCP standardizes event-driven resource subscriptions (tracked in the [2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)), the bridge will offer a third `mode: "mcp-tunnel"` that doesn't require the iframe to open a WebSocket — all SLOP traffic flows over MCP's own subscription channel. Until then, `ws` + `connectDomains` is the recommended pattern.
+When MCP standardizes event-driven resource subscriptions (tracked in the [2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)), the bridge will offer a third `mode: "mcp-tunnel"` that doesn't require the iframe to open a WebSocket — all SLOP traffic flows over MCP's own subscription channel. Until then, `ws` + `connectDomains` is the recommended pattern. See the ["No formal MCP extension" entry](/spec/limitations#no-formal-mcp-extension) for the planned SEP.

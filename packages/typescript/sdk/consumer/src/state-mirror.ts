@@ -6,16 +6,41 @@ function unescapePointer(segment: string): string {
   return segment.replace(/~1/g, "/").replace(/~0/g, "~");
 }
 
+/** Thrown when a patch's `seq` is not exactly `lastSeq + 1`. */
+export class SubscriptionGapError extends Error {
+  constructor(
+    public readonly subscription: string,
+    public readonly expected: number,
+    public readonly received: number,
+  ) {
+    super(`SLOP subscription ${subscription} gap: expected seq ${expected}, got ${received}`);
+    this.name = "SubscriptionGapError";
+  }
+}
+
 export class StateMirror {
   private tree: SlopNode;
   private version: number;
+  /** Last per-subscription sequence number. Snapshot resets to 0. */
+  private seq: number;
 
   constructor(snapshot: SnapshotMessage) {
     this.tree = structuredClone(snapshot.tree);
     this.version = snapshot.version;
+    this.seq = snapshot.seq ?? 0;
   }
 
   applyPatch(patch: PatchMessage): void {
+    // Per spec/core/messages.md, seq MUST be exactly lastSeq + 1. Older
+    // providers that don't emit seq leave the field undefined — skip gap
+    // detection in that case so mixed-version deployments still work.
+    if (patch.seq !== undefined) {
+      const expected = this.seq + 1;
+      if (patch.seq !== expected) {
+        throw new SubscriptionGapError("", expected, patch.seq);
+      }
+      this.seq = patch.seq;
+    }
     for (const op of patch.ops) {
       this.applyOp(op);
     }
@@ -27,6 +52,9 @@ export class StateMirror {
   }
   getVersion(): number {
     return this.version;
+  }
+  getSeq(): number {
+    return this.seq;
   }
 
   private applyOp(op: PatchOp): void {

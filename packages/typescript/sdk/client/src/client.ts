@@ -21,6 +21,8 @@ interface Subscription {
   filter?: SubscriptionFilter;
   lastTree: SlopNode | null;
   transport: Transport; // which transport this subscription came from
+  /** Per-subscription sequence number. See spec/core/messages.md. */
+  seq: number;
 }
 
 /**
@@ -167,10 +169,12 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
 
       if (!sub.lastTree) {
         sub.lastTree = structuredClone(newTree);
+        sub.seq = 0;
         sub.transport.send({
           type: "snapshot",
           id: sub.id,
           version,
+          seq: 0,
           tree: newTree,
         });
         continue;
@@ -180,10 +184,12 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
       sub.lastTree = structuredClone(newTree);
 
       if (ops.length > 0) {
+        sub.seq += 1;
         sub.transport.send({
           type: "patch",
           subscription: sub.id,
           version,
+          seq: sub.seq,
           ops,
         });
       }
@@ -230,11 +236,13 @@ export class SlopClientImpl<S = unknown> extends ProviderBase<S> implements Slop
           filter: msg.filter,
           lastTree: structuredClone(outputTree),
           transport,
+          seq: 0,
         });
         transport.send({
           type: "snapshot",
           id: msg.id,
           version: this.getVersion(),
+          seq: 0,
           tree: outputTree,
         });
         break;

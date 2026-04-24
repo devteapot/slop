@@ -10,14 +10,16 @@ import (
 )
 
 type subscription struct {
-	id              string
-	path            string
-	depth           int
-	maxNodes        *int
-	filterTypes     []string
-	filterMinSal    *float64
-	connection      Connection
-	lastTree        *WireNode
+	id           string
+	path         string
+	depth        int
+	maxNodes     *int
+	filterTypes  []string
+	filterMinSal *float64
+	connection   Connection
+	lastTree     *WireNode
+	// Per-subscription sequence number. See spec/core/messages.md.
+	seq uint64
 }
 
 // Server is a SLOP provider that manages state registrations, connections,
@@ -255,6 +257,7 @@ func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[str
 			"type":    "snapshot",
 			"id":      subID,
 			"version": ver,
+			"seq":     uint64(0),
 			"tree":    wireNodeToMap(*outTree),
 		}); err != nil {
 			s.logger.Warn("failed to send message", "err", err)
@@ -267,6 +270,7 @@ func (s *Server) HandleMessage(ctx context.Context, conn Connection, msg map[str
 			filterTypes:  filterTypes,
 			filterMinSal: filterMinSal,
 			lastTree:     &initTree,
+			seq:          0,
 		})
 		s.mu.Unlock()
 
@@ -675,10 +679,12 @@ func (s *Server) broadcastPatches() {
 		if len(ops) == 0 {
 			continue
 		}
+		sub.seq++
 		if err := sub.connection.Send(map[string]any{
 			"type":         "patch",
 			"subscription": sub.id,
 			"version":      s.version,
+			"seq":          sub.seq,
 			"ops":          ops,
 		}); err != nil {
 			s.logger.Warn("failed to send message", "err", err)

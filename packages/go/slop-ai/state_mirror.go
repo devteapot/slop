@@ -2,6 +2,7 @@ package slop
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -10,11 +11,29 @@ import (
 type StateMirror struct {
 	tree    WireNode
 	version int
+	// seq is the per-subscription sequence number; see spec/core/messages.md.
+	seq uint64
+}
+
+// SubscriptionGapError is returned when ApplyPatchWithSeq observes a seq gap.
+type SubscriptionGapError struct {
+	Expected uint64
+	Received uint64
+}
+
+func (e *SubscriptionGapError) Error() string {
+	return fmt.Sprintf("SLOP subscription gap: expected seq %d, got %d", e.Expected, e.Received)
 }
 
 // NewStateMirror creates a StateMirror initialized with the given tree and version.
 func NewStateMirror(tree WireNode, version int) *StateMirror {
 	return &StateMirror{tree: cloneWireNode(tree), version: version}
+}
+
+// NewStateMirrorFromSnapshot creates a StateMirror seeded from a snapshot
+// message that includes the per-subscription seq field.
+func NewStateMirrorFromSnapshot(tree WireNode, version int, seq uint64) *StateMirror {
+	return &StateMirror{tree: cloneWireNode(tree), version: version, seq: seq}
 }
 
 // Tree returns the current state tree.
@@ -27,13 +46,36 @@ func (sm *StateMirror) Version() int {
 	return sm.version
 }
 
+// Seq returns the current per-subscription sequence number.
+func (sm *StateMirror) Seq() uint64 {
+	return sm.seq
+}
+
 // ApplyPatch applies a slice of JSON-patch operations and updates the version.
 // Paths use node IDs to navigate children (not array indices).
+//
+// This variant does not perform gap detection. Use ApplyPatchWithSeq to verify
+// the per-subscription sequence number.
 func (sm *StateMirror) ApplyPatch(ops []PatchOp, version int) {
 	for _, op := range ops {
 		sm.applyOp(op)
 	}
 	sm.version = version
+}
+
+// ApplyPatchWithSeq applies a patch and verifies its per-subscription sequence
+// number. Returns a *SubscriptionGapError if seq != sm.Seq() + 1.
+func (sm *StateMirror) ApplyPatchWithSeq(ops []PatchOp, version int, seq uint64) error {
+	expected := sm.seq + 1
+	if seq != expected {
+		return &SubscriptionGapError{Expected: expected, Received: seq}
+	}
+	sm.seq = seq
+	for _, op := range ops {
+		sm.applyOp(op)
+	}
+	sm.version = version
+	return nil
 }
 
 func (sm *StateMirror) applyOp(op PatchOp) {

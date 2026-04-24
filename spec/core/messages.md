@@ -165,17 +165,24 @@ This design means patches are **stable across reordering** — moving a message 
 
 **Reserved field keywords.** The segments `properties`, `children`, `affordances`, `meta`, and `content_ref` are **reserved**: when one appears as a segment while walking a node, the remaining path is interpreted relative to that field of the node rather than as a child-id lookup. A reserved keyword always takes precedence over child-id resolution, and node `id` values MUST NOT equal a reserved keyword (see [State Tree §id](./state-tree.md#id)). Once the path has descended into a non-node field (e.g. inside `properties` or `meta`), subsequent segments are plain JSON Pointer keys and the reservation no longer applies — a property literally named `properties` is addressed normally.
 
-**Version semantics:**
+**Version and sequence semantics:**
 
-SLOP uses a single *provider-global* version counter. Every change that produces patches increments it, and that same integer is stamped on every message emitted to any active subscription or query response until the next change. That gives:
+SLOP messages carry two monotonically increasing integers, each with a distinct job:
 
-- **Snapshots** (from `subscribe` or `query`) carry the provider's current version at the time the snapshot was assembled.
-- **Patches** carry the provider version *after* the change is applied — this is the version a consumer should hold after applying the ops.
-- Versions are monotonically increasing integers, shared across all subscriptions from the same provider. Two consumers who subscribe at the same moment will therefore see the same version number, and two subscriptions on a single consumer are directly comparable.
-- The consumer can detect a missed patch in any given subscription by observing that the next patch's `version` is more than one greater than the last version they saw for that subscription. The reference SDKs track the last-applied version per subscription.
-- If a gap is detected, the consumer SHOULD send `unsubscribe` followed by a fresh `subscribe` with the same path/depth/filter. The provider answers with a new `snapshot` stamped with the current version, and the version gap is closed by construction. This is also what providers emit when applying backpressure (see [Rate limiting and backpressure](#rate-limiting-and-backpressure)): a fresh `snapshot` carrying the current version — the consumer treats it as a re-base, discarding any buffered patches for that subscription whose version is ≤ the snapshot's version.
+- `version` — a single *provider-global* counter. Every change that produces patches increments it, and that integer is stamped on every message emitted to any active subscription or query response until the next change. Two consumers subscribing at the same moment see the same `version`; two subscriptions on one consumer are directly comparable. `version` is the right field for re-base and staleness checks (e.g., "discard buffered patches whose version ≤ the latest snapshot's version").
+- `seq` — a *per-subscription* counter. The provider assigns `seq: 0` to the initial `snapshot` answering a `subscribe`, and `seq: 1, 2, 3, …` to successive `patch` messages on that subscription. `seq` is the right field for gap detection, because the provider only emits patches to subscriptions whose projected subtree actually changed — so `version` can advance between two consecutive patches on a given subscription without any values in between, making version-based gap detection unsound.
 
-Reference SDKs expose this via `ProviderBase.getVersion()` (TypeScript), `SlopServer::version()` (Rust), `Server.Version()` (Go), and the `version` field on Python's `SlopServer`. Implementations MUST use one counter per provider, not per subscription.
+`snapshot` and `patch` MUST carry both fields. `query` responses carry the provider's current `version` but no `seq` (there is no subscription to sequence against).
+
+Consumer rules:
+
+- On the initial `snapshot` for a subscription, the consumer records `lastSeq = 0` and `lastVersion = snapshot.version`.
+- On each `patch`, the consumer asserts `patch.seq == lastSeq + 1`. If it is greater, a patch was lost and the consumer MUST recover by sending `unsubscribe` then a fresh `subscribe` (or equivalent resubscribe). The provider answers with a new `snapshot` whose `seq: 0` re-bases the sequence, and any buffered patches whose `version ≤ snapshot.version` MUST be discarded.
+- `version` decreases are protocol violations; a consumer seeing one MAY disconnect.
+
+This is also what providers emit when applying backpressure (see [Rate limiting and backpressure](#rate-limiting-and-backpressure)): a fresh `snapshot` carrying the current version and `seq: 0` — the consumer treats it as a re-base.
+
+Reference SDKs expose the global counter via `ProviderBase.getVersion()` (TypeScript), `SlopServer::version()` (Rust), `Server.Version()` (Go), and the `version` field on Python's `SlopServer`. Per-subscription `seq` is tracked inside the subscription record on each side and MUST NOT be visible to application code.
 
 ### `result`
 

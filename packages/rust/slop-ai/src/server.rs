@@ -27,6 +27,8 @@ struct Subscription {
     filter_min_salience: Option<f64>,
     connection: Arc<dyn Connection>,
     last_tree: Option<SlopNode>,
+    /// Per-subscription sequence number. See spec/core/messages.md.
+    seq: u64,
 }
 
 /// Options for action registration.
@@ -372,6 +374,7 @@ impl SlopServer {
                             "type": "snapshot",
                             "id": sub_id,
                             "version": inner.version,
+                            "seq": 0u64,
                             "tree": serde_json::to_value(&tree).unwrap()
                         }));
                         let last_tree = Some(tree);
@@ -389,6 +392,7 @@ impl SlopServer {
                                 filter_min_salience,
                                 connection: Arc::clone(conn),
                                 last_tree,
+                                seq: 0,
                             });
                     }
                 }
@@ -718,6 +722,7 @@ fn rebuild(inner: &mut Inner) {
 }
 
 fn broadcast_patches(inner: &mut Inner) {
+    let version = inner.version;
     for sub in &mut inner.subscriptions {
         // Compute per-subscription output tree using stored path/depth/filter
         let new_tree = get_output_tree(
@@ -739,11 +744,13 @@ fn broadcast_patches(inner: &mut Inner) {
             None => diff_nodes(&SlopNode::new(&inner.id, "root"), &new_tree, ""),
         };
         if !ops.is_empty() {
+            sub.seq += 1;
             let ops_val = serde_json::to_value(&ops).unwrap();
             let _ = sub.connection.send(&json!({
                 "type": "patch",
                 "subscription": sub.id,
-                "version": inner.version,
+                "version": version,
+                "seq": sub.seq,
                 "ops": ops_val
             }));
         }

@@ -14,15 +14,36 @@ def _unescape_pointer(segment: str) -> str:
     return segment.replace("~1", "/").replace("~0", "~")
 
 
+class SubscriptionGapError(Exception):
+    """Raised when a patch's ``seq`` is not exactly ``last_seq + 1``."""
+
+    def __init__(self, expected: int, received: int) -> None:
+        super().__init__(f"SLOP subscription gap: expected seq {expected}, got {received}")
+        self.expected = expected
+        self.received = received
+
+
 class StateMirror:
     """Mirrors a remote SLOP tree, applying snapshot and patch messages."""
 
     def __init__(self, snapshot: dict[str, Any]) -> None:
         self._tree = SlopNode.from_dict(copy.deepcopy(snapshot["tree"]))
         self._version: int = snapshot["version"]
+        self._seq: int = snapshot.get("seq", 0)
 
     def apply_patch(self, patch: dict[str, Any]) -> None:
-        """Apply a patch message (list of ops) to the local tree."""
+        """Apply a patch message (list of ops) to the local tree.
+
+        Raises :class:`SubscriptionGapError` when ``patch["seq"]`` is present
+        and does not equal ``self._seq + 1``. Patches without ``seq`` skip
+        gap detection for compatibility with older providers.
+        """
+        seq = patch.get("seq")
+        if seq is not None:
+            expected = self._seq + 1
+            if seq != expected:
+                raise SubscriptionGapError(expected, seq)
+            self._seq = seq
         for op_data in patch["ops"]:
             op = PatchOp.from_dict(op_data) if isinstance(op_data, dict) else op_data
             self._apply_op(op)
@@ -33,6 +54,9 @@ class StateMirror:
 
     def get_version(self) -> int:
         return self._version
+
+    def get_seq(self) -> int:
+        return self._seq
 
     # ------------------------------------------------------------------
     # Internal

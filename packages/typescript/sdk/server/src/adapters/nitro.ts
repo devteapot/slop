@@ -1,4 +1,4 @@
-import type { SlopServer, Connection } from "../server";
+import type { Connection, SlopServer } from "../server";
 
 /**
  * Create a Nitro WebSocket handler for Nuxt.

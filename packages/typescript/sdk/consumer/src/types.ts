@@ -90,6 +90,8 @@ export interface SnapshotMessage {
   type: "snapshot";
   id: string;
   version: number;
+  /** Per-subscription sequence number; snapshot re-bases the sequence at 0. */
+  seq?: number;
   tree: SlopNode;
 }
 export interface PatchOp {
@@ -102,6 +104,8 @@ export interface PatchMessage {
   type: "patch";
   subscription: string;
   version: number;
+  /** Per-subscription sequence number; MUST equal lastSeq + 1 for this subscription. */
+  seq?: number;
   ops: PatchOp[];
 }
 export interface ResultMessage {

@@ -1,18 +1,18 @@
+import { Emitter } from "./emitter";
+import { StateMirror, SubscriptionGapError } from "./state-mirror";
 import type {
+  BatchMessage,
   ClientTransport,
   Connection,
-  HelloMessage,
-  SlopNode,
-  ResultMessage,
-  PatchOp,
-  SlopMessage,
-  ProviderMessage,
   ErrorMessage,
   EventMessage,
-  BatchMessage,
+  HelloMessage,
+  PatchOp,
+  ProviderMessage,
+  ResultMessage,
+  SlopMessage,
+  SlopNode,
 } from "./types";
-import { StateMirror } from "./state-mirror";
-import { Emitter } from "./emitter";
 
 export class SlopConsumer extends Emitter {
   private connection: Connection | null = null;
@@ -139,9 +139,21 @@ export class SlopConsumer extends Emitter {
       }
       case "patch": {
         const mirror = this.mirrors.get(msg.subscription);
-        if (mirror) {
+        if (!mirror) break;
+        try {
           mirror.applyPatch(msg);
           this.emit("patch", msg.subscription, msg.ops, msg.version);
+        } catch (err) {
+          if (err instanceof SubscriptionGapError) {
+            // Gap detected — drop the mirror and re-subscribe to close the
+            // gap by construction. Any buffered patches for this subscription
+            // will be discarded when the fresh snapshot arrives.
+            this.mirrors.delete(msg.subscription);
+            this.connection?.send({ type: "unsubscribe", id: msg.subscription });
+            this.emit("gap", msg.subscription, err.expected, err.received);
+          } else {
+            throw err;
+          }
         }
         break;
       }

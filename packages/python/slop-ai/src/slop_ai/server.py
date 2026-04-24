@@ -241,6 +241,7 @@ class SlopServer:
                 "type": "snapshot",
                 "id": msg["id"],
                 "version": self._version,
+                "seq": 0,
                 "tree": output.to_dict(),
             })
 
@@ -513,10 +514,12 @@ class SlopServer:
                     continue
                 sub_ops = diff_nodes(sub.last_tree, new_tree)
                 if sub_ops:
+                    sub.seq += 1
                     sub.connection.send({
                         "type": "patch",
                         "subscription": sub.id,
                         "version": self._version,
+                        "seq": sub.seq,
                         "ops": [op.to_dict() for op in sub_ops],
                     })
                     sub.last_tree = copy.deepcopy(new_tree)
@@ -525,7 +528,7 @@ class SlopServer:
 
 
 class _Subscription:
-    __slots__ = ("id", "path", "depth", "max_nodes", "filter_", "connection", "last_tree")
+    __slots__ = ("id", "path", "depth", "max_nodes", "filter_", "connection", "last_tree", "seq")
 
     def __init__(
         self,
@@ -544,6 +547,8 @@ class _Subscription:
         self.filter_ = filter_
         self.connection = connection
         self.last_tree = last_tree
+        # Per-subscription sequence number; see spec/core/messages.md.
+        self.seq = 0
 
 
 class _ScopedServer:

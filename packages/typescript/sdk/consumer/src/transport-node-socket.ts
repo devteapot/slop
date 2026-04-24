@@ -1,6 +1,6 @@
 import { createConnection, type Socket } from "node:net";
 import { createInterface } from "node:readline";
-import type { ClientTransport, Connection, SlopMessage, MessageHandler } from "./types";
+import type { ClientTransport, Connection, MessageHandler, SlopMessage } from "./types";
 
 /**
  * Unix socket transport for Node.js environments.

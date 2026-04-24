@@ -5,6 +5,25 @@ use serde_json::{Map, Value};
 
 use crate::types::{NodeMeta, PatchOp, PatchOpKind, SlopNode};
 
+/// Raised when a patch's `seq` is not exactly `last_seq + 1`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SubscriptionGapError {
+    pub expected: u64,
+    pub received: u64,
+}
+
+impl std::fmt::Display for SubscriptionGapError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "SLOP subscription gap: expected seq {}, got {}",
+            self.expected, self.received
+        )
+    }
+}
+
+impl std::error::Error for SubscriptionGapError {}
+
 /// Maintains a local copy of a SLOP provider's state tree.
 ///
 /// Constructed from an initial snapshot and updated incrementally via
@@ -12,15 +31,26 @@ use crate::types::{NodeMeta, PatchOp, PatchOpKind, SlopNode};
 pub struct StateMirror {
     tree: SlopNode,
     version: u64,
+    /// Per-subscription sequence number. See spec/core/messages.md.
+    seq: u64,
 }
 
 impl StateMirror {
-    /// Create a mirror from an initial snapshot.
+    /// Create a mirror from an initial snapshot. The sequence starts at 0.
     pub fn new(tree: SlopNode, version: u64) -> Self {
-        Self { tree, version }
+        Self { tree, version, seq: 0 }
+    }
+
+    /// Create a mirror seeded with an explicit per-subscription seq (e.g. from
+    /// a snapshot message whose `seq` field is non-zero).
+    pub fn new_with_seq(tree: SlopNode, version: u64, seq: u64) -> Self {
+        Self { tree, version, seq }
     }
 
     /// Apply a batch of patch operations and bump the version.
+    ///
+    /// This variant does not enforce sequence numbers. Use
+    /// [`apply_patch_with_seq`](Self::apply_patch_with_seq) to detect gaps.
     pub fn apply_patch(&mut self, ops: &[PatchOp], version: u64) {
         for op in ops {
             let segments = parse_path(&op.path);
@@ -35,6 +65,26 @@ impl StateMirror {
         self.version = version;
     }
 
+    /// Apply a patch and verify its per-subscription sequence number.
+    /// Returns `SubscriptionGapError` if `seq != self.seq() + 1`.
+    pub fn apply_patch_with_seq(
+        &mut self,
+        ops: &[PatchOp],
+        version: u64,
+        seq: u64,
+    ) -> Result<(), SubscriptionGapError> {
+        let expected = self.seq + 1;
+        if seq != expected {
+            return Err(SubscriptionGapError {
+                expected,
+                received: seq,
+            });
+        }
+        self.seq = seq;
+        self.apply_patch(ops, version);
+        Ok(())
+    }
+
     /// Current tree.
     pub fn tree(&self) -> &SlopNode {
         &self.tree
@@ -43,6 +93,11 @@ impl StateMirror {
     /// Current version.
     pub fn version(&self) -> u64 {
         self.version
+    }
+
+    /// Current per-subscription sequence number.
+    pub fn seq(&self) -> u64 {
+        self.seq
     }
 }
 

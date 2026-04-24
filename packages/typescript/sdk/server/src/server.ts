@@ -27,6 +27,12 @@ interface Subscription {
   connection: Connection;
   /** Last output tree sent to this subscriber (for diffing). */
   lastTree: SlopNode | null;
+  /**
+   * Per-subscription sequence number. The initial `snapshot` carries `seq: 0`
+   * and each `patch` emitted for this subscription carries `seq: lastSeq + 1`.
+   * See spec/core/messages.md §Version and sequence semantics.
+   */
+  seq: number;
 }
 
 export interface SlopServerOptions<S = unknown> extends SlopClientOptions<S> {}
@@ -149,12 +155,14 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
           filter: msg.filter,
           connection: conn,
           lastTree: structuredClone(outputTree),
+          seq: 0,
         };
         this.subscriptions.push(sub);
         conn.send({
           type: "snapshot",
           id: msg.id,
           version: this.getVersion(),
+          seq: 0,
           tree: outputTree,
         });
         break;
@@ -276,12 +284,14 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
         });
 
         if (!sub.lastTree) {
-          // No previous tree — send snapshot
+          // No previous tree — re-base the subscription with a fresh snapshot.
           sub.lastTree = structuredClone(newTree);
+          sub.seq = 0;
           sub.connection.send({
             type: "snapshot",
             id: sub.id,
             version,
+            seq: 0,
             tree: newTree,
           });
           continue;
@@ -291,10 +301,12 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
         sub.lastTree = structuredClone(newTree);
 
         if (ops.length > 0) {
+          sub.seq += 1;
           sub.connection.send({
             type: "patch",
             subscription: sub.id,
             version,
+            seq: sub.seq,
             ops,
           });
         }

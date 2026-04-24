@@ -64,7 +64,7 @@ SLOP interoperates with MCP today through out-of-band mechanisms: an MCP proxy t
 
 **Impact:** SLOP providers must ship a bridge to be usable inside MCP-only hosts. Registry-level discovery across both protocols currently requires publishing the SLOP `/.well-known/slop` descriptor plus whatever MCP registry or server metadata the target MCP host expects.
 
-**Path forward:** Register a "SLOP over MCP" extension (SEP) once MCP's event-driven update, metadata, and session-scaling work stabilizes (tracked in the [MCP 2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)). The extension would reserve an `experimental/slop` capability and an `slop/subscribe` method, letting MCP clients enter a SLOP session without leaving the MCP transport.
+**Path forward:** Register a "SLOP over MCP" extension (SEP) once MCP's event-driven update, metadata, and session-scaling work stabilizes (tracked in the [MCP 2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)). The extension would reserve an `experimental/slop` capability plus `slop/subscribe` / `slop/unsubscribe` / `slop/invoke` methods and snapshot / patch / attention notifications, letting MCP clients enter a SLOP session without leaving the MCP transport. A working draft lives at [`seps/0000-slop-over-mcp.md`](../seps/0000-slop-over-mcp.md); it is pre-sponsor and not yet submitted to the MCP SEP directory.
 
 ### No binary transport
 

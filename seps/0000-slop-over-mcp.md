@@ -95,11 +95,15 @@ Invoke an affordance on a node. Semantics match the SLOP `invoke` message.
 
 ```jsonc
 {
-  "path": "/inbox/messages/42",    // target node path
+  "path": "/inbox/messages/42",    // target node path (SLOP path syntax)
   "affordance": "reply",            // affordance name on that node
+  "observedVersion": 42,            // optional: subscription version the client saw
+  "subscriptionId": "string",       // optional: subscription the client observed from
   "params": { /* ... */ }           // affordance-defined parameters
 }
 ```
+
+When `observedVersion` and `subscriptionId` are provided together, the server MAY reject the invocation with `error.code = "conflict"` if the affordance is no longer valid at the current server version. Clients SHOULD include them whenever they invoke an affordance they learned about through a subscription — it lets the server give a precise denial reason instead of a generic error.
 
 **Result:**
 
@@ -135,14 +139,16 @@ Initial state, or a re-synchronization snapshot after a missed patch sequence.
 
 #### 3.2 `notifications/slop/patch`
 
-Incremental change as JSON Patch (RFC 6902), with SLOP version continuity.
+Incremental change carrying SLOP patch operations. Operation semantics (`add`, `remove`, `replace`) follow [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902); paths use **SLOP path syntax** (node-ID segments with reserved field keywords `properties`, `children`, `affordances`, `meta`, `content_ref`), not RFC 6901 JSON Pointer. See [SLOP messages.md §Patch path syntax](https://github.com/devteapot/slop/blob/main/spec/core/messages.md#patch-path-syntax) for the normative definition. SLOP paths are stable across sibling reordering, which RFC 6901 array-index paths are not.
 
 ```jsonc
 {
   "subscriptionId": "string",
   "fromVersion": 42,
   "toVersion": 43,
-  "ops": [ /* JSON Patch ops */ ]
+  "ops": [
+    { "op": "replace", "path": "/inbox/msg-42/properties/unread", "value": false }
+  ]
 }
 ```
 
@@ -224,10 +230,39 @@ The security model mirrors SLOP's existing transport security (see [transport.md
 - **Salience is a hint, not a gate.** A server MUST NOT rely on `minSalience` as a security filter — it is a bandwidth/attention optimization, not an access control mechanism.
 - **Resource exposure through content references.** If a server exposes SLOP `content_ref` targets as MCP resources, it MUST apply the same authorization rules to the resource read path as it applies to `slop/subscribe` for the owning node.
 
-## Open Questions
+## Resolved Design Questions
 
-1. Should this SEP also define a `.well-known` discovery hint for servers that speak both MCP and SLOP natively, or is dual-publish of `/.well-known/mcp` and `/.well-known/slop` sufficient? (Leaning toward the latter — discovery belongs in the server-cards SEP, not here.)
-2. Is JSON Patch the right delta format given MCP's wider `jsonrpc` style, or should this SEP define a lighter SLOP-native delta? (Current position: JSON Patch is the right default; rewrite would be premature.)
-3. Should `slop/invoke` be delivered as a distinct method or folded into `tools/call` with a reserved tool name? (Current position: distinct method — folding loses affordance node context.)
+Positions taken in this draft, ahead of sponsor review:
 
-These are noted for the sponsor conversation; they are not blockers for the draft.
+### Discovery is dual-publish, not combined
+
+A server that supports both protocols publishes `/.well-known/mcp` (once the MCP server-cards SEP lands) **and** `/.well-known/slop` side-by-side. This SEP does not define a combined descriptor.
+
+Rationale: discovery scope is separable from the wire. Coupling this SEP to the server-cards SEP doubles the review surface and presumes that SLOP is "discovered through MCP," which is a design call the community should make in its own SEP. A future co-authored SEP MAY define a combined hint without blocking this one.
+
+Tradeoff accepted: two round-trips for naive crawlers; missing explicit "this server does both" signal (inferred from same-origin co-location).
+
+### Patch format is SLOP-native, not pure RFC 6902
+
+Patches carry RFC 6902 **operation semantics** (`add` / `remove` / `replace`) with **SLOP path syntax** (node-ID segments, reserved field keywords). The SLOP spec is referenced normatively.
+
+Rationale: SLOP's node-ID path syntax is load-bearing — it keeps paths stable across sibling reordering, which RFC 6901 JSON Pointer does not. Rewriting to RFC 6901 would either fork SLOP or force a spec change in SLOP itself, neither of which is in scope for an extension SEP. A brand-new SLOP-native delta format is rejected as premature: the only divergence from off-the-shelf JSON Patch is the path grammar, and that already has a tested answer.
+
+Tradeoff accepted: off-the-shelf JSON Patch libraries do not work directly on SLOP paths; conformance tests must use SLOP SDK primitives.
+
+### Affordance invocation is a distinct method, not `tools/call`
+
+`slop/invoke` is its own JSON-RPC method carrying `{ path, affordance, params }` and optional `{ observedVersion, subscriptionId }`. Affordances are NOT exposed as MCP tools by this SEP.
+
+Rationale: affordances are contextual to a node at a version — "reply on message msg-42" is only meaningful because the subscribed tree showed that node as replyable. Folding into `tools/call` either flattens affordances into global tools (the MCP failure mode SLOP was built to solve) or encodes node context into tool names and churns the tool list at state-change frequency, which MCP's `tools/list_changed` notification was not designed for.
+
+Servers MAY still mirror top-level affordances as stable MCP tools for hosts that do not speak `experimental/slop`. That is a server implementation choice, not a protocol requirement.
+
+Tradeoff accepted: hosts cannot reuse their existing `tools/call` dispatch and consent UI verbatim; they need an extension-aware path for invocations.
+
+## Open Questions for Sponsor Review
+
+1. **Subscription lifetime across reconnects.** The draft says servers are not required to retain subscription state across MCP sessions; clients re-subscribe after reconnect. Should there be an opt-in mechanism — e.g. a server-declared sub-capability — for session-persistent subscriptions keyed by `MCP-Session-Id`?
+2. **Error taxonomy mapping.** SLOP defines `unauthorized` / `conflict` / `invalid` / `internal` on affordance results. Should these surface as JSON-RPC error codes, as `error.data` on a generic code, or both?
+3. **Extension versioning cadence.** Does the `version` field in the capability track the upstream SLOP spec version lock-step, or does the extension version independently?
+4. **Promotion criteria.** What specifically moves this from `experimental/slop` to a non-experimental capability — one reference implementation, two independent implementations, production deployment, or a defined soak window?

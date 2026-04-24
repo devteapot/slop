@@ -72,6 +72,7 @@ fn apply_one(node: &mut SlopNode, segments: &[String], op: &PatchOpKind, value: 
         "properties" => apply_in_properties(node, rest, op, value),
         "meta" => apply_in_meta(node, rest, op, value),
         "affordances" => apply_in_affordances(node, rest, op, value),
+        "content_ref" => apply_in_content_ref(node, rest, op, value),
         // Any other segment is a child ID
         child_id => apply_in_children(node, child_id, rest, op, value),
     }
@@ -315,6 +316,33 @@ fn apply_in_affordances(
     }
 }
 
+// -- content_ref --
+
+fn apply_in_content_ref(
+    node: &mut SlopNode,
+    segments: &[String],
+    op: &PatchOpKind,
+    value: Option<&Value>,
+) {
+    // Only whole-field replace/add/remove is supported; deeper paths into
+    // ContentRef fields are uncommon and treated as no-ops.
+    if !segments.is_empty() {
+        return;
+    }
+    match op {
+        PatchOpKind::Replace | PatchOpKind::Add => {
+            if let Some(val) = value {
+                if let Ok(cr) = serde_json::from_value::<crate::types::ContentRef>(val.clone()) {
+                    node.content_ref = Some(cr);
+                }
+            }
+        }
+        PatchOpKind::Remove => {
+            node.content_ref = None;
+        }
+    }
+}
+
 // -- generic JSON value navigation --
 
 fn apply_in_value(
@@ -503,6 +531,98 @@ mod tests {
             2,
         );
         assert!(mirror.tree().meta.as_ref().unwrap().summary.is_none());
+    }
+
+    #[test]
+    fn test_add_content_ref_field() {
+        let mut mirror = StateMirror::new(make_tree(), 1);
+        mirror.apply_patch(
+            &[PatchOp {
+                op: PatchOpKind::Add,
+                path: "/counter/content_ref".into(),
+                value: Some(json!({
+                    "type": "text",
+                    "mime": "text/plain",
+                    "summary": "42 bytes"
+                })),
+            }],
+            2,
+        );
+        let counter = &mirror.tree().children.as_ref().unwrap()[0];
+        let cr = counter
+            .content_ref
+            .as_ref()
+            .expect("content_ref should be set on the node");
+        assert_eq!(cr.mime, "text/plain");
+        // Must not have been pushed into children as a pseudo-child node.
+        let children_len = counter
+            .children
+            .as_ref()
+            .map(|c| c.len())
+            .unwrap_or(0);
+        assert_eq!(children_len, 0);
+    }
+
+    #[test]
+    fn test_remove_content_ref_field() {
+        let mut tree = make_tree();
+        tree.children.as_mut().unwrap()[0].content_ref = Some(crate::types::ContentRef {
+            content_type: crate::types::ContentType::Text,
+            mime: "text/plain".into(),
+            summary: "x".into(),
+            size: None,
+            uri: None,
+            preview: None,
+            encoding: None,
+            hash: None,
+        });
+        let mut mirror = StateMirror::new(tree, 1);
+        mirror.apply_patch(
+            &[PatchOp {
+                op: PatchOpKind::Remove,
+                path: "/counter/content_ref".into(),
+                value: None,
+            }],
+            2,
+        );
+        let counter = &mirror.tree().children.as_ref().unwrap()[0];
+        assert!(counter.content_ref.is_none());
+    }
+
+    #[test]
+    fn test_field_keyword_routes_to_field_not_children() {
+        // Cross-SDK conformance: `/<node>/<field>` writes the field, never a child.
+        // Spec: field keywords (properties, meta, affordances, content_ref) take
+        // precedence over child-id resolution.
+        let mut mirror = StateMirror::new(make_tree(), 1);
+        mirror.apply_patch(
+            &[
+                PatchOp {
+                    op: PatchOpKind::Add,
+                    path: "/counter/affordances".into(),
+                    value: Some(json!([{"action": "cancel"}])),
+                },
+                PatchOp {
+                    op: PatchOpKind::Add,
+                    path: "/counter/meta".into(),
+                    value: Some(json!({"summary": "done"})),
+                },
+            ],
+            2,
+        );
+        let counter = &mirror.tree().children.as_ref().unwrap()[0];
+        assert_eq!(counter.affordances.as_ref().unwrap().len(), 1);
+        assert_eq!(
+            counter.meta.as_ref().and_then(|m| m.summary.as_deref()),
+            Some("done")
+        );
+        // No stray id-less "child" pushed into children.
+        let stray = counter
+            .children
+            .as_ref()
+            .map(|c| c.iter().any(|x| x.id.is_empty()))
+            .unwrap_or(false);
+        assert!(!stray, "field add must not create an id-less child");
     }
 
     #[test]

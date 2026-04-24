@@ -77,10 +77,13 @@ class StateMirror:
         return (current, segments[-1])
 
     def _is_field_segment(self, segments: list[str]) -> bool:
-        """Check if the path targets a node field (not a child ID)."""
-        if len(segments) == 1:
-            return segments[0] in _NODE_FIELDS
-        for seg in segments[:-1]:
+        """Check if the path targets a node field (not a child ID).
+
+        A path is a field mutation if any segment is a reserved field
+        keyword — including the terminal segment (e.g. /<node>/affordances).
+        See spec/core/messages.md §patch-path-syntax.
+        """
+        for seg in segments:
             if seg in _NODE_FIELDS:
                 return True
         return False

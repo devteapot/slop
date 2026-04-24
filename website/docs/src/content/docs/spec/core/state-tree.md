@@ -117,11 +117,20 @@ The state tree supports **depth-controlled resolution**. When a consumer request
 - **Depth N**: N levels of nesting resolved
 - **Depth -1**: Full subtree (use with caution)
 
-Nodes beyond the requested depth are **stubs** — they include `id`, `type`, and `meta` (especially `summary` and `total_children`) but not `properties` or `children`.
+Nodes beyond the requested depth become **depth stubs**.
 
-This lets the AI start with a high-level view and drill into what's relevant, managing its own token budget.
+### Depth stub vs compacted node
 
-A stub node includes only `id`, `type`, and `meta` — no `properties`, `children`, or `affordances`:
+SLOP has two distinct collapsed shapes, and they are not interchangeable. They answer different questions:
+
+| Shape | Emitted by | Keeps | Drops | Purpose |
+|---|---|---|---|---|
+| **Depth stub** | `depth` truncation (`subscribe`/`query` with a depth limit) | `id`, `type`, `meta` | `properties`, `children`, `affordances`, `content_ref` | "There's something here; ask again if you need it." The consumer has opted into a shallow view. |
+| **Compacted node** | Automatic compaction under `max_nodes` (see [Attention §compaction](/spec/core/attention#compaction-behavior)) | `id`, `type`, `properties`, `affordances`, `meta` | `children`, `content_ref` | "The whole node was relevant but we had to drop its subtree to fit budget." The consumer still needs to reason about the node itself. |
+
+A consumer can always distinguish the two: a compacted node carries `properties` and `affordances`; a depth stub does not. Providers MUST NOT blur the two shapes (e.g. emitting a depth stub with `properties` attached, or a compacted node with `affordances` dropped), because consumers use those fields to decide whether to re-query for detail vs. invoke the action directly.
+
+A depth stub looks like:
 
 ```jsonc
 {

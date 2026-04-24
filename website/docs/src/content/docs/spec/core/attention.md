@@ -225,15 +225,15 @@ Each step is optional and only applies when the corresponding parameter is prese
 
 ### Compaction behavior
 
-When a subtree is collapsed during compaction:
+When a subtree is collapsed during compaction (step 3), the node becomes a **compacted node** — distinct from a *depth stub* (see [State Tree §depth stub vs compacted node](/spec/core/state-tree#depth-stub-vs-compacted-node)). A compacted node:
 
-- The node retains its `id`, `type`, `properties`, `affordances`, and `meta`
-- `children` is removed
-- `meta.total_children` is set to the original child count
-- `meta.summary` is preserved if already set, otherwise defaults to `"{N} children"`
-- The consumer can drill into collapsed nodes via a follow-up `query` with a deeper depth
+- Retains its `id`, `type`, `properties`, `affordances`, and `meta`
+- Removes `children` and `content_ref`
+- Sets `meta.total_children` to the original child count
+- Preserves `meta.summary` if already set, otherwise defaults to `"{N} children"`
+- Can be drilled into via a follow-up `query` with a deeper depth
 
-This ensures the AI always knows *something was there* and can explore further if needed.
+The reason `properties` and `affordances` are preserved here (but dropped in depth stubs) is that compaction happens *without the consumer asking for it* — the provider is cutting budget on their behalf. The AI still needs to see what the node is and what it can do, or it can't act on live state.
 
 ### Why consumer-driven
 

@@ -36,7 +36,11 @@ pub fn get_subtree<'a>(root: &'a SlopNode, path: &str) -> Option<&'a SlopNode> {
     if path.is_empty() || path == "/" {
         return Some(root);
     }
-    let segments: Vec<&str> = path.trim_start_matches('/').split('/').filter(|s| !s.is_empty()).collect();
+    let segments: Vec<&str> = path
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .collect();
     let mut current = root;
     for seg in segments {
         let children = current.children.as_ref()?;
@@ -45,7 +49,12 @@ pub fn get_subtree<'a>(root: &'a SlopNode, path: &str) -> Option<&'a SlopNode> {
     Some(current)
 }
 
-/// Collapse nodes beyond depth to stubs with `meta.total_children`.
+/// Collapse nodes beyond depth into **depth stubs**.
+///
+/// Depth stubs carry only `id`, `type`, and `meta` — no `properties`,
+/// `children`, `affordances`, or `content_ref`. For budget-driven collapsing
+/// that preserves `properties` and `affordances`, use [`auto_compact`]
+/// instead. See spec/core/state-tree.md §depth stub vs compacted node.
 pub fn truncate_tree(node: &SlopNode, depth: i32) -> SlopNode {
     if depth <= 0 {
         if let Some(children) = &node.children {
@@ -55,11 +64,11 @@ pub fn truncate_tree(node: &SlopNode, depth: i32) -> SlopNode {
                 return SlopNode {
                     id: node.id.clone(),
                     node_type: node.node_type.clone(),
-                    properties: node.properties.clone(),
+                    properties: None,
                     children: None,
                     affordances: None,
                     meta: Some(meta),
-                    content_ref: node.content_ref.clone(),
+                    content_ref: None,
                 };
             }
         }
@@ -69,7 +78,10 @@ pub fn truncate_tree(node: &SlopNode, depth: i32) -> SlopNode {
         Some(children) => {
             let mut out = node.clone();
             out.children = Some(
-                children.iter().map(|c| truncate_tree(c, depth - 1)).collect(),
+                children
+                    .iter()
+                    .map(|c| truncate_tree(c, depth - 1))
+                    .collect(),
             );
             out
         }
@@ -91,7 +103,11 @@ pub fn auto_compact(root: &SlopNode, max_nodes: usize) -> SlopNode {
         }
     }
 
-    candidates.sort_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal));
+    candidates.sort_by(|a, b| {
+        a.score
+            .partial_cmp(&b.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut tree = root.clone();
     let mut node_count = total;
@@ -109,7 +125,11 @@ pub fn auto_compact(root: &SlopNode, max_nodes: usize) -> SlopNode {
 
 /// Filter a tree by salience threshold and/or node types.
 /// The root node is never filtered.
-pub fn filter_tree(node: &SlopNode, min_salience: Option<f64>, types: Option<&[String]>) -> SlopNode {
+pub fn filter_tree(
+    node: &SlopNode,
+    min_salience: Option<f64>,
+    types: Option<&[String]>,
+) -> SlopNode {
     let children = match &node.children {
         None => return node.clone(),
         Some(c) => c,
@@ -135,7 +155,11 @@ pub fn filter_tree(node: &SlopNode, min_salience: Option<f64>, types: Option<&[S
         .collect();
 
     let mut out = node.clone();
-    out.children = if filtered.is_empty() { None } else { Some(filtered) };
+    out.children = if filtered.is_empty() {
+        None
+    } else {
+        Some(filtered)
+    };
     out
 }
 
@@ -241,13 +265,19 @@ mod tests {
     fn make_tree() -> SlopNode {
         let mut root = make_node("root", "root");
         let mut inbox = make_node("inbox", "view");
-        inbox.meta = Some(NodeMeta { salience: Some(0.8), ..Default::default() });
+        inbox.meta = Some(NodeMeta {
+            salience: Some(0.8),
+            ..Default::default()
+        });
         let msg1 = make_node("msg-1", "item");
         let msg2 = make_node("msg-2", "item");
         inbox.children = Some(vec![msg1, msg2]);
 
         let mut settings = make_node("settings", "view");
-        settings.meta = Some(NodeMeta { salience: Some(0.1), ..Default::default() });
+        settings.meta = Some(NodeMeta {
+            salience: Some(0.1),
+            ..Default::default()
+        });
         let mut general = make_node("general", "group");
         general.children = Some(vec![make_node("theme", "item")]);
         settings.children = Some(vec![general]);

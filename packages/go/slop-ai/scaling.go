@@ -55,7 +55,12 @@ func GetSubtree(root *WireNode, path string) *WireNode {
 	return current
 }
 
-// TruncateTree collapses nodes beyond depth to stubs with meta.total_children.
+// TruncateTree collapses nodes beyond depth into depth stubs.
+//
+// Depth stubs carry only ID, Type, and Meta — no Properties, Children,
+// Affordances, or ContentRef. For budget-driven collapsing that preserves
+// Properties and Affordances, use AutoCompact instead. See
+// spec/core/state-tree.md §depth stub vs compacted node.
 func TruncateTree(node WireNode, depth int) WireNode {
 	if depth <= 0 && len(node.Children) > 0 {
 		tc := len(node.Children)
@@ -65,10 +70,9 @@ func TruncateTree(node WireNode, depth int) WireNode {
 		}
 		meta.TotalChildren = &tc
 		return WireNode{
-			ID:         node.ID,
-			Type:       node.Type,
-			Properties: node.Properties,
-			Meta:       meta,
+			ID:   node.ID,
+			Type: node.Type,
+			Meta: meta,
 		}
 	}
 	if len(node.Children) == 0 {

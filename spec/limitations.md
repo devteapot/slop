@@ -56,6 +56,16 @@ When a consumer subscribes with `min_salience`, filtering is applied per-node. I
 
 **Path forward:** A future protocol version may introduce an optional ancestor-retention mode where high-salience descendants automatically retain their ancestor chain.
 
+### No formal MCP extension
+
+SLOP interoperates with MCP today through two out-of-band mechanisms: an MCP proxy that translates tool calls into affordance invocations, and an MCP Apps bridge that runs a SLOP session inside a sandboxed iframe (see [MCP Interoperability](./integrations/mcp.md)). Neither is specified as an MCP extension.
+
+**Current behavior:** SLOP is not discoverable through MCP's capability registry. A host that only speaks MCP cannot subscribe to SLOP state without the bridge adapter.
+
+**Impact:** SLOP providers must ship a bridge to be usable inside MCP-only hosts. Registry-level discovery across both protocols requires publishing two `.well-known` descriptors.
+
+**Path forward:** Register a "SLOP over MCP" extension (SEP) once MCP's explicit subscription-stream transport stabilizes (tracked in the [MCP 2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)). The extension would reserve an `experimental/slop` capability and an `slop/subscribe` method, letting MCP clients enter a SLOP session without leaving the MCP transport.
+
 ### No binary transport
 
 All SLOP messages are JSON. There's no binary encoding option for scenarios where message size or parse overhead matters.
@@ -119,6 +129,7 @@ When a consumer connects to multiple providers (e.g., a mail app and a calendar 
 - **Ancestor retention** — optional mode for salience filtering that preserves ancestor chains
 - **Subscription negotiation** — providers can report what they actually served
 - **Binary encoding** — optional MessagePack/CBOR wire format
+- **MCP extension (SEP)** — register SLOP as a formal MCP capability once MCP's subscription-stream transport stabilizes
 
 ### SDKs
 

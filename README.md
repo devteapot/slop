@@ -94,6 +94,7 @@ The full specification is in [`spec/`](./spec/):
 - [Adapters](./spec/integrations/adapters.md) — wrapping existing apps
 - [Web](./spec/integrations/web.md) — browser integration, postMessage, security tiers
 - [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
+- [MCP Interoperability](./spec/integrations/mcp.md) — MCP Apps bridge, proxy, discovery alignment
 ### Status and limits
 
 - [Known Limitations & Future Work](./spec/limitations.md) — current gaps, reserved protocol areas, and roadmap notes

@@ -81,7 +81,8 @@ export const docsPages = [
   }),
   page("docs/guides/advanced/mcp-bridge.md", "guides/advanced/mcp-bridge.md", {
     label: "MCP Apps Bridge",
-    description: "Expose SLOP providers through MCP Apps and model-context projections",
+    description:
+      "Render a SLOP provider inside an MCP Apps host (VS Code, Claude, Goose) with model-callable affordances",
     redirects: ["/guides-advanced/mcp-bridge"],
   }),
   page("docs/guides/advanced/openclaw.md", "guides/advanced/openclaw.md", {

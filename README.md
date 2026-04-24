@@ -107,6 +107,7 @@ The full specification is in [`spec/`](./spec/):
 ### Guides
 
 - [Agent-Assisted Integration](./docs/guides/advanced/agent-scaffolding.md) — AI-powered SLOP scaffolding for existing codebases
+- [MCP Apps Bridge](./docs/guides/advanced/mcp-bridge.md) — render a SLOP provider inside VS Code / Claude / Goose with model-callable affordances
 - [OpenClaw Integration](./docs/guides/advanced/openclaw.md) — control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
 
 ## Benchmarks

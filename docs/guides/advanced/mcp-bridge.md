@@ -1,93 +1,173 @@
 # MCP Apps Bridge
 
-Expose a SLOP provider inside an MCP Apps host (Claude, ChatGPT, Goose, VS Code) so an embedded SLOP consumer can subscribe to live state, project selected state into model context, and invoke affordances from the chat surface.
+Expose a SLOP provider inside an MCP Apps host (Claude, ChatGPT, Goose, VS Code Insiders) so the host model can subscribe to live state and call your app's affordances directly from chat.
 
-This guide is the developer-facing complement to the normative [MCP Interoperability](../../../spec/integrations/mcp.md) spec.
+The `@slop-ai/mcp-apps-bridge` package handles three things:
+
+- **Iframe-side bridge** — runs inside the sandboxed `ui://` view, opens a SLOP consumer, projects salience-filtered state into `app.updateModelContext`.
+- **`registerSlopView`** — server-side helper that wires the MCP tool + `ui://` resource + sandbox CSP.
+- **`registerSlopTools`** — server-side helper that mirrors every SLOP affordance as a callable MCP tool, with `tools/listChanged` resync on every patch.
+
+This guide is the developer-facing complement to the normative [MCP Interoperability spec](../../../spec/integrations/mcp.md). For an end-to-end runnable example, see [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge).
 
 ## When to use this
 
-Use the MCP Apps bridge when:
+- Your users interact with SLOP-aware apps through a chat UI (Claude / VS Code chat / Goose / etc.) and you want the model to both *observe* state and *act* on it inside the same conversation.
+- You already have a SLOP provider — adding the bridge is a server file plus an iframe bundle.
 
-- Your users interact with SLOP-aware apps through Claude or ChatGPT rather than a standalone SLOP consumer.
-- You want a single integration that reaches MCP Apps hosts without implementing each host's UI extension API separately.
-- You already have a SLOP provider and do not want to rewrite it as an MCP tool server.
+If your target host doesn't support MCP Apps yet, use the [Claude Code integration](./claude-code.md) (proxy pattern) instead.
 
-Use the [MCP proxy](./claude-code.md) instead when your target host doesn't support MCP Apps yet, or when you want a flat tool catalog rather than live state.
-
-## How it works
-
-MCP Apps lets an MCP tool return a `ui://` resource. The host fetches it and renders it in a sandboxed iframe, wiring a JSON-RPC channel over `postMessage`. That `postMessage` channel is already a [native SLOP transport](../../../spec/core/transport.md#postmessage-convention), so the bridge is a thin multiplexer.
+## Architecture
 
 ```
-MCP host ──► open_slop_view tool
-                │
-                ▼
-        iframe (ui://slop/...)
-        ├── @slop-ai/spa consumer
-        └── SLOP provider (in-iframe OR WS relay)
+┌─ host (VS Code Insiders / Claude / Goose) ─────────────────────────┐
+│                                                                     │
+│   MCP client ──stdio──▶ MCP server                                  │
+│        │                  │                                          │
+│        │                  ├── SLOP provider (yours)                 │
+│        │                  │                                          │
+│        │                  ├── registerSlopView  ── tool + ui://     │
+│        │                  └── registerSlopTools ── one MCP tool     │
+│        │                                              per affordance │
+│        ▼                                                             │
+│   sandboxed iframe (open_*your_view*)                                │
+│        │                                                             │
+│        └── createMcpAppsBridge ──ws──▶ same SLOP provider           │
+│              ├── consumer mirrors tree                               │
+│              ├── projector → app.updateModelContext (debounced)     │
+│              └── you render UI from consumer.getTree()              │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-Inside the iframe, SLOP frames carry `{ slop: true, message }`. MCP Apps frames don't. The adapter routes on that field.
+A single Node process typically hosts the SLOP provider, the MCP server, and the WS endpoint. The iframe is a thin client.
 
-## Minimum integration
+## Server: register the view + the tools
 
-1. **Expose one MCP Apps tool** whose sole job is to open the view:
+```ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  registerSlopView,
+  registerSlopTools,
+} from "@slop-ai/mcp-apps-bridge/server";
+import { createSlopServer } from "@slop-ai/server";
+import { bunHandler } from "@slop-ai/server/bun";
+import { readFile } from "node:fs/promises";
 
-   ```ts
-   import {
-     RESOURCE_MIME_TYPE,
-     registerAppResource,
-     registerAppTool,
-   } from "@modelcontextprotocol/ext-apps/server";
-   import { readFile } from "node:fs/promises";
+const PORT = 7411;
+const slop = createSlopServer({ id: "kanban", name: "Kanban" });
+// register your nodes + actions on slop ...
 
-   const resourceUri = "ui://your-app/slop";
+// Expose the SLOP provider over WebSocket (Bun example; use attachSlop for Node).
+const slopHandler = bunHandler(slop, { path: "/slop" });
+Bun.serve({
+  port: PORT,
+  hostname: "127.0.0.1",
+  fetch(req, srv) {
+    return slopHandler.fetch(req, srv) ?? new Response("ok");
+  },
+  websocket: slopHandler.websocket,
+});
 
-   registerAppTool(
-     server,
-     "open_slop_view",
-     {
-       description: "Open a live view of your app state",
-       inputSchema: {},
-       _meta: { ui: { resourceUri } },
-     },
-     async () => ({ content: [] }),
-   );
+const RESOURCE_URI = "ui://my-app/view";
+const mcp = new McpServer(
+  { name: "my-app", version: "0.1.0" },
+  { capabilities: { tools: { listChanged: true }, resources: {} } },
+);
 
-   registerAppResource(
-     server,
-     "SLOP View",
-     resourceUri,
-     {},
-     async () => {
-       const html = await readFile(new URL("./dist/slop.html", import.meta.url), "utf8");
-       return {
-         contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
-       };
-     },
-   );
-   ```
+registerSlopView(mcp, {
+  toolName: "open_kanban",
+  description: "Open a live view of the kanban board",
+  resourceUri: RESOURCE_URI,
+  resourceName: "Kanban View",
+  html: () => readFile(new URL("./dist/iframe.html", import.meta.url), "utf8"),
+  // CRITICAL for sandboxed hosts: whitelist the SLOP provider's WS origin.
+  // Without this, VS Code's webview blocks the iframe's WS connection.
+  connectDomains: [`ws://127.0.0.1:${PORT}`],
+});
 
-   `registerAppResource`'s second argument is a display name for the host. The `RESOURCE_MIME_TYPE` default is supplied by the helper, so the metadata object can be empty; it's still set explicitly on the returned `contents[]` so the host sees the MCP Apps MIME type.
+await registerSlopTools(mcp, {
+  url: `ws://127.0.0.1:${PORT}/slop`,
+  uiResourceUri: RESOURCE_URI, // tags every tool with the iframe surface
+});
 
-2. **Serve the UI resource** as a static HTML bundle that loads `@slop-ai/spa` (for in-iframe providers) or `@slop-ai/consumer` + a WebSocket relay (for remote providers).
+await mcp.connect(new StdioServerTransport());
+```
 
-3. **Project state into the model** by calling `app.updateModelContext()` with a salience-filtered snapshot whenever the SLOP consumer receives a meaningful snapshot or patch. Do not ship raw trees — the model's context window is limited; use `min_salience` on the subscription and debounce updates.
+What `registerSlopTools` does: connects to the SLOP provider as a consumer, walks the affordances via `affordancesToTools`, and registers one MCP tool per `(action, schema)` group (so 1000 cards each with a `delete` affordance produce **one** `delete` MCP tool with a `target` parameter, not 1000). Resyncs on every patch and emits `tools/listChanged`.
 
-4. **Route invocations** from the UI to the SLOP provider. If you want the model itself to call affordances, expose each affordance as an MCP tool on the server and forward the invocation through the iframe.
+## Iframe: render + project
+
+The iframe bundle is plain HTML/JS served by `registerSlopView`. Bundle it however you like (Bun, Vite, esbuild) — the demo uses a single-file HTML wrapper.
+
+```ts
+import { createMcpAppsBridge } from "@slop-ai/mcp-apps-bridge";
+import type { SlopNode } from "@slop-ai/consumer/browser";
+
+const bridge = await createMcpAppsBridge({
+  provider: { mode: "ws", url: "ws://127.0.0.1:7411/slop" },
+  subscribe: { depth: -1, minSalience: 0.3 },
+  projection: { header: "# Kanban — live state from the iframe" },
+});
+
+// Render UI from the consumer's mirrored tree.
+function render(tree: SlopNode | null) { /* your DOM updates */ }
+render(bridge.getTree());
+bridge.consumer.on("patch", () => render(bridge.getTree()));
+```
+
+The bridge's other mode is `{ mode: "postmessage" }` for client-only setups where the SLOP provider runs inside the iframe via `@slop-ai/client`. Use `ws` mode whenever there's a server-side authoritative state.
+
+## Provider modes
+
+| Mode | When to use | Tradeoffs |
+|---|---|---|
+| `ws` | Server-side authoritative state. The MCP server, SLOP provider, and tool-registering consumer all run in one process. | Requires `connectDomains` for sandboxed hosts. The architecture every non-toy app wants. |
+| `postmessage` | Client-only / no backend. SLOP provider lives in the iframe via `@slop-ai/client`. | Model can't act on state via `registerSlopTools` (server has no consumer to discover affordances from). State is iframe-local. |
+
+## How the model sees state
+
+The bridge calls `app.updateModelContext` with a debounced markdown projection of the salience-filtered tree on every snapshot/patch. The projection includes the state tree (via `formatTree`) **and** the affordance list (via `affordancesToTools`). The model receives this in context on the *next* turn after the iframe opens — so the very first response after `open_*` won't see state yet, but every subsequent turn will.
+
+To validate: open the view, then ask a question whose answer depends on tree contents. The model should answer without making another tool call.
+
+## Caveats and known gotchas
+
+- **Sandboxed network.** Hosts like VS Code's webview default to "no network." If you don't pass `connectDomains` to `registerSlopView`, your `ws` iframe will silently fail to connect. The bridge surfaces this as `error: WebSocket connection failed` in the iframe status line if you wrap `createMcpAppsBridge` in a try/catch.
+- **First-turn latency.** `app.updateModelContext` lands asynchronously after the tool returns. The model that just called `open_*` won't see state until its next turn.
+- **Tool descriptions inline param info.** The MCP SDK only accepts Zod schemas for `inputSchema`, not raw JSON Schema. `registerSlopTools` works around this with a permissive passthrough schema and stuffs the SLOP affordance's params + valid `target` paths into the tool *description*. The model handles this fine; future versions will convert SLOP JSON Schema → Zod for proper validation.
+- **`tools/list_changed` is chatty.** Currently fires once per patch resync; in apps with high patch frequency, consider widening the bridge's resync debounce (PRs welcome).
+- **Big trees flood context.** The default projection ships the entire salience-filtered tree as markdown on every patch. For apps with thousands of nodes use a stricter `subscribe.minSalience` and a custom `projection.format` that summarizes rather than emits every node. See the [scaling extension](../../../spec/extensions/scaling.md).
 
 ## Security
 
 The host's iframe sandbox and user-consent prompts are defense in depth. They are **not** the authorization boundary. Your SLOP provider must re-authorize every affordance invocation against live state and caller identity, exactly as it would for a direct WebSocket consumer.
 
-For remote providers, the iframe's WebSocket relay should use a short-lived token minted by your backend for that app session. Do not put provider bearer tokens into MCP tool `content`, `structuredContent`, or any model-visible context. Keep iframe origins and CSP as narrow as the host allows.
+For remote providers (production), use a short-lived token in the WS URL minted per-session by your backend. Don't put bearer tokens in MCP tool `content` or anywhere model-visible — they end up in conversation transcripts.
 
-## Limitations
+## Validating in real hosts
 
-- **No native model-visible SLOP subscription.** MCP resources can support change subscriptions, and Streamable HTTP can carry server-to-client notifications, but MCP Apps still require explicit model-context updates. Debounce `updateModelContext` — every call consumes context tokens.
-- **No cross-tool affordances.** An affordance triggered from the UI runs through the bridge, not as a first-class MCP tool call, so the model doesn't see it in its tool trace. If you want the model to invoke affordances, publish them as MCP tools as well.
-- **Host support is uneven.** MCP Apps shipped in January 2026. Older MCP hosts fall back to rendering the tool's text result; ship a plain-text summary alongside the `ui://` resource for graceful degradation.
+The smoke test we use:
+
+1. Build the demo: `cd examples/mcp-apps-bridge && bun run build`.
+2. Register the server in **VS Code Insiders** (Cmd+Shift+P → `MCP: Open User Configuration`):
+   ```jsonc
+   {
+     "servers": {
+       "slop-kanban": {
+         "type": "stdio",
+         "command": "bun",
+         "args": ["<absolute-path-to>/dist/server.js"]
+       }
+     }
+   }
+   ```
+3. Reload the window, open Copilot Chat, ask: `Use the open_kanban tool`. The iframe should render with status `connected`.
+4. Ask: `What cards are in todo?` — model should answer without another tool call.
+5. Ask: `Add a card called "Ship it" to todo` — the model calls `add_card`, the iframe re-renders, and the next turn's context reflects the new card.
+
+If the iframe shows `error: WebSocket connection failed`, the most common cause is missing `connectDomains` (or VS Code holding a cached MCP server connection — Stop + Start the server in `MCP: List Servers`).
 
 ## Future direction
 
-If MCP standardizes event-driven resource updates or a SLOP-specific extension, the bridge can move from `updateModelContext` projections to a direct `slop/subscribe` stream over MCP. See the [MCP extension future work entry](../../../spec/limitations.md#no-formal-mcp-extension) for the planned SEP.
+When MCP standardizes event-driven resource subscriptions (tracked in the [2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)), the bridge will offer a third `mode: "mcp-tunnel"` that doesn't require the iframe to open a WebSocket — all SLOP traffic flows over MCP's own subscription channel. Until then, `ws` + `connectDomains` is the recommended pattern. See the ["No formal MCP extension" entry](../../../spec/limitations.md#no-formal-mcp-extension) for the planned SEP.

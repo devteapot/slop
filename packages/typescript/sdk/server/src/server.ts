@@ -77,9 +77,23 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
   }
 
   /** Remove a registration. */
-  unregister(path: string): void {
-    this.dynamicRegistrations.delete(path);
-    this.staticRegistrations.delete(path);
+  unregister(path: string, opts?: { recursive?: boolean }): void {
+    if (opts?.recursive) {
+      const prefix = path + "/";
+      for (const key of [...this.dynamicRegistrations.keys()]) {
+        if (key === path || key.startsWith(prefix)) {
+          this.dynamicRegistrations.delete(key);
+        }
+      }
+      for (const key of [...this.staticRegistrations.keys()]) {
+        if (key === path || key.startsWith(prefix)) {
+          this.staticRegistrations.delete(key);
+        }
+      }
+    } else {
+      this.dynamicRegistrations.delete(path);
+      this.staticRegistrations.delete(path);
+    }
     this.rebuild();
   }
 
@@ -94,8 +108,8 @@ export class SlopServer<S = unknown> extends ProviderBase<S> {
           };
         }
         if (prop === "unregister") {
-          return (path: string) => {
-            parent.unregister(`${prefix}/${path}`);
+          return (path: string, opts?: { recursive?: boolean }) => {
+            parent.unregister(`${prefix}/${path}`, opts);
           };
         }
         if (prop === "scope") {

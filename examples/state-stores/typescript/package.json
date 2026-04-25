@@ -1,0 +1,23 @@
+{
+  "name": "state-stores-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable TypeScript examples for exposing popular state stores through SLOP.",
+  "scripts": {
+    "build": "bunx tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.0.0",
+    "@slop-ai/client": "workspace:*",
+    "jotai": "^2.0.0",
+    "mobx": "^6.0.0",
+    "valtio": "^2.0.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
+

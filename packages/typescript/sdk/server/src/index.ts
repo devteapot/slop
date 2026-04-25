@@ -40,6 +40,7 @@ export type {
   ActionHandler,
   Affordance,
   ContentRef,
+  ExposeStoreOptions,
   InferParams,
   ItemDescriptor,
   JsonSchema,
@@ -48,11 +49,17 @@ export type {
   ParamDef,
   PatchOp,
   SlopNode,
+  StateStore,
+  StorePath,
+  StoreSubscribeResult,
+  StoreSubscription,
+  StoreTarget,
+  StoreUnsubscribe,
   TaskHandle,
   WindowDescriptor,
 } from "@slop-ai/core";
 // Re-export core helpers
-export { action, omit, pick } from "@slop-ai/core";
+export { action, exposeStore, omit, pick } from "@slop-ai/core";
 export type { Connection, DescriptorFn, SlopServerOptions } from "./server";
 // Re-export server class and types
 export { SlopServer } from "./server";

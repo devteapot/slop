@@ -8,6 +8,7 @@
 //! - [`SlopServer`] — publish state and register affordances (actions an AI can invoke)
 //! - [`SlopConsumer`] — subscribe to a provider and invoke affordances *(requires `native` feature)*
 //! - [`StateMirror`] — apply JSON patches and maintain a local replica of remote state
+//! - [`expose_store`] — bind an observable application store to a SLOP node
 //! - [`SlopNode`], [`Affordance`], [`PatchOp`] — protocol data types
 //!
 //! ## Transports
@@ -64,6 +65,7 @@ pub mod error;
 pub mod scaling;
 pub mod server;
 pub mod state_mirror;
+pub mod store;
 pub mod tools;
 pub mod transport;
 pub mod tree;
@@ -84,6 +86,7 @@ pub use scaling::{
 };
 pub use server::{ActionOptions, Connection, ScopedServer, SlopServer};
 pub use state_mirror::StateMirror;
+pub use store::{expose_store, StateStore, StoreBinding, StoreUnsubscribe};
 pub use tools::{affordances_to_tools, format_tree, LlmFunction, LlmTool, ToolResolution, ToolSet};
 pub use types::{
     Affordance, ContentRef, ContentType, Estimate, NodeMeta, PatchOp, PatchOpKind, SlopNode,

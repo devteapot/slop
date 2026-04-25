@@ -46,6 +46,7 @@ That mounts:
 ## Included APIs
 
 - `Server`, `ScopedServer`, and `RegisterFunc` for providers
+- `ExposeStore` for binding observable app state stores
 - `Consumer` plus WebSocket and Unix client transports
 - `discovery` subpackage for provider scanning, bridge relay, lazy/auto-connect, and AI-facing tool helpers
 - stdio and Unix transports for local tools

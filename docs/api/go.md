@@ -9,6 +9,7 @@ go get github.com/devteapot/slop/packages/go/slop-ai
 - `Server` and `ScopedServer` for providers
 - `Consumer` for subscribing to existing providers
 - `Node`, `Props`, `ActionOpts`, `Handler`, and `HandlerFunc`
+- `ExposeStore`, `StateStore`, and `StoreUnsubscribe` for binding observable stores
 - WebSocket, Unix socket, and stdio transport helpers
 
 ## Best fit

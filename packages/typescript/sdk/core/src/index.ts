@@ -2,6 +2,7 @@ import { diffNodes } from "./diff";
 import { action, omit, pick } from "./helpers";
 import { ProviderBase, SubtreeNotFoundError } from "./provider";
 import { autoCompact, countNodes, filterTree, getSubtree, prepareTree, truncateTree } from "./scaling";
+import { exposeStore } from "./store";
 import { assembleTree } from "./tree-assembler";
 import { AsyncActionResult } from "./types";
 
@@ -14,6 +15,15 @@ export {
 } from "./paths";
 export type { OutputRequest, SubscriptionFilter } from "./provider";
 export type { OutputTreeOptions } from "./scaling";
+export type {
+  ExposeStoreOptions,
+  StateStore,
+  StorePath,
+  StoreSubscribeResult,
+  StoreSubscription,
+  StoreTarget,
+  StoreUnsubscribe,
+} from "./store";
 // Re-export schema types
 export type { ExtractPaths, ExtractSubSchema } from "./schema-types";
 // Transport interface
@@ -51,6 +61,7 @@ export {
   autoCompact,
   countNodes,
   diffNodes,
+  exposeStore,
   filterTree,
   getSubtree,
   omit,

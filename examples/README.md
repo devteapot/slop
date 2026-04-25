@@ -7,6 +7,7 @@ Examples are organized by integration pattern:
 | `cli/` | CLI tool with `--slop` flag | Stdio transport, server SDK, discovery |
 | `spa/` | Single-page app (client-only) | postMessage transport, framework hooks |
 | `full-stack/` | Server + client | WebSocket transport, SSR, meta-framework adapters |
+| `state-stores/` | TypeScript state stores | `exposeStore()` with Zustand, Redux Toolkit, Jotai, MobX, and Valtio |
 
 ## Blueprints
 

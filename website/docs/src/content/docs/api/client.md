@@ -43,6 +43,23 @@ Once created, the returned client exposes the provider API you use from adapters
 - `stop()`
 - `asyncAction(...)`
 
+## Store helper
+
+`@slop-ai/client` re-exports `exposeStore()` from `@slop-ai/core` so browser apps can bind Zustand, Redux Toolkit, Jotai, MobX, Valtio, or any `getState()` / `subscribe()` store without an additional package.
+
+```ts
+import { createSlop, exposeStore } from "@slop-ai/client";
+
+const slop = createSlop({ id: "todos", name: "Todos" });
+
+exposeStore(slop, "todos", todoStore, (state) => ({
+  type: "collection",
+  props: { count: state.todos.length },
+}));
+```
+
+The runnable examples in `examples/state-stores/typescript` show the adapter shape for each major library.
+
 ## Transport helpers
 
 The package also exports:
@@ -75,6 +92,7 @@ slop.register("notes", {
 ## Related pages
 
 - [Vanilla guide](/guides/vanilla)
+- [State stores guide](/guides/state-stores)
 - [React guide](/guides/react)
 - [Vue guide](/guides/vue)
 - [Core helpers](/api/core)

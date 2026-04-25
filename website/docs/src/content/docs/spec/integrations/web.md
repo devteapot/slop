@@ -498,10 +498,14 @@ export function useSlop(client, path, descriptorFn) {
 **Vanilla JS** (no adapter needed):
 
 ```js
+import { exposeStore } from "@slop-ai/client";
 import { slop } from "./slop";
 
-slop.register("notes", { ... });
-store.subscribe(() => slop.register("notes", { ... }));  // register doubles as update
+const dispose = exposeStore(slop, "notes", store, (state) => ({
+  type: "collection",
+  props: { count: state.notes.length },
+  items: state.notes.map((note) => ({ id: note.id, props: { title: note.title } })),
+}));
 ```
 
 #### What the client handles

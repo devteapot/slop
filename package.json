@@ -16,6 +16,7 @@
     "examples/full-stack/*",
     "examples/full-stack/*/frontend",
     "examples/desktop/*",
+    "examples/state-stores/*",
     "examples/mcp-apps-bridge",
     "website/playground",
     "apps/extension",

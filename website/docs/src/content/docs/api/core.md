@@ -11,7 +11,7 @@ bun add @slop-ai/core
 ## What it exports
 
 - descriptor and wire types such as `NodeDescriptor`, `ItemDescriptor`, `SlopNode`, and `Affordance`
-- helper utilities such as `pick()`, `omit()`, and `action()`
+- helper utilities such as `pick()`, `omit()`, `action()`, and `exposeStore()`
 - provider base internals used by `@slop-ai/client` and `@slop-ai/server`
 - advanced tree helpers such as `assembleTree()`, `diffNodes()`, `prepareTree()`, and `autoCompact()`
 
@@ -27,6 +27,27 @@ const noteDescriptor = {
   },
 };
 ```
+
+## Store Bindings
+
+`exposeStore()` binds any store with `getState()` and `subscribe()` to a SLOP node. It is intended for Zustand, Redux Toolkit, Jotai, MobX, Valtio, and similar state stores.
+
+```ts
+import { exposeStore } from "@slop-ai/core";
+
+const dispose = exposeStore(slop, "todos", todoStore, (state) => ({
+  type: "collection",
+  props: { count: state.todos.length },
+  items: state.todos.map((todo) => ({
+    id: todo.id,
+    props: { title: todo.title, done: todo.done },
+  })),
+}));
+
+dispose();
+```
+
+The tested TypeScript examples in `examples/state-stores/typescript` show how to adapt stores that already match this shape and stores that need a small wrapper.
 
 ## Important boundary
 
@@ -78,4 +99,5 @@ The package also exports utilities for preparing large trees before they are sen
 
 - [`@slop-ai/client`](/api/client)
 - [`@slop-ai/server`](/api/server)
+- [State stores guide](/guides/state-stores)
 - [Protocol overview](/spec/core/overview)

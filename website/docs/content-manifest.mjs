@@ -40,6 +40,10 @@ export const docsPages = [
     label: "Vanilla JS",
     description: "How to use SLOP with plain JavaScript or TypeScript without a framework.",
   }),
+  page("docs/guides/state-stores.md", "guides/state-stores.md", {
+    label: "State Stores",
+    description: "Expose Zustand, Redux Toolkit, Jotai, MobX, Valtio, and other state stores through SLOP",
+  }),
   page("docs/guides/server-apps.md", "guides/server-apps.md", {
     label: "Server & Native Apps",
     description: "Add SLOP to server-backed apps, desktop helpers, daemons, and CLI tools",
@@ -226,6 +230,7 @@ export const docsSidebar = [
       pageItem("guides/angular"),
       pageItem("guides/svelte"),
       pageItem("guides/vanilla", "Vanilla JS"),
+      pageItem("guides/state-stores", "State Stores"),
       pageItem("guides/server-apps", "Server & Native Apps"),
       pageItem("guides/tanstack-start", "TanStack Start"),
       pageItem("guides/python"),

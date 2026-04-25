@@ -27,6 +27,8 @@ export const slop = createSlop({
 
 Call `slop.register(path, descriptor)` to publish a node and `slop.unregister(path)` to remove it. Re-call `register` with the same path to update the descriptor.
 
+If your app state already lives in a store with `getState()` and `subscribe()`, use [`exposeStore()`](/guides/state-stores) instead of wiring subscriptions by hand.
+
 ## Full Example
 
 ```ts
@@ -82,3 +84,4 @@ syncSlop();
 
 - [Browser provider API](/api/client)
 - [Core helper types](/api/core)
+- [State stores guide](/guides/state-stores)

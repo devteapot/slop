@@ -61,6 +61,21 @@ server.RegisterFunc("metrics", func() slop.Node {
 
 Call `server.Refresh()` after mutations outside SLOP actions.
 
+## Store-backed state
+
+Use `ExposeStore()` when your state object can notify listeners:
+
+```go
+dispose := slop.ExposeStore(server, "todos", todoStore, func(state TodoState) slop.Node {
+	return slop.Node{
+		Type:  "collection",
+		Props: slop.Props{"count": len(state.Todos)},
+		Items: mapTodos(state.Todos),
+	}
+})
+defer dispose()
+```
+
 ## Unix socket and stdio
 
 For local apps and CLI tools:

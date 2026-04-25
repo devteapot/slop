@@ -246,7 +246,7 @@ jobs:
           releaseId: ${{ github.event.release.id }}
           tagName: ${{ github.event.release.tag_name }}
           tauriScript: bun tauri
-          releaseAssetNamePattern: SLOP.Desktop_[version]_[arch][ext]
+          assetNamePattern: SLOP.Desktop_[version]_[arch][ext]
           args: --target ${{ matrix.target }}
 
   build-cli:

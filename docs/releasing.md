@@ -52,7 +52,13 @@ The extension and desktop app `package.json` / `manifest.json` / `tauri.conf.jso
 
 ### npm packages
 
-No secret required. npm publishing uses [Trusted Publishing](https://docs.npmjs.com/generating-provenance-statements#publishing-packages-with-provenance-via-github-actions) via GitHub OIDC. Each `@slop-ai/*` package must have `devteapot/slop` + `release.yml` configured as a trusted publisher in its npmjs.com settings.
+No secret required. npm publishing uses [Trusted Publishing](https://docs.npmjs.com/trusted-publishers) via GitHub OIDC. Each `@slop-ai/*` package must have `devteapot/slop` + `release.yml` configured as a trusted publisher in its npmjs.com settings.
+
+New `@slop-ai/*` package names need the same package-level trusted publisher
+setup before they can be published by the release workflow. If npm cannot
+configure trusted publishing before the first publish for a new package, publish
+the initial package version manually or with a temporary token, then enable the
+trusted publisher and remove that token.
 
 ### Chrome Web Store
 
@@ -155,7 +161,7 @@ git push origin "packages/go/slop-ai/v0.2.0"
 ## Notes
 
 - Release tags use SemVer: `vX.Y.Z` for stable releases, `vX.Y.Z-rc.N` (or any pre-release suffix) for release candidates. Pre-release npm packages are published under the `next` dist-tag.
-- TypeScript packages are published via `npm publish --provenance` using npm Trusted Publishing (OIDC). No `NPM_TOKEN` secret is required — the workflow uses `id-token: write` permissions and GitHub's OIDC provider. Builds still use Bun; only the publish step uses npm for provenance support.
+- TypeScript packages are published via `npm publish --provenance` using npm Trusted Publishing (OIDC). No `NPM_TOKEN` secret is required — the workflow uses `id-token: write` permissions, GitHub's OIDC provider, and Node 24 so the npm CLI supports trusted publishing. Builds still use Bun; only the publish step uses npm for provenance support.
 - The desktop workflow builds distributable binaries, but platform signing and notarization can be layered on separately if you want trusted installers.
 - The release workflow now expects the macOS signing + notarization secrets above on macOS runners and will fail the macOS desktop build if they are missing.
 - The Go module path now matches the monorepo subdirectory: `github.com/devteapot/slop/packages/go/slop-ai`.

@@ -90,6 +90,31 @@ After mutations outside SLOP:
 slop.refresh(); // re-evaluate all register_fn closures, diff, broadcast
 ```
 
+## Store-backed state
+
+Use `expose_store()` when your state object can notify listeners. The returned binding unregisters the SLOP subtree when dropped.
+
+```rust
+use slop_ai::{expose_store, SlopServer};
+use serde_json::json;
+use std::sync::Arc;
+
+let slop = SlopServer::new("todos", "Todos");
+
+let binding = expose_store(slop.clone(), "todos", Arc::clone(&todo_store), |state| {
+    json!({
+        "type": "collection",
+        "props": {"count": state.todos.len()},
+        "items": state.todos.iter().map(|todo| json!({
+            "id": todo.id,
+            "props": {"title": todo.title, "done": todo.done}
+        })).collect::<Vec<_>>()
+    })
+});
+
+drop(binding);
+```
+
 ## WebSocket (standalone)
 
 ```rust

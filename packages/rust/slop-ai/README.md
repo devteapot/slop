@@ -36,6 +36,8 @@ slop.register("todos", json!({
 }));
 ```
 
+Use `expose_store` when your app state can notify listeners; the returned binding unsubscribes and unregisters the subtree when dropped.
+
 ## Feature flags
 
 | Feature | Default | Description |

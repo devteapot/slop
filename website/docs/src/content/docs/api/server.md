@@ -22,7 +22,7 @@ const slop = createSlopServer({
 ### Common methods
 
 - `register(path, descriptorOrFn)`
-- `unregister(path)`
+- `unregister(path, { recursive })`
 - `scope(prefix)`
 - `refresh()`
 - `onChange(listener)`

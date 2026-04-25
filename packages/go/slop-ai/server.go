@@ -43,6 +43,20 @@ type Server struct {
 	logger          *slog.Logger
 }
 
+type unregisterOptions struct {
+	recursive bool
+}
+
+// UnregisterOption configures Server.Unregister.
+type UnregisterOption func(*unregisterOptions)
+
+// WithRecursiveUnregister removes the target path and all descendant registrations.
+func WithRecursiveUnregister() UnregisterOption {
+	return func(opts *unregisterOptions) {
+		opts.recursive = true
+	}
+}
+
 // NewServer creates a new SLOP server with the given provider ID and name.
 func NewServer(id, name string) *Server {
 	return &Server{
@@ -123,11 +137,30 @@ func (s *Server) HandleWith(path, action string, h Handler, opts ActionOpts) {
 }
 
 // Unregister removes the registration at path.
-func (s *Server) Unregister(path string) {
+func (s *Server) Unregister(path string, options ...UnregisterOption) {
+	opts := unregisterOptions{}
+	for _, option := range options {
+		option(&opts)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.staticRegs, path)
-	delete(s.dynamicRegs, path)
+	if opts.recursive {
+		prefix := path + "/"
+		for key := range s.staticRegs {
+			if key == path || strings.HasPrefix(key, prefix) {
+				delete(s.staticRegs, key)
+			}
+		}
+		for key := range s.dynamicRegs {
+			if key == path || strings.HasPrefix(key, prefix) {
+				delete(s.dynamicRegs, key)
+			}
+		}
+	} else {
+		delete(s.staticRegs, path)
+		delete(s.dynamicRegs, path)
+	}
 	s.rebuild()
 }
 
@@ -791,8 +824,8 @@ func (ss *ScopedServer) HandleWith(path, action string, h Handler, opts ActionOp
 }
 
 // Unregister removes the registration under the scoped prefix.
-func (ss *ScopedServer) Unregister(path string) {
-	ss.server.Unregister(ss.prefix + "/" + path)
+func (ss *ScopedServer) Unregister(path string, options ...UnregisterOption) {
+	ss.server.Unregister(ss.prefix+"/"+path, options...)
 }
 
 // Scope creates a nested scope.

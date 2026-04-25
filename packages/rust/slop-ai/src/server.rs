@@ -283,6 +283,19 @@ impl SlopServer {
         rebuild(&mut inner);
     }
 
+    /// Remove the registration at `path` and all descendant registrations.
+    pub fn unregister_recursive(&self, path: &str) {
+        let mut inner = self.inner.write().unwrap();
+        let prefix = format!("{path}/");
+        inner
+            .static_registrations
+            .retain(|key, _| key != path && !key.starts_with(&prefix));
+        inner
+            .dynamic_registrations
+            .retain(|key, _| key != path && !key.starts_with(&prefix));
+        rebuild(&mut inner);
+    }
+
     /// Return a scoped server that prefixes all paths.
     pub fn scope(&self, prefix: impl Into<String>) -> ScopedServer {
         ScopedServer {
@@ -671,6 +684,11 @@ impl ScopedServer {
 
     pub fn unregister(&self, path: &str) {
         self.server.unregister(&format!("{}/{path}", self.prefix));
+    }
+
+    pub fn unregister_recursive(&self, path: &str) {
+        self.server
+            .unregister_recursive(&format!("{}/{path}", self.prefix));
     }
 
     pub fn scope(&self, sub_prefix: &str) -> ScopedServer {

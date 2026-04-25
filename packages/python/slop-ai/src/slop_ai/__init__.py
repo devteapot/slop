@@ -47,6 +47,14 @@ from .scaling import (
 
 # Helpers
 from .helpers import pick, omit
+from .store import (
+    StateStore,
+    StoreSubscribeResult,
+    StoreSubscription,
+    StoreTarget,
+    StoreUnsubscribe,
+    expose_store,
+)
 
 # Server
 from .server import SlopServer, Connection
@@ -84,6 +92,12 @@ __all__ = [
     # Helpers
     "pick",
     "omit",
+    "expose_store",
+    "StateStore",
+    "StoreSubscribeResult",
+    "StoreSubscription",
+    "StoreTarget",
+    "StoreUnsubscribe",
     # Server
     "SlopServer",
     "Connection",

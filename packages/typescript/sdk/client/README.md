@@ -30,6 +30,23 @@ slop.register("notes", {
 });
 ```
 
+## Store bindings
+
+`@slop-ai/client` also exports `exposeStore()` for Zustand, Redux Toolkit, Jotai, MobX, Valtio, and other stores with `getState()` plus `subscribe()`.
+
+```ts
+import { createSlop, exposeStore } from "@slop-ai/client";
+
+const slop = createSlop({ id: "todos", name: "Todos" });
+
+const dispose = exposeStore(slop, "todos", todoStore, (state) => ({
+  type: "collection",
+  props: { count: state.todos.length },
+}));
+```
+
+See `examples/state-stores/typescript` for runnable integrations with the major TypeScript state libraries.
+
 ## Optional transports
 
 ```ts
@@ -55,5 +72,6 @@ const slop = createSlop({
 
 - API reference: https://docs.slopai.dev/api/client
 - Vanilla guide: https://docs.slopai.dev/guides/vanilla
+- State stores guide: https://docs.slopai.dev/guides/state-stores
 - React guide: https://docs.slopai.dev/guides/react
 - Consumer SDK: https://docs.slopai.dev/api/consumer

@@ -118,6 +118,17 @@ describe("Patch message flow", () => {
     expect(removeOp).toBeDefined();
   });
 
+  test("recursive unregister removes descendants", () => {
+    const { slop } = setup();
+    slop.register("todos", { type: "collection", props: {} });
+    slop.register("todos/t1", { type: "item", props: { title: "First" } });
+    slop.register("todos/t2", () => ({ type: "item", props: { title: "Second" } }));
+
+    slop.unregister("todos", { recursive: true });
+
+    expect(slop.getTree().children ?? []).toHaveLength(0);
+  });
+
   test("consumer state mirror stays in sync via patches", () => {
     const { slop, conn } = setup();
     slop.register("counter", { type: "status", props: { count: 0 } });

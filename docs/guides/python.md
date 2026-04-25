@@ -42,6 +42,33 @@ app.add_middleware(SlopMiddleware, slop=slop)
 
 Call `slop.refresh()` after mutations that happen outside SLOP action handlers.
 
+## Store-backed state
+
+Use `expose_store()` when your state object can notify listeners:
+
+```python
+from slop_ai import SlopServer, expose_store
+
+slop = SlopServer("todos", "Todos")
+
+dispose = expose_store(
+    slop,
+    "todos",
+    todo_store,
+    lambda state: {
+        "type": "collection",
+        "props": {"count": len(state.todos)},
+        "items": [
+            {"id": todo.id, "props": {"title": todo.title, "done": todo.done}}
+            for todo in state.todos
+        ],
+    },
+)
+
+# Later:
+dispose()
+```
+
 ## Standalone WebSocket server
 
 ```python
@@ -139,6 +166,7 @@ Install `slop-ai[websocket]` when discovery needs browser bridge support or dire
 The package also exports:
 
 - `pick()` and `omit()` for descriptor shaping
+- `expose_store()` for binding `get_state()` / `subscribe()` stores
 - `prepare_tree()`, `truncate_tree()`, and `auto_compact()` for scaling
 - `affordances_to_tools()` and `format_tree()` for LLM integrations
 

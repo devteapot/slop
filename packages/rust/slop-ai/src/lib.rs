@@ -17,7 +17,7 @@
 //! | Feature | Transport | Use case |
 //! |---------|-----------|----------|
 //! | `websocket` | [`transport::websocket`], [`WsClientTransport`] | Browser-compatible, cross-network |
-//! | `unix` | [`transport::unix`], [`UnixClientTransport`] | Fast local IPC |
+//! | `unix` | [`transport::unix`], [`UnixClientTransport`] *(Unix targets only)* | Fast local IPC |
 //! | `stdio` | [`transport::stdio`] | CLI tools, child processes |
 //! | `axum` | [`transport::axum`] | Embed in an Axum HTTP server |
 //!
@@ -99,5 +99,5 @@ pub use transport::ws_client::WsClientTransport;
 #[cfg(feature = "websocket")]
 pub use transport::ws_accepted::AcceptedWsTransport;
 
-#[cfg(feature = "unix")]
+#[cfg(all(feature = "unix", unix))]
 pub use transport::unix_client::UnixClientTransport;

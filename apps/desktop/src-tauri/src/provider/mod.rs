@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use slop_ai::{ClientTransport, SlopConsumer, SlopError, SlopNode, UnixClientTransport, WsClientTransport};
+#[cfg(unix)]
+use slop_ai::UnixClientTransport;
+use slop_ai::{ClientTransport, SlopConsumer, SlopError, SlopNode, WsClientTransport};
 use tauri::AppHandle;
 use tokio::sync::{mpsc, Mutex};
 
@@ -167,6 +169,12 @@ impl ProviderRegistry {
             let name = desc["name"].as_str().unwrap_or(&id).to_string();
             let transport = match desc["transport"]["type"].as_str() {
                 Some("unix") => {
+                    #[cfg(not(unix))]
+                    {
+                        continue;
+                    }
+
+                    #[cfg(unix)]
                     if let Some(path) = desc["transport"]["path"].as_str() {
                         TransportConfig::Unix {
                             path: path.to_string(),
@@ -373,8 +381,19 @@ pub async fn connect_provider(
                 consumer.connect(&t).await
             }
             TransportConfig::Unix { path } => {
-                let t = UnixClientTransport::new(path);
-                consumer.connect(&t).await
+                #[cfg(not(unix))]
+                {
+                    let _ = path;
+                    Err(SlopError::Transport(
+                        "unix transports are not supported on this platform".to_string(),
+                    ))
+                }
+
+                #[cfg(unix)]
+                {
+                    let t = UnixClientTransport::new(path);
+                    consumer.connect(&t).await
+                }
             }
             TransportConfig::Relay { provider_key } => {
                 let t = BridgeRelayTransport::new(app.clone(), provider_key.clone());
@@ -399,8 +418,7 @@ pub async fn connect_provider(
     let (provider_name, subscription_id, tree) =
         tokio::time::timeout(std::time::Duration::from_secs(10), connect_future)
             .await
-            .map_err(|_| format!("Connection to provider {} timed out", provider_id))?
-            ?;
+            .map_err(|_| format!("Connection to provider {} timed out", provider_id))??;
 
     let connection = Arc::new(ActiveConnection::new(
         consumer.clone(),

@@ -1,25 +1,48 @@
 ---
 title: "MCP Apps Bridge"
-description: "Render a SLOP provider inside an MCP Apps host (VS Code, Claude, Goose) with model-callable affordances"
+description: "Expose SLOP providers inside MCP Apps hosts through the installed bridge or custom app helpers"
 ---
-Expose a SLOP provider inside an MCP Apps host (Claude, ChatGPT, Goose, VS Code Insiders) so the host model can subscribe to live state and call your app's affordances directly from chat.
+Expose SLOP providers inside MCP Apps hosts (Claude, ChatGPT, Goose, VS Code Insiders) so the host model can subscribe to live state and call app affordances directly from chat.
 
-The `@slop-ai/mcp-apps-bridge` package handles three things:
+The `@slop-ai/mcp-apps-bridge` package has two surfaces:
 
-- **Iframe-side bridge** — runs inside the sandboxed `ui://` view, opens a SLOP consumer, projects salience-filtered state into `app.updateModelContext`.
-- **`registerSlopView`** — server-side helper that wires the MCP tool + `ui://` resource + sandbox CSP.
-- **`registerSlopTools`** — server-side helper that mirrors every SLOP affordance as a callable MCP tool, with `tools/listChanged` resync on every patch.
+- **Installed bridge** — a stdio MCP server that discovers local SLOP providers, exposes `list_apps` and `open_app`, renders a generic MCP Apps view, and mirrors affordances as MCP tools. This is the main adoption path.
+- **Custom MCP App helpers** — lower-level primitives for app authors who want to ship a tailored iframe and MCP server: `createMcpAppsBridge`, `registerSlopView`, and `registerSlopTools`.
 
-This guide is the developer-facing complement to the normative [MCP Interoperability spec](/spec/integrations/mcp). For an end-to-end runnable example, see [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge).
+This guide is the developer-facing complement to the normative [MCP Interoperability spec](/spec/integrations/mcp). For an end-to-end runnable custom MCP App example, see [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge).
 
 ## When to use this
 
-- Your users interact with SLOP-aware apps through a chat UI (Claude / VS Code chat / Goose / etc.) and you want the model to both *observe* state and *act* on it inside the same conversation.
-- You already have a SLOP provider — adding the bridge is a server file plus an iframe bundle.
+- Use the **installed bridge** when you already have SLOP providers and want them available in MCP clients with minimal setup.
+- Use the **custom MCP App helpers** when you want a branded or app-specific iframe instead of the generic bridge view.
 
 If your target host doesn't support MCP Apps yet, use the [Claude Code integration](/guides/advanced/claude-code) (proxy pattern) instead.
 
-## Architecture
+## Installed bridge
+
+Most users should start here:
+
+```bash
+npx -y @slop-ai/mcp-apps-bridge
+```
+
+Configure the command in your MCP client:
+
+```jsonc
+{
+  "servers": {
+    "slop": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@slop-ai/mcp-apps-bridge"]
+    }
+  }
+}
+```
+
+Then ask the host model to call `list_apps` and `open_app`. The bridge handles discovery, the generic `ui://` app view, model context updates, and generated SLOP action tools.
+
+## Custom MCP App architecture
 
 ```
 ┌─ host (VS Code Insiders / Claude / Goose) ─────────────────────────┐
@@ -41,7 +64,7 @@ If your target host doesn't support MCP Apps yet, use the [Claude Code integrati
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-A single Node process typically hosts the SLOP provider, the MCP server, and the WS endpoint. The iframe is a thin client.
+In custom mode, a single Node process typically hosts the SLOP provider, the MCP server, and the WS endpoint. The iframe is a thin client.
 
 ## Server: register the view + the tools
 
@@ -147,9 +170,17 @@ The host's iframe sandbox and user-consent prompts are defense in depth. They ar
 
 For remote providers (production), use a short-lived token in the WS URL minted per-session by your backend. Don't put bearer tokens in MCP tool `content` or anywhere model-visible — they end up in conversation transcripts.
 
-## Validating in real hosts
+## Validating the installed bridge
 
-The smoke test we use:
+1. Start a SLOP provider that registers through discovery.
+2. Register `npx -y @slop-ai/mcp-apps-bridge` in VS Code, Claude Desktop, Goose, or the MCP Inspector.
+3. Ask the host model to call `list_apps`.
+4. Ask it to open one of the discovered apps with `open_app`.
+5. Verify that the generic app view renders and generated action tools can mutate the provider.
+
+## Validating the custom example
+
+The custom MCP App smoke test we use:
 
 1. Build the demo: `cd examples/mcp-apps-bridge && bun run build`.
 2. Register the server in **VS Code Insiders** (Cmd+Shift+P → `MCP: Open User Configuration`):
@@ -164,7 +195,7 @@ The smoke test we use:
      }
    }
    ```
-3. Reload the window, open Copilot Chat, ask: `Use the open_kanban tool`. The iframe should render with status `connected`.
+3. Reload the window, open Copilot Chat, ask: `Use the open_kanban tool`. The iframe should render with status `connected`. This example does not expose `list_apps`; it is already one specific MCP App server.
 4. Ask: `What cards are in todo?` — model should answer without another tool call.
 5. Ask: `Add a card called "Ship it" to todo` — the model calls `add_card`, the iframe re-renders, and the next turn's context reflects the new card.
 

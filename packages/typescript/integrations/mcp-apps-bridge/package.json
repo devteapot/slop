@@ -2,7 +2,7 @@
   "name": "@slop-ai/mcp-apps-bridge",
   "version": "0.1.0",
   "type": "module",
-  "description": "Render a SLOP provider inside an MCP Apps iframe. Bridges the ext-apps postMessage channel to a SLOP consumer and projects state into model context.",
+  "description": "Expose local SLOP providers to MCP Apps hosts with a discovery-backed bridge and optional custom app helpers.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

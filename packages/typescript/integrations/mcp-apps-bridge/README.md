@@ -1,10 +1,19 @@
 # @slop-ai/mcp-apps-bridge
 
-Installable MCP Apps bridge for local SLOP providers.
+Expose local SLOP providers to MCP Apps hosts.
 
-Run it as a stdio MCP server and connect it to an MCP Apps host. It discovers SLOP apps through `@slop-ai/discovery`, exposes `open_app`, serves a generic interactive `ui://` view, and mirrors SLOP affordances as MCP tools.
+The default experience is an installed stdio MCP server. Connect it to VS Code, Claude Desktop, Goose, or another MCP client, and it discovers local SLOP apps through `@slop-ai/discovery`. The server exposes `list_apps`, `open_app`, a generic interactive `ui://` view, and MCP tools backed by each app's SLOP affordances.
 
-See the [MCP Apps Bridge guide](https://docs.slopai.dev/guides/advanced/mcp-bridge/) for architecture details and [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge) for a custom app-specific bridge.
+The package also exports lower-level helpers for app authors who want to build a custom MCP App surface instead of using the generic view.
+
+## Which path should I use?
+
+| Path | Use it when | What you configure |
+| --- | --- | --- |
+| Installed bridge | You already have SLOP providers and want them available in MCP clients. This is the main adoption path. | One MCP server command: `npx -y @slop-ai/mcp-apps-bridge`. |
+| Custom MCP App | You are building a polished app-specific iframe and MCP server. | `registerSlopView`, `registerSlopTools`, and `createMcpAppsBridge`. |
+
+See the [MCP Apps Bridge guide](https://docs.slopai.dev/guides/advanced/mcp-bridge/) for architecture details and [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge) for the custom MCP App path.
 
 ## Quick start
 
@@ -128,9 +137,9 @@ Then point clients at the installed bin:
 }
 ```
 
-## Library API
+## Advanced Library API
 
-The package still exports primitives for custom MCP App servers. Use these when you want an app-specific iframe instead of the generic discovery view.
+The package exports primitives for custom MCP App servers. Use these when you want an app-specific iframe instead of the generic discovery view. Most users should start with the installed bridge above.
 
 ### Iframe bundle
 
@@ -186,4 +195,4 @@ await registerSlopTools(server, {
 await server.connect(new StdioServerTransport());
 ```
 
-Use the custom helper path when you already have a known WebSocket provider and want a tailored UI. Use the default `slop-mcp-apps-bridge` binary when you want local discovery and a generic view.
+Use the custom helper path when you already have a known WebSocket provider and want a tailored UI. Use the default `slop-mcp-apps-bridge` binary when you want local discovery and the generic view.

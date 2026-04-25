@@ -17,9 +17,10 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Setup Node.js for npm provenance
+      - name: Setup Node.js for npm trusted publishing
         uses: actions/setup-node@v6
         with:
+          node-version: "24"
           registry-url: https://registry.npmjs.org
 
       - name: Install workspace dependencies
@@ -32,7 +33,6 @@ jobs:
         run: bun run release:publish-packages "${{ github.event.release.tag_name }}"
         env:
           NPM_TAG: ${{ github.event.release.prerelease && 'next' || '' }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-python:
     name: Publish Python package

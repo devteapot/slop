@@ -9,9 +9,11 @@ use tokio::time::{sleep, timeout};
 
 use crate::consumer::{ClientTransport, SlopConsumer};
 use crate::error::{Result, SlopError};
-use crate::transport::unix_client::UnixClientTransport;
 use crate::transport::ws_client::WsClientTransport;
 use crate::types::PatchOp;
+
+#[cfg(unix)]
+use crate::transport::unix_client::UnixClientTransport;
 
 use super::bridge::{Bridge, BridgeClient, BridgeServer, ProviderChangeCallback};
 use super::relay_transport::BridgeRelayTransport;
@@ -728,9 +730,12 @@ fn create_transport(
     bridge: Option<Arc<dyn Bridge>>,
 ) -> Option<Box<dyn ClientTransport + Send + Sync>> {
     match descriptor.transport.transport_type.as_str() {
+        #[cfg(unix)]
         "unix" => descriptor.transport.path.as_ref().map(|path| {
             Box::new(UnixClientTransport::new(path)) as Box<dyn ClientTransport + Send + Sync>
         }),
+        #[cfg(not(unix))]
+        "unix" => None,
         "ws" => descriptor.transport.url.as_ref().map(|url| {
             Box::new(WsClientTransport::new(url)) as Box<dyn ClientTransport + Send + Sync>
         }),

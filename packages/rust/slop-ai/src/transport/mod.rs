@@ -15,10 +15,10 @@ pub mod ws_client;
 #[cfg(feature = "websocket")]
 pub mod ws_accepted;
 
-#[cfg(feature = "unix")]
+#[cfg(all(feature = "unix", unix))]
 pub mod unix;
 
-#[cfg(feature = "unix")]
+#[cfg(all(feature = "unix", unix))]
 pub mod unix_client;
 
 #[cfg(feature = "stdio")]

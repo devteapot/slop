@@ -5,6 +5,9 @@
   "description": "Render a SLOP provider inside an MCP Apps iframe. Bridges the ext-apps postMessage channel to a SLOP consumer and projects state into model context.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "slop-mcp-apps-bridge": "dist/cli.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -26,25 +29,17 @@
     "directory": "packages/typescript/integrations/mcp-apps-bridge"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/server.ts --outdir dist --format esm --target browser --external '@slop-ai/*' --external '@modelcontextprotocol/*' --external 'zod' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/server.ts --outdir dist --format esm --target browser --external '@slop-ai/*' --external '@modelcontextprotocol/*' --external 'zod' && bun build src/cli.ts --outdir dist --format esm --target node --external '@slop-ai/*' --external '@modelcontextprotocol/*' --external 'zod' && bun build src/standalone-app.ts --outfile dist/standalone-app.js --format esm --target browser && bunx tsc --emitDeclarationOnly --outDir dist",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@slop-ai/consumer": "workspace:*"
-  },
-  "peerDependencies": {
+    "@slop-ai/consumer": "workspace:*",
+    "@slop-ai/discovery": "workspace:*",
     "@modelcontextprotocol/ext-apps": "^1.7.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.25.0"
-  },
-  "peerDependenciesMeta": {
-    "@modelcontextprotocol/sdk": { "optional": true },
-    "zod": { "optional": true }
   },
   "devDependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.0",
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "@types/node": "^25.6.0",
-    "zod": "^3.25.0"
+    "@types/node": "^25.6.0"
   }
 }

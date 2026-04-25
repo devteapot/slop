@@ -331,7 +331,7 @@
       "name": "@slop-ai/discovery",
       "version": "0.1.0",
       "bin": {
-        "slop-discovery": "./dist/cli.js",
+        "slop-discovery": "dist/cli.js",
       },
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.114",
@@ -348,24 +348,19 @@
     "packages/typescript/integrations/mcp-apps-bridge": {
       "name": "@slop-ai/mcp-apps-bridge",
       "version": "0.1.0",
+      "bin": {
+        "slop-mcp-apps-bridge": "dist/cli.js",
+      },
       "dependencies": {
+        "@modelcontextprotocol/ext-apps": "^1.7.0",
+        "@modelcontextprotocol/sdk": "^1.12.0",
         "@slop-ai/consumer": "workspace:*",
+        "@slop-ai/discovery": "workspace:*",
+        "zod": "^3.25.0",
       },
       "devDependencies": {
-        "@modelcontextprotocol/ext-apps": "^1.7.0",
-        "@modelcontextprotocol/sdk": "^1.12.0",
         "@types/node": "^25.6.0",
-        "zod": "^3.25.0",
       },
-      "peerDependencies": {
-        "@modelcontextprotocol/ext-apps": "^1.7.0",
-        "@modelcontextprotocol/sdk": "^1.12.0",
-        "zod": "^3.25.0",
-      },
-      "optionalPeers": [
-        "@modelcontextprotocol/sdk",
-        "zod",
-      ],
     },
     "packages/typescript/integrations/openclaw-plugin": {
       "name": "@slop-ai/openclaw-plugin",

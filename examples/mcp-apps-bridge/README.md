@@ -1,6 +1,8 @@
-# mcp-apps-bridge demo
+# Custom MCP Apps bridge demo
 
-End-to-end example of a SLOP provider rendered inside an MCP Apps host (Claude / VS Code Insiders / Goose).
+Advanced example of a custom MCP App backed by a SLOP provider.
+
+This example intentionally runs its own MCP server. It is not the default installed bridge flow and it does not expose `list_apps` or `open_app`. Use it when you want to understand or build an app-specific MCP App iframe. For the normal adoption path, install `@slop-ai/mcp-apps-bridge` in the MCP client and let it discover regular SLOP providers.
 
 A single Node process runs three things:
 
@@ -43,6 +45,8 @@ bunx @modelcontextprotocol/inspector bun dist/server.js
 ```
 
 Reload window, then in chat: `Use the open_kanban tool to show me the board.`
+
+Do not ask this example to list discovered apps. It is already a specific MCP App server, so the relevant entrypoint is `open_kanban`.
 
 **Goose** — `~/.config/goose/config.yaml`:
 

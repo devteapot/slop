@@ -1,6 +1,6 @@
 {
   "name": "@slop-ai/discovery",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "SLOP bridge and discovery primitives. Use `@slop-ai/discovery/service` for connection orchestration and `@slop-ai/discovery/tools` for host tool helpers.",
   "main": "dist/index.js",
@@ -24,6 +24,10 @@
     "./anthropic-agent-sdk": {
       "import": "./dist/anthropic-agent-sdk.js",
       "types": "./dist/anthropic-agent-sdk.d.ts"
+    },
+    "./context": {
+      "import": "./dist/context.js",
+      "types": "./dist/context.d.ts"
     }
   },
   "files": ["src", "dist"],
@@ -37,7 +41,7 @@
     "directory": "packages/typescript/integrations/discovery"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/service.ts src/tools.ts src/anthropic-agent-sdk.ts src/cli.ts --outdir dist --format esm --target node --external '@slop-ai/consumer' --external '@anthropic-ai/claude-agent-sdk' --external '@modelcontextprotocol/sdk' --external 'zod' --external 'ws' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/service.ts src/tools.ts src/anthropic-agent-sdk.ts src/context.ts src/cli.ts --outdir dist --format esm --target node --external '@slop-ai/consumer' --external '@anthropic-ai/claude-agent-sdk' --external '@modelcontextprotocol/sdk' --external 'zod' --external 'ws' && bunx tsc --emitDeclarationOnly --outDir dist",
     "build:bundle": "bun build src/cli.ts --outfile dist/cli.bundle.js --format esm --target node",
     "clean": "rm -rf dist"
   },

@@ -12,14 +12,15 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { buildSlopContext } from "@slop-ai/discovery/context";
 import { createDiscoveryService } from "@slop-ai/discovery/service";
 import { createToolHandlers } from "@slop-ai/discovery/tools";
-import { formatTree } from "@slop-ai/consumer";
 import fs from "node:fs";
 import path from "node:path";
 
 const STATE_DIR = "/tmp/codex-slop-plugin";
-const STATE_FILE = path.join(STATE_DIR, "state.json");
+const CONTEXT_FILE = path.join(STATE_DIR, "context.txt");
+const LEGACY_STATE_FILE = path.join(STATE_DIR, "state.json");
 
 const log = {
   info: (...args) => console.error("[codex-slop]", ...args),
@@ -29,46 +30,45 @@ const log = {
 const discovery = createDiscoveryService({ logger: log, autoConnect: false });
 const handlers = createToolHandlers(discovery);
 
-function writeStateFile() {
+function writeContextFile() {
   try {
     fs.mkdirSync(STATE_DIR, { recursive: true });
 
-    const connected = discovery.getProviders();
-    const discovered = discovery.getDiscovered();
-    const connectedIds = new Set(connected.map((provider) => provider.id));
+    // Drop the legacy JSON state file the first time we run with the new layout.
+    if (fs.existsSync(LEGACY_STATE_FILE)) {
+      try {
+        fs.unlinkSync(LEGACY_STATE_FILE);
+      } catch {}
+    }
 
-    const available = discovered
-      .filter((descriptor) => !connectedIds.has(descriptor.id))
-      .map((descriptor) => ({
-        id: descriptor.id,
-        name: descriptor.name,
-        transport: descriptor.transport.type,
-        source: descriptor.source ?? "local",
-      }));
+    const { stateTail, availableAppsTail } = buildSlopContext(discovery);
+    const parts = [stateTail, availableAppsTail].filter((t) => !!t);
 
-    if (connected.length === 0 && available.length === 0) {
-      if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE);
+    if (parts.length === 0) {
+      if (fs.existsSync(CONTEXT_FILE)) fs.unlinkSync(CONTEXT_FILE);
       return;
     }
 
-    const providers = connected.map((provider) => {
-      const tree = provider.consumer.getTree(provider.subscriptionId);
-      return {
-        id: provider.id,
-        name: provider.name,
-        state: tree ? formatTree(tree) : "(no state yet)",
-      };
-    });
-
-    fs.writeFileSync(STATE_FILE, JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2));
+    fs.writeFileSync(CONTEXT_FILE, parts.join("\n\n"));
   } catch (err) {
-    log.error("Failed to write state file:", err.message);
+    log.error("Failed to write context file:", err.message);
   }
 }
 
 discovery.onStateChange(() => {
-  writeStateFile();
+  writeContextFile();
 });
+
+// Heartbeat: re-render the context file periodically while we're alive. This
+// keeps `generated_at` honest and lets the hook's stale-detection signal
+// "bridge died", not "state hasn't changed recently". Re-rendering (not just
+// touching mtime) avoids the model seeing an old timestamp on unchanged state.
+// The tail is uncached by design, so refreshing its bytes is harmless.
+const HEARTBEAT_INTERVAL_MS = 10_000;
+const heartbeatTimer = setInterval(() => {
+  writeContextFile();
+}, HEARTBEAT_INTERVAL_MS);
+heartbeatTimer.unref?.();
 
 const TOOLS = [
   {
@@ -295,7 +295,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   discovery.start();
   log.info("Discovery started (local + bridge)");
-  writeStateFile();
+  writeContextFile();
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

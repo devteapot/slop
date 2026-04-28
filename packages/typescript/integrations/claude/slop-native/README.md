@@ -113,7 +113,7 @@ Claude calls these directly — no proxy through meta-tools needed. Tools are re
 2. When Claude calls `connect_app` with an app name, the service lazy-connects via the appropriate transport (WebSocket, Unix socket, or extension relay) and subscribes to the state tree.
 3. `createDynamicTools` from `@slop-ai/discovery/tools` converts each connected app's affordances into namespaced MCP tools. The server notifies Claude via `tools/list_changed`.
 4. Claude calls affordance tools directly (e.g. `excalidraw__elements__add_rectangle`). The server resolves each tool name to a provider + path + action and invokes it.
-5. The `UserPromptSubmit` hook reads a shared state file (`/tmp/claude-slop-plugin/state.json`) that the MCP server updates whenever state changes, injecting live state into Claude's context.
+5. The MCP server renders the live `<slop-state>` / `<slop-apps-available>` blocks and writes them to `/tmp/claude-slop-plugin/context.txt` on every state change and on a 10s heartbeat. The bundled `UserPromptSubmit` hook emits that file verbatim into Claude's context, and drops it once the file is more than 30s old so a dead bridge stops injecting.
 6. When Claude calls `disconnect_app`, the provider is disconnected, its tools are removed, and state drops from the hook.
 
 ## Architecture

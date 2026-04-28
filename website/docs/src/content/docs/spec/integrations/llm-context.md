@@ -65,11 +65,28 @@ Conventions:
 - The body SHOULD be a salience-filtered projection (see [attention.md](/spec/core/attention)), not the raw tree. Hosts SHOULD respect `meta.focus`, salience scores, and view-scoping (see [scaling.md](/spec/extensions/scaling)) to keep the tail small.
 - The tail MAY include affordances available on focused nodes so the model can act without a separate query.
 
+## Related SLOP context blocks
+
+Hosts sometimes need to surface SLOP-related context that is not live state. For example, a local host may know that several SLOP-enabled applications are discoverable but not connected yet. That catalog is useful to the model, but it is not a current tree observation and MUST NOT be mixed into `<slop-state>`.
+
+Hosts that expose available-but-unconnected applications SHOULD use a sibling block:
+
+```
+<slop-apps-available generated_at="2026-04-28T10:30:00Z">
+- Mail (id: `mail-app`, websocket, local)
+- Calendar (id: `calendar-app`, unix, local)
+</slop-apps-available>
+```
+
+`<slop-apps-available>` is host catalog context, not a replacement for the live state tail. It SHOULD follow the same lifecycle as the state tail: render it fresh at request time, place it after the stored conversation prefix, and never persist it into conversation history. Hosts MAY omit this block entirely when tool calls such as `list_apps` provide the same catalog.
+
 ## Security model
 
 The state tail is an observation channel, not an instruction channel. Delimiters make the prompt easier to parse, but they are not a security boundary.
 
 Hosts MUST treat all state-tail content as untrusted application data. A node property, document body, chat message, or page title may contain hostile instructions or text that resembles closing tags, tool calls, or higher-priority messages. Hosts SHOULD serialize state with a structured encoder or escape raw text so user-controlled content cannot terminate the `<slop-state>` block or masquerade as host-authored instructions.
+
+For text tag blocks, hosts SHOULD neutralize any app-controlled text that resembles a closing SLOP context tag before final block assembly. At minimum, replace case-insensitive matches of `<\s*/\s*slop-state\b[^>]*>` with `<\/slop-state>` and matches of `<\s*/\s*slop-apps-available\b[^>]*>` with `<\/slop-apps-available>`. This rule covers casing differences, whitespace inside the closing tag, and attribute-like text before `>`.
 
 The system or developer prompt SHOULD explicitly tell the model that `<slop-state>` contains untrusted live state and must not override system, developer, user, or tool instructions. Providers MUST still re-authorize every `invoke` against live state, caller identity, and resource policy; see [transport.md](/spec/core/transport#security-considerations) and [affordances.md](/spec/core/affordances#applicability-is-not-authorization).
 
@@ -145,4 +162,5 @@ A consumer that claims to support this integration:
 4. MUST keep the state tail after the stored conversation prefix so live state does not invalidate reusable prompt-cache prefixes.
 5. SHOULD place explicit prompt-cache controls at the boundary between stored history and the state tail where the provider supports them.
 6. SHOULD apply salience and view-scope filtering before rendering the tail.
-7. SHOULD document which delimiter and body format it emits (canonical text tree / JSON / Markdown / custom) so prompt authors can rely on a stable shape.
+7. SHOULD keep non-state SLOP catalog context, such as available unconnected apps, outside `<slop-state>` and use a sibling block or tool result instead.
+8. SHOULD document which delimiter and body format it emits (canonical text tree / JSON / Markdown / custom) so prompt authors can rely on a stable shape.

@@ -172,6 +172,9 @@ export const docsPages = [
   page("spec/integrations/web.md", "spec/integrations/web.md"),
   page("spec/integrations/desktop.md", "spec/integrations/desktop.md"),
   page("spec/integrations/mcp.md", "spec/integrations/mcp.md"),
+  page("spec/integrations/llm-context.md", "spec/integrations/llm-context.md", {
+    label: "LLM Context Injection",
+  }),
   page("spec/limitations.md", "spec/limitations.md", {
     label: "Known Limitations & Future Work",
   }),

@@ -95,6 +95,7 @@ The full specification is in [`spec/`](./spec/):
 - [Web](./spec/integrations/web.md) — browser integration, postMessage, security tiers
 - [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
 - [MCP Interoperability](./spec/integrations/mcp.md) — MCP Apps bridge, proxy, discovery alignment
+- [LLM Context Injection](./spec/integrations/llm-context.md) — ephemeral `<slop-state>` tail, prompt-cache-friendly framing
 
 ### Status and limits
 

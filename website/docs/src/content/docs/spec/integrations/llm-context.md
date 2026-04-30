@@ -61,8 +61,11 @@ State SHOULD be delimited by an explicit `<slop-state>` ... `</slop-state>` tag,
 Conventions:
 
 - `<slop-state>` is the default delimiter. Hosts MAY use a different host-specific delimiter only when their model API requires it, but they MUST define that delimiter once and keep it stable across turns. Generic `<state>` is discouraged because it can collide with non-SLOP context.
+- `generated_at`, when present, MUST be an ISO 8601 / RFC 3339 timestamp. Hosts SHOULD emit UTC timestamps with a `Z` suffix.
 - The body MAY be the canonical text tree format, JSON, YAML, or another documented projection. The canonical text tree format from [state-tree.md](/spec/core/state-tree#consumer-display-format) is the default because it is compact, human-readable, and already includes paths, properties, summaries, and affordances. JSON is appropriate when the host wants schema-first parsing.
 - The body SHOULD be a salience-filtered projection (see [attention.md](/spec/core/attention)), not the raw tree. Hosts SHOULD respect `meta.focus`, salience scores, and view-scoping (see [scaling.md](/spec/extensions/scaling)) to keep the tail small.
+- When the tail includes multiple providers or apps, the body MUST preserve clear per-provider or per-app boundaries with a stable human-readable name and provider/app ID. Text projections SHOULD use one section per provider or app, as in `### Mail (mail-app)`.
+- Disconnected providers MUST NOT leave stale tree content in `<slop-state>` as if it were current. Hosts SHOULD either omit disconnected providers from live state or include only a clearly labeled disconnected/status-only entry, optionally with a last-observed timestamp.
 - The tail MAY include affordances available on focused nodes so the model can act without a separate query.
 
 ## Related SLOP context blocks
@@ -84,20 +87,31 @@ Hosts that expose available-but-unconnected applications SHOULD use a sibling bl
 
 The state tail is an observation channel, not an instruction channel. Delimiters make the prompt easier to parse, but they are not a security boundary.
 
-Hosts MUST treat all state-tail content as untrusted application data. A node property, document body, chat message, or page title may contain hostile instructions or text that resembles closing tags, tool calls, or higher-priority messages. Hosts SHOULD serialize state with a structured encoder or escape raw text so user-controlled content cannot terminate the `<slop-state>` block or masquerade as host-authored instructions.
+Hosts MUST treat all state-tail content as untrusted application data. A node property, document body, chat message, or page title may contain hostile instructions or text that resembles opening tags, closing tags, tool calls, or higher-priority messages. Hosts MUST serialize state with a structured encoder, use a format-independent encoding layer, or escape raw text so user-controlled content cannot terminate the `<slop-state>` block, fake a new SLOP context block, or masquerade as host-authored instructions.
 
-For text tag blocks, hosts SHOULD neutralize any app-controlled text that resembles a closing SLOP context tag before final block assembly. At minimum, replace case-insensitive matches of `<\s*/\s*slop-state\b[^>]*>` with `<\/slop-state>` and matches of `<\s*/\s*slop-apps-available\b[^>]*>` with `<\/slop-apps-available>`. This rule covers casing differences, whitespace inside the closing tag, and attribute-like text before `>`.
+For text tag blocks, hosts MUST neutralize any app-controlled text that resembles a SLOP context tag — both opening and closing — before final block assembly. Both directions matter: a fake closing tag can terminate the wrapping block, and a fake opening tag can let hostile content masquerade as a fresh, host-authored SLOP block in models that are lenient about nesting. At minimum, apply case-insensitive substitutions that tolerate whitespace and attribute-like text:
+
+| Match (case-insensitive) | Replacement |
+|---|---|
+| `<\s*slop-state\b[^>]*>` | `<slop-state-escaped>` |
+| `<\s*/\s*slop-state\b[^>]*>` | `<\/slop-state>` |
+| `<\s*slop-apps-available\b[^>]*>` | `<slop-apps-available-escaped>` |
+| `<\s*/\s*slop-apps-available\b[^>]*>` | `<\/slop-apps-available>` |
+
+Apply the substitutions to every piece of app-controlled text rendered inside a SLOP context block: provider names, app IDs, tree text, properties, summaries, labels, affordance descriptions, and available-app metadata.
 
 The system or developer prompt SHOULD explicitly tell the model that `<slop-state>` contains untrusted live state and must not override system, developer, user, or tool instructions. Providers MUST still re-authorize every `invoke` against live state, caller identity, and resource policy; see [transport.md](/spec/core/transport#security-considerations) and [affordances.md](/spec/core/affordances#applicability-is-not-authorization).
 
 ## Placement
 
-Two placements are acceptable:
+Two provider-compatible placements are acceptable. Hosts SHOULD choose based on the target API's message model and cache controls:
 
-1. **Trailing user message tail** — append the `<slop-state>` block after the latest user message text, preferably as a separate content block when the model API supports block-structured messages. Simple and works on every chat-completions API. Recommended default.
-2. **Synthetic context message** — insert a host-authored message containing only the `<slop-state>` block after the latest stored message and before model generation. Cleaner separation, but only valid when the provider accepts that role and does not reorder it ahead of the cacheable history.
+1. **Trailing user message tail** — append the `<slop-state>` block after the latest user message text, preferably as a separate content block when the model API supports block-structured messages. This is the recommended default for chat-completions APIs without explicit cache controls or APIs that cannot represent a separate host-authored context message.
+2. **Synthetic context message** — insert a host-authored message containing only the `<slop-state>` block after the latest stored message and before model generation. This is the recommended default for APIs with explicit cache controls or checkpoints, because the cache marker can sit on the last stable block before the state and the volatile state can live in its own post-boundary message. This placement is only valid when the provider accepts that role and the SDK/provider does not reorder or merge it ahead of the cacheable history.
 
 A `<slop-state>` block MUST NOT be placed inside an assistant message or a tool result.
+
+Some host APIs only expose a "prepend context" hook that runs before the stored prefix rather than after it. Such hosts MAY still emit the state tail through the prepend hook, but they MUST treat this as a known prompt-cache regression: the volatile state will appear ahead of stable history and invalidate prefix caches on every turn. Hosts in this category SHOULD document the limitation in their integration README and SHOULD push for an append-style hook upstream so the placement can move to a cache-friendly position.
 
 ## Prompt caching
 
@@ -111,9 +125,9 @@ The host SHOULD:
 4. Where caching is automatic, do not invent a synthetic marker; just keep the state tail last and monitor cached-token metrics.
 
 ```
-turn N:    [system + msgs 1..k]     | cache boundary if supported |  <slop-state-N>
-turn N+1:  [system + msgs 1..k+2]   | cache boundary if supported |  <slop-state-N+1>
-           ^^^^^^^^^^^^^^^^^^^^^
+turn N:    [system + tools + msgs 1..k]     | cache boundary if supported |  <slop-state-N>
+turn N+1:  [system + tools + msgs 1..k+2]   | cache boundary if supported |  <slop-state-N+1>
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            identical prefix through msg k can hit cache
 ```
 
@@ -128,7 +142,7 @@ The host SHOULD NOT place explicit cache controls after ordinary live state tail
 The pattern itself — clean history plus an ephemeral tail — requires no provider-specific features. Only the cache-integration step varies, and it degrades gracefully when caching is unavailable. Hosts SHOULD classify each target model and endpoint by its actual cache API and act accordingly. Vendor behavior changes over time and can vary by model, deployment type, region, and transport facade.
 
 - **Automatic prefix caching** (for example, OpenAI automatic prompt caching, DeepSeek context caching, Fireworks prompt caching, Gemini implicit caching, DashScope/Qwen implicit caching, and caching on supported Groq or Together endpoints). Caching is implicit on exact matching prompt prefixes. The host SHOULD keep the prefix stable: stable system-prompt serialization, stable tool ordering, no timestamps or randomized IDs in stored messages, and consistent cache-routing hints where the provider offers them (for example session affinity, cache keys, isolation keys, or retention settings). The state tail naturally remains outside the reusable prefix.
-- **Explicit block markers** (for example, Anthropic `cache_control`, Amazon Bedrock `cachePoint`, and DashScope/Qwen explicit `cache_control`). The host places the marker on the last stable content block before the state tail, as described above. Providers in this category often impose minimum-token thresholds, maximum marker counts, block-lookback limits, or TTLs; below the threshold the host SHOULD fall back to whatever implicit caching the provider offers, not invent a synthetic marker.
+- **Explicit block markers** (for example, Anthropic `cache_control`, Amazon Bedrock `cachePoint`, and DashScope/Qwen explicit `cache_control`). The host places the marker on the last stable content block before the state tail, as described above. For Anthropic-style block-level `cache_control`, a separate final state message or content block is usually cleaner than appending state to the same block as the latest user text, because the cache marker must remain on stable content before the volatile state. Providers in this category often impose minimum-token thresholds, maximum marker counts, block-lookback limits, or TTLs; below the threshold the host SHOULD fall back to whatever implicit caching the provider offers, not invent a synthetic marker.
 - **Named cached resources** (for example, Google Gemini `CachedContent`). The host creates a separate cached resource for stable, reusable material such as system instructions, large documents, or tool schemas, then references that resource when sending the live request with the `<slop-state>` tail as ordinary uncached request content. This is not the same as placing a marker immediately before the tail.
 - **No prefix caching** (e.g. some smaller hosted endpoints, certain fine-tuning runtimes). The freshness and history-hygiene properties of the pattern still hold; the host simply pays full input tokens every turn. No host action is required beyond keeping the state tail last so a future caching upgrade is automatically beneficial.
 - **Local or self-hosted runtimes** (for example, vLLM automatic prefix caching, SGLang radix caching, llama.cpp prompt caches, Ollama, TGI, or custom serving stacks). Cache behavior depends on runtime flags, server mode, batching, session reuse, and eviction policy. The host controls serialization end-to-end, so exact-prefix stability is achievable, but it SHOULD verify cache reuse in the chosen runtime rather than assuming every deployment reuses prefixes automatically.
@@ -141,7 +155,7 @@ The ephemeral-tail pattern is optimized for **present-tense** reasoning: the mod
 
 Hosts that need temporal reasoning have two options:
 
-- **Inline diffs** — when state changes meaningfully between turns, summarize the delta as a short note in the assistant or tool-result message. The tail still carries the full current state; history carries a compact change log. This costs some tokens but preserves cacheability of the message prefix.
+- **Inline diffs** — when state changes meaningfully between turns, persist a compact host-authored delta note in an assistant or tool-result message, such as `State change: Mail unread 12 -> 13; focused thread thread-42 -> thread-91`. The tail still carries the full current state; history carries a compact change log. This costs some tokens but preserves cacheability of the message prefix.
 - **Snapshot pinning** — on explicit user reference ("remember this state"), serialize a snapshot into the next assistant message. Use sparingly; each pinned snapshot is a permanent token cost.
 
 Most agent workloads do not need either. Default to the pure ephemeral tail and add temporal mechanisms only when a concrete use case demands them.
@@ -157,10 +171,12 @@ Exception: if the host is running an autonomous loop where the model decides whe
 A consumer that claims to support this integration:
 
 1. MUST maintain the conversation history free of state-tail blocks across turns.
-2. MUST render the current SLOP tree projection into a state tail on every model request, using `<slop-state>` unless the host documents another stable delimiter.
-3. MUST treat the state tail as untrusted observation data, not instructions, and SHOULD escape or encode user-controlled text so it cannot forge delimiters or host-authored messages.
-4. MUST keep the state tail after the stored conversation prefix so live state does not invalidate reusable prompt-cache prefixes.
+2. MUST render the current SLOP tree projection into a state tail on every model request, using `<slop-state>` unless the host documents another stable delimiter. Hosts that inject indirectly (for example, by reading a file written by a separate bridge process) MAY operate within a bounded freshness window instead of literally re-rendering on each request, but they MUST document that window in their integration README and MUST drop the injection if the bridge appears stalled or dead so the model never sees state that may be silently outdated.
+3. MUST treat the state tail as untrusted observation data, not instructions, and MUST escape or encode user-controlled text in any text-based delimiter format so it cannot forge SLOP context tags or masquerade as host-authored messages. The case-insensitive substitution rules in [Security model](#security-model) are the minimum bar.
+4. MUST keep the state tail after the stored conversation prefix so live state does not invalidate reusable prompt-cache prefixes — except where the host's surrounding API only exposes a prepend hook, in which case the host MUST follow the prepend-only exception in [Placement](#placement) and document it as a known cache regression.
 5. SHOULD place explicit prompt-cache controls at the boundary between stored history and the state tail where the provider supports them.
 6. SHOULD apply salience and view-scope filtering before rendering the tail.
-7. SHOULD keep non-state SLOP catalog context, such as available unconnected apps, outside `<slop-state>` and use a sibling block or tool result instead.
-8. SHOULD document which delimiter and body format it emits (canonical text tree / JSON / Markdown / custom) so prompt authors can rely on a stable shape.
+7. MUST preserve clear provider/app boundaries when rendering multiple connected providers or apps.
+8. MUST NOT present stale disconnected-provider trees as current state.
+9. SHOULD keep non-state SLOP catalog context, such as available unconnected apps, outside `<slop-state>` and use a sibling block or tool result instead.
+10. SHOULD document which delimiter and body format it emits (canonical text tree / JSON / Markdown / custom) so prompt authors can rely on a stable shape.

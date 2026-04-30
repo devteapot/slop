@@ -315,6 +315,24 @@
         "vue": ">=3.3.0",
       },
     },
+    "packages/typescript/integrations/bridge-server": {
+      "name": "@slop-ai/bridge-server",
+      "version": "0.1.0",
+      "bin": {
+        "slop-bridge-server": "dist/cli.js",
+      },
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.29.0",
+        "@slop-ai/consumer": "workspace:*",
+        "@slop-ai/relay-cli": "workspace:*",
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@types/node": "^25.6.0",
+        "@types/ws": "^8.5.0",
+        "ws": "^8.18.0",
+      },
+    },
     "packages/typescript/integrations/claude/slop-mcp-proxy/servers": {
       "name": "slop-bridge-mcp-proxy",
       "version": "0.1.0",
@@ -1217,6 +1235,8 @@
     "@sindresorhus/is": ["@sindresorhus/is@4.6.0", "", {}, "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw=="],
 
     "@slop-ai/angular": ["@slop-ai/angular@workspace:packages/typescript/adapters/angular"],
+
+    "@slop-ai/bridge-server": ["@slop-ai/bridge-server@workspace:packages/typescript/integrations/bridge-server"],
 
     "@slop-ai/client": ["@slop-ai/client@workspace:packages/typescript/sdk/client"],
 

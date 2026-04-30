@@ -392,6 +392,22 @@
         "openclaw": ">=2026.0.0",
       },
     },
+    "packages/typescript/integrations/relay-cli": {
+      "name": "@slop-ai/relay-cli",
+      "version": "0.1.0",
+      "bin": {
+        "slop-relay": "dist/cli.js",
+      },
+      "dependencies": {
+        "@slop-ai/consumer": "workspace:*",
+        "@slop-ai/discovery": "workspace:*",
+        "ws": "^8.18.0",
+      },
+      "devDependencies": {
+        "@types/node": "^25.6.0",
+        "@types/ws": "^8.5.0",
+      },
+    },
     "packages/typescript/sdk/client": {
       "name": "@slop-ai/client",
       "version": "0.1.0",
@@ -1215,6 +1231,8 @@
     "@slop-ai/openclaw-plugin": ["@slop-ai/openclaw-plugin@workspace:packages/typescript/integrations/openclaw-plugin"],
 
     "@slop-ai/react": ["@slop-ai/react@workspace:packages/typescript/adapters/react"],
+
+    "@slop-ai/relay-cli": ["@slop-ai/relay-cli@workspace:packages/typescript/integrations/relay-cli"],
 
     "@slop-ai/server": ["@slop-ai/server@workspace:packages/typescript/sdk/server"],
 

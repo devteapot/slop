@@ -11,6 +11,6 @@
     "@slop-ai/server": "workspace:*"
   },
   "devDependencies": {
-    "electron": "^41.1.1"
+    "electron": "^42.1.0"
   }
 }

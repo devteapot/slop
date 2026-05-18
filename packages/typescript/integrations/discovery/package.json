@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@slop-ai/consumer": "workspace:*",
-    "@anthropic-ai/claude-agent-sdk": "^0.2.114",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.143",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "ws": "^8.18.0",
     "zod": "^4.3.6"

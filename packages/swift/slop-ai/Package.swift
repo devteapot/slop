@@ -26,6 +26,15 @@ let package = Package(
         .product(name: "NIOPosix", package: "swift-nio"),
       ]
     ),
-    .testTarget(name: "SlopAITests", dependencies: ["SlopAI"]),
+    .testTarget(
+      name: "SlopAITests",
+      dependencies: [
+        "SlopAI",
+        .product(name: "NIOCore", package: "swift-nio"),
+        .product(name: "NIOEmbedded", package: "swift-nio"),
+        .product(name: "NIOHTTP1", package: "swift-nio"),
+        .product(name: "NIOWebSocket", package: "swift-nio"),
+      ]
+    ),
   ]
 )

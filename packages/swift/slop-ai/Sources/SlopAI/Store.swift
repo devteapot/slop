@@ -31,6 +31,7 @@ public struct ExposeStoreOptions<State> {
 
 public final class StoreExposure {
   private let dispose: () -> Void
+  private let lock = NSLock()
   private var disposed = false
 
   init(dispose: @escaping () -> Void) {
@@ -38,8 +39,13 @@ public final class StoreExposure {
   }
 
   public func unsubscribe() {
-    guard !disposed else { return }
+    lock.lock()
+    guard !disposed else {
+      lock.unlock()
+      return
+    }
     disposed = true
+    lock.unlock()
     dispose()
   }
 }
@@ -66,13 +72,16 @@ public func exposeStore<S: StateStore, Target: StoreTarget>(
   project: @escaping (S.State) -> NodeDescriptor,
   options: ExposeStoreOptions<S.State> = ExposeStoreOptions()
 ) throws -> StoreExposure {
+  let stateLock = NSRecursiveLock()
   var currentPath: String?
   var previousState: S.State?
   var hasPreviousState = false
   var disposed = false
   var debounceTask: Task<Void, Never>?
 
-  func update() {
+  func update() throws {
+    stateLock.lock()
+    defer { stateLock.unlock() }
     guard !disposed else { return }
     let state = store.getState()
     if hasPreviousState, let previous = previousState, options.equals?(previous, state) == true {
@@ -80,38 +89,70 @@ public func exposeStore<S: StateStore, Target: StoreTarget>(
     }
     let nextPath = path.resolve(state)
     if let currentPath, currentPath != nextPath {
-      try? target.unregister(currentPath, recursive: true)
+      try target.register(nextPath, descriptor: project(state))
+      do {
+        try target.unregister(currentPath, recursive: true)
+      } catch {
+        try? target.unregister(nextPath, recursive: true)
+        throw error
+      }
+    } else {
+      try target.register(nextPath, descriptor: project(state))
     }
-    try? target.register(nextPath, descriptor: project(state))
     currentPath = nextPath
     previousState = state
     hasPreviousState = true
   }
 
   func scheduleUpdate() {
+    stateLock.lock()
+    defer { stateLock.unlock() }
     guard !disposed else { return }
     let delay = options.debounceMilliseconds
     guard delay > 0 else {
-      update()
+      try? update()
       return
     }
     debounceTask?.cancel()
+    let (nanoseconds, overflow) = UInt64(delay).multipliedReportingOverflow(by: 1_000_000)
     debounceTask = Task {
-      try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
+      try? await Task.sleep(nanoseconds: overflow ? UInt64.max : nanoseconds)
       guard !Task.isCancelled else { return }
-      update()
+      try? update()
     }
   }
 
-  update()
   let subscription = store.subscribe(scheduleUpdate)
+  do {
+    try update()
+  } catch {
+    stateLock.lock()
+    disposed = true
+    let pendingTask = debounceTask
+    debounceTask = nil
+    stateLock.unlock()
+    pendingTask?.cancel()
+    subscription.unsubscribe()
+    throw error
+  }
 
   return StoreExposure {
+    stateLock.lock()
+    guard !disposed else {
+      stateLock.unlock()
+      return
+    }
     disposed = true
-    debounceTask?.cancel()
+    let pendingTask = debounceTask
+    debounceTask = nil
+    let registeredPath = currentPath
+    currentPath = nil
+    stateLock.unlock()
+
+    pendingTask?.cancel()
     subscription.unsubscribe()
-    if let currentPath {
-      try? target.unregister(currentPath, recursive: true)
+    if let registeredPath {
+      try? target.unregister(registeredPath, recursive: true)
     }
   }
 }

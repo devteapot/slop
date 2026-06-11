@@ -22,6 +22,22 @@ private struct ServerStateChange {
   var listeners: [() -> Void] = []
 }
 
+private final class ServerMessageQueue {
+  private let lock = NSLock()
+  private var tail: Task<Void, Never>?
+
+  func enqueue(_ operation: @escaping () async -> Void) {
+    lock.lock()
+    let previous = tail
+    let next = Task {
+      await previous?.value
+      await operation()
+    }
+    tail = next
+    lock.unlock()
+  }
+}
+
 public final class SlopServer {
   public let id: String
   public let name: String
@@ -36,6 +52,7 @@ public final class SlopServer {
   private var currentVersion: UInt64 = 0
   private var subscriptions: [ServerSubscription] = []
   private var connections: [ObjectIdentifier: SlopConnection] = [:]
+  private var connectionQueues: [ObjectIdentifier: ServerMessageQueue] = [:]
   private var changeListeners: [UUID: () -> Void] = [:]
 
   public init(id: String, name: String, schema: JSONValue? = nil) {
@@ -144,9 +161,14 @@ public final class SlopServer {
   }
 
   public func attachConnection(_ connection: SlopConnection) {
+    let queue = ServerMessageQueue()
+    locked {
+      connectionQueues[ObjectIdentifier(connection)] = queue
+    }
+    handleConnection(connection)
     connection.onMessage { [weak self, weak connection] message in
       guard let self, let connection else { return }
-      Task {
+      queue.enqueue {
         await self.handleMessage(message, from: connection)
       }
     }
@@ -154,13 +176,13 @@ public final class SlopServer {
       guard let self, let connection else { return }
       self.handleDisconnect(connection)
     }
-    handleConnection(connection)
   }
 
   public func handleDisconnect(_ connection: SlopConnection) {
     locked {
       let id = ObjectIdentifier(connection)
       connections.removeValue(forKey: id)
+      connectionQueues.removeValue(forKey: id)
       subscriptions.removeAll { $0.connectionID == id }
     }
   }
@@ -194,6 +216,7 @@ public final class SlopServer {
     let targets = locked { () -> [SlopConnection] in
       let targets = Array(connections.values)
       connections.removeAll()
+      connectionQueues.removeAll()
       subscriptions.removeAll()
       return targets
     }
@@ -254,12 +277,7 @@ public final class SlopServer {
 
     do {
       let actionResult = try await handler(params)
-      let change = try? locked {
-        try rebuildLocked()
-      }
-      if let change {
-        deliver(change)
-      }
+      refreshAfterInvoke()
 
       switch actionResult {
       case .value(let value):
@@ -270,7 +288,17 @@ public final class SlopServer {
         return resultMessage(id: requestID, status: "accepted", data: .object(resultData))
       }
     } catch {
+      refreshAfterInvoke()
       return resultMessage(id: requestID, status: "error", code: "internal", message: error.localizedDescription)
+    }
+  }
+
+  private func refreshAfterInvoke() {
+    let change = try? locked {
+      try rebuildLocked()
+    }
+    if let change {
+      deliver(change)
     }
   }
 
@@ -422,7 +450,8 @@ public final class SlopServer {
 
     if let window = request.window, let children = output.children {
       let offset = max(0, min(window.offset, children.count))
-      let end = max(offset, min(offset + window.count, children.count))
+      let count = max(0, min(window.count, children.count - offset))
+      let end = offset + count
       let sliced = Array(children[offset..<end])
       var meta = output.meta ?? NodeMeta()
       meta.totalChildren = children.count

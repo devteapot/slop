@@ -145,6 +145,7 @@ public func normalizeDescriptor(path: String, id: String, descriptor: NodeDescri
   try validateNodeID(id)
   var handlers: [String: ActionHandler] = [:]
   var children: [SlopNode] = []
+  var childIDs: Set<String> = []
   var meta = descriptor.meta ?? NodeMeta()
   if let summary = descriptor.summary {
     meta.summary = summary
@@ -152,6 +153,7 @@ public func normalizeDescriptor(path: String, id: String, descriptor: NodeDescri
 
   if let window = descriptor.window {
     for item in window.items {
+      try reserveChildID(item.id, parentPath: path, childIDs: &childIDs)
       let itemPath = path.isEmpty ? item.id : "\(path)/\(item.id)"
       let result = try normalizeItem(path: itemPath, item: item)
       children.append(result.node)
@@ -161,6 +163,7 @@ public func normalizeDescriptor(path: String, id: String, descriptor: NodeDescri
     meta.window = WindowRange(window.offset, window.items.count)
   } else if let items = descriptor.items {
     for item in items {
+      try reserveChildID(item.id, parentPath: path, childIDs: &childIDs)
       let itemPath = path.isEmpty ? item.id : "\(path)/\(item.id)"
       let result = try normalizeItem(path: itemPath, item: item)
       children.append(result.node)
@@ -171,6 +174,7 @@ public func normalizeDescriptor(path: String, id: String, descriptor: NodeDescri
   if let childDescriptors = descriptor.children {
     for childID in childDescriptors.keys.sorted() {
       guard let childDescriptor = childDescriptors[childID] else { continue }
+      try reserveChildID(childID, parentPath: path, childIDs: &childIDs)
       let childPath = path.isEmpty ? childID : "\(path)/\(childID)"
       let result = try normalizeDescriptor(path: childPath, id: childID, descriptor: childDescriptor)
       children.append(result.node)
@@ -196,6 +200,13 @@ public func normalizeDescriptor(path: String, id: String, descriptor: NodeDescri
     ),
     handlers: handlers
   )
+}
+
+private func reserveChildID(_ id: String, parentPath: String, childIDs: inout Set<String>) throws {
+  guard childIDs.insert(id).inserted else {
+    let parent = parentPath.isEmpty ? "/" : "/\(parentPath)"
+    throw SlopError.duplicateNodeId("Duplicate child id \"\(id)\" under \(parent)")
+  }
 }
 
 private func normalizeItem(path: String, item: ItemDescriptor) throws -> NormalizationResult {

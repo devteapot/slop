@@ -7,25 +7,36 @@ public final class StateMirror {
   private var version: UInt64
   private var seq: UInt64
 
-  public init(snapshot: SnapshotMessage) {
+  public init(snapshot: SnapshotMessage) throws {
+    guard snapshot.seq == 0 else {
+      throw SlopError.internalError("A state mirror requires a subscription snapshot with seq 0")
+    }
     tree = snapshot.tree
     version = snapshot.version
-    seq = snapshot.seq ?? 0
+    seq = 0
   }
 
   public func applyPatch(_ patch: PatchMessage) throws {
-    if let patchSeq = patch.seq {
-      let expected = seq + 1
-      guard patchSeq == expected else {
-        throw SlopError.subscriptionGap(expected: expected, received: patchSeq)
+    let originalTree = tree
+    let originalVersion = version
+    let originalSeq = seq
+    do {
+      let (expected, overflow) = seq.addingReportingOverflow(1)
+      guard !overflow, patch.seq == expected else {
+        throw SlopError.subscriptionGap(expected: overflow ? seq : expected, received: patch.seq)
       }
-      seq = patchSeq
-    }
+      seq = patch.seq
 
-    for op in patch.ops {
-      try apply(op)
+      for op in patch.ops {
+        try apply(op)
+      }
+      version = patch.version
+    } catch {
+      tree = originalTree
+      version = originalVersion
+      seq = originalSeq
+      throw error
     }
-    version = patch.version
   }
 
   public func getTree() -> SlopNode {

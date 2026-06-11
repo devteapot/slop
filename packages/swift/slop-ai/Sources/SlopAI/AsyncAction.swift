@@ -24,6 +24,12 @@ public final class TaskHandle {
   }
 
   public func update(progress: Double, message: String) {
+    lock.lock()
+    guard !cancelled else {
+      lock.unlock()
+      return
+    }
+    defer { lock.unlock() }
     guard let server else { return }
     var actions: [String: Action]?
     if cancelable {
@@ -53,7 +59,30 @@ public final class TaskHandle {
   func attach(_ task: Task<Void, Never>) {
     lock.lock()
     self.task = task
+    let cancelImmediately = cancelled
     lock.unlock()
+    if cancelImmediately {
+      task.cancel()
+    }
+  }
+
+  @discardableResult
+  func finish(properties: [String: JSONValue], salience: Double, urgency: Urgency? = nil) -> Bool {
+    lock.lock()
+    guard !cancelled, let server else {
+      lock.unlock()
+      return false
+    }
+    defer { lock.unlock() }
+    try? server.register(
+      "tasks/\(id)",
+      descriptor: NodeDescriptor(
+        type: "status",
+        props: properties,
+        meta: NodeMeta(salience: salience, urgency: urgency)
+      )
+    )
+    return true
   }
 
   func cancel() {
@@ -113,29 +142,19 @@ extension SlopServer {
           if let result {
             props["result"] = result
           }
-          try? self.register(
-            "tasks/\(taskID)",
-            descriptor: NodeDescriptor(
-              type: "status",
-              props: props,
-              meta: NodeMeta(salience: 0.5)
-            )
-          )
+          guard handle.finish(properties: props, salience: 0.5) else { return }
           try? await Task.sleep(nanoseconds: 30_000_000_000)
           try? self.unregister("tasks/\(taskID)")
         } catch {
           guard !Task.isCancelled, !handle.isCancelled else { return }
-          try? self.register(
-            "tasks/\(taskID)",
-            descriptor: NodeDescriptor(
-              type: "status",
-              props: [
-                "progress": 0,
-                "message": .string(error.localizedDescription),
-                "status": "failed",
-              ],
-              meta: NodeMeta(salience: 1.0, urgency: .high)
-            )
+          _ = handle.finish(
+            properties: [
+              "progress": 0,
+              "message": .string(error.localizedDescription),
+              "status": "failed",
+            ],
+            salience: 1.0,
+            urgency: .high
           )
         }
       }

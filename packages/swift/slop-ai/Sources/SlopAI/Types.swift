@@ -2,6 +2,7 @@ import Foundation
 
 public enum SlopError: Error, Equatable, LocalizedError {
   case invalidNodeId(String)
+  case duplicateNodeId(String)
   case notFound(String)
   case invalidParams(String)
   case subscriptionGap(expected: UInt64, received: UInt64)
@@ -9,7 +10,7 @@ public enum SlopError: Error, Equatable, LocalizedError {
 
   public var errorDescription: String? {
     switch self {
-    case .invalidNodeId(let message), .notFound(let message), .invalidParams(let message), .internalError(let message):
+    case .invalidNodeId(let message), .duplicateNodeId(let message), .notFound(let message), .invalidParams(let message), .internalError(let message):
       return message
     case .subscriptionGap(let expected, let received):
       return "SLOP subscription gap: expected seq \(expected), got \(received)"
@@ -311,10 +312,10 @@ public struct SnapshotMessage: Equatable {
 public struct PatchMessage: Equatable {
   public var subscription: String
   public var version: UInt64
-  public var seq: UInt64?
+  public var seq: UInt64
   public var ops: [PatchOp]
 
-  public init(subscription: String, version: UInt64, seq: UInt64? = nil, ops: [PatchOp]) {
+  public init(subscription: String, version: UInt64, seq: UInt64, ops: [PatchOp]) {
     self.subscription = subscription
     self.version = version
     self.seq = seq

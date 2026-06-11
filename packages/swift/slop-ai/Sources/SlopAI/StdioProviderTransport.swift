@@ -75,8 +75,14 @@ public final class StdioConnection: SlopConnection {
 
   public func onClose(_ handler: @escaping () -> Void) {
     lock.lock()
-    closeHandlers.append(handler)
+    let alreadyClosed = didClose
+    if !alreadyClosed {
+      closeHandlers.append(handler)
+    }
     lock.unlock()
+    if alreadyClosed {
+      handler()
+    }
   }
 
   public func close() {

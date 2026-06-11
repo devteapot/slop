@@ -56,6 +56,7 @@ public final class UnixSocketClientTransport: ClientTransport {
 public final class UnixSocketConnection: SlopConnection {
   private let fd: Int32
   private let lock = NSLock()
+  private let ioLock = NSLock()
   private let writeQueue = DispatchQueue(label: "dev.slop.unix-socket.write")
   private var messageHandlers: [(SlopMessage) -> Void] = []
   private var closeHandlers: [() -> Void] = []
@@ -93,8 +94,14 @@ public final class UnixSocketConnection: SlopConnection {
 
   public func onClose(_ handler: @escaping () -> Void) {
     lock.lock()
-    closeHandlers.append(handler)
+    let alreadyClosed = didClose
+    if !alreadyClosed {
+      closeHandlers.append(handler)
+    }
     lock.unlock()
+    if alreadyClosed {
+      handler()
+    }
   }
 
   public func close() {
@@ -144,6 +151,11 @@ public final class UnixSocketConnection: SlopConnection {
   }
 
   private func writeAll(_ data: Data) throws {
+    ioLock.lock()
+    defer { ioLock.unlock() }
+    guard !isClosed else {
+      throw SlopError.internalError("Unix socket is closed")
+    }
     try data.withUnsafeBytes { rawBuffer in
       guard let baseAddress = rawBuffer.baseAddress else { return }
       var bytesWritten = 0
@@ -184,7 +196,9 @@ public final class UnixSocketConnection: SlopConnection {
     lock.unlock()
 
     Darwin.shutdown(fd, SHUT_RDWR)
+    ioLock.lock()
     Darwin.close(fd)
+    ioLock.unlock()
 
     for handler in handlers {
       handler()

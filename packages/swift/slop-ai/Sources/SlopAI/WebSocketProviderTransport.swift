@@ -60,28 +60,50 @@ public final class WebSocketProviderTransport {
       .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
       .childChannelInitializer { [server, options] channel in
         let discoveryHandlerName = "SlopWebSocketDiscoveryHTTPHandler"
+        let upgradeGuardName = "SlopWebSocketUpgradeGuardHandler"
         let upgrader = NIOWebSocketServerUpgrader(
           maxFrameSize: 1 << 20,
-          shouldUpgrade: { channel, head in
-            guard isAllowedWebSocketUpgrade(head, remoteAddress: channel.remoteAddress, options: options) else {
-              return channel.eventLoop.makeSucceededFuture(nil)
-            }
-            return channel.eventLoop.makeSucceededFuture(HTTPHeaders())
+          shouldUpgrade: { channel, _ in
+            channel.eventLoop.makeSucceededFuture(HTTPHeaders())
           },
           upgradePipelineHandler: { channel, _ in
-            _ = channel.pipeline.syncOperations.removeHandler(name: discoveryHandlerName)
-            return channel.pipeline.addHandler(WebSocketProviderHandler(server: server))
+            channel.pipeline.removeHandler(name: discoveryHandlerName).flatMap {
+              channel.pipeline.removeHandler(name: upgradeGuardName)
+            }.flatMap {
+              do {
+                try channel.pipeline.syncOperations.addHandler(makeWebSocketFrameAggregator())
+                return channel.pipeline.addHandler(WebSocketProviderHandler(server: server))
+              } catch {
+                return channel.eventLoop.makeFailedFuture(error)
+              }
+            }
           }
         )
         let upgradeConfig = NIOHTTPServerUpgradeConfiguration(
           upgraders: [upgrader],
           completionHandler: { _ in }
         )
-        return channel.pipeline.configureHTTPServerPipeline(withServerUpgrade: upgradeConfig).flatMap {
-          channel.pipeline.addHandler(
-            WebSocketDiscoveryHTTPHandler(server: server, options: options),
-            name: discoveryHandlerName
-          )
+        return channel.pipeline.configureHTTPServerPipeline(
+          withPipeliningAssistance: false,
+          withServerUpgrade: upgradeConfig
+        ).flatMap {
+          do {
+            let upgradeContext = try channel.pipeline.syncOperations.context(handlerType: HTTPServerUpgradeHandler.self)
+            try channel.pipeline.syncOperations.addHandler(
+              WebSocketUpgradeGuardHandler(
+                path: options.path,
+                allowedOrigins: options.allowedOrigins,
+                authenticate: options.authenticate
+              ),
+              name: upgradeGuardName,
+              position: .before(upgradeContext.handler)
+            )
+            return channel.eventLoop.makeSucceededVoidFuture()
+          } catch {
+            return channel.eventLoop.makeFailedFuture(error)
+          }
+        }.flatMap {
+          channel.pipeline.addHandler(WebSocketDiscoveryHTTPHandler(server: server, options: options), name: discoveryHandlerName)
         }
       }
       .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
@@ -148,8 +170,14 @@ public final class NIOWebSocketConnection: SlopConnection {
 
   public func onClose(_ handler: @escaping () -> Void) {
     lock.lock()
-    closeHandlers.append(handler)
+    let alreadyClosed = didClose
+    if !alreadyClosed {
+      closeHandlers.append(handler)
+    }
     lock.unlock()
+    if alreadyClosed {
+      handler()
+    }
   }
 
   public func close() {
@@ -196,8 +224,10 @@ public final class NIOWebSocketConnection: SlopConnection {
   }
 }
 
-private final class WebSocketProviderHandler: ChannelInboundHandler {
+final class WebSocketProviderHandler: ChannelDuplexHandler {
   typealias InboundIn = WebSocketFrame
+  typealias OutboundIn = WebSocketFrame
+  typealias OutboundOut = WebSocketFrame
 
   private weak var server: SlopServer?
   private var connection: NIOWebSocketConnection?
@@ -215,6 +245,9 @@ private final class WebSocketProviderHandler: ChannelInboundHandler {
   func channelRead(context: ChannelHandlerContext, data: NIOAny) {
     let frame = unwrapInboundIn(data)
     switch frame.opcode {
+    case .ping:
+      let pong = WebSocketFrame(fin: true, opcode: .pong, data: frame.unmaskedData)
+      context.writeAndFlush(wrapOutboundOut(pong), promise: nil)
     case .text:
       var payload = frame.unmaskedData
       guard
@@ -250,6 +283,67 @@ private final class WebSocketProviderHandler: ChannelInboundHandler {
   }
 }
 
+final class WebSocketUpgradeGuardHandler: ChannelInboundHandler, RemovableChannelHandler {
+  typealias InboundIn = HTTPServerRequestPart
+  typealias OutboundOut = HTTPServerResponsePart
+
+  private let path: String
+  private let allowedOrigins: [String]?
+  private let authenticate: WebSocketUpgradeAuthenticator?
+  private var rejecting = false
+
+  init(
+    path: String,
+    allowedOrigins: [String]?,
+    authenticate: WebSocketUpgradeAuthenticator?
+  ) {
+    self.path = path
+    self.allowedOrigins = allowedOrigins
+    self.authenticate = authenticate
+  }
+
+  func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+    let part = unwrapInboundIn(data)
+    switch part {
+    case .head(let head):
+      let isWebSocketUpgrade = head.headers.first(name: "Upgrade")?.lowercased() == "websocket"
+      if isWebSocketUpgrade,
+         !isAllowedWebSocketUpgrade(
+           head,
+           remoteAddress: context.channel.remoteAddress,
+           path: path,
+           allowedOrigins: allowedOrigins,
+           authenticate: authenticate
+         ) {
+        rejecting = true
+        let status: HTTPResponseStatus = requestPath(head.uri) == path ? .forbidden : .notFound
+        sendResponse(status: status, context: context)
+        return
+      }
+      context.fireChannelRead(data)
+    case .body, .end:
+      if !rejecting {
+        context.fireChannelRead(data)
+      }
+    }
+  }
+
+  private func sendResponse(status: HTTPResponseStatus, context: ChannelHandlerContext) {
+    let body = status == .forbidden ? "Forbidden" : "Not Found"
+    let buffer = context.channel.allocator.buffer(string: body)
+    var headers = HTTPHeaders()
+    headers.add(name: "Content-Type", value: "text/plain; charset=utf-8")
+    headers.add(name: "Content-Length", value: "\(buffer.readableBytes)")
+    headers.add(name: "Connection", value: "close")
+    let head = HTTPResponseHead(version: .http1_1, status: status, headers: headers)
+    context.write(wrapOutboundOut(.head(head)), promise: nil)
+    context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
+    context.writeAndFlush(wrapOutboundOut(.end(nil))).whenComplete { _ in
+      context.close(promise: nil)
+    }
+  }
+}
+
 private final class WebSocketDiscoveryHTTPHandler: ChannelInboundHandler, RemovableChannelHandler {
   typealias InboundIn = HTTPServerRequestPart
   typealias OutboundOut = HTTPServerResponsePart
@@ -266,10 +360,6 @@ private final class WebSocketDiscoveryHTTPHandler: ChannelInboundHandler, Remova
   func channelRead(context: ChannelHandlerContext, data: NIOAny) {
     switch unwrapInboundIn(data) {
     case .head(let head):
-      if requestPath(head.uri) == options.path, head.headers.first(name: "Upgrade")?.lowercased() == "websocket" {
-        context.pipeline.removeHandler(self, promise: nil)
-        return
-      }
       self.head = head
     case .body:
       break
@@ -290,10 +380,20 @@ private final class WebSocketDiscoveryHTTPHandler: ChannelInboundHandler, Remova
         )
         let body = (try? JSONEncoder().encode(descriptor)) ?? Data()
         sendResponse(status: .ok, body: body, contentType: "application/json", context: context)
+      } else if requestPath(head.uri) == options.path, head.headers.first(name: "Upgrade")?.lowercased() == "websocket" {
+        sendResponse(status: .forbidden, body: "Forbidden", context: context)
       } else {
         sendResponse(status: .notFound, body: "Not Found", context: context)
       }
       self.head = nil
+    }
+  }
+
+  func errorCaught(context: ChannelHandlerContext, error: Error) {
+    if error is NIOWebSocketUpgradeError {
+      sendResponse(status: .forbidden, body: "Forbidden", context: context)
+    } else {
+      context.close(promise: nil)
     }
   }
 
@@ -308,11 +408,22 @@ private final class WebSocketDiscoveryHTTPHandler: ChannelInboundHandler, Remova
     var headers = HTTPHeaders()
     headers.add(name: "Content-Type", value: contentType)
     headers.add(name: "Content-Length", value: "\(buffer.readableBytes)")
+    headers.add(name: "Connection", value: "close")
     let responseHead = HTTPResponseHead(version: head?.version ?? .http1_1, status: status, headers: headers)
     context.write(wrapOutboundOut(.head(responseHead)), promise: nil)
     context.write(wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
-    context.writeAndFlush(wrapOutboundOut(.end(nil)), promise: nil)
+    context.writeAndFlush(wrapOutboundOut(.end(nil))).whenComplete { _ in
+      context.close(promise: nil)
+    }
   }
+}
+
+func makeWebSocketFrameAggregator() -> NIOWebSocketFrameAggregator {
+  NIOWebSocketFrameAggregator(
+    minNonFinalFragmentSize: 1,
+    maxAccumulatedFrameCount: 128,
+    maxAccumulatedFrameSize: 1 << 20
+  )
 }
 
 extension SlopServer {
@@ -324,22 +435,24 @@ extension SlopServer {
   }
 }
 
-private func isAllowedWebSocketUpgrade(
+func isAllowedWebSocketUpgrade(
   _ head: HTTPRequestHead,
   remoteAddress: SocketAddress?,
-  options: WebSocketProviderOptions
+  path: String,
+  allowedOrigins: [String]?,
+  authenticate: WebSocketUpgradeAuthenticator?
 ) -> Bool {
-  guard requestPath(head.uri) == options.path else {
+  guard requestPath(head.uri) == path else {
     return false
   }
 
   if let origin = head.headers.first(name: "Origin") {
-    guard let allowedOrigins = options.allowedOrigins, allowedOrigins.contains(origin) else {
+    guard let allowedOrigins, allowedOrigins.contains(origin) else {
       return false
     }
   }
 
-  if let authenticate = options.authenticate {
+  if let authenticate {
     return authenticate(head, remoteAddress)
   }
 

@@ -58,7 +58,7 @@ public enum JSONValue: Equatable, Codable {
   }
 
   public var intValue: Int? {
-    if case .number(let value) = self { return Int(value) }
+    if case .number(let value) = self { return Int(exactly: value) }
     return nil
   }
 
@@ -151,7 +151,7 @@ func canonicalJSON(_ value: JSONValue) -> String {
   case .bool(let value):
     return value ? "true" : "false"
   case .number(let value):
-    return value.rounded(.towardZero) == value ? String(Int(value)) : String(value)
+    return Int(exactly: value).map(String.init) ?? String(value)
   case .string(let value):
     return String(data: try! JSONEncoder().encode(value), encoding: .utf8) ?? "\"\""
   case .array(let values):

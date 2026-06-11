@@ -91,6 +91,36 @@ public struct ConnectedProvider {
   }
 }
 
+public struct ProviderRegistration: Equatable {
+  public let id: String
+  public let directory: URL
+  fileprivate let device: UInt64
+  fileprivate let inode: UInt64
+}
+
+private struct DiscoveryConnectionAttempt {
+  var id: String
+  var token: UUID
+  var task: Task<ConnectedProvider?, Error>
+}
+
+private final class DiscoveryConnectionLifecycle {
+  private let lock = NSLock()
+  private var disconnected = false
+
+  var isDisconnected: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return disconnected
+  }
+
+  func markDisconnected() {
+    lock.lock()
+    disconnected = true
+    lock.unlock()
+  }
+}
+
 public struct DiscoveryOptions {
   public var providerDirectories: [URL]
   public var autoConnect: Bool
@@ -111,134 +141,281 @@ public struct DiscoveryOptions {
 }
 
 public final class DiscoveryService {
-  private var options: DiscoveryOptions
+  private let options: DiscoveryOptions
+  private let lock = NSLock()
   private var discovered: [ProviderDescriptor] = []
   private var providers: [String: ConnectedProvider] = [:]
-  private var stateChangeCallbacks: [() -> Void] = []
+  private var providerAliases: [String: String] = [:]
+  private var connectionAttempts: [String: DiscoveryConnectionAttempt] = [:]
+  private var stateChangeCallbacks: [UUID: () -> Void] = [:]
   private var bridgeUnsubscribes: [() -> Void] = []
   private var started = false
+  private var generation: UInt64 = 0
 
   public init(options: DiscoveryOptions = DiscoveryOptions()) {
     self.options = options
   }
 
   public func start() async {
-    guard !started else { return }
-    started = true
-    bridgeUnsubscribes = options.bridges.map { bridge in
+    let shouldStart = locked { () -> Bool in
+      guard !started else { return false }
+      started = true
+      return true
+    }
+    guard shouldStart else { return }
+
+    let unsubscribes = options.bridges.map { bridge in
       bridge.onProviderChange { [weak self] in
         self?.scan()
       }
     }
+    let keepSubscriptions = locked { () -> Bool in
+      guard started else { return false }
+      bridgeUnsubscribes = unsubscribes
+      return true
+    }
+    if !keepSubscriptions {
+      for unsubscribe in unsubscribes {
+        unsubscribe()
+      }
+      return
+    }
+
     scan()
     guard options.autoConnect else { return }
-    for descriptor in discovered {
+    let startGeneration = locked { generation }
+    for descriptor in getDiscovered() {
+      guard locked({ started && generation == startGeneration }) else { return }
       _ = try? await ensureConnected(descriptor.id)
+      guard locked({ started && generation == startGeneration }) else { return }
     }
   }
 
   public func stop() {
-    for unsubscribe in bridgeUnsubscribes {
+    let state = locked { () -> ([() -> Void], [ConnectedProvider], [Task<ConnectedProvider?, Error>], [() -> Void]) in
+      let hadActiveState = started || !providers.isEmpty || !connectionAttempts.isEmpty
+      started = false
+      generation &+= 1
+      let unsubscribes = bridgeUnsubscribes
+      bridgeUnsubscribes.removeAll()
+      let connectedProviders = Array(providers.values)
+      providers.removeAll()
+      providerAliases.removeAll()
+      let tasks = connectionAttempts.values.map(\.task)
+      connectionAttempts.removeAll()
+      return (unsubscribes, connectedProviders, tasks, hadActiveState ? Array(stateChangeCallbacks.values) : [])
+    }
+    for unsubscribe in state.0 {
       unsubscribe()
     }
-    bridgeUnsubscribes.removeAll()
-    for provider in providers.values {
+    for task in state.2 {
+      task.cancel()
+    }
+    for provider in state.1 {
       provider.consumer.disconnect()
     }
-    providers.removeAll()
-    started = false
-    emitStateChange()
+    emitStateChange(state.3)
   }
 
   public func scan() {
-    discovered = Discovery.readDescriptors(from: options.providerDirectories) + bridgeDescriptors()
-    emitStateChange()
+    let descriptors = Discovery.readDescriptors(from: options.providerDirectories) + bridgeDescriptors()
+    let callbacks = locked { () -> [() -> Void] in
+      discovered = descriptors
+      let descriptorIDs = Set(descriptors.map(\.id))
+      providerAliases = providerAliases.filter { descriptorIDs.contains($0.key) || providers[$0.value] != nil }
+      return Array(stateChangeCallbacks.values)
+    }
+    emitStateChange(callbacks)
   }
 
   public func getDiscovered() -> [ProviderDescriptor] {
-    if started {
-      return discovered
+    let state = locked { (started, discovered) }
+    if state.0 {
+      return state.1
     }
     return Discovery.readDescriptors(from: options.providerDirectories) + bridgeDescriptors()
   }
 
   public func getProviders() -> [ConnectedProvider] {
-    Array(providers.values)
+    locked { Array(providers.values) }
   }
 
   public func getProvider(_ idOrName: String) -> ConnectedProvider? {
-    providers[idOrName] ?? providers.values.first { $0.name == idOrName }
+    locked {
+      if let canonical = providers[idOrName] {
+        return canonical
+      }
+      if let providerID = providerAliases[idOrName], let aliased = providers[providerID] {
+        return aliased
+      }
+      return providers.values.first { $0.name == idOrName }
+    }
   }
 
   public func ensureConnected(_ idOrName: String) async throws -> ConnectedProvider? {
+    let operationGeneration = locked { generation }
     if let existing = getProvider(idOrName), existing.status == "connected" {
       return existing
     }
 
-    if !started {
+    if !locked({ started }) {
       scan()
     }
-    guard let descriptor = discovered.first(where: { $0.id == idOrName || $0.name == idOrName }) else {
-      return nil
-    }
-    guard let transport = options.transportFactory(descriptor) ?? relayTransport(for: descriptor) else {
-      return nil
-    }
-
-    let consumer = SlopConsumer(transport: transport)
-    _ = try await consumer.connect()
-    let subscription = try await consumer.subscribe(path: "/", depth: -1)
-
-    let provider = ConnectedProvider(
-      id: descriptor.id,
-      name: descriptor.name,
-      descriptor: descriptor,
-      consumer: consumer,
-      subscriptionID: subscription.id,
-      status: "connected"
-    )
-    providers[descriptor.id] = provider
-
-    consumer.onPatch { [weak self] _, _, _ in
-      self?.emitStateChange()
-    }
-    consumer.onDisconnect { [weak self] in
-      guard let self else { return }
-      if var provider = self.providers[descriptor.id] {
-        provider.status = "disconnected"
-        self.providers[descriptor.id] = provider
+    let attempt = locked { () -> DiscoveryConnectionAttempt? in
+      guard generation == operationGeneration else { return nil }
+      let existingByID = providers[idOrName] ?? providerAliases[idOrName].flatMap { providers[$0] }
+      if let existing = existingByID ?? providers.values.first(where: { $0.name == idOrName }),
+         existing.status == "connected" {
+        return DiscoveryConnectionAttempt(
+          id: existing.id,
+          token: UUID(),
+          task: Task<ConnectedProvider?, Error> { existing }
+        )
       }
-      self.emitStateChange()
+      guard let descriptor = discovered.first(where: { $0.id == idOrName || $0.name == idOrName }) else {
+        return nil
+      }
+      if let existingAttempt = connectionAttempts[descriptor.id] {
+        return existingAttempt
+      }
+      let token = UUID()
+      let task = Task { [weak self] in
+        guard let self else { throw CancellationError() }
+        return try await self.connect(descriptor, generation: operationGeneration)
+      }
+      let attempt = DiscoveryConnectionAttempt(id: descriptor.id, token: token, task: task)
+      connectionAttempts[descriptor.id] = attempt
+      return attempt
     }
+    guard let attempt else { return nil }
 
-    emitStateChange()
-    return provider
+    do {
+      let provider = try await attempt.task.value
+      removeConnectionAttempt(attempt.token, id: attempt.id)
+      return provider
+    } catch {
+      removeConnectionAttempt(attempt.token, id: attempt.id)
+      throw error
+    }
   }
 
   @discardableResult
   public func disconnect(_ idOrName: String) -> Bool {
-    guard let provider = getProvider(idOrName) else {
-      return false
+    let result = locked { () -> (ConnectedProvider, [() -> Void])? in
+      let providerByID = providers[idOrName] ?? providerAliases[idOrName].flatMap { providers[$0] }
+      guard let provider = providerByID ?? providers.values.first(where: { $0.name == idOrName }) else {
+        return nil
+      }
+      providers.removeValue(forKey: provider.id)
+      providerAliases = providerAliases.filter { $0.value != provider.id }
+      return (provider, Array(stateChangeCallbacks.values))
     }
+    guard let result else { return false }
+    let provider = result.0
     provider.consumer.disconnect()
-    providers.removeValue(forKey: provider.id)
-    emitStateChange()
+    emitStateChange(result.1)
     return true
   }
 
   @discardableResult
   public func onStateChange(_ callback: @escaping () -> Void) -> () -> Void {
-    stateChangeCallbacks.append(callback)
-    let index = stateChangeCallbacks.count - 1
+    let token = UUID()
+    locked {
+      stateChangeCallbacks[token] = callback
+    }
     return { [weak self] in
-      guard let self, self.stateChangeCallbacks.indices.contains(index) else { return }
-      self.stateChangeCallbacks.remove(at: index)
+      _ = self?.locked {
+        self?.stateChangeCallbacks.removeValue(forKey: token)
+      }
     }
   }
 
   private func emitStateChange() {
-    for callback in stateChangeCallbacks {
+    emitStateChange(locked { Array(stateChangeCallbacks.values) })
+  }
+
+  private func emitStateChange(_ callbacks: [() -> Void]) {
+    for callback in callbacks {
       callback()
+    }
+  }
+
+  private func connect(_ descriptor: ProviderDescriptor, generation: UInt64) async throws -> ConnectedProvider? {
+    guard let transport = options.transportFactory(descriptor) ?? relayTransport(for: descriptor) else {
+      return nil
+    }
+    let consumer = SlopConsumer(transport: transport)
+    let lifecycle = DiscoveryConnectionLifecycle()
+    consumer.onPatch { [weak self] _, _, _ in
+      self?.emitStateChange()
+    }
+    consumer.onDisconnect { [weak self, weak consumer] in
+      lifecycle.markDisconnected()
+      guard let self, let consumer else { return }
+      let callbacks = self.locked { () -> [() -> Void] in
+        guard
+          let entry = self.providers.first(where: { $0.value.consumer === consumer }),
+          var provider = self.providers[entry.key]
+        else {
+          return []
+        }
+        provider.status = "disconnected"
+        self.providers[entry.key] = provider
+        return Array(self.stateChangeCallbacks.values)
+      }
+      self.emitStateChange(callbacks)
+    }
+
+    return try await withTaskCancellationHandler {
+      do {
+        let hello = try await consumer.connect()
+        let identity = try parseProviderHello(hello)
+        try Task.checkCancellation()
+        let subscription = try await consumer.subscribe(path: "/", depth: -1)
+        try Task.checkCancellation()
+        guard !lifecycle.isDisconnected else {
+          throw SlopError.internalError("Provider disconnected during discovery")
+        }
+        var authoritativeDescriptor = descriptor
+        authoritativeDescriptor.id = identity.id
+        authoritativeDescriptor.name = identity.name
+        authoritativeDescriptor.slopVersion = identity.slopVersion
+        authoritativeDescriptor.capabilities = identity.capabilities
+        let provider = ConnectedProvider(
+          id: identity.id,
+          name: identity.name,
+          descriptor: authoritativeDescriptor,
+          consumer: consumer,
+          subscriptionID: subscription.id,
+          status: "connected"
+        )
+        let callbacks = locked { () -> [() -> Void]? in
+          guard self.generation == generation else { return nil }
+          if let existing = providers[identity.id], existing.status == "connected", existing.consumer !== consumer {
+            return nil
+          }
+          providers[identity.id] = provider
+          providerAliases[descriptor.id] = identity.id
+          return Array(stateChangeCallbacks.values)
+        }
+        guard let callbacks else {
+          throw CancellationError()
+        }
+        emitStateChange(callbacks)
+        return provider
+      } catch {
+        consumer.disconnect()
+        throw error
+      }
+    } onCancel: {
+      consumer.disconnect()
+    }
+  }
+
+  private func removeConnectionAttempt(_ token: UUID, id: String) {
+    locked {
+      guard connectionAttempts[id]?.token == token else { return }
+      connectionAttempts.removeValue(forKey: id)
     }
   }
 
@@ -259,11 +436,17 @@ public final class DiscoveryService {
     }
     return BridgeRelayTransport(bridge: bridge, providerKey: providerKey)
   }
+
+  private func locked<T>(_ body: () throws -> T) rethrows -> T {
+    lock.lock()
+    defer { lock.unlock() }
+    return try body()
+  }
 }
 
 public enum Discovery {
   public static let defaultProviderDirectories: [URL] = [
-    FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".slop/providers"),
+    URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".slop/providers"),
     URL(fileURLWithPath: "/tmp/slop/providers"),
   ]
 
@@ -308,6 +491,7 @@ public enum Discovery {
     return descriptors
   }
 
+  @discardableResult
   public static func registerProvider(
     id: String,
     name: String,
@@ -315,7 +499,7 @@ public enum Discovery {
     directory: URL = defaultProviderDirectories[0],
     pid: Int = Int(ProcessInfo.processInfo.processIdentifier),
     capabilities: [String] = ["state", "patches", "affordances", "attention", "windowing", "async", "content_refs"]
-  ) throws {
+  ) throws -> ProviderRegistration {
     guard isValidDescriptorFilename("\(id).json") else {
       throw SlopError.invalidNodeId(
         "SLOP provider id \"\(id)\" is not a valid descriptor filename stem"
@@ -324,7 +508,7 @@ public enum Discovery {
 
     let fileManager = FileManager.default
     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-    try? fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+    try secureProviderDirectory(directory)
 
     let descriptor = ProviderDescriptor(
       id: id,
@@ -337,21 +521,37 @@ public enum Discovery {
     let data = try JSONEncoder().encode(descriptor)
     let finalURL = directory.appendingPathComponent("\(id).json")
     let tempURL = directory.appendingPathComponent("\(id).json.tmp.\(UUID().uuidString)")
+    defer { try? fileManager.removeItem(at: tempURL) }
     try data.write(to: tempURL, options: .atomic)
-    try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tempURL.path)
-    if fileManager.fileExists(atPath: finalURL.path) {
-      try fileManager.removeItem(at: finalURL)
+    try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tempURL.path)
+    guard readSecureDescriptorFile(tempURL) != nil else {
+      throw SlopError.internalError("Could not secure SLOP provider descriptor at \(tempURL.path)")
     }
-    try fileManager.moveItem(at: tempURL, to: finalURL)
+    guard let identity = descriptorFileIdentity(tempURL) else {
+      throw SlopError.internalError("Could not identify SLOP provider descriptor before publishing at \(tempURL.path)")
+    }
+    #if canImport(Darwin) || canImport(Glibc)
+    guard rename(tempURL.path, finalURL.path) == 0 else {
+      throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+    }
+    #else
+    if fileManager.fileExists(atPath: finalURL.path) {
+      _ = try fileManager.replaceItemAt(finalURL, withItemAt: tempURL)
+    } else {
+      try fileManager.moveItem(at: tempURL, to: finalURL)
+    }
+    #endif
+    return ProviderRegistration(id: id, directory: directory, device: identity.device, inode: identity.inode)
   }
 
+  @discardableResult
   public static func registerUnixProvider(
     id: String,
     name: String,
     socketPath: String,
     directory: URL = defaultProviderDirectories[0],
     pid: Int = Int(ProcessInfo.processInfo.processIdentifier)
-  ) throws {
+  ) throws -> ProviderRegistration {
     try registerProvider(
       id: id,
       name: name,
@@ -366,14 +566,71 @@ public enum Discovery {
     try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(id).json"))
   }
 
+  public static func unregisterProvider(_ registration: ProviderRegistration) {
+    guard isValidDescriptorFilename("\(registration.id).json") else { return }
+    let file = registration.directory.appendingPathComponent("\(registration.id).json")
+    quarantineAndRemoveDescriptor(file, registration: registration, beforeInspection: nil)
+  }
+
+  static func unregisterProvider(
+    _ registration: ProviderRegistration,
+    beforeQuarantineInspection: @escaping () -> Void
+  ) {
+    guard isValidDescriptorFilename("\(registration.id).json") else { return }
+    let file = registration.directory.appendingPathComponent("\(registration.id).json")
+    quarantineAndRemoveDescriptor(
+      file,
+      registration: registration,
+      beforeInspection: beforeQuarantineInspection
+    )
+  }
+
   public static func isValidDescriptorFilename(_ filename: String) -> Bool {
-    guard filename.hasSuffix(".json"), filename.count <= 69 else { return false }
+    guard filename.hasSuffix(".json") else { return false }
     let stem = filename.dropLast(5)
-    guard let first = stem.first, first.isLetter || first.isNumber else { return false }
-    return stem.allSatisfy { character in
-      character.isLowercase || character.isNumber || character == "." || character == "_" || character == "-"
+    let scalars = Array(stem.unicodeScalars)
+    guard (1...64).contains(scalars.count), let first = scalars.first, isASCIILowercaseOrDigit(first) else { return false }
+    return scalars.allSatisfy { scalar in
+      isASCIILowercaseOrDigit(scalar) || scalar.value == 46 || scalar.value == 95 || scalar.value == 45
     }
   }
+}
+
+private func secureProviderDirectory(_ directory: URL) throws {
+  #if canImport(Darwin) || canImport(Glibc)
+  let fd = open(directory.path, O_RDONLY | O_DIRECTORY | descriptorNoFollowFlag())
+  guard fd >= 0 else {
+    throw SlopError.internalError("Could not safely open SLOP provider directory at \(directory.path)")
+  }
+  defer { close(fd) }
+
+  var statBuffer = stat()
+  guard fstat(fd, &statBuffer) == 0 else {
+    throw SlopError.internalError("Could not inspect SLOP provider directory at \(directory.path)")
+  }
+  let mode = Int(statBuffer.st_mode)
+  guard (mode & Int(S_IFMT)) == Int(S_IFDIR), currentUserID().map({ statBuffer.st_uid == $0 }) ?? true else {
+    throw SlopError.internalError("SLOP provider directory is not an owned real directory at \(directory.path)")
+  }
+  guard fchmod(fd, 0o700) == 0 else {
+    throw SlopError.internalError("Could not harden SLOP provider directory permissions at \(directory.path)")
+  }
+  guard fstat(fd, &statBuffer) == 0, Int(statBuffer.st_mode) & 0o077 == 0 else {
+    throw SlopError.internalError("Could not verify SLOP provider directory permissions at \(directory.path)")
+  }
+  #else
+  let fileManager = FileManager.default
+  guard
+    let attributes = try? fileManager.attributesOfItem(atPath: directory.path),
+    attributes[.type] as? FileAttributeType == .typeDirectory
+  else {
+    throw SlopError.internalError("SLOP provider path is not a directory at \(directory.path)")
+  }
+  try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+  guard isSecureProviderDirectory(directory) else {
+    throw SlopError.internalError("Could not secure SLOP provider directory at \(directory.path)")
+  }
+  #endif
 }
 
 private func isSecureProviderDirectory(_ directory: URL) -> Bool {
@@ -456,6 +713,54 @@ private func readSecureDescriptorFile(_ file: URL) -> Data? {
   #endif
 }
 
+private func descriptorFileIdentity(_ file: URL) -> (device: UInt64, inode: UInt64)? {
+  #if canImport(Darwin) || canImport(Glibc)
+  var statBuffer = stat()
+  guard lstat(file.path, &statBuffer) == 0 else { return nil }
+  return (UInt64(statBuffer.st_dev), UInt64(statBuffer.st_ino))
+  #else
+  guard
+    let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+    let device = attributes[.systemNumber] as? NSNumber,
+    let inode = attributes[.systemFileNumber] as? NSNumber
+  else {
+    return nil
+  }
+  return (device.uint64Value, inode.uint64Value)
+  #endif
+}
+
+private func quarantineAndRemoveDescriptor(
+  _ file: URL,
+  registration: ProviderRegistration,
+  beforeInspection: (() -> Void)?
+) {
+  let quarantine = file.deletingLastPathComponent().appendingPathComponent(".slop-unregister-\(UUID().uuidString)")
+  #if canImport(Darwin) || canImport(Glibc)
+  guard rename(file.path, quarantine.path) == 0 else { return }
+  beforeInspection?()
+  guard let identity = descriptorFileIdentity(quarantine) else { return }
+  if identity.device == registration.device, identity.inode == registration.inode {
+    _ = unlink(quarantine.path)
+    return
+  }
+  if link(quarantine.path, file.path) == 0 {
+    _ = unlink(quarantine.path)
+  } else if errno == EEXIST {
+    _ = unlink(quarantine.path)
+  }
+  #else
+  guard (try? FileManager.default.moveItem(at: file, to: quarantine)) != nil else { return }
+  beforeInspection?()
+  guard let identity = descriptorFileIdentity(quarantine) else { return }
+  if identity.device == registration.device, identity.inode == registration.inode {
+    try? FileManager.default.removeItem(at: quarantine)
+  } else if !FileManager.default.fileExists(atPath: file.path) {
+    try? FileManager.default.moveItem(at: quarantine, to: file)
+  }
+  #endif
+}
+
 private func currentUserID() -> UInt32? {
   #if canImport(Darwin) || canImport(Glibc)
   return getuid()
@@ -517,8 +822,9 @@ public struct DynamicToolSet {
 public func createDynamicTools(providers: [ConnectedProvider]) -> DynamicToolSet {
   var entries: [DynamicToolEntry] = []
   var resolveMap: [String: (providerID: String, path: String?, action: String, targets: [String]?)] = [:]
+  var usedNames: Set<String> = []
 
-  for provider in providers {
+  for provider in providers.sorted(by: { ($0.id, $0.name) < ($1.id, $1.name) }) {
     guard let tree = provider.consumer.getTree(subscriptionID: provider.subscriptionID) else {
       continue
     }
@@ -526,7 +832,7 @@ public func createDynamicTools(providers: [ConnectedProvider]) -> DynamicToolSet
     let toolSet = affordancesToTools(tree)
     for tool in toolSet.tools {
       guard let resolved = toolSet.resolve(tool.function.name) else { continue }
-      let name = "\(prefix)__\(tool.function.name)"
+      let name = reserveDynamicToolName("\(prefix)__\(tool.function.name)", used: &usedNames)
       entries.append(
         DynamicToolEntry(
           name: name,
@@ -546,10 +852,24 @@ public func createDynamicTools(providers: [ConnectedProvider]) -> DynamicToolSet
 }
 
 private func sanitizeToolPrefix(_ value: String) -> String {
-  let mapped = value.map { character -> Character in
-    character.isLetter || character.isNumber ? character : "_"
+  String(value.unicodeScalars.map { scalar -> Character in
+    let value = scalar.value
+    let isASCIIAlphaNumeric = (48...57).contains(value) || (65...90).contains(value) || (97...122).contains(value)
+    return isASCIIAlphaNumeric ? Character(String(scalar)) : "_"
+  })
+}
+
+private func reserveDynamicToolName(_ base: String, used: inout Set<String>) -> String {
+  if used.insert(base).inserted {
+    return base
   }
-  return String(mapped)
-    .replacingOccurrences(of: #"_+"#, with: "_", options: .regularExpression)
-    .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+  var suffix = 2
+  while !used.insert("\(base)__\(suffix)").inserted {
+    suffix += 1
+  }
+  return "\(base)__\(suffix)"
+}
+
+private func isASCIILowercaseOrDigit(_ scalar: Unicode.Scalar) -> Bool {
+  (48...57).contains(scalar.value) || (97...122).contains(scalar.value)
 }

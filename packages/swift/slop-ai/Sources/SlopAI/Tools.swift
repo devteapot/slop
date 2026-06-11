@@ -75,13 +75,18 @@ public func affordancesToTools(_ node: SlopNode, path: String = "") -> ToolSet {
   var actionNameUsed: [String: Int] = [:]
   var resolveMap: [String: ToolResolution] = [:]
   var tools: [LLMTool] = []
+  var usedToolNames: Set<String> = []
 
-  for group in groups.sorted(by: { ($0.first?.action ?? "") < ($1.first?.action ?? "") }) {
+  for group in groups.sorted(by: {
+    let lhs = $0.first.map { "\($0.action)\u{0}\($0.schemaKey)\u{0}\($0.nodeID)" } ?? ""
+    let rhs = $1.first.map { "\($0.action)\u{0}\($0.schemaKey)\u{0}\($0.nodeID)" } ?? ""
+    return lhs < rhs
+  }) {
     guard let first = group.first else { continue }
     let safeAction = sanitize(first.action)
 
     if group.count == 1 {
-      let toolName = "\(sanitize(first.nodeID))__\(safeAction)"
+      let toolName = reserveToolName("\(sanitize(first.nodeID))__\(safeAction)", used: &usedToolNames)
       resolveMap[toolName] = ToolResolution(path: first.path.isEmpty ? "/" : first.path, action: first.action)
       tools.append(
         LLMTool(
@@ -103,6 +108,7 @@ public func affordancesToTools(_ node: SlopNode, path: String = "") -> ToolSet {
         toolName = "\(safeAction)__\(sanitize(first.nodeID))"
       }
     }
+    toolName = reserveToolName(toolName, used: &usedToolNames)
 
     let targets = group.map { $0.path.isEmpty ? "/" : $0.path }
     let baseParams = cloneSchema(first.affordance.params ?? JSONSchema(type: "object", properties: [:]))
@@ -199,9 +205,22 @@ private func collectAffordances(_ node: SlopNode, path: String, entries: inout [
 }
 
 private func sanitize(_ value: String) -> String {
-  String(value.map { character in
-    character.isLetter || character.isNumber ? character : "_"
+  String(value.unicodeScalars.map { scalar -> Character in
+    let value = scalar.value
+    let isASCIIAlphaNumeric = (48...57).contains(value) || (65...90).contains(value) || (97...122).contains(value)
+    return isASCIIAlphaNumeric ? Character(String(scalar)) : "_"
   })
+}
+
+private func reserveToolName(_ base: String, used: inout Set<String>) -> String {
+  if used.insert(base).inserted {
+    return base
+  }
+  var suffix = 2
+  while !used.insert("\(base)__\(suffix)").inserted {
+    suffix += 1
+  }
+  return "\(base)__\(suffix)"
 }
 
 private func canonicalSchemaKey(_ schema: JSONSchema?) -> String {

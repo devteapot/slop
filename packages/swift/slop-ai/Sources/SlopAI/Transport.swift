@@ -13,12 +13,13 @@ public protocol ClientTransport {
   func connect() async throws -> SlopConnection
 }
 
-public final class InMemoryConnection: SlopConnection {
+public final class InMemoryConnection: SlopConnection, @unchecked Sendable {
   private let lock = NSLock()
   private var messageHandlers: [(SlopMessage) -> Void] = []
   private var closeHandlers: [() -> Void] = []
   private var pendingMessages: [SlopMessage] = []
   private var messageHandlerWaiters: [CheckedContinuation<Void, Never>] = []
+  private var didClose = false
   private let sendHandler: (SlopMessage) -> Void
 
   public init(sendHandler: @escaping (SlopMessage) -> Void = { _ in }) {
@@ -63,8 +64,14 @@ public final class InMemoryConnection: SlopConnection {
 
   public func onClose(_ handler: @escaping () -> Void) {
     lock.lock()
-    closeHandlers.append(handler)
+    let alreadyClosed = didClose
+    if !alreadyClosed {
+      closeHandlers.append(handler)
+    }
     lock.unlock()
+    if alreadyClosed {
+      handler()
+    }
   }
 
   public func waitForMessageHandler() async {
@@ -82,6 +89,11 @@ public final class InMemoryConnection: SlopConnection {
 
   public func close() {
     lock.lock()
+    guard !didClose else {
+      lock.unlock()
+      return
+    }
+    didClose = true
     let handlers = closeHandlers
     lock.unlock()
 
@@ -132,21 +144,28 @@ public final class URLSessionWebSocketConnection: SlopConnection {
   private var closeHandlers: [() -> Void] = []
   private var pendingMessages: [SlopMessage] = []
   private var didClose = false
+  private var sendTail: Task<Void, Never>?
 
   init(task: URLSessionWebSocketTask) {
     self.task = task
   }
 
   public func send(_ message: SlopMessage) {
-    Task {
+    lock.lock()
+    let previous = sendTail
+    let next = Task { [weak self] in
+      await previous?.value
+      guard let self else { return }
       do {
         let data = try JSONEncoder().encode(JSONValue.object(message))
         let text = String(decoding: data, as: UTF8.self)
-        try await task.send(.string(text))
+        try await self.task.send(.string(text))
       } catch {
-        fireClose()
+        self.fireClose()
       }
     }
+    sendTail = next
+    lock.unlock()
   }
 
   public func onMessage(_ handler: @escaping (SlopMessage) -> Void) {
@@ -163,8 +182,14 @@ public final class URLSessionWebSocketConnection: SlopConnection {
 
   public func onClose(_ handler: @escaping () -> Void) {
     lock.lock()
-    closeHandlers.append(handler)
+    let alreadyClosed = didClose
+    if !alreadyClosed {
+      closeHandlers.append(handler)
+    }
     lock.unlock()
+    if alreadyClosed {
+      handler()
+    }
   }
 
   public func close() {
@@ -179,7 +204,7 @@ public final class URLSessionWebSocketConnection: SlopConnection {
   }
 
   private func receiveLoop() async {
-    while !didClose {
+    while !isClosed {
       do {
         let message = try await task.receive()
         guard let slopMessage = try decode(message) else {
@@ -191,6 +216,12 @@ public final class URLSessionWebSocketConnection: SlopConnection {
         return
       }
     }
+  }
+
+  private var isClosed: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return didClose
   }
 
   private func decode(_ message: URLSessionWebSocketTask.Message) throws -> SlopMessage? {

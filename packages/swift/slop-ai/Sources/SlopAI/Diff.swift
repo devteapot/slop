@@ -48,8 +48,12 @@ public func diffNodes(_ oldNode: SlopNode, _ newNode: SlopNode, basePath: String
 
   let oldChildren = oldNode.children ?? []
   let newChildren = newNode.children ?? []
-  let oldMap = Dictionary(uniqueKeysWithValues: oldChildren.map { ($0.id, $0) })
-  let newMap = Dictionary(uniqueKeysWithValues: newChildren.map { ($0.id, $0) })
+  let oldMap = oldChildren.reduce(into: [String: SlopNode]()) { map, child in
+    map[child.id] = child
+  }
+  let newMap = newChildren.reduce(into: [String: SlopNode]()) { map, child in
+    map[child.id] = child
+  }
 
   var working: [String] = []
   for child in oldChildren {

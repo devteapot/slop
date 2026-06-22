@@ -9,7 +9,7 @@ jobs:
     if: startsWith(github.event.release.tag_name, 'v')
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: devteapot/homebrew-slop
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}

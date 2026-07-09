@@ -264,15 +264,15 @@ export const docsSidebar = [
   },
   {
     label: "Core Protocol",
-    autogenerate: { directory: "spec/core" },
+    items: [{ autogenerate: { directory: "spec/core" } }],
   },
   {
     label: "Extensions",
-    autogenerate: { directory: "spec/extensions" },
+    items: [{ autogenerate: { directory: "spec/extensions" } }],
   },
   {
     label: "Integration Guides",
-    autogenerate: { directory: "spec/integrations" },
+    items: [{ autogenerate: { directory: "spec/integrations" } }],
   },
   {
     label: "SDK Architecture",

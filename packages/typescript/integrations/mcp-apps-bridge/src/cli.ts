@@ -469,7 +469,7 @@ server.registerTool(
       app: z.string().describe("SLOP app name or ID."),
       path: z.string().describe("Path to the node to act on, for example '/' or '/todos/todo-1'."),
       action: z.string().describe("Affordance/action name to invoke."),
-      params: z.record(z.unknown()).optional().describe("Optional action parameters."),
+      params: z.record(z.string(), z.unknown()).optional().describe("Optional action parameters."),
     } as never,
   },
   (async (args: AppActionArgs): Promise<ToolResult> => {
@@ -507,7 +507,7 @@ server.registerTool(
           z.object({
             path: z.string().describe("Path to the node to act on."),
             action: z.string().describe("Affordance/action name to invoke."),
-            params: z.record(z.unknown()).optional().describe("Optional action parameters."),
+            params: z.record(z.string(), z.unknown()).optional().describe("Optional action parameters."),
           }),
         )
         .describe("Actions to perform sequentially."),

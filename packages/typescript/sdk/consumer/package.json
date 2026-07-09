@@ -30,6 +30,6 @@
     "directory": "packages/typescript/sdk/consumer"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0"
+    "@types/node": "^26.0.0"
   }
 }

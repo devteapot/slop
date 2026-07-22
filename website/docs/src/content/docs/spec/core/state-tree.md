@@ -8,7 +8,7 @@ The state tree is the core data structure of SLOP. It is a rooted tree of **node
 ```jsonc
 {
   // REQUIRED
-  "id": "msg-42",          // Stable identifier, unique within the tree
+  "id": "msg-42",          // Stable identifier, unique among siblings
   "type": "message",       // Semantic type (see type taxonomy below)
 
   // OPTIONAL
@@ -28,7 +28,7 @@ The state tree is the core data structure of SLOP. It is a rooted tree of **node
 
 ### `id`
 
-A string that uniquely identifies a node within the tree. Must be stable across patches — if a node's `id` changes, it's a different node. IDs are opaque to consumers; providers choose the format.
+A string that uniquely identifies a node among its siblings. Must be stable across patches — if a node's `id` changes, it's a different node. IDs are opaque to consumers; providers choose the format.
 
 **Requirements:**
 - Unique among siblings (no two children of the same parent share an ID)
@@ -36,6 +36,8 @@ A string that uniquely identifies a node within the tree. Must be stable across 
 - Must not change when properties change
 - MUST NOT equal any reserved node-field keyword: `properties`, `children`, `affordances`, `meta`, `content_ref`, `id`, or `type`. These keywords have structural meaning in patch paths (see [Messages](/spec/core/messages#patch-path-syntax)), so an id colliding with one is unaddressable.
 - MUST NOT contain the characters `/` (U+002F) or `~` (U+007E). Both are reserved in patch paths: `/` is the path segment delimiter and `~` is the JSON Pointer escape prefix (see [Messages](/spec/core/messages#patch-path-syntax)). Providers that generate IDs from external sources (URLs, file paths, external IDs) MUST escape, hash, or otherwise transform those characters before using the value as a SLOP id.
+
+Because every node's `id` is unique among its siblings, the sequence of ids from the root uniquely addresses any node in the tree — this is what patch paths rely on (see [Messages](/spec/core/messages#patch-path-syntax)). The same id may appear under different parents.
 
 ### `type`
 

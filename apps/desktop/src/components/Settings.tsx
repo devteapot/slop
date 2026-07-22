@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { useAppStore } from "../stores/app-store";
+import { useEffect, useRef, useState } from "react";
+import { getBridgePairingToken, regenerateBridgePairingToken } from "../lib/commands";
 import type { LlmProfile } from "../lib/types";
+import { useAppStore } from "../stores/app-store";
 
 interface SettingsProps {
   onClose: () => void;
@@ -30,6 +31,39 @@ export function Settings({ onClose }: SettingsProps) {
 
   const [editing, setEditing] = useState<LlmProfile | null>(null);
   const [isNew, setIsNew] = useState(false);
+
+  const [bridgeToken, setBridgeToken] = useState("");
+  const [tokenCopied, setTokenCopied] = useState(false);
+  const tokenInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getBridgePairingToken()
+      .then(setBridgeToken)
+      .catch(() => setBridgeToken(""));
+  }, []);
+
+  async function handleCopyToken() {
+    if (!bridgeToken) return;
+    try {
+      await navigator.clipboard.writeText(bridgeToken);
+    } catch {
+      // Clipboard API unavailable — select the token so the user can copy manually
+      tokenInputRef.current?.select();
+      return;
+    }
+    setTokenCopied(true);
+    setTimeout(() => setTokenCopied(false), 1500);
+  }
+
+  async function handleRegenerateToken() {
+    try {
+      const next = await regenerateBridgePairingToken();
+      setBridgeToken(next);
+      setTokenCopied(false);
+    } catch {
+      // Keep the current token on failure
+    }
+  }
 
   function startNew() {
     setIsNew(true);
@@ -76,10 +110,11 @@ export function Settings({ onClose }: SettingsProps) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>LLM Profiles</span>
+          <span>Settings</span>
           <button onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body">
+          <div className="settings-section-label">LLM Profiles</div>
           <button className="add-profile-btn" onClick={startNew}>
             + New Profile
           </button>
@@ -158,6 +193,32 @@ export function Settings({ onClose }: SettingsProps) {
               </div>
             </div>
           )}
+
+          <div className="settings-section-label">Extension Bridge</div>
+          <div className="bridge-pairing">
+            <p className="bridge-pairing-hint">
+              Paste this pairing token into the SLOP browser extension to authorize it to connect to the desktop bridge.
+            </p>
+            <div className="bridge-token-row">
+              <input
+                ref={tokenInputRef}
+                readOnly
+                value={bridgeToken}
+                spellCheck={false}
+                placeholder="No pairing token available"
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button type="button" className="btn-primary" onClick={handleCopyToken} disabled={!bridgeToken}>
+                {tokenCopied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <div className="bridge-pairing-actions">
+              <button type="button" className="btn-secondary" onClick={handleRegenerateToken}>
+                Regenerate
+              </button>
+              <span className="bridge-pairing-hint">Regenerating disconnects the extension until it re-pairs.</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

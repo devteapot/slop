@@ -1,6 +1,8 @@
-import type { SlopNode } from "@slop-ai/consumer/browser";
-import { SlopConsumer, WebSocketClientTransport, PostMessageClientTransport } from "@slop-ai/consumer/browser";
-import type { ProviderSpec, BackgroundMessage } from "../types";
+import type { HelloMessage, SlopNode } from "@slop-ai/consumer/browser";
+import { PostMessageClientTransport, SlopConsumer, WebSocketClientTransport } from "@slop-ai/consumer/browser";
+import type { BackgroundMessage, ProviderSpec } from "../types";
+
+export type HelloIdentity = HelloMessage["provider"];
 
 export interface ProviderEntry {
   name: string; // "data" for ws, "ui" for postmessage
@@ -10,10 +12,13 @@ export interface ProviderEntry {
   subscriptionId: string | null;
   tree: SlopNode | null;
   status: "disconnected" | "connecting" | "connected";
+  /** Identity from the provider's hello message — the only valid attribution source. */
+  hello: HelloIdentity | null;
 }
 
 type StatusHandler = () => void;
 type TreeHandler = () => void;
+type HelloHandler = (spec: ProviderSpec, hello: HelloIdentity) => void;
 
 export class Session {
   providers: ProviderEntry[] = [];
@@ -24,12 +29,20 @@ export class Session {
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private onStatusChange: StatusHandler;
   private onTreeUpdate: TreeHandler;
+  private onHello: HelloHandler;
 
-  constructor(tabId: number, port: chrome.runtime.Port, onStatusChange: StatusHandler, onTreeUpdate: TreeHandler) {
+  constructor(
+    tabId: number,
+    port: chrome.runtime.Port,
+    onStatusChange: StatusHandler,
+    onTreeUpdate: TreeHandler,
+    onHello: HelloHandler = () => {},
+  ) {
     this.tabId = tabId;
     this.port = port;
     this.onStatusChange = onStatusChange;
     this.onTreeUpdate = onTreeUpdate;
+    this.onHello = onHello;
   }
 
   async connect(specs: ProviderSpec[]): Promise<void> {
@@ -41,6 +54,7 @@ export class Session {
       subscriptionId: null,
       tree: null,
       status: "disconnected" as const,
+      hello: null,
     }));
 
     for (const entry of this.providers) {
@@ -89,6 +103,7 @@ export class Session {
         subscriptionId: null,
         tree: null,
         status: "disconnected",
+        hello: null,
       };
       this.providers.push(entry);
       this.connectProvider(entry);
@@ -118,6 +133,10 @@ export class Session {
     return this.providers[index];
   }
 
+  getEntryBySpec(spec: ProviderSpec): ProviderEntry | undefined {
+    return this.providers.find((p) => p.transport === spec.transport && (p.endpoint ?? "") === (spec.endpoint ?? ""));
+  }
+
   getConnectedProviders(): Array<{ entry: ProviderEntry; index: number }> {
     return this.providers
       .map((entry, index) => ({ entry, index }))
@@ -142,10 +161,13 @@ export class Session {
       entry.subscriptionId = subId;
       entry.tree = snapshot;
       entry.status = "connected";
+      entry.hello = hello.provider;
 
       if (!this.providerName) {
         this.providerName = hello.provider.name;
       }
+
+      this.onHello({ transport: entry.transport, endpoint: entry.endpoint }, hello.provider);
 
       this.onStatusChange();
       this.onTreeUpdate();

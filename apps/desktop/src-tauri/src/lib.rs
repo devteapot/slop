@@ -23,10 +23,14 @@ pub fn run() {
             let workspace_mgr = workspace::WorkspaceManager::new(app_data_dir.clone());
             let provider_registry = provider::ProviderRegistry::new();
             let profile_mgr = llm::profiles::ProfileManager::new(app_data_dir.clone());
+            let bridge_token = std::sync::Arc::new(
+                bridge::security::BridgeToken::load_or_create(app_data_dir.clone()),
+            );
 
             app.manage(workspace_mgr.clone());
             app.manage(provider_registry.clone());
             app.manage(profile_mgr);
+            app.manage(bridge_token);
 
             // Initial provider discovery
             {
@@ -87,6 +91,8 @@ pub fn run() {
             commands::fetch_models,
             // Bridge
             commands::bridge_send,
+            commands::get_bridge_pairing_token,
+            commands::regenerate_bridge_pairing_token,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

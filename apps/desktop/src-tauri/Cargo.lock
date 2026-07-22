@@ -3446,13 +3446,16 @@ name = "slop-desktop"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "dirs",
  "futures-util",
+ "getrandom 0.3.4",
  "notify",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
  "slop-ai",
+ "subtle",
  "tauri",
  "tauri-build",
  "thiserror 2.0.18",

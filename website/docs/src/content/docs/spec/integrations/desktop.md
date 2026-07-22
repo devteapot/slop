@@ -302,11 +302,19 @@ For server-backed web apps, the extension's only job is telling the desktop "thi
 
 For SPAs, the extension is the relay — it receives SLOP messages from the desktop over the bridge, forwards them to the page via postMessage, and relays responses back.
 
+### Bridge security
+
+The bridge listens on loopback, but loopback is not a trust boundary — any local process, and any web page open in the user's browser, can attempt a connection to `ws://localhost:9339`. An unauthenticated peer that connects can announce fake providers (`provider-available`) or sit in the relay path, poisoning what the user's AI sees. The bridge therefore enforces the WebSocket rules from [Transport & Discovery § Security considerations](/spec/core/transport#security-considerations), specialized for its one legitimate peer:
+
+- **Reject browser Origins.** The bridge peer is an extension background worker (or a native process) — never a web page. The bridge server MUST validate the `Origin` header during the HTTP upgrade and reject any upgrade carrying a web origin (`http://` / `https://`). Extensions connect from extension origins (e.g. `chrome-extension://<extension-id>`), so the correct shape is an allowlist containing the paired extension's origin. Upgrades with no `Origin` header (native processes) pass the Origin check but remain subject to authentication below.
+- **Authenticate the extension.** The bridge SHOULD require a token established on first pairing — for example, the desktop app shows a one-time confirmation when an unknown extension first connects, then both sides persist the token. The token is transported using the `Sec-WebSocket-Protocol` pattern defined in [Transport & Discovery § Security considerations](/spec/core/transport#security-considerations) (verified during the upgrade, constant-time compare, never logged); this document does not re-specify that mechanism.
+- **The bridge is not the security boundary.** The bridge does discovery and relay only. Providers remain the authority for every `invoke` — they re-authorize each action against live state and caller identity regardless of what the bridge or extension forwarded (see "Bridges and relays are not the security boundary" in [Transport & Discovery](/spec/core/transport#security-considerations)). A compromised bridge can lie about which providers exist; it must not be able to make a provider execute an action the provider would otherwise refuse.
+
 ### Zero-setup operation
 
 - If the desktop is not running, the extension works standalone (its own chat UI)
 - If the extension is not installed, the desktop works standalone (local + manual WebSocket providers)
-- When both are running, the extension tries `ws://localhost:9339/slop-bridge` on startup — if it connects, discovery and relay are active. No configuration, no manifest files, no installation steps.
+- When both are running, the extension tries `ws://localhost:9339/slop-bridge` on startup — if it connects, discovery and relay are active. The first connection from a not-yet-paired extension surfaces a one-time pairing confirmation in the desktop app (see [Bridge security](#bridge-security)); after pairing, reconnects are silent. No manifest files, no installation steps — a single first-run prompt is the acceptable floor, because a silently accepted unauthenticated relay is not.
 - The extension retries the bridge connection every **5 seconds** when the desktop is unavailable, so it auto-reconnects quickly when the desktop launches.
 
 ### Provider discovery resilience

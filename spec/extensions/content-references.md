@@ -238,11 +238,15 @@ slop.register("inbox/msg-42", {
     },
   },
   actions: {
-    read_body: () => ({ content: message.body, encoding: "utf-8" }),
+    read_content: () => ({ content: message.body, encoding: "utf-8" }),
     reply: { params: { body: "string" }, handler: ({ body }) => sendReply(body as string) },
   },
 });
 ```
+
+The body's `contentRef` omits `uri`, so it auto-generates `slop://content/inbox/msg-42` — a `slop://` URI MUST be backed by a `read_content` affordance on the node that carries the `content_ref`, hence the action name above. The attachment supplies an explicit `https://` URI, so it needs no `read_content` of its own.
+
+**Disambiguation.** When a node and its descendants each carry content references, an auto-generated `slop://` URI always resolves via the `read_content` affordance of *the node carrying that `content_ref`* — never a parent's or child's. Each child node's reference resolves through its own node's `read_content` affordance, or through its explicit `uri` when one is set.
 
 ## Streaming content
 

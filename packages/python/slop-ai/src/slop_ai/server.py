@@ -431,11 +431,19 @@ class SlopServer:
             }
             if result_data:
                 resp["data"] = result_data
-            conn.send(resp)
 
-            # Auto-refresh after invoke
+            # Spec (core/messages.md, "Message ordering"): patches caused by an
+            # invoke MUST reach the invoking connection BEFORE the `result`.
+            # Auto-refresh first so _broadcast_patches writes the patches, then
+            # send the result. For "accepted" (async) results this covers only
+            # changes made before the handler returned; later progress arrives
+            # in subsequent patches.
             self._rebuild()
+            conn.send(resp)
         except Exception as e:
+            # The handler may have mutated state before raising; per the spec,
+            # those changes must still be broadcast before the result.
+            self._rebuild()
             conn.send({
                 "type": "result",
                 "id": msg["id"],

@@ -125,6 +125,121 @@ def test_invoke():
     assert results[0]["status"] == "ok"
 
 
+def test_invoke_patches_sent_before_result():
+    """Spec (core/messages.md, "Message ordering"): patches caused by an invoke
+    must arrive on the invoking connection before the `result` message."""
+    slop = SlopServer("app", "App")
+    state = {"count": 0}
+
+    @slop.node("counter")
+    def counter_node():
+        return {
+            "type": "status",
+            "props": {"count": state["count"]},
+            "actions": {"increment": lambda params: state.update(count=state["count"] + 1)},
+        }
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {"type": "subscribe", "id": "sub-1"}))
+
+    _run(slop.handle_message(conn, {
+        "type": "invoke",
+        "id": "inv-1",
+        "path": "/app/counter",
+        "action": "increment",
+    }))
+
+    types = [m["type"] for m in conn.messages]
+    assert "patch" in types, "invoke that mutates state should produce a patch"
+    patch_index = types.index("patch")
+    result_index = types.index("result")
+    assert patch_index < result_index, "patch must be sent before the result"
+
+    result = conn.messages[result_index]
+    assert result["status"] == "ok"
+    # The patch should already reflect the mutation
+    patch = conn.messages[patch_index]
+    assert any(
+        op.get("path") == "/counter/properties/count" and op.get("value") == 1
+        for op in patch["ops"]
+    )
+
+
+def test_invoke_accepted_patches_sent_before_result():
+    """For `accepted` (async) results, changes made before the handler returned
+    must still be broadcast before the result."""
+    slop = SlopServer("app", "App")
+    state = {"status": "idle"}
+
+    def start(params):
+        state["status"] = "running"
+        return {"__async": True, "task_id": "t-1"}
+
+    @slop.node("job")
+    def job_node():
+        return {
+            "type": "task",
+            "props": {"status": state["status"]},
+            "actions": {"start": start},
+        }
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {"type": "subscribe", "id": "sub-1"}))
+
+    _run(slop.handle_message(conn, {
+        "type": "invoke",
+        "id": "inv-1",
+        "path": "/app/job",
+        "action": "start",
+    }))
+
+    types = [m["type"] for m in conn.messages]
+    assert "patch" in types
+    assert types.index("patch") < types.index("result")
+    result = [m for m in conn.messages if m["type"] == "result"][0]
+    assert result["status"] == "accepted"
+    assert result["data"] == {"task_id": "t-1"}
+
+
+def test_invoke_error_patches_sent_before_result():
+    """A handler that mutates state and then raises: those changes must still be
+    broadcast before the error result."""
+    slop = SlopServer("app", "App")
+    state = {"attempts": 0}
+
+    def flaky(params):
+        state["attempts"] += 1
+        raise RuntimeError("boom")
+
+    @slop.node("thing")
+    def thing_node():
+        return {
+            "type": "status",
+            "props": {"attempts": state["attempts"]},
+            "actions": {"try": flaky},
+        }
+
+    conn = MockConnection()
+    slop.handle_connection(conn)
+    _run(slop.handle_message(conn, {"type": "subscribe", "id": "sub-1"}))
+
+    _run(slop.handle_message(conn, {
+        "type": "invoke",
+        "id": "inv-1",
+        "path": "/app/thing",
+        "action": "try",
+    }))
+
+    types = [m["type"] for m in conn.messages]
+    assert "patch" in types
+    assert types.index("patch") < types.index("result")
+    result = [m for m in conn.messages if m["type"] == "result"][0]
+    assert result["status"] == "error"
+    assert "boom" in result["error"]["message"]
+
+
 def test_invoke_not_found():
     slop = SlopServer("app", "App")
     conn = MockConnection()

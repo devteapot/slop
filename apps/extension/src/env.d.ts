@@ -27,6 +27,7 @@ declare namespace chrome {
     interface Tab {
       id?: number;
       title?: string;
+      url?: string;
     }
 
     function query(queryInfo: { active?: boolean; currentWindow?: boolean }): Promise<Tab[]>;
@@ -41,6 +42,7 @@ declare namespace chrome {
 
     interface MessageSender {
       tab?: tabs.Tab;
+      url?: string;
     }
 
     interface Port {
@@ -58,6 +60,7 @@ declare namespace chrome {
 
     function connect(connectInfo?: ConnectInfo): Port;
     function openOptionsPage(): void;
+    function sendMessage(message: unknown, responseCallback?: (response?: unknown) => void): void;
 
     const onConnect: Event<(port: Port) => void>;
     const onMessage: Event<
@@ -82,6 +85,8 @@ declare namespace chrome {
       ): void;
       set(items: Record<string, unknown>): Promise<void>;
       set(items: Record<string, unknown>, callback: () => void): void;
+      remove(keys: string | string[]): Promise<void>;
+      remove(keys: string | string[], callback: () => void): void;
     }
 
     const local: StorageArea;

@@ -3,6 +3,11 @@
 //! The extension connects here to:
 //! 1. Announce discovered browser providers
 //! 2. Relay SLOP messages for SPA providers (postMessage-based)
+//!
+//! Loopback is not a trust boundary: every upgrade is gated by Origin
+//! validation and pairing-token authentication (see `security`).
+
+pub mod security;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
@@ -11,11 +16,14 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Mutex};
-use tokio_tungstenite::accept_async;
+use tokio_tungstenite::accept_hdr_async;
+use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
+use tokio_tungstenite::tungstenite::http::{HeaderValue, StatusCode};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::events;
 use crate::provider::{ProviderRegistry, ProviderSource, ProviderSummary, TransportConfig};
+use security::{BridgeToken, BEARER_PROTOCOL};
 
 const BRIDGE_PORT: u16 = 9339;
 
@@ -74,9 +82,21 @@ pub async fn start_bridge_server(app: AppHandle) {
         let sinks_clone = sinks.clone();
 
         tokio::spawn(async move {
-            let ws_stream = match accept_async(stream).await {
+            // Snapshot the expected token at accept time; connections accepted
+            // before a regeneration are explicitly closed by `disconnect_all_clients`.
+            let expected_token = app_clone
+                .try_state::<Arc<BridgeToken>>()
+                .map(|t| t.current())
+                .unwrap_or_default();
+
+            let callback = |req: &Request, response: Response| {
+                gate_upgrade(req, response, &expected_token)
+            };
+
+            let ws_stream = match accept_hdr_async(stream, callback).await {
                 Ok(ws) => ws,
                 Err(e) => {
+                    // Note: rejection errors carry only a status code — never the token.
                     eprintln!("Bridge: WebSocket handshake failed: {}", e);
                     return;
                 }
@@ -144,6 +164,73 @@ pub async fn start_bridge_server(app: AppHandle) {
             }
         });
     }
+}
+
+/// Upgrade gate enforcing the bridge security rules from
+/// spec/integrations/desktop.md (Bridge security):
+///
+/// 1. Reject web Origins (`http`/`https` scheme, or literal `null`) with 403.
+///    Extension origins and absent Origin pass to the token check.
+/// 2. Require a valid pairing token offered via
+///    `Sec-WebSocket-Protocol: slop.bearer, <token>`; compare in constant
+///    time; reject missing/invalid tokens with 401. On success, echo back
+///    only the non-secret `slop.bearer` subprotocol — never the token.
+fn gate_upgrade(
+    req: &Request,
+    mut response: Response,
+    expected_token: &str,
+) -> Result<Response, ErrorResponse> {
+    if let Some(origin) = req.headers().get("Origin").and_then(|v| v.to_str().ok()) {
+        if security::origin_is_forbidden(origin) {
+            return Err(reject(StatusCode::FORBIDDEN));
+        }
+    }
+
+    let protocol_values: Vec<&str> = req
+        .headers()
+        .get_all("Sec-WebSocket-Protocol")
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .collect();
+
+    match security::extract_bearer_token(&protocol_values) {
+        Some(offered) if security::token_matches(&offered, expected_token) => {
+            response.headers_mut().insert(
+                "Sec-WebSocket-Protocol",
+                HeaderValue::from_static(BEARER_PROTOCOL),
+            );
+            Ok(response)
+        }
+        _ => Err(reject(StatusCode::UNAUTHORIZED)),
+    }
+}
+
+fn reject(status: StatusCode) -> ErrorResponse {
+    let mut response = ErrorResponse::new(None);
+    *response.status_mut() = status;
+    response
+}
+
+/// Close every connected bridge client. Used when the pairing token is
+/// regenerated so stale peers must re-pair with the new token.
+pub async fn disconnect_all_clients(app: &AppHandle) {
+    let Some(sinks_state) = app.try_state::<BridgeSinks>() else {
+        return;
+    };
+
+    let drained: Vec<_> = {
+        let mut sinks = sinks_state.0.lock().await;
+        sinks.drain(..).collect()
+    };
+
+    for sink in drained {
+        let mut s = sink.lock().await;
+        let _ = s.send(Message::Close(None)).await;
+        let _ = s.close().await;
+    }
+
+    clear_all_relays(app).await;
+    let _ = app.emit("bridge-status", false);
 }
 
 async fn handle_bridge_message(app: &AppHandle, value: &Value) {
@@ -268,4 +355,85 @@ pub async fn bridge_send_value(app: AppHandle, message: Value) -> Result<(), Str
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TOKEN: &str = "0123456789abcdefghijklmnopqrstuvwxyzABCDEF_";
+
+    fn upgrade_request(origin: Option<&str>, protocols: Option<&str>) -> Request {
+        let mut builder = Request::builder().uri("ws://127.0.0.1:9339/slop-bridge");
+        if let Some(origin) = origin {
+            builder = builder.header("Origin", origin);
+        }
+        if let Some(protocols) = protocols {
+            builder = builder.header("Sec-WebSocket-Protocol", protocols);
+        }
+        builder.body(()).unwrap()
+    }
+
+    fn gate(origin: Option<&str>, protocols: Option<&str>) -> Result<Response, ErrorResponse> {
+        let req = upgrade_request(origin, protocols);
+        let response = Response::new(());
+        gate_upgrade(&req, response, TOKEN)
+    }
+
+    #[test]
+    fn rejects_web_origin_with_403_even_with_valid_token() {
+        for origin in ["http://localhost:3000", "https://evil.example.com", "null"] {
+            let err = gate(Some(origin), Some(&format!("slop.bearer, {}", TOKEN)))
+                .expect_err("web origin must be rejected");
+            assert_eq!(err.status(), StatusCode::FORBIDDEN);
+        }
+    }
+
+    #[test]
+    fn accepts_extension_origin_with_valid_token_and_echoes_label_only() {
+        let response = gate(
+            Some("chrome-extension://abcdefghijklmnop"),
+            Some(&format!("slop.bearer, {}", TOKEN)),
+        )
+        .expect("extension origin with valid token must be accepted");
+
+        let echoed = response
+            .headers()
+            .get("Sec-WebSocket-Protocol")
+            .and_then(|v| v.to_str().ok())
+            .expect("subprotocol must be echoed");
+        assert_eq!(echoed, BEARER_PROTOCOL);
+        assert!(!echoed.contains(TOKEN));
+    }
+
+    #[test]
+    fn accepts_absent_origin_with_valid_token() {
+        let response = gate(None, Some(&format!("slop.bearer, {}", TOKEN)))
+            .expect("native client with valid token must be accepted");
+        assert_eq!(
+            response
+                .headers()
+                .get("Sec-WebSocket-Protocol")
+                .and_then(|v| v.to_str().ok()),
+            Some(BEARER_PROTOCOL)
+        );
+    }
+
+    #[test]
+    fn rejects_missing_token_with_401() {
+        for protocols in [None, Some("slop.bearer"), Some("some-other-protocol")] {
+            let err = gate(None, protocols).expect_err("missing token must be rejected");
+            assert_eq!(err.status(), StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_token_with_401() {
+        let err = gate(
+            Some("moz-extension://uuid-here"),
+            Some("slop.bearer, wrong-token"),
+        )
+        .expect_err("invalid token must be rejected");
+        assert_eq!(err.status(), StatusCode::UNAUTHORIZED);
+    }
 }

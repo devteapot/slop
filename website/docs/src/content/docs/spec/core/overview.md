@@ -34,7 +34,7 @@ The key properties:
 | **Node** | A single element in the state tree, with an ID, type, properties, children, and affordances |
 | **Affordance** | An action available on a node — contextual, not global |
 | **Subscription** | A consumer's request to observe a subtree at a given depth |
-| **Patch** | An incremental update to the state tree (JSON Patch format) |
+| **Patch** | An incremental update to the state tree (SLOP patch format, modeled on JSON Patch) |
 | **Salience** | A hint from the provider about how important/relevant a node is right now |
 | **Depth** | How many levels deep into the tree a query or subscription resolves. `0` = this node only, `1` = this node + direct children, `-1` = unlimited |
 

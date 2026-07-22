@@ -39,6 +39,15 @@ A score indicating how relevant this node is to the current moment. Providers co
 
 Salience is relative within a tree. It helps the consumer decide *what to read first*, not whether something exists.
 
+#### Default salience
+
+`meta.salience` is optional. Wherever a salience value is consumed, implementations MUST treat a node without a score as having salience **0.5**:
+
+- **Filtering** — a node without `meta.salience` passes a `filter.min_salience` threshold exactly when `0.5 >= min_salience`. (A node is excluded when its effective salience is strictly less than the threshold; equality passes.)
+- **Compaction** — the compaction scoring formula (see [Optimization pipeline](#optimization-pipeline)) uses `0.5` as the salience of unscored nodes.
+
+The default is deliberately mid-range: unscored nodes survive permissive filters (`min_salience <= 0.5`) but are dropped by stricter ones. A provider that needs a node to survive aggressive filtering MUST score it explicitly (or mark it `pinned`).
+
 ### `pinned` (boolean)
 
 When `true`, this node and its children must never be collapsed by auto-compaction, regardless of salience score or node budget. Use for subtrees that should always be visible to the AI — such as the `ui` node in fullstack apps, or critical status indicators.
@@ -47,7 +56,14 @@ Default: `false`.
 
 ### `changed` (boolean)
 
-Set to `true` on nodes that were modified in the most recent patch. Automatically cleared on the next patch cycle. This lets the consumer quickly scan for what's new without diffing.
+Set to `true` on nodes that were modified in the most recent patch. This lets the consumer quickly scan for what's new without diffing.
+
+**Clearing semantics (clarification).** `changed` is transient — it describes only the most recent patch, and clearing happens on the consumer side:
+
+- Consumers MUST treat `changed: true` as scoped to the patch (or snapshot) that delivered it. When the next patch arrives on the same subscription, `changed` flags from earlier patches are stale and MUST be disregarded (or cleared in the local mirror), whether or not the new patch touches those nodes.
+- Providers MUST NOT emit patch ops whose sole purpose is to clear a stale `changed` flag, and consumers MUST NOT rely on receiving such clear-ops. Emitting explicit clears would roughly double patch traffic without adding information.
+
+A provider MAY still set `changed: false` (or remove the flag) as part of a larger `meta` diff; consumers apply that like any other meta update.
 
 ### `focus` (boolean)
 
@@ -157,7 +173,7 @@ This gives the AI a quick "what's going on?" read in minimal tokens, from which 
 - **Update salience as context changes.** A node's salience should reflect the current moment, not a static priority.
 - **Use `reason` generously.** It's cheap (one string) and extremely valuable for AI comprehension.
 - **Set `focus` based on actual user interaction**, not guesses. It should reflect what the user is looking at or typing into right now.
-- **`changed` should auto-clear.** It marks the *last* change, not all historical changes.
+- **`changed` marks the *last* change, not all historical changes.** Clearing is consumer-side — do not emit patch ops just to clear it (see [`changed`](#changed-boolean)).
 
 ## Tree optimization
 
@@ -216,9 +232,9 @@ The provider MAY enforce a global ceiling (e.g., never send more than 500 nodes 
 
 Providers MUST apply optimizations in this order:
 
-1. **Filter** — Remove nodes below `filter.min_salience` or not in `filter.types`. The root is never filtered.
+1. **Filter** — Remove nodes below `filter.min_salience` or not in `filter.types`. The root is never filtered. Nodes without `meta.salience` use the default of 0.5 (see [Default salience](#default-salience)).
 2. **Truncate** — Collapse nodes beyond `depth` into stubs with `meta.total_children` and `meta.summary`.
-3. **Compact** — If the tree still exceeds `max_nodes`, collapse lowest-salience subtrees first. Scoring: `score = salience - depth × 0.01 - childCount × 0.001`. Root children and pinned nodes are never collapsed.
+3. **Compact** — If the tree still exceeds `max_nodes`, collapse lowest-salience subtrees first. Scoring: `score = salience - depth × 0.01 - childCount × 0.001`, where `salience` is 0.5 for unscored nodes (see [Default salience](#default-salience)). Root children and pinned nodes are never collapsed.
 4. **Window** — For `query` messages with `window`, slice the requested node's children and set `meta.window` and `meta.total_children`.
 
 Each step is optional and only applies when the corresponding parameter is present.

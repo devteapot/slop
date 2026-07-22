@@ -105,6 +105,53 @@ let listener = try slop.listenUnix(
 // Keep `listener` alive for as long as the app should expose SLOP.
 ```
 
+## App Intents Adapter
+
+On Apple platforms, reuse `AppEntity` and `AppIntent` types as the source for
+SLOP nodes and affordances. The adapter keeps the mapping explicit because App
+Intents doesn't expose a supported runtime API for enumerating every entity
+property or mutating arbitrary intent parameters.
+
+```swift
+import AppIntents
+import SlopAI
+
+let noteAdapter = AppEntityAdapter<NoteEntity>(
+  type: "notes:note",
+  properties: { note in
+    ["modified": .string(note.modified.formatted(.iso8601))]
+  },
+  actions: { note in
+    [
+      "open": .appIntent(
+        OpenNoteIntent.self,
+        makeIntent: { _ in OpenNoteIntent(note: note) }
+      )
+    ]
+  }
+)
+
+try slop.registerAppEntities(
+  "notes",
+  entities: notes,
+  adapter: noteAdapter,
+  properties: ["count": .number(Double(notes.count))]
+)
+```
+
+The projection automatically includes the entity's display title, subtitle,
+and original App Intents identifier. App-specific properties and result values
+must be mapped to `JSONValue`. On the 27 releases,
+`registerAppEntityCollection` can resolve and publish an `EntityCollection`.
+
+Calling an `AppIntent` through SLOP runs the same `perform()` implementation,
+but it doesn't pass through the Siri/Shortcuts dispatcher. App Intents
+authentication policy, automatic system confirmation, presentation,
+interaction donations, and `LongRunningIntent` progress UI therefore aren't
+applied to the SLOP invocation. Continue to authorize in the provider and set
+`dangerous: true` where the SLOP consumer must confirm. Use SLOP task nodes when
+progress must also be visible to a SLOP consumer.
+
 ## Provider Transports
 
 Expose a provider over stdio NDJSON:

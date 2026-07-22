@@ -75,6 +75,7 @@ public struct WindowDescriptor {
 
 public struct ItemDescriptor {
   public var id: String
+  public var type: String
   public var props: [String: JSONValue]?
   public var summary: String?
   public var actions: [String: Action]?
@@ -84,6 +85,7 @@ public struct ItemDescriptor {
 
   public init(
     id: String,
+    type: String = "item",
     props: [String: JSONValue]? = nil,
     summary: String? = nil,
     actions: [String: Action]? = nil,
@@ -92,6 +94,7 @@ public struct ItemDescriptor {
     contentRef: ContentRef? = nil
   ) {
     self.id = id
+    self.type = type
     self.props = props
     self.summary = summary
     self.actions = actions
@@ -236,7 +239,7 @@ private func normalizeItem(path: String, item: ItemDescriptor) throws -> Normali
   return NormalizationResult(
     node: SlopNode(
       id: item.id,
-      type: "item",
+      type: item.type,
       properties: item.props,
       children: children.isEmpty ? nil : children,
       affordances: affordances.isEmpty ? nil : affordances,

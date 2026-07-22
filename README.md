@@ -21,7 +21,7 @@ SLOP fills the gap: a standard way for apps to **publish what they are** so AI c
 
 1. **State tree** — Apps expose a tree of semantic nodes (not UI elements, not raw data models — meaning). Each node has an identity, properties, and optional children.
 
-2. **Subscriptions and patches** — AI subscribes to subtrees at a chosen depth. The app pushes incremental patches (JSON Patch) as state changes. No polling, no redundant full reads.
+2. **Subscriptions and patches** — AI subscribes to subtrees at a chosen depth. The app pushes incremental patches (a JSON-Patch-inspired format with stable node-ID paths) as state changes. No polling, no redundant full reads.
 
 3. **Contextual affordances** — Actions live on the nodes they affect, not in a global tool registry. The AI sees what it can do *in context* — "reply" appears on a message node, "merge" appears on a PR node.
 

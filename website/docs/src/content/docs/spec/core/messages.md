@@ -15,6 +15,19 @@ Every message has a `type` field and optionally an `id` for request-response cor
 }
 ```
 
+### Correlation and identity
+
+The `id` field is *usually* a one-shot correlation id, but a few message types intentionally overload it. These special cases are deliberate and the wire field names MUST NOT change:
+
+| Message | Field | Meaning |
+|---|---|---|
+| `subscribe` | `id` | Correlation id **and** the durable subscription identity. Echoed as `id` on the initial `snapshot`, and as `subscription` on every subsequent `patch`. MUST be unique among the consumer's active subscriptions. |
+| `unsubscribe` | `id` | The subscription to cancel — not a fresh correlation id. `unsubscribe` has no correlation id of its own. |
+| `query` / `invoke` | `id` | One-shot correlation; echoed as `id` on the `snapshot` / `result` response. |
+| `snapshot` | `id` | The `subscribe` or `query` this answers (for subscriptions, the subscription identity). |
+| `patch` | `subscription` | The subscription this patch applies to. Named `subscription` rather than `id` because a patch is a stream element, not a response to a single request. |
+| `error` | `id` | The `id` of the offending consumer message, when known. |
+
 ## Consumer → Provider messages
 
 ### `subscribe`
@@ -30,7 +43,7 @@ Begin observing a subtree. The provider responds with a `snapshot` and then stre
   "max_nodes": 200,         // Maximum total nodes in the snapshot (optional)
   "filter": {               // Optional filters
     "types": ["item", "notification"],  // Only include these node types
-    "min_salience": 0.5     // Only include nodes above this salience
+    "min_salience": 0.5     // Only include nodes with salience >= this value
   }
 }
 ```
@@ -281,7 +294,8 @@ If the error is not associated with a specific consumer message (e.g., internal 
 
 - Messages within a subscription are strictly ordered: `snapshot` before any `patch`, patches in version order.
 - Messages across subscriptions have no ordering guarantee.
-- `result` messages for `invoke` may arrive interleaved with patches. The `id` field correlates responses.
+- `result` messages for `invoke` may arrive interleaved with patches from unrelated state changes. The `id` field correlates responses.
+- **Invoke results and their patches:** state changes made by an invoke handler MUST be broadcast — as `patch` (or re-base `snapshot`) messages to the connection's affected subscriptions — *before* the provider sends the corresponding `result` on that connection. A consumer that processes messages in receive order can therefore assume its local mirror already reflects the action's effects by the time it reads an `ok` result; consumers SHOULD apply all patches received ahead of a result before re-reading affected state. For `accepted` (async) results, this ordering covers only changes made before the handler returned — subsequent progress arrives in later patches.
 
 ## Batch messages
 

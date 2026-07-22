@@ -575,7 +575,7 @@ impl SlopServer {
                         return;
                     }
                 }
-                match h(&params) {
+                let resp = match h(&params) {
                     Ok(data) => {
                         let is_async = data
                             .as_ref()
@@ -599,19 +599,27 @@ impl SlopServer {
                                 }
                             }
                         }
-                        let _ = conn.send(&resp);
+                        resp
                     }
-                    Err(e) => {
-                        let _ = conn.send(&json!({
-                            "type": "result",
-                            "id": msg_id,
-                            "status": "error",
-                            "error": {"code": "internal", "message": e.to_string()}
-                        }));
-                    }
-                }
-                // Auto-refresh after invoke
+                    Err(e) => json!({
+                        "type": "result",
+                        "id": msg_id,
+                        "status": "error",
+                        "error": {"code": "internal", "message": e.to_string()}
+                    }),
+                };
+                // Auto-refresh after invoke, BEFORE sending the result.
+                // Spec (spec/core/messages.md "Message ordering"): patch
+                // messages caused by an invoke MUST reach the invoking
+                // connection before the corresponding `result` — regardless
+                // of ok/error/accepted status. For `accepted` (async) results
+                // this covers only changes made before the handler returned;
+                // later progress arrives in subsequent patches. Every
+                // transport delivers messages in `Connection::send` order
+                // (per-connection mpsc or locked writer), so broadcasting
+                // patches first guarantees the wire ordering.
                 self.refresh();
+                let _ = conn.send(&resp);
             }
         }
     }
@@ -1026,6 +1034,156 @@ mod tests {
         let result = messages.iter().find(|m| m["type"] == "result").unwrap();
         assert_eq!(result["status"], "ok");
         assert_eq!(*state.lock().unwrap(), 1);
+    }
+
+    /// Spec (spec/core/messages.md "Message ordering"): patches caused by an
+    /// invoke MUST arrive on the invoking connection before the `result`.
+    #[test]
+    fn test_invoke_patch_arrives_before_result() {
+        let state = Arc::new(Mutex::new(0i64));
+        let slop = SlopServer::new("app", "App");
+
+        let s = state.clone();
+        slop.register_fn("counter", move || {
+            let n = *s.lock().unwrap();
+            json!({"type": "status", "props": {"count": n}})
+        });
+
+        let s = state.clone();
+        slop.action("counter", "increment", move |_params: &Value| {
+            *s.lock().unwrap() += 1;
+            Ok(None)
+        });
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+        slop.handle_message(&dyn_conn, &json!({"type": "subscribe", "id": "sub-1"}));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "invoke",
+                "id": "inv-1",
+                "path": "/app/counter",
+                "action": "increment"
+            }),
+        );
+
+        let messages = conn.messages();
+        let patch_idx = messages
+            .iter()
+            .position(|m| m["type"] == "patch")
+            .expect("invoke that mutates state must produce a patch");
+        let result_idx = messages
+            .iter()
+            .position(|m| m["type"] == "result" && m["id"] == "inv-1")
+            .expect("invoke must produce a result");
+        assert!(
+            patch_idx < result_idx,
+            "patch (index {patch_idx}) must arrive before result (index {result_idx})"
+        );
+        assert_eq!(messages[result_idx]["status"], "ok");
+        // The patch must already reflect the handler's state change.
+        let ops = messages[patch_idx]["ops"].as_array().unwrap();
+        assert!(ops.iter().any(|op| op["value"]["props"]["count"] == 1
+            || op["value"]["count"] == 1
+            || op["value"] == 1));
+    }
+
+    /// Same ordering rule for `accepted` (async) results: changes made before
+    /// the handler returned must be broadcast before the result.
+    #[test]
+    fn test_invoke_patch_before_accepted_result() {
+        let state = Arc::new(Mutex::new(0i64));
+        let slop = SlopServer::new("app", "App");
+
+        let s = state.clone();
+        slop.register_fn("job", move || {
+            let n = *s.lock().unwrap();
+            json!({"type": "status", "props": {"runs": n}})
+        });
+
+        let s = state.clone();
+        slop.action("job", "start", move |_params: &Value| {
+            *s.lock().unwrap() += 1;
+            Ok(Some(json!({"__async": true, "taskId": "task-1"})))
+        });
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+        slop.handle_message(&dyn_conn, &json!({"type": "subscribe", "id": "sub-1"}));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "invoke",
+                "id": "inv-async",
+                "path": "/app/job",
+                "action": "start"
+            }),
+        );
+
+        let messages = conn.messages();
+        let patch_idx = messages
+            .iter()
+            .position(|m| m["type"] == "patch")
+            .expect("state change before handler return must produce a patch");
+        let result_idx = messages
+            .iter()
+            .position(|m| m["type"] == "result" && m["id"] == "inv-async")
+            .expect("invoke must produce a result");
+        assert!(patch_idx < result_idx);
+        assert_eq!(messages[result_idx]["status"], "accepted");
+        assert_eq!(messages[result_idx]["data"]["taskId"], "task-1");
+    }
+
+    /// A handler that mutates state and then fails still broadcasts its
+    /// patches before the error result.
+    #[test]
+    fn test_invoke_patch_before_error_result() {
+        let state = Arc::new(Mutex::new(0i64));
+        let slop = SlopServer::new("app", "App");
+
+        let s = state.clone();
+        slop.register_fn("flaky", move || {
+            let n = *s.lock().unwrap();
+            json!({"type": "status", "props": {"attempts": n}})
+        });
+
+        let s = state.clone();
+        slop.action("flaky", "try", move |_params: &Value| {
+            *s.lock().unwrap() += 1;
+            Err(crate::error::SlopError::ActionFailed {
+                code: "internal".into(),
+                message: "boom".into(),
+            })
+        });
+
+        let conn = MockConnection::new();
+        let dyn_conn = as_dyn(&conn);
+        slop.handle_connection(dyn_conn.clone());
+        slop.handle_message(&dyn_conn, &json!({"type": "subscribe", "id": "sub-1"}));
+        slop.handle_message(
+            &dyn_conn,
+            &json!({
+                "type": "invoke",
+                "id": "inv-err",
+                "path": "/app/flaky",
+                "action": "try"
+            }),
+        );
+
+        let messages = conn.messages();
+        let patch_idx = messages
+            .iter()
+            .position(|m| m["type"] == "patch")
+            .expect("state change must produce a patch even when the handler errors");
+        let result_idx = messages
+            .iter()
+            .position(|m| m["type"] == "result" && m["id"] == "inv-err")
+            .expect("invoke must produce a result");
+        assert!(patch_idx < result_idx);
+        assert_eq!(messages[result_idx]["status"], "error");
     }
 
     #[test]

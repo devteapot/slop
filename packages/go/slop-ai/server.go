@@ -560,6 +560,11 @@ func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[stri
 
 	result, err := handler.HandleAction(ctx, Params(params))
 	if err != nil {
+		// The handler may have mutated state before failing. Per
+		// spec/core/messages.md §Message ordering, any state changes made by
+		// the handler MUST be broadcast as patches before the result is sent
+		// on this connection, regardless of result status.
+		s.Refresh()
 		if err := conn.Send(map[string]any{
 			"type":   "result",
 			"id":     msgID,
@@ -598,12 +603,20 @@ func (s *Server) handleInvoke(ctx context.Context, conn Connection, msg map[stri
 			resp["data"] = result
 		}
 	}
+	// Auto-refresh after invoke — BEFORE sending the result. Per
+	// spec/core/messages.md §Message ordering, state changes made by an
+	// invoke handler MUST be broadcast as patch messages to this
+	// connection's subscriptions before the corresponding result is sent.
+	// Refresh broadcasts synchronously and every transport's Send is a
+	// serialized synchronous write, so the patch write to the invoking
+	// connection completes before the result write below. For "accepted"
+	// (async) results this covers only changes made before the handler
+	// returned; later progress arrives in subsequent patches.
+	s.Refresh()
+
 	if err := conn.Send(resp); err != nil {
 		s.logger.Warn("failed to send message", "err", err)
 	}
-
-	// Auto-refresh after invoke
-	s.Refresh()
 }
 
 // resolveAffordance walks the current tree to find the affordance descriptor

@@ -194,6 +194,9 @@ export abstract class ProviderBase<S = unknown> {
       this.rebuild();
       return result;
     } catch (err: any) {
+      // A handler may mutate state before failing; those changes MUST still be
+      // broadcast before the error result (spec/core/messages.md §Message ordering).
+      this.rebuild();
       return {
         type: "result",
         id: msg.id,

@@ -160,6 +160,144 @@ func TestInvoke(t *testing.T) {
 	}
 }
 
+// indexOfMessage returns the index of the first message matching type and id
+// ("" id matches any), or -1.
+func indexOfMessage(msgs []map[string]any, msgType, id string) int {
+	for i, m := range msgs {
+		if m["type"] != msgType {
+			continue
+		}
+		if id != "" && m["id"] != id {
+			continue
+		}
+		return i
+	}
+	return -1
+}
+
+// Spec (spec/core/messages.md §Message ordering): patches caused by an invoke
+// MUST be sent to the invoking connection before the result message.
+func TestInvokePatchBeforeResult(t *testing.T) {
+	count := 0
+	s := NewServer("app", "App")
+	s.RegisterFunc("counter", func() Node {
+		return Node{Type: "status", Props: Props{"count": count}}
+	})
+	s.Handle("counter", "increment", HandlerFunc(func(ctx context.Context, p Params) (any, error) {
+		count++
+		return nil, nil
+	}))
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+	s.HandleMessage(context.Background(), conn, map[string]any{"type": "subscribe", "id": "sub-1"})
+
+	s.HandleMessage(context.Background(), conn, map[string]any{
+		"type":   "invoke",
+		"id":     "inv-1",
+		"path":   "/app/counter",
+		"action": "increment",
+	})
+
+	msgs := conn.Messages()
+	patchIdx := indexOfMessage(msgs, "patch", "")
+	resultIdx := indexOfMessage(msgs, "result", "inv-1")
+	if resultIdx == -1 {
+		t.Fatal("no result message")
+	}
+	if msgs[resultIdx]["status"] != "ok" {
+		t.Fatalf("expected status ok, got %v", msgs[resultIdx]["status"])
+	}
+	if patchIdx == -1 {
+		t.Fatal("expected a patch message for the state change caused by the invoke")
+	}
+	if patchIdx > resultIdx {
+		t.Fatalf("expected patch (index %d) before result (index %d)", patchIdx, resultIdx)
+	}
+}
+
+// For "accepted" (async) results, ordering covers changes made before the
+// handler returned: those patches must still precede the result.
+func TestInvokeAcceptedPatchBeforeResult(t *testing.T) {
+	status := "idle"
+	s := NewServer("app", "App")
+	s.RegisterFunc("job", func() Node {
+		return Node{Type: "status", Props: Props{"status": status}}
+	})
+	s.Handle("job", "start", HandlerFunc(func(ctx context.Context, p Params) (any, error) {
+		status = "running"
+		return map[string]any{"__async": true, "taskId": "task-1"}, nil
+	}))
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+	s.HandleMessage(context.Background(), conn, map[string]any{"type": "subscribe", "id": "sub-1"})
+
+	s.HandleMessage(context.Background(), conn, map[string]any{
+		"type":   "invoke",
+		"id":     "inv-async",
+		"path":   "/app/job",
+		"action": "start",
+	})
+
+	msgs := conn.Messages()
+	patchIdx := indexOfMessage(msgs, "patch", "")
+	resultIdx := indexOfMessage(msgs, "result", "inv-async")
+	if resultIdx == -1 {
+		t.Fatal("no result message")
+	}
+	if msgs[resultIdx]["status"] != "accepted" {
+		t.Fatalf("expected status accepted, got %v", msgs[resultIdx]["status"])
+	}
+	if patchIdx == -1 {
+		t.Fatal("expected a patch message for the state change made before the handler returned")
+	}
+	if patchIdx > resultIdx {
+		t.Fatalf("expected patch (index %d) before accepted result (index %d)", patchIdx, resultIdx)
+	}
+}
+
+// A handler that mutates state and then fails must still have those changes
+// broadcast before the error result.
+func TestInvokeErrorPatchBeforeResult(t *testing.T) {
+	attempts := 0
+	s := NewServer("app", "App")
+	s.RegisterFunc("flaky", func() Node {
+		return Node{Type: "status", Props: Props{"attempts": attempts}}
+	})
+	s.Handle("flaky", "run", HandlerFunc(func(ctx context.Context, p Params) (any, error) {
+		attempts++
+		return nil, context.DeadlineExceeded
+	}))
+
+	conn := newMockConn()
+	s.HandleConnection(conn)
+	s.HandleMessage(context.Background(), conn, map[string]any{"type": "subscribe", "id": "sub-1"})
+
+	s.HandleMessage(context.Background(), conn, map[string]any{
+		"type":   "invoke",
+		"id":     "inv-err",
+		"path":   "/app/flaky",
+		"action": "run",
+	})
+
+	msgs := conn.Messages()
+	patchIdx := indexOfMessage(msgs, "patch", "")
+	resultIdx := indexOfMessage(msgs, "result", "inv-err")
+	if resultIdx == -1 {
+		t.Fatal("no result message")
+	}
+	if msgs[resultIdx]["status"] != "error" {
+		t.Fatalf("expected status error, got %v", msgs[resultIdx]["status"])
+	}
+	if patchIdx == -1 {
+		t.Fatal("expected a patch message for the state change made before the handler failed")
+	}
+	if patchIdx > resultIdx {
+		t.Fatalf("expected patch (index %d) before error result (index %d)", patchIdx, resultIdx)
+	}
+}
+
 func TestInvokeNotFound(t *testing.T) {
 	s := NewServer("app", "App")
 	conn := newMockConn()

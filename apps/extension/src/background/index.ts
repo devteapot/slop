@@ -1,8 +1,9 @@
-import type { PortMessageFromContent } from "../types";
+import { saveBridgeToken } from "../lib/bridge-auth";
+import type { BackgroundCommandMessage, PortMessageFromContent } from "../types";
 import { getActiveProfile } from "../types";
-import * as tabRegistry from "./tab-registry";
 import * as bridge from "./bridge-client";
-import { getStorage, saveStorage, fetchModels, setActiveModel } from "./llm";
+import { fetchModels, getStorage, saveStorage, setActiveModel } from "./llm";
+import * as tabRegistry from "./tab-registry";
 
 // Keep MV3 service worker alive while tabs are connected.
 // chrome.alarms is the official MV3 keepalive mechanism —
@@ -28,7 +29,7 @@ chrome.runtime.onConnect.addListener((port) => {
         tabRegistry.relayUp(tabId, msg.message);
         return;
       case "discovered":
-        tabRegistry.setDiscoveries(tabId, msg.providers);
+        await tabRegistry.setDiscoveries(tabId, msg.providers);
         break;
 
       case "lost":
@@ -102,6 +103,43 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 bridge.start();
 bridge.onMessage((msg) => tabRegistry.handleBridgeMessage(msg));
 bridge.onConnect(() => tabRegistry.reannounceAll());
+
+// --- Popup commands (chrome.runtime.sendMessage) ---
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!isBackgroundCommandMessage(message)) return;
+
+  switch (message.type) {
+    case "get-bridge-status":
+      sendResponse({ bridgeStatus: bridge.getStatus() });
+      return;
+
+    case "set-bridge-token":
+      // Persisting the token triggers the bridge client's storage listener,
+      // which restarts the connection with the new credential.
+      void saveBridgeToken(message.token).then(() => sendResponse({ ok: true }));
+      return true;
+
+    case "get-tab-providers":
+      sendResponse({ providers: tabRegistry.getTabProviders(message.tabId) });
+      return;
+
+    case "approve-provider":
+      void tabRegistry.approveProvider(message.tabId, message.providerKey).then((ok) => sendResponse({ ok }));
+      return true;
+  }
+});
+
+function isBackgroundCommandMessage(value: unknown): value is BackgroundCommandMessage {
+  if (!value || typeof value !== "object") return false;
+  const type = (value as { type?: unknown }).type;
+  return (
+    type === "get-bridge-status" ||
+    type === "set-bridge-token" ||
+    type === "get-tab-providers" ||
+    type === "approve-provider"
+  );
+}
 
 function isPortMessageFromContent(value: unknown): value is PortMessageFromContent {
   return !!value && typeof value === "object" && typeof (value as { type?: unknown }).type === "string";

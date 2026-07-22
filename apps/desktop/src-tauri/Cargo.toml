@@ -27,6 +27,9 @@ tokio-util = "0.7"
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
+getrandom = "0.3"
+base64 = "0.22"
+subtle = "2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

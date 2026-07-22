@@ -89,6 +89,59 @@
   .dot.green { background: #91db37; }
   .dot.yellow { background: #d29922; }
   .dot.gray { background: #6e7681; }
+  .dot.red { background: #f85149; }
+
+  .providers-section {
+    margin-bottom: 12px; padding: 10px 12px;
+    background: #1a1d27; border-radius: 4px;
+  }
+  .providers-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: #6e7681;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .provider-item { padding: 6px 0; }
+  .provider-item + .provider-item { border-top: 1px solid rgba(173, 198, 255, 0.1); }
+  .provider-name {
+    font-size: 13px; font-weight: 600; color: #e6edf3;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .provider-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #6e7681; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .provider-warn { font-size: 11px; color: #d29922; margin-top: 4px; }
+  .connect-btn {
+    margin-top: 6px; width: 100%; padding: 6px; border: none; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    background: linear-gradient(135deg, #91db37, #6ba62a); color: #111319;
+    transition: box-shadow 0.2s;
+  }
+  .connect-btn:hover { box-shadow: 0 0 15px rgba(145, 219, 55, 0.4); }
+
+  .bridge-section { padding: 8px 0 4px; }
+  .bridge-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: #8b949e; margin-bottom: 8px;
+  }
+  .pair-row { display: flex; gap: 6px; }
+  .pair-row input {
+    flex: 1; min-width: 0; padding: 7px 8px;
+    background: #111319; border: 1px solid rgba(173, 198, 255, 0.15); border-radius: 4px;
+    color: #e6edf3; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+  .pair-row input:focus { outline: none; border-color: #91db37; }
+  .pair-row button {
+    padding: 7px 12px; border: none; border-radius: 4px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;
+    background: linear-gradient(135deg, #91db37, #6ba62a); color: #111319;
+    transition: box-shadow 0.2s;
+  }
+  .pair-row button:hover { box-shadow: 0 0 15px rgba(145, 219, 55, 0.4); }
+  .pair-hint { font-size: 11px; color: #6e7681; margin-top: 6px; }
   .scan-btn {
     width: 100%; padding: 8px; border: none; border-radius: 4px;
     font-family: 'JetBrains Mono', monospace;
@@ -126,6 +179,11 @@
   <button id="scanBtn" class="scan-btn">Scan this page</button>
 </div>
 
+<div id="providersSection" class="providers-section" style="display:none">
+  <div class="providers-title">Providers</div>
+  <div id="providerList"></div>
+</div>
+
 <div class="sub-toggles" id="subToggles">
   <div class="toggle-row">
     <div>
@@ -147,6 +205,15 @@
       <input type="checkbox" id="bridgeToggle">
       <span class="slider"></span>
     </label>
+  </div>
+
+  <div id="bridgeSection" class="bridge-section" style="display:none">
+    <div id="bridgeStatus" class="bridge-status"></div>
+    <div id="pairRow" class="pair-row" style="display:none">
+      <input type="password" id="pairToken" placeholder="Pairing token" autocomplete="off">
+      <button id="pairBtn">Pair</button>
+    </div>
+    <div id="pairHint" class="pair-hint" style="display:none">Copy the token from the SLOP Desktop app.</div>
   </div>
 </div>
 

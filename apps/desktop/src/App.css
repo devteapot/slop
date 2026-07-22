@@ -699,6 +699,81 @@ body {
   color: #adc6ff;
 }
 
+.settings-section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 16px 0 8px;
+}
+
+.settings-section-label:first-child {
+  margin-top: 0;
+}
+
+.bridge-pairing {
+  padding: 12px;
+  border-radius: 4px;
+  background: #0c0e14;
+}
+
+.bridge-pairing-hint {
+  font-size: 11px;
+  color: #8b949e;
+  margin: 0 0 10px;
+}
+
+.bridge-token-row {
+  display: flex;
+  gap: 8px;
+}
+
+.bridge-token-row input {
+  flex: 1;
+  background: #232733;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #e6edf3;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+}
+
+.bridge-token-row input:focus {
+  border-bottom: 2px solid #91db37;
+}
+
+.bridge-token-row button,
+.bridge-pairing-actions button {
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(173, 198, 255, 0.1);
+}
+
+.bridge-token-row button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.bridge-pairing-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bridge-pairing-actions .bridge-pairing-hint {
+  margin: 0;
+}
+
 /* ───────────────────────────────────────────────
    Sidebar Groups
    ─────────────────────────────────────────────── */

@@ -411,3 +411,21 @@ pub async fn fetch_models(
 pub async fn bridge_send(app: AppHandle, message: Value) -> Result<(), String> {
     bridge::bridge_send_value(app, message).await
 }
+
+#[tauri::command]
+pub async fn get_bridge_pairing_token(
+    token: State<'_, Arc<bridge::security::BridgeToken>>,
+) -> Result<String, String> {
+    Ok(token.current())
+}
+
+#[tauri::command]
+pub async fn regenerate_bridge_pairing_token(
+    app: AppHandle,
+    token: State<'_, Arc<bridge::security::BridgeToken>>,
+) -> Result<String, String> {
+    let new_token = token.regenerate()?;
+    // Stale peers paired with the old token must reconnect with the new one.
+    bridge::disconnect_all_clients(&app).await;
+    Ok(new_token)
+}

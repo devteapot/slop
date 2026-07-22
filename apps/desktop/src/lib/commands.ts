@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { WorkspaceSummary, WorkspaceDetail, ProviderSummary, ProviderConnectResult, LlmProfile } from "./types";
+import type { LlmProfile, ProviderConnectResult, ProviderSummary, WorkspaceDetail, WorkspaceSummary } from "./types";
 
 // Workspace commands
 export const listWorkspaces = () => invoke<WorkspaceSummary[]>("list_workspaces");
@@ -38,3 +38,5 @@ export const fetchModels = () => invoke<string[]>("fetch_models");
 
 // Bridge commands
 export const bridgeSend = (message: unknown) => invoke<void>("bridge_send", { message });
+export const getBridgePairingToken = () => invoke<string>("get_bridge_pairing_token");
+export const regenerateBridgePairingToken = () => invoke<string>("regenerate_bridge_pairing_token");

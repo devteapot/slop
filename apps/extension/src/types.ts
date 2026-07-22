@@ -1,4 +1,5 @@
 import type { ConsumerMessage, ProviderMessage, SlopNode } from "@slop-ai/consumer/browser";
+
 export type {
   ConsumerMessage,
   ProviderMessage,
@@ -55,9 +56,14 @@ export type PortMessageToContent = BackgroundMessage;
 
 export interface BridgeProviderInfo {
   id: string;
+  /** Display name — always the provider's hello identity, never the tab title. */
   name: string;
+  /** The provider id from the hello message (the routing `id` above stays the providerKey). */
+  providerId?: string;
   transport: "ws" | "postmessage";
   url?: string;
+  /** Secondary context only — never used as the provider's identity. */
+  tabTitle?: string;
 }
 
 export type BridgeMessageToDesktop =
@@ -160,3 +166,40 @@ export type PopupResponse =
   | { status: "inactive" | "scanning" | "stopped" }
   | { scanning: boolean; hasSlop: boolean }
   | { hasSlop: boolean; providers: ProviderSpec[]; providerName: string };
+
+// ========================================================================
+// Popup -> Background messages (chrome.runtime.sendMessage)
+// ========================================================================
+
+export type BridgeStatus =
+  | "disabled" // bridge toggle off (or extension inactive)
+  | "unpaired" // enabled but no pairing token configured
+  | "connecting"
+  | "connected"
+  | "retrying" // desktop unreachable — auto-retry loop active
+  | "auth-failed"; // token rejected by the bridge — re-pair required
+
+export interface TabProviderSummary {
+  providerKey: string;
+  transport: "ws" | "postmessage";
+  endpoint?: string;
+  classification: "same-origin" | "cross-origin";
+  approved: boolean;
+  status: ConnectionStatus | "pending-approval";
+  /** Hello identity when known; placeholder (endpoint/transport) until then. */
+  name: string;
+  /** True once `name` comes from the provider's hello message. */
+  fromHello: boolean;
+  tabTitle?: string;
+}
+
+export type BackgroundCommandMessage =
+  | { type: "get-bridge-status" }
+  | { type: "set-bridge-token"; token: string }
+  | { type: "get-tab-providers"; tabId: number }
+  | { type: "approve-provider"; tabId: number; providerKey: string };
+
+export type BackgroundCommandResponse =
+  | { bridgeStatus: BridgeStatus }
+  | { ok: boolean }
+  | { providers: TabProviderSummary[] };

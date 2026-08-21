@@ -216,7 +216,7 @@ Each example follows a **blueprint** — a language-agnostic spec defining the e
 
 ## Known limitations
 
-SLOP v0.1 is designed to be useful now while leaving room to grow. Key limitations:
+SLOP v0.2.0 is designed to be useful now while leaving room to grow. Key limitations:
 
 - **Multi-user apps** — Server-side providers currently expose one shared tree to all consumers. The protocol already supports per-user state (each connection is independent), but the SDKs don't implement session-scoped tree rendering yet. Client-only SPAs are unaffected — each tab is its own provider. See [Sessions & Multi-User](./docs/sdk/sessions.md).
 - **No reconnection** — If a WebSocket drops, the consumer must re-connect and re-subscribe from scratch. No automatic reconnect or version-based catch-up.
@@ -227,13 +227,15 @@ Full list: [Known Limitations & Future Work](https://docs.slopai.dev/spec/limita
 
 ## Current status
 
-As of `v0.1`, SLOP already includes:
+`v0.2.0` (25 Apr 2026) includes:
 
 - Core protocol docs plus scaling, content-reference, and async-action extensions
-- TypeScript SDKs, framework adapters, and the discovery layer
-- Python, Go, and Rust SDKs
-- Chrome extension and desktop app
+- TypeScript SDKs, framework adapters, and `@slop-ai/discovery`
+- Python, Go, and Rust SDKs with discovery parity
+- Chrome extension, desktop app, CLI, and MCP Apps bridge
 - Examples, benchmarks, and OpenClaw integration
+
+SLOP sits beside MCP. It does not replace it.
 
 ## Roadmap
 

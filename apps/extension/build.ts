@@ -1,8 +1,13 @@
 import { cpSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 
 const dir = import.meta.dir;
 const dist = join(dir, "dist");
+
+function copyUnlessSame(src: string, dest: string, options?: { force?: boolean; recursive?: boolean }) {
+  if (resolve(src) === resolve(dest)) return;
+  cpSync(src, dest, options);
+}
 
 mkdirSync(dist, { recursive: true });
 
@@ -33,11 +38,11 @@ for (const { entry, out } of entryPoints) {
 // Copy static files
 cpSync(join(dir, "src/options/options.html"), join(dist, "../options.html"));
 cpSync(join(dir, "src/ui/chat.css"), join(dist, "chat.css"));
-cpSync(join(dir, "manifest.json"), join(dist, "../manifest.json"), { force: true });
+copyUnlessSame(join(dir, "manifest.json"), join(dist, "../manifest.json"), { force: true });
 
 // Copy icons if they exist
 if (existsSync(join(dir, "icons"))) {
-  cpSync(join(dir, "icons"), join(dist, "../icons"), { recursive: true });
+  copyUnlessSame(join(dir, "icons"), join(dist, "../icons"), { recursive: true });
 }
 
 console.log("Extension built to dist/");

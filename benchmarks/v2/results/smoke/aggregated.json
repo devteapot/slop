@@ -1,0 +1,288 @@
+{
+  "source": "results/smoke/runs.jsonl",
+  "runs": 6,
+  "cells": [
+    {
+      "cellId": "785d02dabebe52d5",
+      "cell": {
+        "provider": {
+          "kind": "openai-compat",
+          "baseUrl": "http://slopinator-s-1.local:11434/v1",
+          "model": "gemma4:31b"
+        },
+        "prompt": "spec",
+        "encoding": "indented-text",
+        "optimization": "off",
+        "protocol": "slop",
+        "app": "issue-tracker",
+        "scale": "s",
+        "scenario": "explore-and-act",
+        "seed": 42,
+        "iteration": 0
+      },
+      "runs": 3,
+      "passRate": 1,
+      "failureCategories": {
+        "ok": 3,
+        "no_verifier": 0,
+        "verify_fail": 0,
+        "max_turns": 0,
+        "tool_unknown": 0,
+        "tool_invoke_error": 0,
+        "tool_param_error": 0,
+        "cell_exception": 0
+      },
+      "totalTokens": {
+        "count": 3,
+        "mean": 10101.666666666666,
+        "median": 10134,
+        "p95": 10135.8,
+        "stdev": 57.74368652357877,
+        "min": 10035,
+        "max": 10136
+      },
+      "inputTokens": {
+        "count": 3,
+        "mean": 9603,
+        "median": 9603,
+        "p95": 9603,
+        "stdev": 0,
+        "min": 9603,
+        "max": 9603
+      },
+      "outputTokens": {
+        "count": 3,
+        "mean": 498.6666666666667,
+        "median": 531,
+        "p95": 532.8,
+        "stdev": 57.74368652357878,
+        "min": 432,
+        "max": 533
+      },
+      "maxContextTokens": {
+        "count": 3,
+        "mean": 4895,
+        "median": 4895,
+        "p95": 4895,
+        "stdev": 0,
+        "min": 4895,
+        "max": 4895
+      },
+      "turns": {
+        "count": 3,
+        "mean": 2,
+        "median": 2,
+        "p95": 2,
+        "stdev": 0,
+        "min": 2,
+        "max": 2
+      },
+      "toolCalls": {
+        "count": 3,
+        "mean": 2,
+        "median": 2,
+        "p95": 2,
+        "stdev": 0,
+        "min": 2,
+        "max": 2
+      },
+      "specComplianceRate": {
+        "count": 3,
+        "mean": 1,
+        "median": 1,
+        "p95": 1,
+        "stdev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "llmTimeMs": {
+        "count": 3,
+        "mean": 59255.96312499999,
+        "median": 58775.35249999999,
+        "p95": 60187.3716125,
+        "stdev": 944.6343587235024,
+        "min": 58648.274249999995,
+        "max": 60344.262625
+      },
+      "totalTimeMs": {
+        "count": 3,
+        "mean": 59271.172083666665,
+        "median": 58788.625958000004,
+        "p95": 60204.2368589,
+        "stdev": 946.3498279522337,
+        "min": 58663.363333999994,
+        "max": 60361.526959
+      },
+      "timeToFirstToolCallMs": {
+        "count": 3,
+        "mean": 41278.56054200001,
+        "median": 40849.855666999996,
+        "p95": 42089.443066700005,
+        "stdev": 822.7889262352226,
+        "min": 40758.65095900002,
+        "max": 42227.175
+      },
+      "transportBytes": {
+        "count": 3,
+        "mean": 725,
+        "median": 725,
+        "p95": 725,
+        "stdev": 0,
+        "min": 725,
+        "max": 725
+      },
+      "costUsd": {
+        "count": 3,
+        "mean": 0,
+        "median": 0,
+        "p95": 0,
+        "stdev": 0,
+        "min": 0,
+        "max": 0
+      },
+      "costPerSuccess": 0,
+      "tokensPerSuccess": 10101.666666666666
+    },
+    {
+      "cellId": "fbc384d4e3ccd4ae",
+      "cell": {
+        "provider": {
+          "kind": "openai-compat",
+          "baseUrl": "http://slopinator-s-1.local:11434/v1",
+          "model": "gemma4:31b"
+        },
+        "prompt": "spec",
+        "encoding": "indented-text",
+        "optimization": "combined",
+        "protocol": "slop",
+        "app": "issue-tracker",
+        "scale": "s",
+        "scenario": "explore-and-act",
+        "seed": 42,
+        "iteration": 0
+      },
+      "runs": 3,
+      "passRate": 1,
+      "failureCategories": {
+        "ok": 3,
+        "no_verifier": 0,
+        "verify_fail": 0,
+        "max_turns": 0,
+        "tool_unknown": 0,
+        "tool_invoke_error": 0,
+        "tool_param_error": 0,
+        "cell_exception": 0
+      },
+      "totalTokens": {
+        "count": 3,
+        "mean": 8612,
+        "median": 8612,
+        "p95": 8612,
+        "stdev": 0,
+        "min": 8612,
+        "max": 8612
+      },
+      "inputTokens": {
+        "count": 3,
+        "mean": 8115,
+        "median": 8115,
+        "p95": 8115,
+        "stdev": 0,
+        "min": 8115,
+        "max": 8115
+      },
+      "outputTokens": {
+        "count": 3,
+        "mean": 497,
+        "median": 497,
+        "p95": 497,
+        "stdev": 0,
+        "min": 497,
+        "max": 497
+      },
+      "maxContextTokens": {
+        "count": 3,
+        "mean": 4151,
+        "median": 4151,
+        "p95": 4151,
+        "stdev": 0,
+        "min": 4151,
+        "max": 4151
+      },
+      "turns": {
+        "count": 3,
+        "mean": 2,
+        "median": 2,
+        "p95": 2,
+        "stdev": 0,
+        "min": 2,
+        "max": 2
+      },
+      "toolCalls": {
+        "count": 3,
+        "mean": 2,
+        "median": 2,
+        "p95": 2,
+        "stdev": 0,
+        "min": 2,
+        "max": 2
+      },
+      "specComplianceRate": {
+        "count": 3,
+        "mean": 1,
+        "median": 1,
+        "p95": 1,
+        "stdev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "llmTimeMs": {
+        "count": 3,
+        "mean": 55551.42805566667,
+        "median": 54098.86620800002,
+        "p95": 58073.06235890001,
+        "stdev": 2566.380920587207,
+        "min": 54040.778249999974,
+        "max": 58514.63970900001
+      },
+      "totalTimeMs": {
+        "count": 3,
+        "mean": 55564.67487466668,
+        "median": 54111.153208,
+        "p95": 58087.66363330001,
+        "stdev": 2567.7747776995475,
+        "min": 54053.373291000025,
+        "max": 58529.49812500001
+      },
+      "timeToFirstToolCallMs": {
+        "count": 3,
+        "mean": 32601.769805333333,
+        "median": 31149.366374999983,
+        "p95": 35087.656049400015,
+        "stdev": 2531.8199430530817,
+        "min": 31130.699250000005,
+        "max": 35525.243791000015
+      },
+      "transportBytes": {
+        "count": 3,
+        "mean": 725,
+        "median": 725,
+        "p95": 725,
+        "stdev": 0,
+        "min": 725,
+        "max": 725
+      },
+      "costUsd": {
+        "count": 3,
+        "mean": 0,
+        "median": 0,
+        "p95": 0,
+        "stdev": 0,
+        "min": 0,
+        "max": 0
+      },
+      "costPerSuccess": 0,
+      "tokensPerSuccess": 8612
+    }
+  ]
+}

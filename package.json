@@ -21,7 +21,8 @@
     "website/playground",
     "apps/extension",
     "apps/desktop",
-    "benchmarks/mcp-vs-slop"
+    "benchmarks/mcp-vs-slop",
+    "benchmarks/v2"
   ],
   "scripts": {
     "build": "bun run scripts/build-typescript-packages.ts",

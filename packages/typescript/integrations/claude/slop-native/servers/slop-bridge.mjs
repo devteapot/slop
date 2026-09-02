@@ -18,9 +18,9 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { buildSlopContext } from "@slop-ai/discovery/context";
 import { createDiscoveryService } from "@slop-ai/discovery/service";
 import { createToolHandlers, createDynamicTools } from "@slop-ai/discovery/tools";
-import { formatTree } from "@slop-ai/consumer";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -29,7 +29,8 @@ import path from "node:path";
 // ---------------------------------------------------------------------------
 
 const STATE_DIR = "/tmp/claude-slop-plugin";
-const STATE_FILE = path.join(STATE_DIR, "state.json");
+const CONTEXT_FILE = path.join(STATE_DIR, "context.txt");
+const LEGACY_STATE_FILE = path.join(STATE_DIR, "state.json");
 
 // ---------------------------------------------------------------------------
 // Logger (MCP servers must not write to stdout — use stderr)
@@ -57,49 +58,44 @@ let dynamicToolSet = createDynamicTools(discovery);
 // State file management (for hook-based context injection)
 // ---------------------------------------------------------------------------
 
-function writeStateFile() {
+function writeContextFile() {
   try {
     fs.mkdirSync(STATE_DIR, { recursive: true });
 
-    const connected = discovery.getProviders();
-    const discovered = discovery.getDiscovered();
-    const connectedIds = new Set(connected.map((p) => p.id));
+    if (fs.existsSync(LEGACY_STATE_FILE)) {
+      try {
+        fs.unlinkSync(LEGACY_STATE_FILE);
+      } catch {}
+    }
 
-    // Discovered but not connected
-    const available = discovered
-      .filter((d) => !connectedIds.has(d.id))
-      .map((d) => ({
-        id: d.id,
-        name: d.name,
-        transport: d.transport.type,
-        source: d.source ?? "local",
-      }));
+    const { stateTail, availableAppsTail } = buildSlopContext(discovery);
+    const parts = [stateTail, availableAppsTail].filter((t) => !!t);
 
-    if (connected.length === 0 && available.length === 0) {
-      if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE);
+    if (parts.length === 0) {
+      if (fs.existsSync(CONTEXT_FILE)) fs.unlinkSync(CONTEXT_FILE);
       return;
     }
 
-    const providers = connected.map((p) => {
-      const tree = p.consumer.getTree(p.subscriptionId);
-      return {
-        id: p.id,
-        name: p.name,
-        state: tree ? formatTree(tree) : "(no state yet)",
-      };
-    });
-
-    fs.writeFileSync(STATE_FILE, JSON.stringify({ lastUpdated: Date.now(), providers, available }, null, 2));
+    fs.writeFileSync(CONTEXT_FILE, parts.join("\n\n"));
   } catch (err) {
-    log.error("Failed to write state file:", err.message);
+    log.error("Failed to write context file:", err.message);
   }
 }
+
+// Heartbeat: re-render the context file periodically while we're alive so
+// `generated_at` refreshes and the hook's stale-detection signals "bridge
+// died", not "state hasn't changed recently". The tail is uncached by design.
+const HEARTBEAT_INTERVAL_MS = 10_000;
+const heartbeatTimer = setInterval(() => {
+  writeContextFile();
+}, HEARTBEAT_INTERVAL_MS);
+heartbeatTimer.unref?.();
 
 // Update state file + dynamic tools whenever state changes
 discovery.onStateChange(() => {
   const prevCount = dynamicToolSet.tools.length;
   dynamicToolSet = createDynamicTools(discovery);
-  writeStateFile();
+  writeContextFile();
 
   // Notify Claude that the tool list changed (new/removed affordances)
   if (dynamicToolSet.tools.length !== prevCount) {
@@ -312,14 +308,14 @@ async function main() {
   process.on("SIGINT", () => {
     discovery.stop();
     try {
-      fs.unlinkSync(STATE_FILE);
+      fs.unlinkSync(CONTEXT_FILE);
     } catch {}
     process.exit(0);
   });
   process.on("SIGTERM", () => {
     discovery.stop();
     try {
-      fs.unlinkSync(STATE_FILE);
+      fs.unlinkSync(CONTEXT_FILE);
     } catch {}
     process.exit(0);
   });

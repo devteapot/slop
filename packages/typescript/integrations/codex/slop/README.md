@@ -39,8 +39,8 @@ Codex loads the plugin-local MCP server from `.mcp.json`. That server uses `@slo
 
 1. discover local and browser-announced SLOP providers
 2. connect to a provider on demand with `connect_app`
-3. write connected-provider state to `/tmp/codex-slop-plugin/state.json`
-4. let the bundled `UserPromptSubmit` hook inject that state into future Codex turns
+3. render the connected-provider state and available-app catalog as a framed `<slop-state>` / `<slop-apps-available>` block and write it to `/tmp/codex-slop-plugin/context.txt`
+4. let the bundled `UserPromptSubmit` hook emit that file verbatim into future Codex turns (the bridge re-renders on every state change and on a 10s heartbeat; the hook drops the file after 30s without an update so a dead bridge stops injecting)
 5. execute actions through `app_action` or `app_action_batch`
 
 `connect_app` still returns the current formatted state tree immediately, so Codex can inspect and act in the same turn it establishes a connection. After that, future user turns get live injected state automatically.

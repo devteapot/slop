@@ -1,0 +1,41 @@
+{
+  "name": "@slop-ai/bridge-server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Hosted bridge server for remote MCP hosts and local SLOP relay agents.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "slop-bridge-server": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["src", "dist", "Dockerfile", "fly.toml"],
+  "sideEffects": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/integrations/bridge-server"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --format esm --target bun --external '@slop-ai/*' --external '@modelcontextprotocol/*' --external 'zod' && bun build src/cli.ts --outdir dist --format esm --target bun --external '@slop-ai/*' --external '@modelcontextprotocol/*' --external 'zod' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "dev": "bun src/cli.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@slop-ai/consumer": "workspace:*",
+    "@slop-ai/relay-cli": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.5.0",
+    "ws": "^8.18.0"
+  }
+}

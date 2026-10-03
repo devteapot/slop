@@ -32,26 +32,33 @@ server.tool(
   async () => handlers.listApps(),
 );
 
-server.tool(
+const connectAppDescription: string = isPluginMode
+  ? "Connect to a discovered application and refresh its full current state. " +
+    "Use this when you need to inspect a newly discovered app or refresh the active app state."
+  : "Connect to an application running on this computer and see its full current state and every action you can perform.";
+
+// MCP SDK's `server.tool` overloads inflate inference depth when zod
+// `.describe()` chains meet conditional descriptions. Hold the registration
+// behind a less-specific signature to keep declaration generation healthy.
+const registerTool = server.tool.bind(server) as (...args: unknown[]) => void;
+
+registerTool(
   "connect_app",
-  isPluginMode
-    ? "Connect to a discovered application and refresh its full current state. " +
-        "Use this when you need to inspect a newly discovered app or refresh the active app state."
-    : "Connect to an application running on this computer and see its full current state and every action you can perform.",
+  connectAppDescription,
   {
     app: z.string().describe("App name or ID to connect and inspect."),
   },
-  async (args) => handlers.connectApp(args),
+  async (args: { app: string }) => handlers.connectApp(args),
 );
 
-server.tool(
+registerTool(
   "disconnect_app",
   "Disconnect from an application. Removes its action tools and stops state updates. " +
     "Use when you're done interacting with an app.",
   {
     app: z.string().describe("App name or ID to disconnect from."),
   },
-  async (args) => handlers.disconnectApp(args),
+  async (args: { app: string }) => handlers.disconnectApp(args),
 );
 
 discovery.start();

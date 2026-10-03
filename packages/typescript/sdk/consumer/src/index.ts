@@ -1,6 +1,13 @@
 import { SlopConsumer as SlopConsumerImpl } from "./consumer";
 import { Emitter as EmitterImpl } from "./emitter";
 import { StateMirror as StateMirrorImpl } from "./state-mirror";
+import {
+  composeMessagesWithSlopState as composeMessagesWithSlopStateImpl,
+  escapeSlopContextTags as escapeSlopContextTagsImpl,
+  renderSlopAvailableApps as renderSlopAvailableAppsImpl,
+  renderSlopStateTail as renderSlopStateTailImpl,
+  stripSlopContextBlocks as stripSlopContextBlocksImpl,
+} from "./llm-context";
 import { affordancesToTools as affordancesToToolsImpl, formatTree as formatTreeImpl } from "./tools";
 import { NodeSocketClientTransport as NodeSocketClientTransportImpl } from "./transport-node-socket";
 import { PostMessageClientTransport as PostMessageClientTransportImpl } from "./transport-pm";
@@ -24,6 +31,25 @@ export type NodeSocketClientTransport = InstanceType<typeof NodeSocketClientTran
 export const affordancesToTools = affordancesToToolsImpl;
 export const formatTree = formatTreeImpl;
 export type { ChatMessage, LlmTool, ToolSet } from "./tools";
+
+// LLM context tail
+export const renderSlopStateTail = renderSlopStateTailImpl;
+export const renderSlopAvailableApps = renderSlopAvailableAppsImpl;
+export const stripSlopContextBlocks = stripSlopContextBlocksImpl;
+export const composeMessagesWithSlopState = composeMessagesWithSlopStateImpl;
+export const escapeSlopContextTags = escapeSlopContextTagsImpl;
+export type {
+  AvailableSlopApp,
+  ComposableMessage,
+  ComposeMessagesOptions,
+  ContentBlock,
+  RenderAvailableAppsInput,
+  RenderSlopStateInput,
+  RenderSlopStateOptions,
+  SlopStateApp,
+  SlopStatePlacement,
+  TextContentBlock,
+} from "./llm-context";
 
 // Emitter (for custom transports)
 export const Emitter = EmitterImpl;

@@ -1,46 +1,8 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import { createDiscoveryService, type DiscoveryService } from "@slop-ai/discovery/service";
+import { buildSlopContext } from "@slop-ai/discovery/context";
+import { createDiscoveryService } from "@slop-ai/discovery/service";
 import { createToolHandlers } from "@slop-ai/discovery/tools";
-import { formatTree } from "@slop-ai/consumer";
 import { registerSlopTools } from "./tools";
-
-function buildStateContext(discovery: DiscoveryService): string | null {
-  const connected = discovery.getProviders();
-  const discovered = discovery.getDiscovered();
-  const connectedIds = new Set(connected.map((p) => p.id));
-
-  const available = discovered.filter((d) => !connectedIds.has(d.id));
-
-  if (connected.length === 0 && available.length === 0) return null;
-
-  let output = "## SLOP Apps\n\n";
-
-  if (connected.length > 0) {
-    output += `${connected.length} app(s) connected. `;
-    output +=
-      "Use app_action or app_action_batch to act on them. Call connect_app to refresh detailed state or disconnect_app when you're done.\n\n";
-
-    for (const p of connected) {
-      const tree = p.consumer.getTree(p.subscriptionId);
-      output += `### ${p.name} (${p.id})\n\n`;
-      if (tree) {
-        output += "```\n" + formatTree(tree) + "\n```\n\n";
-      } else {
-        output += "(awaiting state snapshot)\n\n";
-      }
-    }
-  }
-
-  if (available.length > 0) {
-    output += "### Available (not connected)\n\n";
-    for (const app of available) {
-      output += `- **${app.name}** (id: \`${app.id}\`, ${app.transport.type}, ${app.source ?? "local"})\n`;
-    }
-    output += "\nCall connect_app with an app name to connect.\n";
-  }
-
-  return output;
-}
 
 export default definePluginEntry({
   id: "slop",
@@ -57,10 +19,18 @@ export default definePluginEntry({
 
     // State injection: inject connected providers' state into the prompt
     // before each inference, so the model sees live app state without tool calls.
+    //
+    // Note: spec/integrations/llm-context.md recommends placing the state tail
+    // *after* the stable history so prefix caches still hit. OpenClaw's plugin
+    // API only exposes `prependContext`, so we accept the suboptimal placement
+    // until OpenClaw grows an append/suffix hook. Functionally this still
+    // gives the model fresh state on every turn; it just doesn't preserve
+    // upstream prompt caches as cleanly as the recommended placement.
     api.on("before_prompt_build", () => {
-      const context = buildStateContext(discovery);
-      if (!context) return {};
-      return { prependContext: context };
+      const { stateTail, availableAppsTail } = buildSlopContext(discovery);
+      const parts = [stateTail, availableAppsTail].filter((t): t is string => !!t);
+      if (parts.length === 0) return {};
+      return { prependContext: parts.join("\n\n") };
     });
 
     discovery.start();

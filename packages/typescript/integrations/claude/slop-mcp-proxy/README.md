@@ -62,7 +62,7 @@ This plugin provides **5 static MCP tools**:
 | `app_action` | Perform a single action on an app node |
 | `app_action_batch` | Perform multiple actions in one call |
 
-App state is injected into context on every user message via a `UserPromptSubmit` hook. Claude reads affordances, paths, and parameter schemas from the injected state tree and uses the generic action tools to invoke them.
+App state is injected into context on every user message via a `UserPromptSubmit` hook. The bridge renders the live `<slop-state>` / `<slop-apps-available>` blocks and writes them to `/tmp/claude-slop-plugin/context.txt` on every state change and on a 10s heartbeat; the hook emits the file verbatim and drops it once the file is more than 30s old, so a dead bridge stops injecting. Claude reads affordances, paths, and parameter schemas from the injected state tree and uses the generic action tools to invoke them.
 
 ## Comparison with `slop-native`
 

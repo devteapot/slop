@@ -1,0 +1,43 @@
+{
+  "name": "@slop-ai/relay-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Outbound relay agent that exposes local SLOP providers to a hosted bridge.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "slop-relay": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./protocol": {
+      "import": "./dist/protocol.js",
+      "types": "./dist/protocol.d.ts"
+    }
+  },
+  "files": ["src", "dist"],
+  "sideEffects": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devteapot/slop",
+    "directory": "packages/typescript/integrations/relay-cli"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts src/protocol.ts --outdir dist --format esm --target node --external '@slop-ai/*' --external 'ws' && bun build src/cli.ts --outdir dist --format esm --target node --external '@slop-ai/*' --external 'ws' && bunx tsc --emitDeclarationOnly --outDir dist",
+    "dev": "bun src/cli.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@slop-ai/consumer": "workspace:*",
+    "@slop-ai/discovery": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.5.0"
+  }
+}

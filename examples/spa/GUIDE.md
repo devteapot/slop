@@ -1,6 +1,6 @@
 # Guide: Exploring the Kanban Board SPA
 
-This guide walks through a personal kanban board built as a client-only SPA. Five implementations — React, Vue, Angular, Solid, and Svelte — all produce the same SLOP tree. Pick any framework; the SLOP experience is identical.
+This guide walks through a personal kanban board built as a client-only SPA. There are five implementations: React, Vue, Angular, Solid, and Svelte. All of them produce the same SLOP tree. Pick any framework. The SLOP experience is identical.
 
 ## Setup
 
@@ -49,23 +49,23 @@ Open the app in your browser. You'll see a kanban board with two boards: **Produ
 
 Four columns: Backlog (10 cards), In Progress (6), Review (4), Done (4). Each card shows:
 
-- **Priority badge** — CRIT (red), HIGH (orange), MED (blue), LOW (gray)
-- **Title** — the task name
-- **Due date** — when it's due (red if overdue)
-- **Tags** — colored labels
-- **Description icon** — ☰ if the card has a description
+- **Priority badge**: CRIT (red), HIGH (orange), MED (blue), LOW (gray)
+- **Title**: the task name
+- **Due date**: when it's due (red if overdue)
+- **Tags**: colored labels
+- **Description icon**: ☰ if the card has a description
 
 Cards with critical priority have a green glow. Overdue cards have a red left border.
 
 ### Try it
 
-1. Click a card to open the detail modal — edit title, priority, due date, tags, and description
+1. Click a card to open the detail modal: edit title, priority, due date, tags, and description
 2. Click the ⋮ menu on a card to move it to another column or delete it
 3. Click **+ New Card** to create a card
 4. Click **Personal** tab to switch boards
 5. Use the search bar to filter cards
 
-Everything persists in localStorage. Refresh the page — your changes are still there.
+Everything persists in localStorage. Refresh the page and your changes are still there.
 
 ---
 
@@ -131,10 +131,10 @@ kanban-board [root]
 
 The tree is a structured representation of the entire board. Notice:
 
-- **Salience scores** — the AI knows `card-11` (auth API, critical, due tomorrow) is the most urgent item at salience 1.0
-- **Windowed collections** — Backlog shows 8 of 10 cards, avoiding token waste
-- **Content references** — card descriptions show a summary, not the full markdown
-- **View scoping** — only the active board is expanded; Personal is a one-line stub
+- **Salience scores**: the AI knows `card-11` (auth API, critical, due tomorrow) is the most urgent item at salience 1.0
+- **Windowed collections**: Backlog shows 8 of 10 cards, avoiding token waste
+- **Content references**: card descriptions show a summary, not the full markdown
+- **View scoping**: only the active board is expanded, and Personal is a one-line stub
 
 ### Invoke an action
 
@@ -144,7 +144,7 @@ Move a card to done:
 > invoke board-1/review/card-17 move {"column": "done"}
 ```
 
-Watch the browser — the card moves from Review to Done in real time. The CLI shows the patch:
+Watch the browser. The card moves from Review to Done in real time. The CLI shows the patch:
 
 ```
 Patch: remove /board-1/review/card-17
@@ -165,7 +165,7 @@ The new card appears in the Backlog column in the browser.
 > invoke / navigate {"board_id": "board-2"}
 ```
 
-The tree restructures — `board-1` collapses to a stub and `board-2` expands with its full columns and cards. In the browser, the Personal board tab activates.
+The tree restructures. `board-1` collapses to a stub, and `board-2` expands with its full columns and cards. In the browser, the Personal board tab activates.
 
 ### Search
 
@@ -173,13 +173,13 @@ The tree restructures — `board-1` collapses to a stub and `board-2` expands wi
 > invoke board-2 search {"query": "dentist"}
 ```
 
-Returns matching cards as structured data — the AI can answer "what's overdue on my personal board?" without reading every card.
+Returns matching cards as structured data, so the AI can answer "what's overdue on my personal board?" without reading every card.
 
 ---
 
 ## Part 3: Side by side
 
-The most powerful demo: run the app and the CLI side by side.
+Run the app and the CLI side by side:
 
 1. Open the browser with the kanban board
 2. Connect the CLI in a terminal next to it
@@ -224,11 +224,11 @@ The most powerful demo: run the app and the CLI side by side.
 }
 ```
 
-Now make a change in the browser — drag a card, edit a title, create a new card. The CLI immediately shows the corresponding patch.
+Now make a change in the browser: drag a card, edit a title, create a new card. The CLI immediately shows the corresponding patch.
 
-Make a change from the CLI — invoke `move` or `create_card`. The browser immediately updates.
+Make a change from the CLI: invoke `move` or `create_card`. The browser immediately updates.
 
-**Same app. Same state. Two interfaces.** The human sees a kanban board. The AI sees a structured state tree with affordances. SLOP doesn't create a separate "AI version" — it exposes what's already there.
+**Same app, same state, two interfaces.** The human sees a kanban board. The AI sees a structured state tree with affordances. SLOP doesn't create a separate "AI version". It exposes what's already there.
 
 ---
 
@@ -238,10 +238,10 @@ All five implementations produce the exact same SLOP tree. The difference is in 
 
 | Framework | Adapter | Registration pattern |
 |---|---|---|
-| React | `@slop-ai/react` | `useSlop(slop, path, descriptor)` — plain object |
-| Vue | `@slop-ai/vue` | `useSlop(slop, path, () => descriptor)` — function |
-| Angular | `@slop-ai/angular` | `useSlop(slop, path, () => descriptor)` — in constructor |
-| Solid | `@slop-ai/solid` | `useSlop(slop, path, () => descriptor)` — function |
-| Svelte | `@slop-ai/svelte` | `useSlop(slop, path, () => descriptor)` — rune-based |
+| React | `@slop-ai/react` | `useSlop(slop, path, descriptor)` with a plain object |
+| Vue | `@slop-ai/vue` | `useSlop(slop, path, () => descriptor)` with a function |
+| Angular | `@slop-ai/angular` | `useSlop(slop, path, () => descriptor)` in the constructor |
+| Solid | `@slop-ai/solid` | `useSlop(slop, path, () => descriptor)` with a function |
+| Svelte | `@slop-ai/svelte` | `useSlop(slop, path, () => descriptor)` with runes |
 
 All adapters accept dynamic paths via `() => string` getters (e.g., `useSlop(slop, () => activeBoard?.id ?? "__none__", ...)`), handling path changes and cleanup automatically.

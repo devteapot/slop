@@ -127,7 +127,7 @@ if provider != nil {
 }
 ```
 
-## Next Steps
+## Next steps
 
 - [Go package API](/api/go)
 - [Consumer guide](/guides/consumer)

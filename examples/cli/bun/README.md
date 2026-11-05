@@ -1,4 +1,4 @@
-# tsk - Task Manager CLI with SLOP
+# tsk: task manager CLI with SLOP
 
 A task manager CLI that works normally for humans, and becomes a SLOP provider when invoked with `--slop`.
 
@@ -40,7 +40,7 @@ Starts a Unix socket provider and an interactive CLI prompt. AI consumers connec
 
 ### Seed data
 
-On first run, if no `~/.tsk/tasks.json` exists, the seed data from `seed.json` is copied automatically.
+On first run, if no `~/.tsk/tasks.json` exists, the tool copies the seed data from `seed.json`.
 
 ### Custom data file
 

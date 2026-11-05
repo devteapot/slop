@@ -1,4 +1,4 @@
-# Contacts UI (React Frontend)
+# Contacts UI (React frontend)
 
 React SPA for the SLOP contact manager example. Exposes UI state (search, filter, selection, compose form) via SLOP over postMessage.
 

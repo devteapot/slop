@@ -11,9 +11,9 @@ MCP clients are already embedded in many major AI hosts (Claude, ChatGPT, Goose,
 
 SLOP does not replace MCP and is not a fork of it. Three relationships are supported:
 
-1. **MCP carries SLOP** — a SLOP session runs inside an MCP-hosted surface (see [MCP Apps bridge](#mcp-apps-bridge)).
-2. **MCP proxies SLOP** — an MCP server translates MCP tool calls into SLOP affordance invocations against an upstream SLOP provider. This is the pattern used by the `claude-slop-mcp-proxy` integration.
-3. **SLOP stands alone** — a SLOP provider is consumed directly over its native transports (WebSocket, Unix socket, postMessage, stdio). No MCP involvement.
+1. **MCP carries SLOP.** A SLOP session runs inside an MCP-hosted surface (see [MCP Apps bridge](#mcp-apps-bridge)).
+2. **MCP proxies SLOP.** An MCP server translates MCP tool calls into SLOP affordance invocations against an upstream SLOP provider. This is the pattern used by the `claude-slop-mcp-proxy` integration.
+3. **SLOP stands alone.** A SLOP provider is consumed directly over its native transports (WebSocket, Unix socket, postMessage, stdio). No MCP involvement.
 
 Where MCP and SLOP overlap, SLOP's semantics are authoritative for live state trees, snapshots, patches, and affordance validity. MCP's semantics are authoritative for MCP tool invocation, MCP resources, MCP Apps, and host consent flows. Roadmap MCP work around server metadata, stateless sessions, and event-driven updates can improve the bridge shape, but bridge implementations MUST NOT assume those features are part of the current MCP core spec until they ship.
 
@@ -63,7 +63,7 @@ Inside the iframe the wire envelope is the standard SLOP postMessage form:
 window.postMessage({ slop: true, message: { ... } }, targetOrigin);
 ```
 
-`targetOrigin` MUST be an explicit origin, never `"*"` — see the [transport spec](../core/transport.md) for origin and source verification requirements. In an MCP Apps iframe, use the host page's origin (as delivered by the MCP Apps handshake); the bridge MUST verify `event.origin` on every inbound message before inspecting `event.data`.
+`targetOrigin` MUST be an explicit origin, never `"*"`. See the [transport spec](../core/transport.md) for origin and source verification requirements. In an MCP Apps iframe, use the host page's origin (as delivered by the MCP Apps handshake); the bridge MUST verify `event.origin` on every inbound message before inspecting `event.data`.
 
 The bridge adapter is responsible for demultiplexing: MCP Apps frames (no `slop` field) go to the MCP host; frames with `slop: true` go to the SLOP consumer.
 
@@ -71,24 +71,24 @@ The bridge adapter is responsible for demultiplexing: MCP Apps frames (no `slop`
 
 Two deployment shapes are supported:
 
-- **In-iframe provider** — client-only state lives inside the iframe bundle. The descriptor reports `{ "type": "postmessage" }`. No network egress from the iframe.
-- **Remote provider** — the iframe runs only the consumer and a thin relay that forwards SLOP messages to an authoritative WebSocket provider. The relay must enforce the security rules in [transport.md](../core/transport.md): bridges are not the security boundary.
+- **In-iframe provider.** Client-only state lives inside the iframe bundle. The descriptor reports `{ "type": "postmessage" }`. No network egress from the iframe.
+- **Remote provider.** The iframe runs only the consumer and a thin relay that forwards SLOP messages to an authoritative WebSocket provider. The relay must enforce the security rules in [transport.md](../core/transport.md): bridges are not the security boundary.
 
 ## Current MCP primitives
 
 SLOP bridges should use shipped MCP primitives before inventing new extension points:
 
-- **Streamable HTTP** — remote MCP servers can use POST and GET with optional SSE streams. SSE event IDs, `Last-Event-ID`, and `MCP-Session-Id` provide a transport-level basis for reconnect and redelivery, but they do not define SLOP snapshot or patch semantics.
-- **Resources** — a bridge MAY expose selected SLOP snapshots, node projections, or `content_ref` targets as MCP resources. If the host supports `resources/subscribe`, the bridge can notify the client that a resource changed; the client still re-reads the resource and the model still needs a host policy for whether that resource enters context.
-- **Tools** — SLOP affordances map cleanly to MCP tools, either one tool per affordance or a generic invoke tool. Tool calls MUST still be re-authorized by the SLOP provider against live state.
-- **Tasks** — where an MCP host supports MCP's experimental task primitive, async SLOP affordances can expose task-like progress and completion results. This is optional; SLOP's `accepted` result remains the protocol source of truth for SLOP consumers.
+- **Streamable HTTP.** Remote MCP servers can use POST and GET with optional SSE streams. SSE event IDs, `Last-Event-ID`, and `MCP-Session-Id` provide a transport-level basis for reconnect and redelivery, but they do not define SLOP snapshot or patch semantics.
+- **Resources.** A bridge MAY expose selected SLOP snapshots, node projections, or `content_ref` targets as MCP resources. If the host supports `resources/subscribe`, the bridge can notify the client that a resource changed; the client still re-reads the resource and the model still needs a host policy for whether that resource enters context.
+- **Tools.** SLOP affordances map cleanly to MCP tools, either one tool per affordance or a generic invoke tool. Tool calls MUST still be re-authorized by the SLOP provider against live state.
+- **Tasks.** Where an MCP host supports MCP's experimental task primitive, async SLOP affordances can expose task-like progress and completion results. This is optional; SLOP's `accepted` result remains the protocol source of truth for SLOP consumers.
 
 ## MCP proxy (tool-call translation)
 
 For hosts that do not yet support MCP Apps, a SLOP provider can be surfaced through a conventional MCP server. The proxy advertises either:
 
-- **One tool per affordance** — dynamic tool list, richest UX, tool count scales with the tree.
-- **Five generic tools** — `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch` — stable tool catalog, lowest token overhead.
+- **One tool per affordance.** The tool list is dynamic and gives the richest experience, but tool count scales with the tree.
+- **Five generic tools.** `list_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch` form a stable tool catalog with the lowest token overhead.
 
 State is usually delivered to the model out of band as injected context rather than through MCP tools. Current MCP resource subscriptions and Streamable HTTP SSE can notify clients about changes, but they do not standardize a model-visible SLOP state-tree subscription that streams snapshots and patches into host context. A proxy MAY expose state as MCP resources and use `resources/subscribe` where supported, but it must preserve SLOP versioning, salience filtering, and provider-side authorization.
 
@@ -96,8 +96,8 @@ State is usually delivered to the model out of band as injected context rather t
 
 Some research-oriented MCP integrations, including OpenAI Deep Research and ChatGPT company knowledge, require a read-only `search` / `fetch` tool pair instead of a broad action surface. A SLOP provider can support those hosts by publishing a companion MCP server with:
 
-- `search(query)` — returns stable IDs, titles, URLs, and snippets for matching SLOP nodes, content references, documents, or app records.
-- `fetch(id)` — returns the full text and metadata for one result.
+- `search(query)`: returns stable IDs, titles, URLs, and snippets for matching SLOP nodes, content references, documents, or app records.
+- `fetch(id)`: returns the full text and metadata for one result.
 
 This facade is not a live-control bridge. It is an adoption path for deep-research and company-knowledge workflows where the model needs citable read access to SLOP-backed state, not direct affordance invocation.
 
@@ -118,9 +118,9 @@ A registry or agent picks the descriptor it speaks. The two files do not referen
 
 ## Security boundary
 
-An MCP host relaying SLOP messages — whether through MCP Apps or an MCP proxy — is a bridge, not an authority. The SLOP provider (or the backend behind it) MUST re-authorize every invoke against live state and caller identity, as required by [transport.md](../core/transport.md). Iframe sandboxing and MCP tool consent prompts are defense in depth, not a substitute for provider-side enforcement.
+An MCP host relaying SLOP messages, whether through MCP Apps or an MCP proxy, is a bridge, not an authority. The SLOP provider (or the backend behind it) MUST re-authorize every invoke against live state and caller identity, as required by [transport.md](../core/transport.md). Iframe sandboxing and MCP tool consent prompts are defense in depth, not a substitute for provider-side enforcement.
 
 ## Non-goals
 
-- SLOP does not define an MCP extension SEP in this version. A pre-sponsor draft titled "SLOP over MCP" — registering `experimental/slop` as an MCP capability and specifying `slop/subscribe` / `slop/unsubscribe` / `slop/invoke` methods plus snapshot, patch, and attention notifications — is kept in-repo at [`mcp-seps/0000-slop-over-mcp.md`](https://github.com/devteapot/slop/blob/main/mcp-seps/0000-slop-over-mcp.md). It will be submitted to the MCP SEP directory once it has a sponsor and a reference implementation.
+- SLOP does not define an MCP extension SEP in this version. A pre-sponsor draft titled "SLOP over MCP" is kept in-repo at [`mcp-seps/0000-slop-over-mcp.md`](https://github.com/devteapot/slop/blob/main/mcp-seps/0000-slop-over-mcp.md). It registers `experimental/slop` as an MCP capability and specifies `slop/subscribe` / `slop/unsubscribe` / `slop/invoke` methods plus snapshot, patch, and attention notifications. It will be submitted to the MCP SEP directory once it has a sponsor and a reference implementation.
 - SLOP does not attempt to be rendered as an MCP tool list. The state tree is not a flat tool catalog, and flattening it defeats the purpose of the protocol.

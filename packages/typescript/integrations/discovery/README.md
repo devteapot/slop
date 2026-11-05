@@ -24,7 +24,7 @@ import { createToolHandlers, createDynamicTools } from "@slop-ai/discovery/tools
 
 | Entrypoint | Purpose |
 | --- | --- |
-| `@slop-ai/discovery` | Bridge primitives and shared descriptor types. |
+| `@slop-ai/discovery` | Bridge helpers and shared descriptor types. |
 | `@slop-ai/discovery/service` | Provider scanning, bridge startup, connection orchestration, idle cleanup, and reconnect handling. |
 | `@slop-ai/discovery/tools` | Host-agnostic lifecycle handlers and affordance-to-tool mapping. |
 | `@slop-ai/discovery/anthropic-agent-sdk` | Optional Anthropic Agent SDK helpers. |

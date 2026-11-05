@@ -172,7 +172,7 @@ The package also exports:
 - `prepare_tree()`, `truncate_tree()`, and `auto_compact()` for scaling
 - `affordances_to_tools()` and `format_tree()` for LLM integrations
 
-## Next Steps
+## Next steps
 
 - [Python package API](/api/python)
 - [Consumer guide](/guides/consumer)

@@ -1,5 +1,5 @@
 ---
-title: "Package Overview"
+title: "Package overview"
 description: "Published SLOP SDKs, adapters, and integration packages"
 ---
 This page maps every published package in the repo to its primary use case and the matching guide.
@@ -18,7 +18,7 @@ This page maps every published package in the repo to its primary use case and t
 | `@slop-ai/server` | server, desktop, and CLI providers | `bun add @slop-ai/server` | [API](/api/server), [Guide](/guides/server-apps) |
 | `@slop-ai/consumer` | custom agents, inspectors, and bridges | `bun add @slop-ai/consumer` | [API](/api/consumer), [Guide](/guides/consumer) |
 | `@slop-ai/tanstack-start` | TanStack Start full-stack adapter | `bun add @slop-ai/server @slop-ai/tanstack-start` | [API](/api/tanstack-start), [Guide](/guides/tanstack-start) |
-| `@slop-ai/discovery` | bridge and discovery primitives; add `/service` and `/tools` for higher-level helpers | `bun add @slop-ai/discovery` | [SDK docs](/sdk/discovery) |
+| `@slop-ai/discovery` | bridge and discovery building blocks; add `/service` and `/tools` for higher-level helpers | `bun add @slop-ai/discovery` | [SDK docs](/sdk/discovery) |
 | `@slop-ai/openclaw-plugin` | OpenClaw integration | `bun add @slop-ai/openclaw-plugin` | [API](/api/openclaw-plugin), [Guide](/guides/advanced/openclaw) |
 
 ## Other SDKs

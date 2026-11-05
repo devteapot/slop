@@ -6,7 +6,7 @@ An AI reading a state tree faces the same problem a human faces with a cluttered
 
 A state tree for a complex app can have thousands of nodes. Dumping the entire tree into an AI's context is wasteful and can degrade performance. The AI needs signals about where to look.
 
-Attention hints are **optional metadata** on nodes that guide the consumer's focus. They are soft signals, not hard constraints — the consumer may ignore them.
+Attention hints are **optional metadata** on nodes that guide the consumer's focus. They are soft signals, not hard constraints. The consumer may ignore them.
 
 ## Meta fields for attention
 
@@ -31,16 +31,16 @@ A score indicating how relevant this node is to the current moment. Providers co
 | Score | Meaning | Example |
 |---|---|---|
 | 0.0 | Background, irrelevant | Collapsed sidebar section |
-| 0.1–0.3 | Low — present but not active | Read messages |
-| 0.4–0.6 | Medium — relevant context | Recent messages in active thread |
-| 0.7–0.9 | High — the AI should probably read this | Selected item, active form |
-| 1.0 | Critical — must not miss | Error, alert, blocking issue |
+| 0.1–0.3 | Low, present but not active | Read messages |
+| 0.4–0.6 | Medium, relevant context | Recent messages in active thread |
+| 0.7–0.9 | High, the AI should probably read this | Selected item, active form |
+| 1.0 | Critical, must not miss | Error, alert, blocking issue |
 
 Salience is relative within a tree. It helps the consumer decide *what to read first*, not whether something exists.
 
 ### `pinned` (boolean)
 
-When `true`, this node and its children must never be collapsed by auto-compaction, regardless of salience score or node budget. Use for subtrees that should always be visible to the AI — such as the `ui` node in fullstack apps, or critical status indicators.
+When `true`, this node and its children must never be collapsed by auto-compaction, regardless of salience score or node budget. Use for subtrees that should always be visible to the AI, such as the `ui` node in fullstack apps or critical status indicators.
 
 Default: `false`.
 
@@ -52,7 +52,7 @@ Set to `true` on nodes that were modified in the most recent patch. Automaticall
 
 Indicates the user is currently interacting with or looking at this node. Typically only one node (or a small set) has `focus: true` at any time.
 
-Focus is distinct from salience — a node can be high-salience without focus (an unread alert) or focused without high salience (the user is looking at something mundane).
+Focus is distinct from salience. A node can be high-salience without focus (an unread alert) or focused without high salience (the user is looking at something mundane).
 
 ### `urgency` (string)
 
@@ -105,7 +105,7 @@ When salience changes and a previously-filtered node crosses the threshold, the 
 
 ## Attention digest
 
-For very large trees, the provider can offer an **attention digest** — a pre-computed summary of what matters:
+For very large trees, the provider can offer an **attention digest**, a pre-computed summary of what matters:
 
 ```jsonc
 {
@@ -162,8 +162,8 @@ This gives the AI a quick "what's going on?" read in minimal tokens, from which 
 
 Tree optimization transforms the raw state tree into a right-sized snapshot for a consumer's context window. There are two distinct concerns:
 
-1. **Semantic metadata** — salience scores, pinned flags, focus, changed, urgency. These are intrinsically provider-side: only the app knows what's relevant right now.
-2. **Presentation constraints** — how much tree the consumer wants. Depth limits, node budgets, type filters, windowing. The consumer is best positioned to set these because it knows its own token budget.
+1. **Semantic metadata**: salience scores, pinned flags, focus, changed, urgency. Only the app knows what's relevant right now, so these fields are provider-side.
+2. **Presentation constraints**: how much tree the consumer wants. Depth limits, node budgets, type filters, windowing. The consumer should set these because it knows its own token budget.
 
 ### Who controls what
 
@@ -173,8 +173,8 @@ Tree optimization transforms the raw state tree into a right-sized snapshot for 
 | `pinned` | Provider | App knows which subtrees must survive compaction |
 | `focus`, `changed`, `urgency` | Provider | Real-time app state |
 | `depth` | Consumer | Controls resolution granularity |
-| `filter.min_salience` | Consumer | Token budget — "only show me what's important" |
-| `filter.types` | Consumer | Relevance — "I only care about these node types" |
+| `filter.min_salience` | Consumer | Token budget, "only show me what's important" |
+| `filter.types` | Consumer | Relevance, "I only care about these node types" |
 | `window` | Consumer | Pagination within large collections |
 | `max_nodes` | Consumer | Hard token budget cap |
 
@@ -215,16 +215,16 @@ The provider MAY enforce a global ceiling (e.g., never send more than 500 nodes 
 
 Providers MUST apply optimizations in this order:
 
-1. **Filter** — Remove nodes below `filter.min_salience` or not in `filter.types`. The root is never filtered.
-2. **Truncate** — Collapse nodes beyond `depth` into stubs with `meta.total_children` and `meta.summary`.
-3. **Compact** — If the tree still exceeds `max_nodes`, collapse lowest-salience subtrees first. Scoring: `score = salience - depth × 0.01 - childCount × 0.001`. Root children and pinned nodes are never collapsed.
-4. **Window** — For `query` messages with `window`, slice the requested node's children and set `meta.window` and `meta.total_children`.
+1. **Filter**: Remove nodes below `filter.min_salience` or not in `filter.types`. The root is never filtered.
+2. **Truncate**: Collapse nodes beyond `depth` into stubs with `meta.total_children` and `meta.summary`.
+3. **Compact**: If the tree still exceeds `max_nodes`, collapse lowest-salience subtrees first. Scoring: `score = salience - depth × 0.01 - childCount × 0.001`. Root children and pinned nodes are never collapsed.
+4. **Window**: For `query` messages with `window`, slice the requested node's children and set `meta.window` and `meta.total_children`.
 
 Each step is optional and only applies when the corresponding parameter is present.
 
 ### Compaction behavior
 
-When a subtree is collapsed during compaction (step 3), the node becomes a **compacted node** — distinct from a *depth stub* (see [State Tree §depth stub vs compacted node](./state-tree.md#depth-stub-vs-compacted-node)). A compacted node:
+When a subtree is collapsed during compaction (step 3), the node becomes a **compacted node**, distinct from a *depth stub* (see [State Tree §depth stub vs compacted node](./state-tree.md#depth-stub-vs-compacted-node)). A compacted node:
 
 - Retains its `id`, `type`, `properties`, `affordances`, and `meta`
 - Removes `children` and `content_ref`
@@ -232,13 +232,13 @@ When a subtree is collapsed during compaction (step 3), the node becomes a **com
 - Preserves `meta.summary` if already set, otherwise defaults to `"{N} children"`
 - Can be drilled into via a follow-up `query` with a deeper depth
 
-The reason `properties` and `affordances` are preserved here (but dropped in depth stubs) is that compaction happens *without the consumer asking for it* — the provider is cutting budget on their behalf. The AI still needs to see what the node is and what it can do, or it can't act on live state.
+The reason `properties` and `affordances` are preserved here (but dropped in depth stubs) is that compaction happens *without the consumer asking for it*. The provider is cutting budget on their behalf. The AI still needs to see what the node is and what it can do, or it can't act on live state.
 
 ### Why consumer-driven
 
-Different consumers have different budgets. A CLI agent with 8k context needs a very compact tree. A desktop agent with 200k context can handle the full thing. A browser extension might sit somewhere in between. If the server decides the budget, it's guessing — and guessing wrong either wastes tokens or hides relevant state.
+Different consumers have different budgets. A CLI agent with 8k context needs a very compact tree. A desktop agent with 200k context can handle the full thing. A browser extension might sit somewhere in between. If the server decides the budget, it's guessing, and guessing wrong either wastes tokens or hides relevant state.
 
-By letting the consumer declare its budget, the server can serve every consumer optimally from the same tree. The server's job reduces to: compute accurate salience, mark pinned nodes, and respect whatever budget the consumer requests.
+By letting the consumer declare its budget, the server can serve every consumer optimally from the same tree. The server's job reduces to computing accurate salience, marking pinned nodes, and respecting whatever budget the consumer requests.
 
 ### Interaction with subscriptions
 

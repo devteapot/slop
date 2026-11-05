@@ -1,4 +1,4 @@
-# TypeScript State Store Examples
+# TypeScript state store examples
 
 Runnable examples for exposing popular TypeScript state stores through SLOP with `exposeStore()`.
 

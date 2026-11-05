@@ -31,7 +31,7 @@ import { action, useSlop } from "@slop-ai/vue";
 
 The signature is `useSlop(client, pathOrGetter, descriptorFactory)` where the descriptor is wrapped in a function so Vue can track reactive dependencies.
 
-## Full Example
+## Full example
 
 ```vue
 <script setup lang="ts">
@@ -85,7 +85,7 @@ useSlop(slop, "/notes", () => ({
 </template>
 ```
 
-## Next Steps
+## Next steps
 
 - [Vue package API](/api/vue)
 - [Browser provider API](/api/client)

@@ -1,6 +1,6 @@
 # Web Integration
 
-The web is the richest surface for SLOP. This document covers how web apps expose state to AI consumers, from native SLOP integration to browser extension adapters for unmodified apps.
+The web is the richest integration target for SLOP. This document covers how web apps expose state to AI consumers, from native SLOP integration to browser extension adapters for unmodified apps.
 
 ## Three tiers of web integration
 
@@ -22,7 +22,7 @@ Higher tiers require app involvement but produce better results. Lower tiers wor
 
 ## Tier 1: SLOP-native web apps
 
-The app includes a SLOP provider. This is the ideal case — the app decides what state to expose and what affordances to offer, producing the richest possible representation.
+The app includes a SLOP provider. This is the ideal case. The app decides what state to expose and what affordances to offer, which produces the richest possible representation.
 
 ### Where the provider runs
 
@@ -43,7 +43,7 @@ The server exposes a SLOP WebSocket endpoint at `/slop`. The same provider insta
 
 **In-browser provider (client-only SPAs)**
 
-For apps with no server — local-first apps, offline-capable SPAs, browser-based tools — the provider runs inside the page. AI consumers connect via `postMessage`.
+For apps with no server, such as local-first apps, offline-capable SPAs, and browser-based tools, the provider runs inside the page. AI consumers connect via `postMessage`.
 
 ```
 ┌─ Browser ──────────────────────────────────────┐
@@ -57,9 +57,9 @@ For apps with no server — local-first apps, offline-capable SPAs, browser-base
 └─────────────────────────────────────────────────┘
 ```
 
-The app includes a client-side SLOP provider library. The provider implements the same protocol — `hello`, `subscribe`, `snapshot`, `patch`, `invoke` — but sends messages through `postMessage` instead of a network socket.
+The app includes a client-side SLOP provider library. The provider implements the same protocol, `hello`, `subscribe`, `snapshot`, `patch`, `invoke`, but sends messages through `postMessage` instead of a network socket.
 
-From the AI consumer's perspective, nothing changes. It connects, subscribes, receives state trees and patches, and invokes affordances — regardless of whether the provider is on a server or in the browser.
+From the AI consumer's perspective, nothing changes. It connects, subscribes, receives state trees and patches, and invokes affordances, regardless of whether the provider is on a server or in the browser.
 
 ### Discovery
 
@@ -77,17 +77,17 @@ SLOP-native apps declare themselves via an HTML meta tag and/or a well-known URL
 
 Integrating SLOP into a client-side SPA involves two things:
 
-1. **Tree building** — a function that maps app state to a SLOP tree. This is inherently app-specific: the developer decides what state to expose, how to structure it, and what affordances to offer. The SLOP tree is a *curated projection*, not a raw dump — just as a REST API doesn't expose the database.
+1. **Tree building**: a function that maps app state to a SLOP tree. This is inherently app-specific. The developer decides what state to expose, how to structure it, and what affordances to offer. The SLOP tree is a *curated projection*, not a raw dump, just as a REST API doesn't expose the database.
 
-2. **Affordance handlers** — callbacks that execute when the AI invokes an action. These map SLOP invocations back to the app's own state mutations.
+2. **Affordance handlers**: callbacks that execute when the AI invokes an action. These map SLOP invocations back to the app's own state mutations.
 
-The integration should be **non-invasive** — it should not require changes to the app's UI layer. The SLOP tree is derived from state, not from the UI. The two are separate concerns.
+The integration should be **non-invasive** and require no changes to the app's UI layer. The SLOP tree is derived from state, not from the UI. The two are separate concerns.
 
 #### Package architecture
 
-SLOP's library follows the TanStack Query model: a shared engine with thin transport shells and framework adapters. No contexts, no providers — just objects you create and import.
+SLOP's library follows the TanStack Query model: a shared engine with thin transport shells and framework adapters. No contexts, no providers, just objects you create and import.
 
-The library is organized into layers. Each layer is framework-agnostic — it handles one concern and delegates the rest.
+The library is organized into layers. Each layer is framework-agnostic. It handles one concern and delegates the rest.
 
 ```
 Layer 0: Protocol (spec/)               — Messages, state trees, affordances
@@ -113,7 +113,7 @@ Layer 4: Full-stack adapters             — UI mounting, refresh routing,
 (vanilla JS)            — use @slop-ai/client directly, no adapter needed
 ```
 
-`@slop-ai/core` is the engine — it owns tree assembly, diffing, descriptor-to-wire-format translation, typed schema, and helpers (`action`, `pick`, `omit`, `asyncAction`). It has no transport. `@slop-ai/client` and `@slop-ai/server` are thin shells that wrap the engine with a transport layer. Meta-framework adapters sit on top and handle the full developer experience for a specific framework.
+`@slop-ai/core` is the engine. It owns tree assembly, diffing, descriptor-to-wire-format translation, typed schema, and helpers (`action`, `pick`, `omit`, `asyncAction`). It has no transport. `@slop-ai/client` and `@slop-ai/server` are thin shells that wrap the engine with a transport layer. Meta-framework adapters sit on top and handle the full developer experience for a specific framework.
 
 ```
 @slop-ai/tanstack-start ──→ @slop-ai/server + @slop-ai/client
@@ -133,7 +133,7 @@ Layer 4: Full-stack adapters             — UI mounting, refresh routing,
 | Transport | None | postMessage (default), WebSocket (opt-in) | WebSocket, Unix socket, stdio |
 | Descriptor format | Defines it | Uses it | Uses it |
 | Tree assembly & diffing | Owns it | Delegates to core | Delegates to core |
-| Reactivity | None — pure logic | Framework re-renders | Descriptor functions + `refresh()` |
+| Reactivity | None, pure logic | Framework re-renders | Descriptor functions + `refresh()` |
 | Discovery | None | `<meta>` tag injection (configurable) | `/.well-known/slop`, `~/.slop/providers/` |
 
 | App type | Install | Layer |
@@ -147,11 +147,11 @@ Layer 4: Full-stack adapters             — UI mounting, refresh routing,
 | Electron / Tauri native app | `@slop-ai/server` (Unix socket transport) | 2 |
 | CLI tool | `@slop-ai/server` (stdio transport) | 2 |
 
-Framework adapters depend on `@slop-ai/core` only — they call `register()`/`unregister()` on the engine, which is transport-agnostic. No state-library-specific adapters are needed — the pattern works with useState, Zustand, Redux, MobX, Jotai, Pinia, or plain variables.
+Framework adapters depend on `@slop-ai/core` only. They call `register()`/`unregister()` on the engine, which is transport-agnostic. No state-library-specific adapters are needed because the pattern works with useState, Zustand, Redux, MobX, Jotai, Pinia, or plain variables.
 
 #### The core client
 
-The app creates a single `SlopClient` instance. It's a plain JavaScript object — no framework dependency, no context, no provider.
+The app creates a single `SlopClient` instance. It's a plain JavaScript object with no framework dependency, no context, and no provider.
 
 ```ts
 // slop.ts — create once, import anywhere in your app
@@ -183,7 +183,7 @@ That's the entire public API. Internally, the client:
 
 #### Typed schema
 
-The `createSlop` function accepts an optional `schema` that defines the tree's structural skeleton. When provided, all paths are type-checked at compile time — invalid paths are TypeScript errors, and valid paths get full autocomplete.
+The `createSlop` function accepts an optional `schema` that defines the tree's structural skeleton. When provided, all paths are type-checked at compile time. Invalid paths are TypeScript errors, and valid paths get full autocomplete.
 
 ```ts
 // slop.ts
@@ -216,7 +216,7 @@ slop.register("inbox/nonexistent", { ... });  // ✗ compile error
 slop.register("foo", { ... });                // ✗ compile error
 ```
 
-The schema declares **structure** (what paths exist), not **data** (what values they hold). Dynamic children — items in a collection — are not in the schema. They're declared in the descriptor's `items` array:
+The schema declares **structure** (what paths exist), not **data** (what values they hold). Dynamic children, such as items in a collection, are not in the schema. They're declared in the descriptor's `items` array:
 
 ```ts
 slop.register("inbox/messages", {
@@ -231,7 +231,7 @@ slop.register("inbox/messages", {
 
 The schema also constrains the descriptor type. If the schema declares `messages: "collection"`, the descriptor for that path must have `type: "collection"` and can use `items`. A node declared as `"status"` can't have `items`.
 
-**How it works internally** — TypeScript's template literal types recursively extract all valid paths from the schema:
+**How it works internally.** TypeScript's template literal types recursively extract all valid paths from the schema:
 
 ```ts
 type ExtractPaths<T, P extends string = ""> = {
@@ -253,7 +253,7 @@ inbox.register("messages", { ... });        // ✓ valid under inbox
 inbox.register("nonexistent", { ... });     // ✗ compile error
 ```
 
-The schema is optional — `createSlop()` without a schema works the same way, just without compile-time path checking. This lets teams adopt typing incrementally.
+The schema is optional. `createSlop()` without a schema works the same way, just without compile-time path checking. This lets teams adopt typing incrementally.
 
 #### Node descriptors
 
@@ -290,9 +290,9 @@ Developers describe nodes using a **developer-friendly format**, not raw SLOP pr
 ```
 
 Key naming choices:
-- `props` not `properties` — shorter, matches React convention
-- `actions` not `affordances` — developers think in actions, not affordances
-- `items` not `children` — semantic shorthand for `children` with `type: "item"`
+- `props` rather than `properties`. It is shorter and matches the React convention
+- `actions` rather than `affordances`. Developers think in actions, not affordances
+- `items` rather than `children`. It is semantic shorthand for `children` with `type: "item"`
 - Handlers are callbacks, not serialized function names
 
 The library expands this to proper SLOP nodes internally. The developer never writes `{ id: "x", type: "item", properties: {...}, affordances: [...], meta: {...} }` by hand.
@@ -435,7 +435,7 @@ useSlop(slop, "settings", () => ({
 }));
 ```
 
-All three patterns — path IDs, scoped clients, inline children — produce the same tree. Mix them based on component structure:
+All three patterns produce the same tree. Mix them based on component structure:
 
 | Pattern | Use when |
 |---|---|
@@ -549,11 +549,11 @@ slop.stop()                         // shutdown: close transports, unregister di
 
 #### Descriptor functions
 
-On the client, framework reactivity (React renders, Vue `watchEffect`) automatically re-calls `register()` when state changes. On the server, there is no reactivity system. The descriptor function solves this — `register()` accepts a function that returns a descriptor, and the server re-evaluates it at well-defined moments:
+On the client, framework reactivity (React renders, Vue `watchEffect`) automatically re-calls `register()` when state changes. On the server, there is no reactivity system. The descriptor function solves this. `register()` accepts a function that returns a descriptor, and the server re-evaluates it at well-defined moments:
 
-1. **On initial registration** — evaluates immediately to build the initial tree segment.
-2. **After every successful invoke** — the server automatically calls `refresh()` after an action handler completes, because invocations almost always mutate state.
-3. **On explicit `refresh()`** — for mutations that happen outside of SLOP (REST API calls, background jobs, database triggers).
+1. **On initial registration**: evaluates immediately to build the initial tree segment.
+2. **After every successful invoke**: the server automatically calls `refresh()` after an action handler completes, because invocations almost always mutate state.
+3. **On explicit `refresh()`**: for mutations that happen outside of SLOP (REST API calls, background jobs, database triggers).
 
 ```ts
 import { createSlopServer } from "@slop-ai/server";
@@ -593,7 +593,7 @@ app.post("/api/todos", (req, res) => {
 });
 ```
 
-The developer never constructs wire-format trees (`properties`, `affordances`, `children`) or manages subscriptions by hand. The same descriptor format — `props`, `actions`, `items` — works identically on client and server.
+The developer never constructs wire-format trees (`properties`, `affordances`, `children`) or manages subscriptions by hand. The same `props`, `actions`, and `items` descriptor format works identically on client and server.
 
 #### Transport adapters
 
@@ -644,7 +644,7 @@ attachSlop(slop, httpServer, {
 listenUnix(slop);                 // local agents via Unix socket
 ```
 
-All transports share the same provider instance — one state tree, multiple access paths. An action invoked via WebSocket updates the tree for Unix socket subscribers too.
+All transports share the same provider instance, so one state tree has multiple access paths. An action invoked via WebSocket updates the tree for Unix socket subscribers too.
 
 #### Meta-framework helpers
 
@@ -711,7 +711,7 @@ server.listen(3000);
 
 #### Native apps
 
-Electron, Tauri, and CLI tools are server-side providers — they run as processes and serve the SLOP protocol over sockets. They use `@slop-ai/server` with the appropriate transport:
+Electron, Tauri, and CLI tools are server-side providers. They run as processes and serve the SLOP protocol over sockets. They use `@slop-ai/server` with the appropriate transport:
 
 ```ts
 // Electron main process
@@ -737,7 +737,7 @@ slop.register("entries", () => ({
 listenUnix(slop, "/tmp/slop/clipboard.sock", { register: true });
 ```
 
-The desktop app or CLI agent discovers this provider via `~/.slop/providers/clipboard-manager.json` and connects over Unix socket — no browser extension needed.
+The desktop app or CLI agent discovers this provider via `~/.slop/providers/clipboard-manager.json` and connects over Unix socket. No browser extension is needed.
 
 #### Discovery
 
@@ -745,7 +745,7 @@ Server transports handle discovery automatically:
 
 - **`attachSlop()`** auto-serves `GET /.well-known/slop` as a JSON endpoint (returning the provider descriptor). Disable with `{ discovery: false }`.
 - **`listenUnix()`** auto-writes `~/.slop/providers/{id}.json` when `register: true` is set, and deletes it on shutdown.
-- **`listenStdio()`** sends `hello` as the first message per the SLOP protocol — no separate discovery needed.
+- **`listenStdio()`** sends `hello` as the first message per the SLOP protocol, so no separate discovery is needed.
 
 #### Typed schema and scoped clients
 
@@ -790,7 +790,7 @@ slop.register("settings", () => ({ type: "view", ... }))
 
 ### Meta-framework adapters (Layer 4)
 
-Full-stack apps that run code on both the server and in the browser — today concretely `@slop-ai/tanstack-start`, plus custom integrations built on the Nitro or Vite helpers — use the cleanest SLOP model:
+Full-stack apps that run code on both the server and in the browser use the cleanest SLOP model. Today this concretely means `@slop-ai/tanstack-start`, plus custom integrations built on the Nitro or Vite helpers:
 
 - the **server** remains the public WebSocket provider
 - the **browser UI** runs `@slop-ai/client`, but connects outbound to the app server
@@ -853,7 +853,7 @@ Using `/ui` here is recommended for consistency across fullstack adapters, but i
 
 #### Per-session data providers
 
-In a multi-user web app, each user session sees different data — different permissions, different records. The data provider is therefore **per-session**, not shared. Each session gets its own `SlopServer` instance.
+In a multi-user web app, each user session sees different data: different permissions, different records. The data provider is therefore **per-session**, not shared. Each session gets its own `SlopServer` instance.
 
 ```
 ┌─ Backend ──────────────────────────────────────────────┐
@@ -869,22 +869,22 @@ In a multi-user web app, each user session sees different data — different per
 └─────────────────────────────────────────────────────────┘
 ```
 
-Session management is the backend's responsibility — authenticating the WebSocket connection, creating or retrieving a `SlopServer` for that session, and routing messages to the right instance. This is no different from how web apps already handle sessions.
+Session management is the backend's responsibility. It authenticates the WebSocket connection, creates or retrieves a `SlopServer` for that session, and routes messages to the right instance. This is no different from how web apps already handle sessions.
 
-The browser UI provider is naturally per-tab — each browser tab runs its own `@slop-ai/client` instance and opens its own outbound browser-to-server connection. The server decides how to map those connections onto mounted `ui` subtrees (for example, one active tab, or one subtree per tab).
+The browser UI provider is naturally per-tab. Each browser tab runs its own `@slop-ai/client` instance and opens its own outbound browser-to-server connection. The server decides how to map those connections onto mounted `ui` subtrees (for example, one active tab, or one subtree per tab).
 
-See [Sessions & Multi-User](../../docs/sdk/sessions.md) for the SDK architecture guide — session-scoped trees vs provider-per-session tradeoffs, scaling analysis, the `refresh({ where })` API, multi-tab handling, tab-closed resilience, and meta-framework adapter patterns.
+See [Sessions & Multi-User](../../docs/sdk/sessions.md) for the SDK architecture guide. It covers session-scoped trees and provider-per-session tradeoffs, scaling analysis, the `refresh({ where })` API, multi-tab handling, tab-closed resilience, and meta-framework adapter patterns.
 
 #### Data invalidation
 
-When the AI invokes a data action (e.g., `add_todo`), the server's tree updates. But the browser UI may be showing stale data from its last fetch. The protocol doesn't solve this — it's the adapter's job.
+When the AI invokes a data action (e.g., `add_todo`), the server's tree updates. But the browser UI may be showing stale data from its last fetch. The protocol doesn't solve this. It's the adapter's job.
 
 The pattern:
 
 1. AI invokes `add_todo` on the data provider
 2. Data provider executes the handler, auto-refreshes, sends updated tree to consumer
 3. Consumer sees the data changed (via patch)
-4. Consumer invokes `refresh` on `ui/__adapter` — a standard SLOP affordance exposed through the mounted browser subtree
+4. Consumer invokes `refresh` on `ui/__adapter`, a standard SLOP affordance exposed through the mounted browser subtree
 5. The browser UI provider's `refresh` handler triggers the framework's native re-fetch
 
 The `refresh` affordance is registered by the meta-framework adapter on the UI provider:
@@ -902,7 +902,7 @@ slop.register("__adapter", {
 });
 ```
 
-This is a standard `invoke` message — no protocol extension. The consumer just calls it when it detects the data provider changed after an action it routed. Custom integrations built on `@slop-ai/server/nitro` or `@slop-ai/server/vite` wire the same affordance to their framework's native invalidation primitive.
+This is a standard `invoke` message, with no protocol extension. The consumer just calls it when it detects the data provider changed after an action it routed. Custom integrations built on `@slop-ai/server/nitro` or `@slop-ai/server/vite` wire the same affordance to their framework's native invalidation mechanism.
 
 #### What each adapter handles
 
@@ -994,7 +994,7 @@ export function TodosPage() {
 }
 ```
 
-No custom protocol messages. No `ui_` prefix convention. Each side is a standard SLOP provider. The adapter wires the browser UI back to the server automatically — the developer just writes `useSlop()` registrations and descriptor functions.
+No custom protocol messages. No `ui_` prefix convention. Each side is a standard SLOP provider. The adapter wires the browser UI back to the server automatically. The developer just writes `useSlop()` registrations and descriptor functions.
 
 #### Separation of concerns
 
@@ -1015,7 +1015,7 @@ The meta-framework adapter (Layer 4) handles:
 - Framework-specific module/plugin wiring
 
 This separation means:
-- The protocol needs no extensions for fullstack apps — standard SLOP on both sides
+- The protocol needs no extensions for fullstack apps. Both sides speak standard SLOP
 - The same protocol works for any language combination (React frontend + Go backend, etc.)
 - Framework adapters can evolve independently of the protocol
 - New frameworks can be supported without protocol changes
@@ -1023,16 +1023,16 @@ This separation means:
 
 ## Tier 2: Framework adapter
 
-A browser extension hooks into the app's frontend framework to extract structured state. No app changes required, but the state is less semantic than a native integration.
+A browser extension hooks into the app's frontend framework to extract structured state. No app changes are required, but the state is less semantic than a native integration.
 
 ### How it works
 
 Modern frontend frameworks maintain a virtual representation of the UI:
 
-- **React** — fiber tree with component state and props
-- **Vue** — reactive dependency graph with component instances
-- **Svelte** — compiled reactive variables
-- **Redux/Zustand/MobX/Pinia** — external state stores
+- **React**: fiber tree with component state and props
+- **Vue**: reactive dependency graph with component instances
+- **Svelte**: compiled reactive variables
+- **Redux/Zustand/MobX/Pinia**: external state stores
 
 An extension can access these through the same mechanisms that DevTools extensions use (e.g., `__REACT_DEVTOOLS_GLOBAL_HOOK__`).
 
@@ -1054,17 +1054,17 @@ Store state slice      →   subtree
 
 ### Affordances from the framework
 
-- **onClick handlers** → `{ action: "click" }`
-- **onSubmit handlers** → `{ action: "submit" }`
-- **Input elements** → `{ action: "fill", params: { value: "string" } }`
-- **Links / router navigation** → `{ action: "navigate", params: { to: "string" } }`
+- **onClick handlers** map to `{ action: "click" }`
+- **onSubmit handlers** map to `{ action: "submit" }`
+- **Input elements** map to `{ action: "fill", params: { value: "string" } }`
+- **Links / router navigation** map to `{ action: "navigate", params: { to: "string" } }`
 
-These are generic — the adapter doesn't know the domain meaning of a click. A native SLOP integration would expose `{ action: "archive" }` instead of `{ action: "click" }`.
+These are generic. The adapter doesn't know the domain meaning of a click. A native SLOP integration would expose `{ action: "archive" }` instead of `{ action: "click" }`.
 
 ### Change detection
 
 - **React**: Subscribe to fiber tree updates via DevTools hook
-- **Redux/Zustand**: `store.subscribe()` — the store itself notifies on change
+- **Redux/Zustand**: `store.subscribe()`, where the store itself notifies on change
 - **Vue**: Reactivity system triggers watchers automatically
 - **Generic**: `MutationObserver` on the DOM as a fallback
 
@@ -1072,7 +1072,7 @@ Debounce at 50–100ms to batch rapid framework re-renders into single SLOP patc
 
 ## Tier 3: Accessibility tree adapter
 
-The most generic approach. Works on any web page without any app cooperation. A browser extension reads the browser's accessibility tree and maps it to SLOP.
+This is the most generic approach. It works on any web page without any app cooperation. A browser extension reads the browser's accessibility tree and maps it to SLOP.
 
 ### Source: Accessibility tree
 
@@ -1093,26 +1093,26 @@ states: ["focused"]   →  meta.focus: true
 
 ### Affordances from ARIA
 
-- `role: "button"` → `{ action: "click" }`
-- `role: "textbox"` → `{ action: "fill", params: { value: "string" } }`
-- `role: "link"` → `{ action: "follow" }`
-- `role: "checkbox"` → `{ action: "toggle" }`
-- `aria-expanded: "true"` → `{ action: "collapse" }`
+- `role: "button"` maps to `{ action: "click" }`
+- `role: "textbox"` maps to `{ action: "fill", params: { value: "string" } }`
+- `role: "link"` maps to `{ action: "follow" }`
+- `role: "checkbox"` maps to `{ action: "toggle" }`
+- `aria-expanded: "true"` maps to `{ action: "collapse" }`
 
 ### Limitations
 
 The accessibility tree is designed for screen readers, not AI. It reflects UI structure, not semantic application state. An email inbox's AX tree describes *elements on screen* (list items with text), not *emails with senders and subjects*. This is the fundamental difference from a native SLOP integration.
 
-However, for apps that aren't SLOP-aware, the accessibility tree is far better than screenshots — it's structured, lightweight, and immediately available.
+However, for apps that aren't SLOP-aware, the accessibility tree is far better than screenshots. It's structured, lightweight, and immediately available.
 
 ### Change detection
 
 - `MutationObserver` on the DOM
-- Debounce aggressively — UI updates at 60fps, SLOP patches at 1–10/second max
+- Debounce aggressively. UI updates at 60fps, SLOP patches at 1–10/second max
 
 ## Extension architecture
 
-A SLOP browser extension acts as a bridge between web apps and AI consumers. It supports all three tiers, choosing the best available source for each page.
+A SLOP browser extension bridges web apps and AI consumers. It supports all three tiers and chooses the best available source for each page.
 
 ```
 ┌─ Extension ────────────────────────────────┐
@@ -1132,11 +1132,11 @@ A SLOP browser extension acts as a bridge between web apps and AI consumers. It 
 
 When the extension loads on a page, it checks for SLOP support in order:
 
-1. **Meta tag**: `<meta name="slop" content="...">` — the app is SLOP-native. The extension connects as a consumer (or simply surfaces the connection info to local AI agents).
-2. **Framework hooks**: `window.__REACT_DEVTOOLS_GLOBAL_HOOK__`, `window.__VUE_DEVTOOLS_GLOBAL_HOOK__`, etc. — framework state is available. The extension builds an adapter.
+1. **Meta tag**: `<meta name="slop" content="...">`. The app is SLOP-native. The extension connects as a consumer (or simply surfaces the connection info to local AI agents).
+2. **Framework hooks**: `window.__REACT_DEVTOOLS_GLOBAL_HOOK__`, `window.__VUE_DEVTOOLS_GLOBAL_HOOK__`, etc. Framework state is available. The extension builds an adapter.
 3. **Accessibility tree**: Always available. The extension builds a generic adapter.
 
-The extension should prefer higher tiers — if a meta tag is present, don't also build a framework adapter for the same page.
+The extension should prefer higher tiers. If a meta tag is present, it shouldn't also build a framework adapter for the same page.
 
 ## Design principles for web integration
 
@@ -1144,28 +1144,28 @@ The extension should prefer higher tiers — if a meta tag is present, don't als
 
 2. **The protocol doesn't change across tiers.** Whether the state tree comes from a native provider, a framework adapter, or the accessibility tree, consumers see the same SLOP protocol. The quality of the tree varies, but the interface is identical.
 
-3. **Same state, multiple consumers.** A web app's SLOP provider should serve any number of consumers — browser extensions, local AI agents, remote tools. The provider is the single source of truth; consumers are interchangeable.
+3. **Same state, multiple consumers.** A web app's SLOP provider should serve any number of consumers: browser extensions, local AI agents, remote tools. The provider is the single source of truth; consumers are interchangeable.
 
 4. **Transport matches the architecture.** Server-backed apps use WebSocket. Client-only SPAs use postMessage. Both are SLOP transports. The app's architecture determines the transport, not the protocol.
 
-5. **Adapt to state, not to state libraries.** The `register(id, descriptor)` API works with any state source — React useState, Zustand, Redux, MobX, Vue refs, Svelte runes, or plain variables. No per-library adapters.
+5. **Adapt to state, not to state libraries.** The `register(id, descriptor)` API works with any state source: React useState, Zustand, Redux, MobX, Vue refs, Svelte runes, or plain variables. No per-library adapters.
 
 6. **Don't invade the UI layer.** SLOP declarations live in the component logic (next to `useState`), not in the template (JSX/HTML). The UI should be completely SLOP-free.
 
-7. **No contexts, no providers.** The `SlopClient` is a plain object you create and import — like TanStack's `QueryClient`. Framework adapters are hooks that call `register`/`unregister`, not context providers that wrap the component tree.
+7. **No contexts, no providers.** The `SlopClient` is a plain object you create and import, like TanStack's `QueryClient`. Framework adapters are hooks that call `register`/`unregister`, not context providers that wrap the component tree.
 
 8. **Distributed, not centralized.** Each component registers its own SLOP nodes near the state it owns. Components don't know about each other's nodes. The client assembles the full tree. When a component unmounts, its nodes disappear.
 
-9. **Developer-friendly names.** The descriptor API uses `props`, `actions`, `items` — not `properties`, `affordances`, `children`. Handlers are callbacks, not action name strings. The library translates to protocol format internally.
+9. **Developer-friendly names.** The descriptor API uses `props`, `actions`, and `items` rather than `properties`, `affordances`, or `children`. Handlers are callbacks, not action name strings. The library translates to protocol format internally.
 
-10. **The tree is a curated projection.** Developers choose what to expose — SLOP doesn't dump internal state. The semantic mapping is inherently app-specific. Libraries reduce boilerplate but don't attempt to auto-generate semantic meaning.
+10. **The tree is a curated projection.** Developers choose what to expose. SLOP doesn't dump internal state. The semantic mapping is inherently app-specific. Libraries reduce boilerplate but don't attempt to auto-generate semantic meaning.
 
-11. **Descriptor functions, not manual tree building.** On the server, `register()` accepts a function that returns a descriptor. The server re-evaluates it after invocations and on explicit `refresh()`. Developers never construct wire-format trees or manage subscriptions by hand — the SDK handles the reactivity gap.
+11. **Descriptor functions, not manual tree building.** On the server, `register()` accepts a function that returns a descriptor. The server re-evaluates it after invocations and on explicit `refresh()`. Developers never construct wire-format trees or manage subscriptions by hand. The SDK handles the reactivity gap.
 
-12. **Attach to existing servers, don't replace them.** `attachSlop(slop, httpServer)` adds a SLOP WebSocket endpoint alongside existing routes. It doesn't create its own server, claim a port, or interfere with routing. One more endpoint, like any other.
+12. **Attach to existing servers, don't replace them.** `attachSlop(slop, httpServer)` adds a SLOP WebSocket endpoint alongside existing routes. It doesn't create its own server, claim a port, or interfere with routing. It is one more endpoint, like any other.
 
-13. **Shared engine, separate transports.** `@slop-ai/core` is the engine — tree assembly, diffing, descriptor format. `@slop-ai/client` and `@slop-ai/server` are transport shells. Learn `register()` once, use it everywhere — browser, server, CLI, native app.
+13. **Shared engine, separate transports.** `@slop-ai/core` is the engine: tree assembly, diffing, descriptor format. `@slop-ai/client` and `@slop-ai/server` are transport shells. Learn `register()` once and use it everywhere: browser, server, CLI, native app.
 
-14. **The protocol is framework-agnostic. Adapters are not.** The SLOP protocol handles state exposure and AI interaction. How the browser UI stays in sync, how server/client state is composed, and how the endpoint is configured — these are framework concerns, solved by framework-specific adapters (Layer 4), not by the protocol.
+14. **The protocol is framework-agnostic. Adapters are not.** The SLOP protocol handles state exposure and AI interaction. How the browser UI stays in sync, how server/client state is composed, and how the endpoint is configured are framework concerns, solved by framework-specific adapters (Layer 4), not by the protocol.
 
-15. **Trees are per-session, not shared.** In multi-user apps, each user session gets its own `SlopServer` instance with its own tree, version, and UI state. The protocol doesn't define sessions — the backend authenticates and routes connections to the correct instance, the same way it handles any session-scoped resource.
+15. **Trees are per-session, not shared.** In multi-user apps, each user session gets its own `SlopServer` instance with its own tree, version, and UI state. The protocol doesn't define sessions. The backend authenticates and routes connections to the correct instance, the same way it handles any session-scoped resource.

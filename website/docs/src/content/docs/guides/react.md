@@ -31,7 +31,7 @@ import { action, useSlop } from "@slop-ai/react";
 
 The signature is `useSlop(client, pathOrGetter, descriptorFactory)`. React registers after commit, re-runs the descriptor factory on every render, and cleans up automatically on unmount.
 
-## Full Example
+## Full example
 
 ```tsx
 import { useState } from "react";
@@ -87,7 +87,7 @@ export function Notes() {
 }
 ```
 
-## Next Steps
+## Next steps
 
 - [React package API](/api/react)
 - [Browser provider API](/api/client)

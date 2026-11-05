@@ -2,11 +2,11 @@
 
 The OpenClaw plugin discovers SLOP providers, injects their state into the prompt, and exposes five tools for interaction:
 
-- `list_apps` — list available apps
-- `connect_app` — connect and inspect an app
-- `disconnect_app` — stop tracking an app
-- `app_action` — perform a single action
-- `app_action_batch` — perform multiple actions in one call
+- `list_apps` lists available apps
+- `connect_app` connects to and inspects an app
+- `disconnect_app` stops tracking an app
+- `app_action` performs a single action
+- `app_action_batch` performs multiple actions in one call
 
 ## Install
 
@@ -44,4 +44,4 @@ OpenClaw's plugin SDK does not support runtime tool registration. Tools must be 
 
 - [OpenClaw integration guide](../guides/advanced/openclaw.md)
 - [Consumer SDK](./consumer.md)
-- [Discovery & Bridge](/sdk/discovery) — shared discovery layer
+- [Discovery & Bridge](/sdk/discovery), shared discovery layer

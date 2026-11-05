@@ -12,8 +12,8 @@ description: >
 # Connecting to SLOP Apps
 
 SLOP (Semantic Live Observable Protocol) lets apps expose their live state and actions to you.
-When connected to a SLOP app, its **state tree** is injected into your context on every message —
-you always see the latest state, available actions, paths, and parameter schemas.
+When connected to a SLOP app, its **state tree** is injected into your context on every message,
+so you always see the latest state, available actions, paths, and parameter schemas.
 
 ## Tools
 
@@ -21,35 +21,35 @@ you always see the latest state, available actions, paths, and parameter schemas
 
 Lists all available applications.
 
-- **No arguments** — lists all available apps (local native + web), their connection status, and action counts.
+- **No arguments**: lists all available apps (local native + web), their connection status, and action counts.
 
 ### `connect_app`
 
 Connects to a specific app and returns its full state tree.
 
-- **`app: "name or id"`** — connects to the app (if not already connected) and returns its full state tree.
+- **`app: "name or id"`**: connects to the app (if not already connected) and returns its full state tree.
 
 ### `disconnect_app`
 
 Disconnect from an app. Stops state updates and removes it from context.
 
-- **`app: "name or id"`** — the app to disconnect from.
+- **`app: "name or id"`**: the app to disconnect from.
 
 ### `app_action`
 
 Perform a single action on an app. Read the state tree in your context to find the correct paths, action names, and parameter schemas.
 
-- **`app`** — app name or ID
-- **`path`** — path to the node to act on (e.g. `"/"`, `"/todos/todo-1"`, `"/canvas"`)
-- **`action`** — action name (e.g. `"add_card"`, `"toggle"`, `"delete"`)
-- **`params`** — action parameters as key-value pairs (optional, depends on the action schema)
+- **`app`**: app name or ID
+- **`path`**: path to the node to act on (e.g. `"/"`, `"/todos/todo-1"`, `"/canvas"`)
+- **`action`**: action name (e.g. `"add_card"`, `"toggle"`, `"delete"`)
+- **`params`**: action parameters as key-value pairs (optional, depends on the action schema)
 
 ### `app_action_batch`
 
 Perform multiple actions in a single call. Much faster than calling `app_action` repeatedly.
 
-- **`app`** — app name or ID
-- **`actions`** — array of `{ path, action, params }` objects to execute sequentially
+- **`app`**: app name or ID
+- **`actions`**: array of `{ path, action, params }` objects to execute sequentially
 
 Use this for bulk operations: adding multiple items, making several edits, or any multi-step workflow.
 
@@ -58,8 +58,8 @@ Use this for bulk operations: adding multiple items, making several edits, or an
 ### 1. List available apps
 
 Call `list_apps` to see what's available. Apps are auto-discovered from:
-- `~/.slop/providers/` — local native apps
-- The SLOP browser extension bridge — web apps running in the browser
+- `~/.slop/providers/` for local native apps
+- The SLOP browser extension bridge for web apps running in the browser
 
 ### 2. Connect
 
@@ -80,7 +80,7 @@ are exactly what you pass to the tool.
 
 Call `app_action` with the `app`, `path`, `action`, and `params` from the state tree.
 
-Example — adding a card to a kanban board:
+For example, to add a card to a kanban board:
 ```
 app_action(app="kanban", path="/columns/todo", action="add_card", params={"title": "Fix bug", "priority": "high"})
 ```
@@ -102,9 +102,9 @@ You always see the latest state without needing to re-fetch.
 ### 6. Disconnect
 
 When you're done with an app, call `disconnect_app` to stop state updates. Only disconnect when
-explicitly asked — the connection persists across messages.
+explicitly asked. The connection persists across messages.
 
-## Reading the State Tree
+## Reading the state tree
 
 The state tree uses a canonical text format:
 
@@ -115,11 +115,11 @@ The state tree uses a canonical text format:
 ```
 
 Key elements:
-- **Type** — semantic role: `root`, `view`, `collection`, `item`, `document`, `form`, `field`, `control`, `status`, `notification`, `context`
-- **Salience** — 0 to 1, how important this node is right now. Focus on high-salience nodes.
-- **Summary** — quoted text giving an overview of collapsed subtrees
-- **Actions** — affordances available on that node, with parameter signatures. **These are the action names and params you use with `app_action`.**
-- **Windowing** — `(showing N of M)` means a large collection is partially loaded
+- **Type**: semantic role, one of `root`, `view`, `collection`, `item`, `document`, `form`, `field`, `control`, `status`, `notification`, `context`
+- **Salience**: 0 to 1, how important this node is right now. Focus on high-salience nodes.
+- **Summary**: quoted text giving an overview of collapsed subtrees
+- **Actions**: affordances available on that node, with parameter signatures. **These are the action names and params you use with `app_action`.**
+- **Windowing**: `(showing N of M)` means a large collection is partially loaded
 
 ### Content references
 
@@ -131,14 +131,14 @@ summary: "TypeScript module. Exports SLOP client."
 
 Invoke the `read_content` action on that node to load the full content.
 
-## Multi-App Workflows
+## Multi-app workflows
 
 Connect to multiple apps simultaneously. Each app's state appears separately in context with
 its own namespace. Use the `app` parameter in `app_action` to target the right app.
 
 Example: connect to both a kanban board and a chat app, then create a card from a chat message.
 
-## Async Actions
+## Async actions
 
 Some actions take time (deploys, report generation). When you invoke one:
 1. You get an immediate response indicating acceptance
@@ -146,12 +146,12 @@ Some actions take time (deploys, report generation). When you invoke one:
 3. The task node may have a `cancel` action
 4. Report progress to the user as it updates
 
-## Important Notes
+## Important notes
 
-- **Dangerous actions** — actions marked `[DANGEROUS]` require user confirmation. Always ask the user first.
-- **State is live** — the tree updates in real time via patches. What you see is current.
-- **Inspect before acting** — always call `connect_app` with an app name before using `app_action` so you have the current state.
-- **Batch for speed** — use `app_action_batch` for multiple actions instead of calling `app_action` sequentially.
-- **Summaries are valuable** — stub nodes with summaries often tell you enough without loading full details.
+- **Dangerous actions.** Actions marked `[DANGEROUS]` require user confirmation. Always ask the user first.
+- **State is live.** The tree updates in real time via patches. What you see is current.
+- **Inspect before acting.** Always call `connect_app` with an app name before using `app_action` so you have the current state.
+- **Batch for speed.** Use `app_action_batch` for multiple actions instead of calling `app_action` sequentially.
+- **Summaries are valuable.** Stub nodes with summaries often tell you enough without loading full details.
 
 For more details on the SLOP protocol, see `references/protocol-overview.md`.

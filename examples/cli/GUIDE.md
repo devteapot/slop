@@ -37,7 +37,7 @@ This is what a human sees. `tsk` is just a task manager.
 tsk
 ```
 
-You see a formatted list — titles, due dates, tags, checkboxes. Overdue tasks are highlighted. Completed tasks are dimmed or marked. This is designed for human eyes.
+You see a formatted list: titles, due dates, tags, checkboxes. Overdue tasks are highlighted. Completed tasks are dimmed or marked. This is designed for human eyes.
 
 ### Add a task
 
@@ -61,7 +61,7 @@ The task moves from pending to completed.
 tsk notes t-1
 ```
 
-Shows the full notes attached to a task. Notes can be multi-line — shopping lists, meeting notes, context for the task.
+Shows the full notes attached to a task. Notes can be multi-line: shopping lists, meeting notes, context for the task.
 
 ### Search
 
@@ -99,7 +99,7 @@ tsk: 10 tasks loaded (7 pending, 1 overdue)
 tsk>
 ```
 
-This is the multi-modal experience. The tool is now a **provider** — it's listening on a Unix domain socket for AI consumers, while you can still type commands at the `tsk>` prompt. The SLOP protocol flows over the socket, keeping stdout free for human-readable output.
+This is the multi-modal experience. The tool is now a **provider**. It's listening on a Unix domain socket for AI consumers, while you can still type commands at the `tsk>` prompt. The SLOP protocol flows over the socket, keeping stdout free for human-readable output.
 
 ### Subscribe to the state tree
 
@@ -109,7 +109,7 @@ In another terminal, connect to the socket and send a subscribe message. Here's 
 echo '{"type":"subscribe","id":"s1","path":"/","depth":-1}' | socat - UNIX-CONNECT:/tmp/slop/tsk.sock
 ```
 
-Or programmatically — any SLOP consumer can connect to the Unix socket. The provider sends a **hello** message on connection, then responds to subscribe with a **snapshot**: the entire state tree as structured JSON.
+Or programmatically: any SLOP consumer can connect to the Unix socket. The provider sends a **hello** message on connection, then responds to subscribe with a **snapshot**: the entire state tree as structured JSON.
 
 ```json
 {
@@ -183,10 +183,10 @@ One line. You parse the `[ ]`, the `overdue!`, the `#health` visually. You know 
 ```
 
 The AI knows:
-- This task is **urgent** (salience 1.0, urgency "high") — it should probably mention this first
-- It's **2 days overdue** — the reason is in plain text, not inferred from date math
-- It can **complete** it, **edit** it, or **delete** it — and delete requires confirmation
-- The edit action accepts title, due, and tags — the AI knows the schema
+- This task is urgent (salience 1.0, urgency "high"), so the AI should probably mention it first
+- It is 2 days overdue. The reason is in plain text, not inferred from date math
+- It can complete the task, edit it, or delete it. Delete requires confirmation
+- The edit action accepts title, due, and tags, so the AI knows the schema
 
 The AI doesn't scrape text. It doesn't guess what commands exist. It reads structured state and acts through declared affordances.
 
@@ -204,7 +204,7 @@ The provider responds:
 {"type":"result","id":"inv-1","status":"ok","data":{"id":"t-11"}}
 ```
 
-And immediately sends a **patch** to all subscribers — the new task appears in the tree:
+And immediately sends a **patch** to all subscribers. The new task appears in the tree:
 
 ```json
 {"type":"patch","subscription":"s1","version":2,"ops":[
@@ -241,7 +241,7 @@ Response:
 {"type":"result","id":"inv-2","status":"ok","data":{"content":"Milk, eggs, bread, avocados\nCheck if we need coffee"}}
 ```
 
-This is the SLOP equivalent of glancing at a file tab vs opening the file. The AI chooses when to pay the token cost.
+The AI reads the summary first and loads the full text only when it needs to, choosing when to pay the token cost.
 
 ### Salience: what matters right now
 
@@ -256,7 +256,7 @@ The tree isn't a flat list. Tasks are sorted by salience:
 | Plan weekend trip (no due) | 0.4 | No deadline |
 | Fix login bug (done) | 0.2 | Completed |
 
-If an AI subscribes with a salience filter (`min_salience: 0.5`), it only sees the urgent tasks. Completed tasks and low-priority items disappear — the AI's context window focuses on what matters.
+If an AI subscribes with a salience filter (`min_salience: 0.5`), it only sees the urgent tasks. Completed tasks and low-priority items disappear, so the AI's context window holds only the tasks that matter.
 
 ### Discovery
 
@@ -281,11 +281,11 @@ cat ~/.slop/providers/tsk.json
 
 Any AI agent scanning `~/.slop/providers/` can find `tsk`, connect to its Unix socket, and start observing. When `tsk --slop` exits, this file is cleaned up.
 
-## Part 3: Multi-modal — human + AI, side by side
+## Part 3: Multi-modal, human and AI side by side
 
-This is the key value proposition. Run SLOP mode and interact with it as a human while an AI observes via the socket:
+Run SLOP mode and interact with it as a human while an AI observes via the socket:
 
-**Terminal 1** — SLOP mode (human + AI interface):
+**Terminal 1** runs SLOP mode (human + AI interface):
 ```bash
 tsk --slop
 ```
@@ -309,13 +309,13 @@ tsk> list
 
 Every mutation you make sends patches over the socket to any connected AI consumer. The AI sees your changes in real time.
 
-Meanwhile, the AI can invoke actions through the socket — adding tasks, completing them, searching. When the AI acts, you see the results the next time you run `list`.
+Meanwhile, the AI can invoke actions through the socket: adding tasks, completing them, searching. When the AI acts, you see the results the next time you run `list`.
 
-**Terminal 2** — connect as an AI consumer:
+**Terminal 2** connects as an AI consumer:
 ```bash
 socat - UNIX-CONNECT:/tmp/slop/tsk.sock
 ```
 
 You'll receive the hello message, and can send subscribe/invoke messages. Patches from your Terminal 1 commands stream through.
 
-**This is the point.** There is no "AI version" of your app. There's one process, one data file, one set of tasks. The human uses stdin/stdout. The AI uses the Unix socket. Both interfaces operate on the same state. SLOP is just a structured window into what's already there.
+There is no "AI version" of your app. There's one process, one data file, one set of tasks. The human uses stdin/stdout. The AI uses the Unix socket. Both interfaces operate on the same state. SLOP exposes what's already there in structured form.

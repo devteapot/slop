@@ -1,6 +1,6 @@
-# Testing SLOP Applications
+# Testing SLOP applications
 
-SLOP providers can be written in any language — Go, Python, Rust, TypeScript, or anything that speaks the protocol. The inspector's `provider.Manager` connects over the wire (Unix socket or WebSocket), which means it can test any provider without knowing or caring what language it's implemented in.
+SLOP providers can be written in any language, including Go, Python, Rust, and TypeScript, or anything else that speaks the protocol. The inspector's `provider.Manager` connects over the wire (Unix socket or WebSocket), which means it can test any provider without knowing or caring what language it's implemented in.
 
 This document explores approaches for automated, declarative testing of SLOP applications.
 
@@ -10,11 +10,11 @@ Right now, testing a SLOP provider means:
 
 1. Start the provider manually
 2. Connect with the desktop app or extension
-3. Eyeball the tree — does it look right?
+3. Eyeball the tree to see whether it looks right
 4. Click around to invoke affordances
 5. Check if the state changed
 
-This is slow, not reproducible, and doesn't run in CI. We need something like `curl` or Postman for SLOP — connect, assert state, invoke actions, check results, exit with a pass/fail code.
+This is slow, not reproducible, and doesn't run in CI. We need something like `curl` or Postman for SLOP: connect, assert state, invoke actions, check results, and exit with a pass/fail code.
 
 ## Design principles
 
@@ -179,11 +179,11 @@ Every protocol message (snapshots, patches, invocations, results) is captured wi
 slop-test replay session.json --connect /tmp/slop/app.sock
 ```
 
-The runner replays all invocations from the recording and asserts that the resulting tree state matches the recorded snapshots at each point. This catches regressions — if the provider's behavior diverges from the recording, the test fails.
+The runner replays all invocations from the recording and asserts that the resulting tree state matches the recorded snapshots at each point. This catches regressions. If the provider's behavior diverges from the recording, the test fails.
 
 ### Advantages
 
-- Zero-effort test creation — just use the inspector
+- Zero-effort test creation: just use the inspector
 - Captures real interaction patterns
 - Great for regression testing after refactors
 
@@ -193,7 +193,7 @@ The runner replays all invocations from the recording and asserts that the resul
 - Need a diffing strategy that ignores volatile fields
 - Large recordings are hard to debug when they fail
 
-### Mitigation: Selective assertions
+### Mitigation: selective assertions
 
 Instead of asserting the entire tree matches, the replay runner can be configured to only check specific paths or properties:
 
@@ -265,7 +265,7 @@ The fuzzer:
 4. Checks all invariants still hold
 5. Repeats for N steps
 
-This finds edge cases that scripted tests miss — what happens when you complete an already-completed task? What if you add 1000 tasks? What if you invoke actions in an unexpected order?
+This finds edge cases that scripted tests miss: what happens when you complete an already-completed task? What if you add 1000 tasks? What if you invoke actions in an unexpected order?
 
 ## CLI interface
 
@@ -383,7 +383,7 @@ These approaches aren't mutually exclusive. A realistic test suite might use:
 
 ## Implementation path
 
-The architecture supports this today. `provider.Manager` already handles connect, subscribe, tree mirroring, and invoke — all headless, no TUI required. The test runner is a second consumer of the same API:
+The architecture supports this today. `provider.Manager` already handles connect, subscribe, tree mirroring, and invoke, all headless with no TUI required. The test runner is a second consumer of the same API:
 
 ```
 provider.Manager
@@ -393,8 +393,8 @@ provider.Manager
 
 What needs to be built:
 
-1. **YAML spec parser** — parse steps, assertions, invocations
-2. **Assertion engine** — walk the tree, match paths, check properties
-3. **Test runner** — execute steps sequentially, collect results
-4. **Reporter** — human-readable + JSON output
-5. **CLI integration** — `slop-test` subcommand or separate binary
+1. **YAML spec parser.** Parses steps, assertions, and invocations
+2. **Assertion engine.** Walks the tree, matches paths, and checks properties
+3. **Test runner.** Executes steps sequentially and collects results
+4. **Reporter.** Human-readable + JSON output
+5. **CLI integration.** A `slop-test` subcommand or separate binary

@@ -97,7 +97,7 @@ Consumers connect to the server provider once. That tree includes both:
 - server-owned data such as `items`
 - browser-owned UI state under `ui`
 
-## Next Steps
+## Next steps
 
 - [TanStack Start package API](/api/tanstack-start)
 - [Full-stack pattern explained](/guides/advanced/full-stack)

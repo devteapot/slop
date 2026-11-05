@@ -58,17 +58,17 @@ cargo test
 
 ## Project structure
 
-- `spec/` — Protocol specification (language-agnostic)
-- `packages/` — Publishable SDK packages
+- `spec/`: Protocol specification (language-agnostic)
+- `packages/`: Publishable SDK packages
   - TypeScript: `@slop-ai/core`, `@slop-ai/client`, `@slop-ai/server`, `@slop-ai/react`, `@slop-ai/consumer`, etc.
   - Python: `slop-ai` (in `packages/python/slop-ai/`)
   - Rust: `slop-ai` (in `packages/rust/slop-ai/`)
   - Go: `github.com/slop-ai/slop-go` (in `packages/go/slop-ai/`)
-- `apps/` — Standalone consumer applications
-  - `extension/` — Chrome extension
-  - `desktop/` — Tauri desktop app
-  - `cli/` — Go CLI inspector
-- `examples/` — Runnable example apps
+- `apps/`: Standalone consumer applications
+  - `extension/`: Chrome extension
+  - `desktop/`: Tauri desktop app
+  - `cli/`: Go CLI inspector
+- `examples/`: Runnable example apps
 
 ## How to contribute
 
@@ -101,7 +101,7 @@ Open an issue describing:
 - Bug fixes
 - New transport implementations
 - Framework adapters (`@slop-ai/vue`, `@slop-ai/svelte`, etc.)
-- Language SDKs (Swift, C#, etc. — Python, Rust, and Go SDKs already exist)
+- Language SDKs for other languages (Swift, C#, etc.). Python, Rust, and Go already have SDKs.
 - Example apps showing SLOP integration
 - Spec improvements and clarifications
 - Documentation fixes
@@ -127,10 +127,10 @@ Open an issue describing:
 - Single external dependency (`nhooyr.io/websocket`)
 - `Handler`/`HandlerFunc` mirrors `http.Handler` pattern
 - `context.Context` in all handlers
-- `net/http` native — `server.Mount(mux)` works with any HTTP framework
+- `net/http` native: `server.Mount(mux)` works with any HTTP framework
 
 ### General
-- Keep it simple — prefer small, focused changes
+- Keep it simple: prefer small, focused changes
 
 ## License
 

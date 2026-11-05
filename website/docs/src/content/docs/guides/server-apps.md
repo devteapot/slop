@@ -1,5 +1,5 @@
 ---
-title: "Server & Native Apps"
+title: "Server and native apps"
 description: "Add SLOP to server-backed apps, desktop helpers, daemons, and CLI tools"
 ---
 Use a server-side SDK when your app owns the authoritative state outside the browser. These providers expose a public WebSocket, Unix socket, or stdio endpoint directly instead of relying on the browser extension.
@@ -83,7 +83,7 @@ Local apps can register a descriptor in `~/.slop/providers/` so the desktop app,
 
 ## Related pages
 
-- [Full-stack apps](/guides/advanced/full-stack) — merging server + browser UI into one provider
+- [Full-stack apps](/guides/advanced/full-stack): merging server and browser UI into one provider
 - [Server provider API](/api/server)
 - [TanStack Start guide](/guides/tanstack-start)
 - [Consumer guide](/guides/consumer)

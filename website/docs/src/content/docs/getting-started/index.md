@@ -1,5 +1,5 @@
 ---
-title: "Quick Start"
+title: "Quick start"
 description: "Add SLOP to your app in 5 minutes"
 ---
 ## See it in action
@@ -8,11 +8,11 @@ description: "Add SLOP to your app in 5 minutes"
   <source src="/hero-demo.mp4" type="video/mp4" />
 </video>
 
-> An AI agent browsing products, adding to cart, and writing a review — all through the SLOP protocol. Run it yourself: `bun demo`
+> An AI agent browsing products, adding to cart, and writing a review, all through the SLOP protocol. Run it yourself: `bun demo`
 
 ## What SLOP does
 
-Your app exposes a **state tree** — a semantic description of what it is and what it can do. AI subscribes to the tree, receives **patches** as things change, and triggers **actions** directly on the nodes they belong to. No screenshots, no blind tool calls.
+Your app exposes a **state tree**, a semantic description of what it is and what it can do. The AI subscribes to the tree, receives **patches** as things change, and triggers **actions** directly on the nodes they belong to. It reads the tree instead of working from screenshots or blind tool calls.
 
 ## Add SLOP to a React app
 
@@ -67,7 +67,7 @@ function TodoList() {
 }
 ```
 
-That code produces this tree — it's what the AI sees:
+That code produces this tree, which is what the AI sees:
 
 ```
 [root] My App
@@ -76,9 +76,9 @@ That code produces this tree — it's what the AI sees:
     [item] todo-2 (title="Build the MVP", done=false)        actions: [toggle, delete]
 ```
 
-The AI subscribes, receives patches when state changes, and invokes `toggle` or `delete` on the exact node. Your component re-renders as usual — SLOP doesn't touch your UI.
+The AI subscribes, receives patches when state changes, and invokes `toggle` or `delete` on the exact node. Your component re-renders as usual. SLOP doesn't touch your UI.
 
-> Want to experiment? [Try it in the playground →](https://playground.slopai.dev)
+> Want to experiment? [Try it in the playground](https://playground.slopai.dev)
 
 ### 4. See it working
 
@@ -106,7 +106,7 @@ Each component registers its own slice. Components don't know about each other. 
 
 ## Not using React?
 
-SLOP works with any framework — and on the server in any language.
+SLOP works with any framework, and on the server in any language.
 
 | Stack | Guide |
 |---|---|

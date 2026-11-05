@@ -29,7 +29,7 @@ Call `slop.register(path, descriptor)` to publish a node and `slop.unregister(pa
 
 If your app state already lives in a store with `getState()` and `subscribe()`, use [`exposeStore()`](/guides/state-stores) instead of wiring subscriptions by hand.
 
-## Full Example
+## Full example
 
 ```ts
 import { createSlop } from "@slop-ai/client";
@@ -80,7 +80,7 @@ syncSlop();
 // slop.unregister("/notes");
 ```
 
-## Next Steps
+## Next steps
 
 - [Browser provider API](/api/client)
 - [Core helper types](/api/core)

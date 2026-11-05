@@ -1,6 +1,6 @@
 # Pomodoro Timer (PySide6 + SLOP)
 
-A desktop Pomodoro timer that acts as a SLOP provider via Unix socket. AI consumers can observe timer state, start/pause sessions, and read session history.
+A desktop Pomodoro timer that is a SLOP provider over a Unix socket. AI consumers can observe timer state, start/pause sessions, and read session history.
 
 ## Prerequisites
 

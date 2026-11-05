@@ -1,6 +1,6 @@
-# SPA Blueprint: `kanban-board` — Personal Kanban Board
+# SPA blueprint: `kanban-board`, a personal kanban board
 
-A client-only kanban board with multiple boards, draggable columns, and prioritized cards. All data lives in localStorage — no server required. The app demonstrates how SPAs expose rich, structured state to AI consumers through SLOP, using postMessage and WebSocket transports.
+A client-only kanban board with multiple boards, draggable columns, and prioritized cards. All data lives in localStorage, so no server is required. The app demonstrates how SPAs expose structured state to AI consumers through SLOP, using postMessage and WebSocket transports.
 
 This is the canonical SPA example. Five framework implementations (React, Vue, Angular, Solid, Svelte) all produce the identical SLOP tree from the same seed data, proving that SLOP is framework-agnostic.
 
@@ -57,7 +57,7 @@ A kanban board with multiple boards. Each board has columns (Backlog, In Progres
 
 The AI consumer sees **one provider** for this app:
 
-- **Browser provider** (postMessage + WebSocket) — boards, columns, cards, all CRUD actions
+- **Browser provider** (postMessage + WebSocket): boards, columns, cards, all CRUD actions
 
 Everything runs client-side. The SLOP tree exposes the full board state including card priorities, due dates, and descriptions. The AI can read the board, move cards, create new cards, and navigate between boards.
 
@@ -86,7 +86,7 @@ interface Card {
 }
 ```
 
-Data is stored in `localStorage` under key `"kanban-data"`. On first load, if no data exists, `seed.json` is imported and persisted.
+Data is stored in `localStorage` under key `"kanban-data"`. On first load, if no data exists, the app imports `seed.json` and persists it.
 
 ## SLOP tree
 
@@ -181,7 +181,7 @@ When `navigate(board_id)` is invoked:
 2. The target board expands (children added with full columns and cards, `meta.focus: true` set)
 3. Root `properties.active_board` updates
 
-This keeps the tree manageable — only one board's cards are in the tree at a time.
+This keeps the tree manageable. Only one board's cards are in the tree at a time.
 
 ## Affordance schemas
 
@@ -189,32 +189,32 @@ This keeps the tree manageable — only one board's cards are in the tree at a t
 
 | Action | Params | Metadata |
 |---|---|---|
-| `create_board` | `{ name: string }` | — |
+| `create_board` | `{ name: string }` | none |
 | `navigate` | `{ board_id: string }` | `idempotent: true` |
 
 ### Board-level (view)
 
 | Action | Params | Metadata |
 |---|---|---|
-| `create_card` | `{ title: string, column?: string, priority?: "low"\|"medium"\|"high"\|"critical", due?: string, description?: string, tags?: string[] }` | — |
+| `create_card` | `{ title: string, column?: string, priority?: "low"\|"medium"\|"high"\|"critical", due?: string, description?: string, tags?: string[] }` | none |
 | `rename` | `{ name: string }` | `idempotent: true` |
-| `delete` | — | `dangerous: true` |
+| `delete` | none | `dangerous: true` |
 | `search` | `{ query: string }` | Returns filtered card list as result data |
 
 ### Column-level (collection)
 
 | Action | Params | Metadata |
 |---|---|---|
-| `reorder` | `{ card_id: string, position: number }` | — |
+| `reorder` | `{ card_id: string, position: number }` | none |
 
 ### Card-level (item)
 
 | Action | Params | Metadata |
 |---|---|---|
 | `edit` | `{ title?: string, priority?: "low"\|"medium"\|"high"\|"critical", due?: string, tags?: string[] }` | `idempotent: true` |
-| `move` | `{ column: string }` | — |
-| `delete` | — | `dangerous: true` |
-| `set_description` | `{ content: string }` | — |
+| `move` | `{ column: string }` | none |
+| `delete` | none | `dangerous: true` |
+| `set_description` | `{ content: string }` | none |
 
 ## Interactions
 
@@ -222,9 +222,9 @@ This keeps the tree manageable — only one board's cards are in the tree at a t
 
 1. AI reads the tree, scans all card items across columns
 2. Finds `card-11` ("Implement auth API") with `salience: 1.0`, `urgency: "critical"`, due tomorrow
-3. Responds: "The most urgent task is 'Implement auth API' — it's critical priority and due tomorrow. It's currently in the In Progress column."
+3. Responds: "The most urgent task is 'Implement auth API'. It's critical priority and due tomorrow. It's currently in the In Progress column."
 
-No invocation needed — the answer is in the tree properties and meta.
+No invocation is needed. The answer is in the tree properties and meta.
 
 ### 2. Mutation: AI moves a card to done
 
@@ -271,13 +271,13 @@ No invocation needed — the answer is in the tree properties and meta.
 |---|---|---|---|
 | Critical priority + due ≤ 2 days | 1.0 | `"critical"` | `true` |
 | Critical priority | 0.9 | `"high"` | `true` |
-| High priority + due ≤ 3 days | 0.8 | `"medium"` | — |
-| High priority | 0.7 | `"low"` | — |
-| Medium priority + due ≤ 3 days | 0.6 | `"medium"` | — |
-| Medium priority | 0.5 | `"none"` | — |
-| Low priority | 0.3 | `"none"` | — |
-| In "Done" column (any priority) | 0.1–0.2 | `"none"` | — |
-| Overdue (any priority) | +0.1 boost | upgrade one level | — |
+| High priority + due ≤ 3 days | 0.8 | `"medium"` | none |
+| High priority | 0.7 | `"low"` | none |
+| Medium priority + due ≤ 3 days | 0.6 | `"medium"` | none |
+| Medium priority | 0.5 | `"none"` | none |
+| Low priority | 0.3 | `"none"` | none |
+| In "Done" column (any priority) | 0.1–0.2 | `"none"` | none |
+| Overdue (any priority) | +0.1 boost | upgrade one level | none |
 
 Cards with `priority: "critical"` always have `meta.pinned: true`.
 
@@ -324,9 +324,9 @@ examples/spa/<framework>/
 
 These files are **identical** across all five frameworks (pure TypeScript, no framework deps):
 
-- `types.ts` — `Board` and `Card` interfaces
-- `salience.ts` — `computeSalience(card)` and `computeUrgency(card)` functions
-- `styles.css` — Full design system implementation
+- `types.ts`: `Board` and `Card` interfaces
+- `salience.ts`: `computeSalience(card)` and `computeUrgency(card)` functions
+- `styles.css`: full design system implementation
 
 ### SLOP setup (`slop.ts`)
 
@@ -359,7 +359,7 @@ See `seed.json` in this directory. Key characteristics:
 
 - **Dynamic paths.** All adapters accept `path: string | (() => string)`. Use a getter for paths that change at runtime (e.g., the active board ID). The adapter handles unregistering the old path automatically. React handles this via `useRef` since the hook re-runs on every render.
 
-- **Content ref is top-level.** `contentRef` on `ItemDescriptor` maps to `content_ref` on the wire — it's a sibling of `properties`, not nested inside it. Only include `contentRef` when the card has a non-empty description.
+- **Content ref is top-level.** `contentRef` on `ItemDescriptor` maps to `content_ref` on the wire. It's a sibling of `properties`, not nested inside it. Only include `contentRef` when the card has a non-empty description.
 
 - **View-scoped tree.** When `navigate(board_id)` is invoked, the implementation must: (a) collapse the current board to a stub with `meta.summary` and no children, (b) expand the target board with full columns and cards, (c) set `meta.focus: true` on the new board and remove it from the old. All frameworks must implement this identically.
 

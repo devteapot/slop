@@ -1,4 +1,4 @@
-# Codex Integration
+# Codex integration
 
 SLOP ships a Codex plugin at `packages/typescript/integrations/codex/slop`.
 
@@ -16,7 +16,7 @@ It gives Codex five stable MCP tools for discovering and controlling SLOP-enable
 - **Connects** to Unix socket, WebSocket, and relay-backed providers through `@slop-ai/discovery/service`
 - **Injects live state** for connected apps on each future user prompt through a Codex hook
 - **Returns an immediate snapshot** through `connect_app`, including the current state tree and available actions
-- **Acts through stable meta-tools** so Codex has a predictable tool surface
+- **Acts through stable meta-tools** so Codex has a predictable set of tools
 - **Supports multiple apps** connected simultaneously
 
 ## Install
@@ -46,7 +46,7 @@ The plugin's `.mcp.json` starts a local stdio MCP server:
 - cwd: `./servers`
 - entrypoint: `./dist/slop-bridge.bundle.mjs`
 
-That bridge wraps `@slop-ai/discovery/service` and `@slop-ai/discovery/tools` and exposes a fixed five-tool surface to Codex.
+That bridge wraps `@slop-ai/discovery/service` and `@slop-ai/discovery/tools` and exposes five fixed tools to Codex.
 
 ### Hook-based state injection
 
@@ -126,7 +126,7 @@ User: Disconnect from the kanban board
 
 ## Related
 
-- [Discovery & Bridge](/sdk/discovery) — shared discovery layer used by the plugin
-- [Consumer guide](/guides/consumer) — direct consumer usage patterns
-- [Claude Code integration](/guides/advanced/claude-code) — dynamic-tool and proxy variants for Claude
-- [OpenClaw integration](/guides/advanced/openclaw) — comparison integration using the same meta-tool pattern
+- [Discovery & Bridge](/sdk/discovery), the shared discovery layer used by the plugin
+- [Consumer guide](/guides/consumer), direct consumer usage patterns
+- [Claude Code integration](/guides/advanced/claude-code), dynamic-tool and proxy variants for Claude
+- [OpenClaw integration](/guides/advanced/openclaw), comparison integration using the same meta-tool pattern

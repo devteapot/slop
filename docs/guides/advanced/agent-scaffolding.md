@@ -1,8 +1,8 @@
-# Agent-Assisted Integration
+# Agent-assisted integration
 
-Adding SLOP to an existing application is the main adoption barrier. The developer must understand the protocol, design a tree schema, write `register()` calls in the right components, and wire up action handlers. This is mechanical work that follows clear patterns — a perfect fit for AI assistance.
+Adding SLOP to an existing application is the main adoption barrier. The developer must understand the protocol, design a tree schema, write `register()` calls in the right components, and wire up action handlers. This is mechanical work that follows clear patterns, so it is a good fit for AI assistance.
 
-This document defines how an AI coding agent can automate SLOP integration, reducing the effort from hours to minutes.
+This document defines how an AI coding agent can automate SLOP integration and cut the effort from hours to minutes.
 
 ## Two modes
 
@@ -28,9 +28,9 @@ The agent reads a single component or file and adds SLOP registration for the st
 
 ## Analysis patterns
 
-The agent maps framework-specific patterns to SLOP concepts. These patterns are deterministic — given a pattern, the mapping is unambiguous.
+The agent maps framework-specific patterns to SLOP concepts. These patterns are deterministic. Given a pattern, the mapping is unambiguous.
 
-### State → Node type
+### State to node type
 
 | Pattern | SLOP type | Example |
 |---|---|---|
@@ -44,7 +44,7 @@ The agent maps framework-specific patterns to SLOP concepts. These patterns are 
 | Vue `ref` / `reactive` | Same rules as above | `const todos = ref([])` → collection |
 | Svelte `$state` | Same rules as above | `let todos = $state([])` → collection |
 
-### Mutations → Actions
+### Mutations to actions
 
 | Pattern | SLOP action | Example |
 |---|---|---|
@@ -58,7 +58,7 @@ The agent maps framework-specific patterns to SLOP concepts. These patterns are 
 | Form `onSubmit` handler | `submit` with params | Form submission → `submit` action |
 | `router.push(path)` | `navigate` with params | Navigation → `navigate` action |
 
-### Component hierarchy → Tree paths
+### Component hierarchy to tree paths
 
 | Pattern | SLOP path | Example |
 |---|---|---|
@@ -67,7 +67,7 @@ The agent maps framework-specific patterns to SLOP concepts. These patterns are 
 | List component rendered by parent | Child path | `<MessageList>` inside `InboxView` → `"inbox/messages"` |
 | Shared layout component | Context node | `<AppLayout>` → `"app"` context at root |
 
-### Properties → Exposed props
+### Properties to exposed props
 
 Not all state should be exposed. The agent uses these heuristics:
 
@@ -183,9 +183,9 @@ function MessageList() {
 ```
 
 The agent:
-- Identified `messages` as an array state → `collection`
+- Identified `messages` as an array state and mapped it to a `collection`
 - Mapped `handleDelete` and `handleArchive` to actions
-- Chose which `Message` fields to expose as props (from, subject, unread, date — not internal fields)
+- Chose which `Message` fields to expose as props (from, subject, unread, and date, not internal fields)
 - Placed the `useSlop()` call after state declarations, before the return
 - Used the correct path based on the component's position in the route tree
 - Marked `delete` as dangerous
@@ -265,7 +265,7 @@ const schema = {
 
 ## Delivery mechanisms
 
-The agent can be delivered through multiple channels, reaching developers wherever they code:
+The agent can be delivered through multiple channels:
 
 ### Claude Code command
 
@@ -298,7 +298,7 @@ Works with any LLM (Ollama for local, OpenAI/Anthropic for remote). The develope
 ### IDE extension
 
 A VS Code / JetBrains extension that adds:
-- A code action: right-click a component → "Add SLOP"
+- A code action: right-click a component and pick "Add SLOP"
 - A command palette entry: "SLOP: Initialize project"
 - Inline suggestions when writing components (detect state patterns, suggest `useSlop()`)
 
@@ -311,7 +311,7 @@ Read the SLOP agent scaffolding guide at https://docs.slopai.dev/guides/advanced
 and add SLOP integration to this component: [paste component]
 ```
 
-This is the lowest-friction option — no tool installation required.
+This is the lowest-friction option. No tool installation is required.
 
 ## The system prompt
 
@@ -355,13 +355,13 @@ Action mapping:
 
 After the agent generates the integration, verify:
 
-1. **Schema matches routes** — every page/view in the router has a corresponding top-level schema entry
-2. **Paths are hierarchical** — child components register under their parent's path, not at the root
-3. **No sensitive data exposed** — passwords, tokens, API keys are not in any `props`
-4. **Actions are wired to real mutations** — every action handler calls an existing function, not new logic
-5. **Dangerous flag on destructive actions** — delete, clear, remove actions are marked `dangerous: true`
-6. **Items have stable IDs** — collection items use the entity's real ID, not array indices
-7. **TypeScript compiles** — if using a typed schema, all paths resolve without errors
+1. **Schema matches routes.** Every page/view in the router has a corresponding top-level schema entry
+2. **Paths are hierarchical.** Child components register under their parent's path, not at the root
+3. **No sensitive data exposed.** Passwords, tokens, API keys are not in any `props`
+4. **Actions are wired to real mutations.** Every action handler calls an existing function, not new logic
+5. **Dangerous flag on destructive actions.** Delete, clear, remove actions are marked `dangerous: true`
+6. **Items have stable IDs.** Collection items use the entity's real ID, not array indices
+7. **TypeScript compiles.** If using a typed schema, all paths resolve without errors
 
 ## Example: full scaffold output
 
@@ -384,7 +384,7 @@ export const slop = createSlop({
 });
 ```
 
-**`TodoList.tsx`** (modified — `useSlop` added):
+**`TodoList.tsx`** (modified, `useSlop` added):
 ```tsx
 import { slop } from "./slop";
 import { action, useSlop } from "@slop-ai/react";
@@ -458,7 +458,7 @@ function StatsBar() {
 }
 ```
 
-**`package.json`** (modified — dependencies added):
+**`package.json`** (modified, dependencies added):
 ```json
 {
   "dependencies": {

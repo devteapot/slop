@@ -1,8 +1,8 @@
 # Async Actions
 
-Some actions take seconds, minutes, or longer to complete — deployments, report generation, test runs, video processing, large file operations. The AI can't wait indefinitely for a result, and it needs to see progress, be able to cancel, and handle failures.
+Some actions take seconds, minutes, or longer to complete: deployments, report generation, test runs, video processing, large file operations. The AI can't wait indefinitely for a result, and it needs to see progress, be able to cancel, and handle failures.
 
-SLOP handles async actions using **existing primitives**: the state tree and affordances. No new message types, no special transport — just a pattern built on what's already there.
+SLOP handles async actions using **existing primitives**: the state tree and affordances. No new message types, no special transport. It is just a pattern built on what's already there.
 
 ## The problem
 
@@ -16,10 +16,10 @@ AI → invoke("deploy", { env: "production" })
 ```
 
 Problems:
-- The AI is blocked for 5 minutes — it can't help the user with anything else
-- No progress visibility — the AI doesn't know if it's at 10% or 90%
-- No cancellation — if the user changes their mind, there's no way to stop
-- Timeout risk — the consumer may drop the connection before the result arrives
+- The AI is blocked for 5 minutes and can't help the user with anything else
+- No progress visibility. The AI doesn't know if it's at 10% or 90%
+- No cancellation. If the user changes their mind, there's no way to stop
+- Timeout risk. The consumer may drop the connection before the result arrives
 
 ## The solution
 
@@ -35,7 +35,7 @@ AI → invoke("deploy", { env: "production" })
 [status] deploy-123 (progress=1.0, message="Deploy complete", status="done")
 ```
 
-The AI gets its result immediately, sees progress via normal tree patches, and can cancel via an affordance on the task node. No new protocol concepts — just nodes, properties, and affordances.
+The AI gets its result immediately, sees progress via normal tree patches, and can cancel via an affordance on the task node. There are no new protocol concepts, just nodes, properties, and affordances.
 
 ## Protocol
 
@@ -60,7 +60,7 @@ A new `status` value on `ResultMessage`:
 | `"error"` | Action failed | Read the error, report to user |
 | `"accepted"` | Action started asynchronously | Watch the tree for a task status node |
 
-The `accepted` status is analogous to HTTP `202 Accepted` — the request was valid, processing has started, but the outcome is not yet known.
+The `accepted` status is analogous to HTTP `202 Accepted`. The request was valid, processing has started, but the outcome is not yet known.
 
 ### The `estimate` affordance field
 
@@ -82,11 +82,11 @@ Affordances can declare their expected duration via the `estimate` field (alread
 | `"slow"` | Over 1 second but still synchronous |
 | `"async"` | Returns immediately, progress via state tree |
 
-The AI uses `estimate` to set expectations before invoking. An `"async"` action means: invoke it, get back `accepted`, then monitor the tree.
+The AI uses `estimate` to set expectations before invoking. An `"async"` action means the AI invokes it, gets back `accepted`, then monitors the tree.
 
 ## Task nodes
 
-When an async action starts, the provider creates a **task node** in the state tree. This is a regular node — no special type, just a convention.
+When an async action starts, the provider creates a **task node** in the state tree. This is a regular node with no special type, just a convention.
 
 ### Schema
 
@@ -229,7 +229,7 @@ slop.register("ci", {
 
 ### The `__async` return convention
 
-Action handlers signal an asynchronous action by returning an object with `__async: true`. The provider then sends `status: "accepted"` instead of `status: "ok"`. The marker is stripped before the result is serialized — everything else on the returned object (including `taskId`) is passed through to `result.data`:
+Action handlers signal an asynchronous action by returning an object with `__async: true`. The provider then sends `status: "accepted"` instead of `status: "ok"`. The marker is stripped before the result is serialized. Everything else on the returned object, including `taskId`, is passed through to `result.data`:
 
 ```ts
 // Handler returns:
@@ -239,9 +239,9 @@ return { __async: true, taskId: "deploy-123" };
 { "type": "result", "id": "inv-1", "status": "accepted", "data": { "taskId": "deploy-123" } }
 ```
 
-If the handler doesn't return `__async: true`, the behavior is unchanged — `status: "ok"` as before. This is backwards-compatible.
+If the handler doesn't return `__async: true`, the behavior is unchanged and the result has `status: "ok"` as before. This is backwards-compatible.
 
-**Cross-SDK convention.** `{ __async: true, taskId, ... }` is the canonical, wire-level marker and every reference SDK (TypeScript, Python, Go, Rust) accepts it. TypeScript additionally accepts an `AsyncActionResult(taskId, data?)` instance as idiomatic sugar that serializes to the same shape. Both are equivalent — pick whichever fits the host language best. Custom SDKs MUST implement the dict form; the class form is optional.
+**Cross-SDK convention.** `{ __async: true, taskId, ... }` is the canonical, wire-level marker and every reference SDK (TypeScript, Python, Go, Rust) accepts it. TypeScript additionally accepts an `AsyncActionResult(taskId, data?)` instance as idiomatic sugar that serializes to the same shape. Both are equivalent, so pick whichever fits the host language best. Custom SDKs MUST implement the dict form; the class form is optional.
 
 ## AI interaction flow
 
@@ -259,7 +259,7 @@ AI: "I've started the deployment to production. I'll keep you updated on progres
 
 ### Monitoring progress
 
-The AI doesn't poll — it receives patches as the task node updates:
+The AI doesn't poll. It receives patches as the task node updates:
 
 ```
 ← patch: /tasks/deploy-123/properties/progress = 0.3
@@ -331,7 +331,7 @@ and the Q3 report is finished."
 
 When the AI receives `status: "accepted"`:
 1. Note the taskId
-2. Continue responding to the user — don't block
+2. Continue responding to the user, without blocking
 3. Watch for patches on the task node
 4. Report progress when meaningful changes occur
 5. Report completion or failure
@@ -345,7 +345,7 @@ updates to the user. You can invoke "cancel" on the task node if the user asks t
 
 ### For simple consumers
 
-Consumers that don't need progress tracking can ignore task nodes and just treat `accepted` as `ok`. The action was successfully started — that's all they need to know.
+Consumers that don't need progress tracking can ignore task nodes and just treat `accepted` as `ok`. The action was successfully started. That's all they need to know.
 
 ## When to use async vs sync
 

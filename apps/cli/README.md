@@ -1,6 +1,6 @@
 # SLOP Inspector
 
-A terminal UI for inspecting and debugging SLOP providers. Connect to any app that speaks SLOP, visualize its state tree in real-time, and invoke affordances manually — like Postman for the SLOP protocol.
+A terminal UI for inspecting and debugging SLOP providers. Connect to any app that speaks SLOP, visualize its state tree in real-time, and invoke affordances manually, like Postman for the SLOP protocol.
 
 ## Setup
 
@@ -65,9 +65,9 @@ slop-inspect --bridge-port 9340
 
 The inspector has two panes:
 
-**Tree** — the provider's live state tree, colorized by node type. Affordances are shown inline with a `⚡` marker. Navigate with `j/k` and press `enter` on any node with affordances to open the invoke form.
+**Tree.** The provider's live state tree, colorized by node type. Affordances are shown inline with a `⚡` marker. Navigate with `j/k` and press `enter` on any node with affordances to open the invoke form.
 
-**Log** — real-time protocol messages. Every snapshot, patch, error, and event is timestamped and displayed as it arrives. Useful for understanding the patch flow during development.
+**Log.** Real-time protocol messages. Every snapshot, patch, error, and event is timestamped and displayed as it arrives. Useful for understanding the patch flow during development.
 
 ### Invoking affordances
 
@@ -97,7 +97,7 @@ Affordances are always green (`#91db37`). High-salience nodes are bold, low-sali
 
 ## Testing SLOP applications
 
-The inspector architecture is designed to support headless, automated testing of any SLOP provider — regardless of what language it's written in. See [TESTING.md](TESTING.md) for the full concept and planned approaches.
+The inspector architecture is designed to support headless, automated testing of any SLOP provider, regardless of what language it's written in. See [TESTING.md](TESTING.md) for the full concept and planned approaches.
 
 ## Architecture
 
@@ -122,4 +122,4 @@ cli/
     manager.go         Wraps slop.Consumer with async callbacks
 ```
 
-The `provider/` package is fully decoupled from the TUI. The same `Manager` that powers the inspector can be used headless for automated testing — no terminal required.
+The `provider/` package is fully decoupled from the TUI. The same `Manager` that powers the inspector can be used headless for automated testing, with no terminal required.

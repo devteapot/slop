@@ -5,7 +5,7 @@ title: "Overview & Concepts"
 
 AI systems interact with software in two modes today:
 
-**Blind action.** The AI has a list of tools (functions) it can call. It acts without seeing. To learn what a user is looking at, it needs a dedicated tool for every observable. This doesn't scale — a rich application would require hundreds of read-only tools just to reconstruct state.
+**Blind action.** The AI has a list of tools (functions) it can call. It acts without seeing. To learn what a user is looking at, it needs a dedicated tool for every observable. This doesn't scale. A rich application would require hundreds of read-only tools just to reconstruct state.
 
 **Pixel observation.** The AI takes a screenshot and uses vision to interpret it. This is expensive (tokens per pixel), lossy (OCR errors, layout ambiguity), slow (round-trip for each observation), and fragile (UI changes break it).
 
@@ -15,14 +15,14 @@ Both modes exist because there is no standard way for an application to say: *"h
 
 SLOP is a protocol for applications to **expose their semantic state** to external observers (primarily AI systems).
 
-An app that implements SLOP publishes a **state tree** — a structured, semantic representation of what it currently is and what can be done with it. An AI consumer connects, subscribes to the parts it cares about, and receives a stream of incremental updates.
+An app that implements SLOP publishes a **state tree**: a structured, semantic representation of what it currently is and what can be done with it. An AI consumer connects, subscribes to the parts it cares about, and receives a stream of incremental updates.
 
 The key properties:
 
 - **Semantic, not visual.** The state tree describes meaning, not layout. A table is rows and columns of data, not a grid of pixels.
 - **Push, not pull.** Once subscribed, the AI receives patches as state changes. No polling, no repeated queries.
-- **Progressive.** The AI controls depth — a shallow subscription gets summaries, a deep one gets details. Token budget is respected.
-- **Actionable.** State nodes carry affordances — the actions available in context. The AI sees what it can do alongside what it sees.
+- **Progressive.** The AI controls depth. A shallow subscription gets summaries, a deep one gets details. Token budget is respected.
+- **Actionable.** State nodes carry affordances, the actions available in context. The AI sees what it can do alongside what it sees.
 
 ## Terminology
 
@@ -32,7 +32,7 @@ The key properties:
 | **Consumer** | An AI system (or other client) that reads state via SLOP |
 | **State tree** | The hierarchical, semantic data structure a provider publishes |
 | **Node** | A single element in the state tree, with an ID, type, properties, children, and affordances |
-| **Affordance** | An action available on a node — contextual, not global |
+| **Affordance** | An action available on a node. Contextual, not global |
 | **Subscription** | A consumer's request to observe a subtree at a given depth |
 | **Patch** | An incremental update to the state tree (JSON Patch format) |
 | **Salience** | A hint from the provider about how important/relevant a node is right now |
@@ -47,7 +47,7 @@ The protocol is built around reading state, not calling functions. Actions exist
 The state tree represents what the app *means*, not how it's built internally or how it renders. An email inbox exposes messages, not `<div>` elements or database rows.
 
 ### 3. Apps control the projection
-The provider decides what to expose. SLOP doesn't require dumping internal state — it defines a contract for publishing a *view* of state, analogous to how a REST API doesn't expose the database.
+The provider decides what to expose. SLOP doesn't require dumping internal state. It defines a contract for publishing a *view* of state, analogous to how a REST API doesn't expose the database.
 
 ### 4. Token-aware by design
 Every design choice assumes the consumer has a finite context window. Progressive depth, summaries, windowed collections, and salience hints all exist to let the AI spend its token budget wisely.

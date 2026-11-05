@@ -1,16 +1,16 @@
 # claude-slop-mcp-proxy
 
-Claude Code plugin for SLOP — generic-action variant. Connect Claude to SLOP-enabled apps while keeping a fixed five-tool MCP surface.
+Claude Code plugin for SLOP, generic-action variant. Connect Claude to SLOP-enabled apps while keeping a fixed set of five MCP tools.
 
 ## What it does
 
 SLOP (Semantic Live Observable Protocol) lets apps expose their live state and actions to AI systems. This variant bridges SLOP providers to Claude by:
 
-- **Discovering** local native apps and web apps running in the browser
-- **Connecting** via WebSocket, Unix socket, or extension relay
-- **Injecting state** into Claude's context on every user message
-- **Using generic action tools** instead of registering one MCP tool per affordance
-- **Keeping token overhead predictable** with a fixed tool catalog
+- Discovering local native apps and web apps running in the browser
+- Connecting via WebSocket, Unix socket, or extension relay
+- Injecting state into Claude's context on every user message
+- Using generic action tools instead of registering one MCP tool per affordance
+- Keeping token overhead predictable with a fixed tool catalog
 
 ## How it works
 
@@ -52,7 +52,7 @@ This allows the plugin's fixed tool set: `list_apps`, `connect_app`, `disconnect
 
 ## Tools
 
-This plugin provides **5 static MCP tools**:
+This plugin provides 5 static MCP tools:
 
 | Tool | Purpose |
 |------|---------|
@@ -72,16 +72,16 @@ App state is injected into context on every user message via a `UserPromptSubmit
 | Affordance invocation | Generic `app_action(app, path, action, params)` | Per-affordance tool (e.g. `excalidraw__zoom_to_fit`) |
 | Schema validation | Model reads schemas from injected state | MCP validates per-tool JSON Schema |
 | Token cost | Low (5 tool definitions) | Higher (N tool definitions) |
-| Best fit | Lowest-overhead integration surface | Direct, ergonomic tool calling |
+| Best fit | Lowest tool overhead | Direct tool calling |
 
 ## Usage
 
 Ask Claude to interact with a SLOP-enabled app:
 
-- "What apps are available?" — lists local + web providers
-- "Connect to my kanban board" — connects and injects the current state tree
-- "Add three tasks to my todo list" — Claude uses `app_action_batch`
-- "Disconnect from the kanban board" — removes the app from injected context
+- Say "What apps are available?" to list local and web providers.
+- Say "Connect to my kanban board" to connect and inject the current state tree.
+- Ask "Add three tasks to my todo list" and Claude uses `app_action_batch`.
+- Say "Disconnect from the kanban board" to remove the app from injected context.
 
 ## Building
 

@@ -1,23 +1,23 @@
 ---
 title: "Scaling"
 ---
-SLOP is designed for AI consumption, and AI has a finite context window. A small todo app might fit entirely in context, but a large application — an email client, a project management tool, an IDE — has far more state than any AI can or should process at once.
+SLOP is designed for AI consumption, and AI has a finite context window. A small todo app might fit entirely in context, but a large application such as an email client, a project management tool, or an IDE has far more state than any AI can or should process at once.
 
 This document defines patterns for structuring SLOP trees so they scale to large applications without overwhelming the consumer.
 
 ## The problem
 
-A naive approach — dump the entire app state into one flat tree — fails at scale:
+The naive approach, dumping the entire app state into one flat tree, fails at scale:
 
 - An email inbox with 10,000 messages produces a tree too large for any context window
 - A project management tool with hundreds of boards, each with dozens of cards, overwhelms the AI with irrelevant state
 - Even if the tree fits, the AI wastes attention on state that has nothing to do with what the user is doing right now
 
-The solution is not to limit what the app *can* expose, but to structure the tree so the AI reads **only what's relevant** by default and can reach everything else on demand.
+The solution is to structure the tree so the AI reads **only what's relevant** by default and can reach everything else on demand, without limiting what the app *can* expose.
 
 ## View-scoped trees
 
-Large apps should structure their SLOP tree around **views** — pages, screens, or logical contexts that the user moves between. The current view is resolved in full detail. Other views are **stubs** — collapsed to an ID, type, and summary.
+Large apps should structure their SLOP tree around **views**: pages, screens, or logical contexts that the user moves between. The current view is resolved in full detail. Other views are **stubs**, collapsed to an ID, type, and summary.
 
 ```
 Root
@@ -43,10 +43,10 @@ Root
 
 Key properties of this pattern:
 
-1. **The active view has `meta.focus: true`** — the AI immediately knows where the user is
-2. **Inactive views are stubs** — they carry a `meta.summary` but no children or properties. This keeps the top-level tree small regardless of how many views the app has.
-3. **App-level context is always present** — the `context` node carries global state (current user, account, theme) and global affordances (navigate, search, logout) that are available from any view.
-4. **The active view uses windowing** — large collections within the view only include the visible portion, with `meta.total_children` and `meta.window` indicating the full extent.
+1. **The active view has `meta.focus: true`.** The AI immediately knows where the user is
+2. **Inactive views are stubs.** They carry a `meta.summary` but no children or properties. This keeps the top-level tree small regardless of how many views the app has.
+3. **App-level context is always present.** The `context` node carries global state (current user, account, theme) and global affordances (navigate, search, logout) that are available from any view.
+4. **The active view uses windowing.** Large collections within the view only include the visible portion, with `meta.total_children` and `meta.window` indicating the full extent.
 
 ### Navigation
 
@@ -56,7 +56,7 @@ When the user navigates from Inbox to Dashboard, the provider emits patches that
 2. Expand the Dashboard view with full detail (add children, properties)
 3. Move `meta.focus` from Inbox to Dashboard
 
-The AI's subscription receives these patches and its local mirror updates — the AI now sees Dashboard in detail and Inbox as a stub, without re-subscribing.
+The AI's subscription receives these patches and its local mirror updates, so the AI now sees Dashboard in detail and Inbox as a stub, without re-subscribing.
 
 ### Multiple subscription strategy
 
@@ -74,7 +74,7 @@ When the user navigates, the consumer unsubscribes from the old view and subscri
 
 ## Upward traversal
 
-The AI should be able to discover actions and context beyond the current view by looking **upward** in the tree. This follows the principle of scope resolution — local first, then parent, then root.
+The AI should be able to discover actions and context beyond the current view by looking **upward** in the tree. This follows the principle of scope resolution: local first, then parent, then root.
 
 ### Affordance scope
 
@@ -89,12 +89,12 @@ Affordances live at the level they operate on:
 
 When the AI needs to do something that isn't available on the current node, it looks upward:
 
-1. Check the current item → no `navigate` affordance
-2. Check the parent collection → no `navigate` affordance
-3. Check the view → no `navigate` affordance
-4. Check the root → `navigate` affordance found
+1. Check the current item. It has no `navigate` affordance.
+2. Check the parent collection. It has no `navigate` affordance.
+3. Check the view. It has no `navigate` affordance.
+4. Check the root. The `navigate` affordance is available there.
 
-This traversal is not a protocol mechanism — the tree is already available to the consumer. It's a **convention for how providers structure affordances** and how consumers search for them.
+This traversal is not a protocol mechanism. The tree is already available to the consumer. It is a **convention for how providers structure affordances** and how consumers search for them.
 
 ### Context inheritance
 
@@ -110,11 +110,11 @@ Root
 │   │   (inherits: user is alice, locale is en, permissions include write)
 ```
 
-The AI can resolve context by walking from a node to the root, collecting `context` nodes along the way. This is analogous to variable scoping in programming — inner scopes inherit from outer scopes.
+The AI can resolve context by walking from a node to the root, collecting `context` nodes along the way. This is analogous to variable scoping in programming, where inner scopes inherit from outer scopes.
 
 ## Windowed collections
 
-Large collections (hundreds or thousands of items) should never be fully inlined. The provider includes a **window** — the visible or most relevant slice — and metadata about the full set.
+Large collections (hundreds or thousands of items) should never be fully inlined. The provider includes a **window**, the visible or most relevant slice, and metadata about the full set.
 
 ```jsonc
 {
@@ -154,7 +154,7 @@ A good summary lets the AI answer questions like "how many unread messages?" wit
 
 ## Lazy subtrees
 
-Some parts of the tree are expensive to compute or rarely needed. Providers can declare a subtree as **lazy** — present in the tree structure but not resolved until explicitly requested.
+Some parts of the tree are expensive to compute or rarely needed. Providers can declare a subtree as **lazy**: present in the tree structure but not resolved until explicitly requested.
 
 ```jsonc
 {
@@ -186,11 +186,11 @@ The attention system (see [Attention & Salience](/spec/core/attention)) can driv
 { "type": "subscribe", "id": "s1", "path": "/", "depth": 2, "filter": { "min_salience": 0.3 } }
 ```
 
-The provider only includes nodes with salience ≥ 0.3. As salience changes (e.g., a notification fires, raising a node's salience to 1.0), the provider sends a patch adding the newly-relevant node.
+The provider only includes nodes with salience of at least 0.3. As salience changes (e.g., a notification fires, raising a node's salience to 1.0), the provider sends a patch adding the newly-relevant node.
 
-This turns the AI's token budget into a dynamic filter — the AI sees what matters right now, and the boundary adjusts in real time.
+This turns the AI's token budget into a dynamic filter. The AI sees what matters right now, and the boundary adjusts in real time.
 
-**Ancestor retention:** Salience filtering is applied per-node without ancestor retention. If a parent node falls below the threshold, its entire subtree is excluded — even if some descendants have high salience. Providers should ensure that structurally important parent nodes (navigation groups, collection roots) carry salience at least as high as their most important children. This keeps the filtering logic simple and predictable; future protocol versions may introduce an ancestor-retention mode for trees where inherited salience matters.
+**Ancestor retention.** Salience filtering is applied per-node without ancestor retention. If a parent node falls below the threshold, its entire subtree is excluded, even if some descendants have high salience. Providers should ensure that structurally important parent nodes (navigation groups, collection roots) carry salience at least as high as their most important children. This keeps the filtering logic simple and predictable; future protocol versions may introduce an ancestor-retention mode for trees where inherited salience matters.
 
 ### Provider salience guidelines for large apps
 
@@ -225,7 +225,7 @@ One subscription to root at depth 2–3. Drill into specific paths with queries.
 
 ### Large apps (1,000+ nodes)
 
-Two subscriptions: overview + active view. Salience filtering. Windowed collections.
+Use two subscriptions: overview plus active view. Apply salience filtering and windowed collections.
 
 ```jsonc
 // Overview: always active, shallow, high salience threshold
@@ -238,7 +238,7 @@ Two subscriptions: overview + active view. Salience filtering. Windowed collecti
 
 ## Developer API for scaling
 
-The scaling patterns described above translate to specific features in the `@slop-ai/core` descriptor API. Developers don't need to construct SLOP protocol messages manually — the library handles it.
+The scaling patterns described above translate to specific features in the `@slop-ai/core` descriptor API. Developers don't need to construct SLOP protocol messages manually. The library handles it.
 
 ### Summaries
 
@@ -263,12 +263,12 @@ Instead of loading all 142 messages, the AI knows what's in the inbox from the s
 
 **Guidelines for summaries:**
 - Include counts, important states, and recency: `"47 PRs: 12 need review, 8 have conflicts"`
-- Keep under 100 characters — it's a glance, not a paragraph
-- Update the summary when state changes — stale summaries mislead the AI
+- Keep under 100 characters. It's a glance, not a paragraph
+- Update the summary when state changes. Stale summaries mislead the AI
 
 ### Windowed collections
 
-For collections with many items (messages, rows, search results), expose only the **visible window** — the items the user can currently see.
+For collections with many items (messages, rows, search results), expose only the **visible window**, the items the user can currently see.
 
 ```ts
 slop.register("inbox/messages", {
@@ -344,16 +344,16 @@ Consumers that subscribe with `min_salience` will only receive nodes above the t
 
 ## Tree navigation
 
-For large applications, the AI needs to **navigate** between different parts of the tree to find and act on the right state. The AI navigates the SLOP tree — not the UI. The developer maps tree navigation to whatever makes sense in their app: a route change, a tab switch, a section expand, or just loading more state.
+For large applications, the AI needs to **navigate** between different parts of the tree to find and act on the right state. The AI navigates the SLOP tree, not the UI. The developer maps tree navigation to whatever makes sense in their app: a route change, a tab switch, a section expand, or just loading more state.
 
-The key principle: **the AI asks to see more of the tree, the app decides how to provide it.**
+The key principle is that **the AI asks to see more of the tree, and the app decides how to provide it.**
 
 ### The pattern
 
 1. The **root** always shows all major sections as stubs with summaries
 2. The root exposes `navigate` and/or `search` as affordances
 3. The **active section** is registered with full detail (items, affordances, props)
-4. **Inactive sections** are registered as stubs — just type + summary, no children
+4. **Inactive sections** are registered as stubs with just a type and summary, no children
 5. When the AI invokes `navigate`, the app fulfills it (route push, state load, etc.)
 6. The tree rebuilds: the new section expands, the old one collapses to a stub
 
@@ -413,10 +413,10 @@ The AI sees:
 
 When the user says "buy the wireless mouse in my cart":
 
-1. AI reads cart summary → mentions "wireless mouse"
-2. AI invokes `navigate({ to: "cart" })`
-3. App navigates → profile component unmounts (becomes stub), cart component mounts (registers full state)
-4. AI now sees cart items in detail → invokes `checkout` or `buy_now`
+1. The AI reads the cart summary, which mentions "wireless mouse"
+2. The AI invokes `navigate({ to: "cart" })`
+3. The app navigates. The profile component unmounts and becomes a stub. The cart component mounts and registers full state.
+4. The AI now sees cart items in detail and invokes `checkout` or `buy_now`
 
 The AI navigated the tree by invoking an affordance. The protocol didn't change. The app decided how to respond.
 
@@ -425,7 +425,7 @@ The AI navigated the tree by invoking an affordance. The protocol didn't change.
 - **Summaries are the AI's preview.** `"3 items, $127.49"` tells the AI what's in the cart without loading all items. Good summaries are the single most important scaling feature.
 - **The app controls granularity.** Navigation can mean "switch pages" or "expand a section" or "load the next 25 items." The protocol doesn't prescribe what happens.
 - **Search is navigation.** For apps with millions of items (Amazon, a database), search is how the AI finds things. Expose it as a root affordance.
-- **Stubs are cheap.** A collapsed view with a summary is ~50 bytes. An app with 100 sections still has a small root tree.
+- **Stubs are cheap.** A collapsed view with a summary is about 50 bytes. An app with 100 sections still has a small root tree.
 
 ## Provider implementation guidelines
 
@@ -437,7 +437,7 @@ The AI navigated the tree by invoking an affordance. The protocol didn't change.
 
 4. **Window large collections.** Default to showing what the user can see. Include `total_children` and `window` so the AI knows there's more.
 
-5. **Use lazy subtrees for detail.** Message bodies, file contents, thread replies — don't include them until the AI asks. Declare their existence via `total_children`.
+5. **Use lazy subtrees for detail.** Don't include message bodies, file contents, or thread replies until the AI asks. Declare their existence via `total_children`.
 
 6. **Place affordances at the right scope.** Item actions on items, collection actions on collections, app actions on root. The AI will find them by walking upward.
 
@@ -451,14 +451,14 @@ The AI navigated the tree by invoking an affordance. The protocol didn't change.
 
 ### Affordance visibility on stub nodes
 
-By design, stub nodes include only `id`, `type`, and `meta` — no `properties`, `children`, or `affordances`. This means that when a consumer subscribes at a shallow depth, nodes beyond the depth limit lose their affordances. The consumer cannot act on a stub node without first querying it at a deeper depth to discover its available actions.
+By design, stub nodes include only `id`, `type`, and `meta`, with no `properties`, `children`, or `affordances`. This means that when a consumer subscribes at a shallow depth, nodes beyond the depth limit lose their affordances. The consumer cannot act on a stub node without first querying it at a deeper depth to discover its available actions.
 
 This creates a tradeoff for AI agents that convert affordances to LLM tools (via `affordancesToTools()` or similar utilities):
 
-- **At full depth (`depth: -1`)**: The agent sees all affordances on all nodes. The tree may be large, consuming more of the LLM's context window, but the agent can act immediately without additional round trips.
-- **At shallow depth**: The tree is smaller and cheaper in tokens, but affordances on deeper nodes are invisible. The agent must perform **exploratory queries** to discover what actions are available before it can act.
+- **At full depth (`depth: -1`)**, the agent sees all affordances on all nodes. The tree may be large, consuming more of the LLM's context window, but the agent can act immediately without additional round trips.
+- **At shallow depth**, the tree is smaller and cheaper in tokens, but affordances on deeper nodes are invisible. The agent must perform **exploratory queries** to discover what actions are available before it can act.
 
-This is an intentional protocol decision — stubs are meant to be lightweight pointers, and affordances are a property of fully resolved nodes. However, it means that depth-based truncation is not purely a "pay less, same capability" optimization. It changes the agent's workflow from single-step (subscribe → act) to multi-step (subscribe → query → act).
+This is an intentional protocol decision. Stubs are meant to be lightweight pointers, and affordances are a property of fully resolved nodes. However, it means that depth-based truncation is not purely a "pay less, same capability" optimization. It changes the agent's workflow from single-step (subscribe, then act) to multi-step (subscribe, query, then act).
 
 ### Recommended approaches for token-conscious agents
 
@@ -466,11 +466,11 @@ This is an intentional protocol decision — stubs are meant to be lightweight p
 
 2. **Combine shallow subscribe + targeted queries.** Subscribe at a shallow depth for an overview, then use `query` messages to drill into specific paths at full depth before acting. This is the protocol's intended workflow for medium-to-large apps (see "Recommended subscription patterns" above).
 
-3. **Leverage summaries for discovery.** Well-written `meta.summary` fields on stub nodes tell the agent *what* a node contains without resolving it. The agent can use summaries to decide which paths are worth querying deeper, avoiding unnecessary round trips.
+3. **Use summaries for discovery.** Well-written `meta.summary` fields on stub nodes tell the agent *what* a node contains without resolving it. The agent can use summaries to decide which paths are worth querying deeper, avoiding unnecessary round trips.
 
 ### Open question: affordance hints on stubs
 
-A potential future extension could add lightweight affordance hints to stub nodes — not the full affordance schema, but a list of available action names. This would let an agent know that a stub node *can* be acted on without resolving the full node:
+A potential future extension could add lightweight affordance hints to stub nodes: a list of available action names instead of the full affordance schema. This would let an agent know that a stub node *can* be acted on without resolving the full node:
 
 ```jsonc
 // Hypothetical stub with affordance hints

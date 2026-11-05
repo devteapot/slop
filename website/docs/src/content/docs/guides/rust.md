@@ -8,7 +8,7 @@ description: "Add SLOP to Rust apps — axum, CLI tools, daemons, WASM-ready"
 cargo add slop-ai
 ```
 
-The core engine (types, tree assembly, diffing) has **zero async runtime dependency** — it compiles to WASM. Transports are behind feature flags:
+The core engine (types, tree assembly, diffing) has **zero async runtime dependency** and compiles to WASM. Transports are behind feature flags:
 
 | Feature | What it adds | Dependencies |
 |---|---|---|
@@ -183,7 +183,7 @@ async fn main() {
 
 ## Descriptors
 
-Descriptors are `serde_json::Value` — use the `json!` macro:
+Descriptors are `serde_json::Value`. Use the `json!` macro:
 
 ```rust
 slop.register("inbox", json!({
@@ -224,7 +224,7 @@ settings.register("theme", json!({"type": "group", "props": {"dark": true}}));
 
 ## Thread safety
 
-`SlopServer` is `Clone` (wraps `Arc<RwLock<...>>`). Share it across threads freely:
+`SlopServer` is `Clone` (wraps `Arc<RwLock<...>>`). You can share it across threads:
 
 ```rust
 let slop = SlopServer::new("app", "App");

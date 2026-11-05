@@ -13,7 +13,7 @@ Codex plugin for SLOP. It lets Codex discover SLOP-enabled desktop and web apps 
 - Discovers SLOP apps from local provider descriptors and the browser extension bridge
 - Connects to Unix socket, WebSocket, and browser-relayed providers through `@slop-ai/discovery/service`
 - Injects connected apps' live state into future user turns through a `UserPromptSubmit` hook
-- Gives Codex a fixed MCP surface that works well with Codex skills and tool calling
+- Gives Codex a fixed MCP tool set that works well with Codex skills and tool calling
 - Supports multiple connected apps at once for cross-app workflows
 
 ## Install

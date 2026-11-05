@@ -1,19 +1,19 @@
-# Design System Specification: The Synthesized Sentinel
+# Design system specification: The Synthesized Sentinel
 
 ## 1. Overview & Creative North Star
 ### The Creative North Star: "The Nocturnal Observer"
-This design system is built for the high-performance developer who operates in the "flow state"—often deep into the night. It eschews the bright, flat aesthetics of consumer SaaS in favor of a "Nocturnal Observer" aesthetic: a sophisticated, dark-mode-first environment that mimics the focused, predatory precision of an owl.
+This design system is built for the high-performance developer who operates in the "flow state", often deep into the night. It avoids the bright, flat aesthetics of consumer SaaS in favor of a "Nocturnal Observer" aesthetic: a sophisticated, dark-mode-first environment that mimics the focused, predatory precision of an owl.
 
-To move beyond a "template" look, we utilize **Intentional Asymmetry**. Layouts should not be perfectly centered; instead, use heavy left-aligned typography contrasted with floating, glassmorphic elements on the right. Large-scale typography and overlapping containers create an editorial feel, where the UI feels like a curated dashboard rather than a generic app.
+To move beyond a "template" look, we use **Intentional Asymmetry**. Layouts should not be perfectly centered; instead, use heavy left-aligned typography contrasted with floating, glassmorphic elements on the right. Large-scale typography and overlapping containers create an editorial feel, where the UI feels like a curated dashboard rather than a generic app.
 
 ---
 
-## 2. Color Strategy
-The palette is rooted in the deep void of a midnight sky, punctuated by the "AI Vision" of the owl’s glowing gaze.
+## 2. Color strategy
+The palette is rooted in the deep void of a midnight sky, punctuated by the "AI Vision" of the owl's glowing gaze.
 
-### Palette Roles
+### Palette roles
 - **Surface & Void:** The foundation is `surface` (#111319), a deep navy charcoal.
-- **Primary Action (The Glow):** `primary` (#91db37) is reserved strictly for high-intent actions. It represents the "eyes" of the AI—searching, finding, and acting.
+- **Primary Action (The Glow):** `primary` (#91db37) is reserved strictly for high-intent actions. It represents the "eyes" of the AI: searching, finding, and acting.
 - **Secondary Accents:** `secondary` (#adc6ff) and its containers provide the "body" of the interface, used for navigation and subtle categorization.
 
 ### The "No-Line" Rule
@@ -21,7 +21,7 @@ The palette is rooted in the deep void of a midnight sky, punctuated by the "AI 
 Structural boundaries must be defined solely through background color shifts. To separate a sidebar from a main content area, use `surface_container_low` against `surface`. This creates a soft, sophisticated transition that feels like light hitting different depths of a physical object.
 
 ### The Glass & Gradient Rule
-Floating elements (modals, popovers, hovering cards) must utilize **Glassmorphism**.
+Floating elements (modals, popovers, hovering cards) must use **Glassmorphism**.
 - **Background:** `surface_variant` at 60% opacity.
 - **Effect:** `backdrop-filter: blur(12px)`.
 - **Signature Texture:** Primary CTAs should not be flat. Use a subtle linear gradient from `primary` to `primary_container` at a 135-degree angle to provide "soul" and depth.
@@ -44,7 +44,7 @@ We use a high-contrast pairing to balance human readability with machine precisi
 
 ---
 
-## 4. Elevation & Depth
+## 4. Elevation & depth
 Depth is achieved through **Tonal Layering** rather than traditional drop shadows.
 
 ### The Layering Principle
@@ -54,10 +54,10 @@ Think of the UI as stacked sheets of frosted obsidian.
 - **Level 2 (Cards/Containers):** `surface_container`
 - **Level 3 (Interactive/Floating):** `surface_container_highest`
 
-### Ambient Shadows & Ghost Borders
+### Ambient shadows & ghost borders
 - **Shadows:** When a float is required, use a diffused shadow: `box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4)`. 
 - **The Ghost Border:** If a container requires a perimeter for accessibility, use a "Ghost Border": `outline-variant` at 15% opacity. This provides a hint of a boundary without cluttering the visual field.
-- **The "Vision" Glow:** High-priority cards can utilize a `drop-shadow` mimicking the owl's green eyes: `filter: drop-shadow(0 0 8px rgba(171, 248, 83, 0.25))`.
+- **The "Vision" Glow:** High-priority cards can use a `drop-shadow` mimicking the owl's green eyes: `filter: drop-shadow(0 0 8px rgba(171, 248, 83, 0.25))`.
 
 ---
 
@@ -68,22 +68,22 @@ Think of the UI as stacked sheets of frosted obsidian.
 - **Secondary:** Glassmorphic Blue. `secondary_container` at 40% opacity with `backdrop-blur`.
 - **Tertiary:** Ghost style. No background, `label-md` JetBrains Mono text with an underline that appears only on hover.
 
-### Input Fields
+### Input fields
 - **Container:** `surface_container_highest`. 
 - **Typography:** User input should always be `JetBrains Mono` to emphasize the developer-centric nature.
 - **States:** On focus, the bottom edge gains a 2px `primary` (Neon Green) glow line. No full-box borders.
 
-### Cards & Lists
+### Cards & lists
 - **Rule:** Never use dividers. 
 - **Execution:** Separate list items using a `1.5` (0.3rem) vertical gap and a subtle background shift to `surface_container_low` on hover. Use negative space (Spacing Scale `4` or `5`) to define content groups.
 
-### Terminal/Code Blocks
+### Terminal/code blocks
 - **Background:** `surface_container_lowest` (#0c0e14).
 - **Accents:** Use the secondary blue scale for syntax highlighting, with `primary` green reserved for search results or "success" logs.
 
 ---
 
-## 6. Do's and Don'ts
+## 6. Do's and don'ts
 
 ### Do:
 - **Use Large Margins:** Embrace the spacing scale (e.g., `20` or `24`) for page gutters to create a premium, uncrowded feel.

@@ -1,5 +1,5 @@
 ---
-title: "OpenClaw Integration"
+title: "OpenClaw integration"
 description: "Control SLOP-enabled applications through OpenClaw"
 ---
 `@slop-ai/openclaw-plugin` lets OpenClaw discover SLOP-enabled apps on your machine and act on them through five tools:
@@ -12,8 +12,8 @@ description: "Control SLOP-enabled applications through OpenClaw"
 
 ## What it does
 
-- **Discovers** SLOP apps — local native apps, WebSocket servers, and browser tabs via the extension bridge (powered by `@slop-ai/discovery/service`)
-- **Injects state** into the prompt before each inference via `before_prompt_build` — the model sees live app state without calling any tool
+- **Discovers** SLOP apps: local native apps, WebSocket servers, and browser tabs via the extension bridge (powered by `@slop-ai/discovery/service`)
+- **Injects state** into the prompt before each inference via `before_prompt_build`. The model sees live app state without calling any tool
 - **Exposes actions** through `app_action` and `app_action_batch` meta-tools
 - **Supports multiple apps** connected simultaneously
 
@@ -75,9 +75,9 @@ The model knows what state exists and what actions are available without calling
 
 The plugin uses `@slop-ai/discovery/service` for provider discovery and connection management, which covers:
 
-- `~/.slop/providers/` — persistent user-level providers
-- `/tmp/slop/providers/` — session-level ephemeral providers
-- Browser extension bridge — web apps announced over `ws://127.0.0.1:9339/slop-bridge`
+- `~/.slop/providers/` for persistent user-level providers
+- `/tmp/slop/providers/` for session-level ephemeral providers
+- Browser extension bridge for web apps announced over `ws://127.0.0.1:9339/slop-bridge`
 
 All three transport types (Unix socket, WebSocket, postMessage relay) are supported.
 
@@ -98,11 +98,11 @@ disconnect_app("kanban")       # Stop tracking the app when you're done
 
 ## Why meta-tools instead of dynamic tools
 
-The Claude Code plugin uses **dynamic tool injection** — when an app connects, its affordances are registered as individual MCP tools (e.g., `kanban__add_card`), and Claude calls them directly. This is possible because MCP supports `notifications/tools/list_changed`, allowing the server to add and remove tools at runtime.
+The Claude Code plugin uses **dynamic tool injection**. When an app connects, its affordances are registered as individual MCP tools (e.g., `kanban__add_card`), and Claude calls them directly. This is possible because MCP supports `notifications/tools/list_changed`, which lets the server add and remove tools at runtime.
 
 OpenClaw's plugin SDK does not support runtime tool registration. Tools must be:
 
-1. Declared in the plugin manifest (`openclaw.plugin.json` → `contracts.tools`)
+1. Declared in the plugin manifest (`openclaw.plugin.json`, under `contracts.tools`)
 2. Registered once during the `register()` callback via `api.registerTool()`
 
 There is no `api.unregisterTool()` or `api.updateTools()` API. This means the plugin cannot add per-app tools when providers connect or remove them when providers disconnect.
@@ -111,7 +111,7 @@ The workaround is the **meta-tool pattern**: five stable tools (`list_apps`, `co
 
 ### What would be needed for dynamic tools in OpenClaw
 
-If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTools()` or `api.updateToolList()`), the plumbing is already in place:
+If OpenClaw adds a runtime tool registration API (e.g., `api.registerDynamicTools()` or `api.updateToolList()`), the supporting code already exists:
 
 - `createDynamicTools(discovery)` from `@slop-ai/discovery/tools` generates namespaced tool definitions from all connected providers
 - Each tool maps to `{ providerId, path, action }` via a `resolve()` function
@@ -140,6 +140,6 @@ Both approaches give the model full context about available state and actions. T
 
 - [OpenClaw package API](/api/openclaw-plugin)
 - [Consumer SDK](/api/consumer)
-- [Discovery & Bridge](/sdk/discovery) — shared discovery layer
-- [Codex integration](/guides/advanced/codex) — fixed-tool Codex plugin using the same meta-tool pattern
-- [Claude Code integration](/guides/advanced/claude-code) — comparison integration
+- [Discovery & Bridge](/sdk/discovery), shared discovery layer
+- [Codex integration](/guides/advanced/codex), fixed-tool Codex plugin using the same meta-tool pattern
+- [Claude Code integration](/guides/advanced/claude-code), comparison integration

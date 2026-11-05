@@ -1,6 +1,6 @@
-# CLI Blueprint: `tsk` — A Task Manager
+# CLI blueprint: `tsk`, a task manager
 
-A task manager CLI that works normally for humans, and becomes a SLOP provider when invoked with `--slop`. Demonstrates the core value proposition: **any CLI tool can become AI-observable with a single flag**.
+A task manager CLI that works normally for humans, and becomes a SLOP provider when invoked with `--slop`. It demonstrates that **any CLI tool can become AI-observable with a single flag**.
 
 ## What this demonstrates
 
@@ -54,7 +54,7 @@ tsk> list
   ...
 ```
 
-AI consumers connect to the Unix socket and receive the SLOP state tree via NDJSON. Meanwhile, the human uses stdin/stdout to interact with the same task list — mutations from either side are visible to both. This is the multi-modal value prop: **one process, two interfaces**.
+AI consumers connect to the Unix socket and receive the SLOP state tree via NDJSON. Meanwhile, the human uses stdin/stdout to interact with the same task list, and mutations from either side are visible to both. That is the multi-modal pattern: **one process, two interfaces**.
 
 ## Data model
 
@@ -80,7 +80,7 @@ Default path: `~/.tsk/tasks.json`. Override with `TSK_FILE` env var or `--file` 
 
 ## SLOP tree
 
-This is the exact tree structure the provider must expose. Node IDs, types, properties, and affordances are the **contract** — all implementations must produce this same tree.
+This is the exact tree structure the provider must expose. Node IDs, types, properties, and affordances are the **contract**. All implementations must produce this same tree.
 
 ```
 [root] tsk
@@ -395,12 +395,12 @@ The binary/script name is `tsk` in all languages.
 
 When invoked with `--slop`:
 
-1. **Start socket listener** — bind a Unix domain socket at the configured path
-2. **Print status to stdout** — announce the socket path and task summary so a human can see what's happening
-3. **Enter interactive CLI loop** — read CLI commands from stdin (same commands as normal mode: `list`, `add`, `done`, etc.) and print results to stdout. After each mutation, call `refresh()` so AI consumers receive patches.
-4. **Handle AI consumers on socket** — accept SLOP connections on the Unix socket, respond to subscribe/query/invoke messages via NDJSON
-5. **Watch for changes** — if the data file changes on disk (external edit), rebuild tree and send patches
-6. **Discovery** — write a provider descriptor to `~/.slop/providers/tsk.json` on start, remove on exit:
+1. **Start socket listener.** Bind a Unix domain socket at the configured path
+2. **Print status to stdout.** Announce the socket path and task summary so a human can see what's happening
+3. **Enter interactive CLI loop.** Read CLI commands from stdin (same commands as normal mode: `list`, `add`, `done`, etc.) and print results to stdout. After each mutation, call `refresh()` so AI consumers receive patches.
+4. **Handle AI consumers on socket.** Accept SLOP connections on the Unix socket, respond to subscribe/query/invoke messages via NDJSON
+5. **Watch for changes.** If the data file changes on disk (external edit), rebuild tree and send patches
+6. **Discovery.** Write a provider descriptor to `~/.slop/providers/tsk.json` on start, remove on exit:
    ```json
    {
      "id": "tsk",
@@ -416,7 +416,7 @@ When invoked with `--slop`:
 
 ## Cross-SDK alignment notes
 
-These rules ensure all implementations produce identical SLOP trees. They follow the protocol spec — see the referenced sections for details.
+These rules ensure all implementations produce identical SLOP trees. They follow the protocol spec. See the referenced sections for details.
 
 1. **Affordances go on the node they operate on (spec 05).** Don't register on the root path. Place search on the tasks collection, not on root. The root carries identity, not actions.
 
@@ -434,7 +434,7 @@ These rules ensure all implementations produce identical SLOP trees. They follow
 
 ## Implementation constraints
 
-- **Use the language's SLOP SDK** — `@slop-ai/server` for Bun, `slop_ai` for Python, `slop_ai` for Rust, `slop-ai` for Go
+- **Use the language's SLOP SDK**: `@slop-ai/server` for Bun, `slop_ai` for Python, `slop_ai` for Rust, `slop-ai` for Go
 - **No external dependencies beyond the SDK** and the language's stdlib/standard ecosystem
 - **Data file**: JSON, at `~/.tsk/tasks.json` by default
 - **Transport**: Unix domain socket (NDJSON over Unix socket)

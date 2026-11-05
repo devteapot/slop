@@ -27,7 +27,7 @@ The state tree is the core data structure of SLOP. It is a rooted tree of **node
 
 ### `id`
 
-A string that uniquely identifies a node within the tree. Must be stable across patches — if a node's `id` changes, it's a different node. IDs are opaque to consumers; providers choose the format.
+A string that uniquely identifies a node within the tree. Must be stable across patches. If a node's `id` changes, it's a different node. IDs are opaque to consumers; providers choose the format.
 
 **Requirements:**
 - Unique among siblings (no two children of the same parent share an ID)
@@ -38,7 +38,7 @@ A string that uniquely identifies a node within the tree. Must be stable across 
 
 ### `type`
 
-A string describing what kind of thing this node represents. Types are semantic, not structural — they describe meaning, not UI.
+A string describing what kind of thing this node represents. Types are semantic, not structural. They describe meaning, not UI.
 
 **Core types** (providers may define custom types):
 
@@ -64,7 +64,7 @@ Custom types should use a namespace prefix: `github:pull-request`, `vscode:edito
 
 A flat or shallowly nested key-value map. Properties hold the actual state payload of the node. Property keys are strings; values are JSON-serializable.
 
-Properties are **not prescribed by the protocol** — each app defines what properties its nodes carry. However, some well-known property names have conventional meaning:
+Properties are **not prescribed by the protocol**. Each app defines what properties its nodes carry. However, some well-known property names have conventional meaning:
 
 | Property | Type | Meaning |
 |---|---|---|
@@ -81,12 +81,12 @@ Properties are **not prescribed by the protocol** — each app defines what prop
 
 ### `children`
 
-An ordered array of child nodes. Children represent containment — an inbox *contains* messages, a form *contains* fields.
+An ordered array of child nodes. Children represent containment. An inbox *contains* messages, a form *contains* fields.
 
 Children may be:
-- **Inline** — the full node object is present
-- **Truncated** — only `id`, `type`, and summary `meta` are present (see progressive disclosure below)
-- **Omitted** — `children` is absent or null, but `meta.total_children` indicates they exist
+- **Inline**: the full node object is present
+- **Truncated**: only `id`, `type`, and summary `meta` are present (see progressive disclosure below)
+- **Omitted**: `children` is absent or null, but `meta.total_children` indicates they exist
 
 ### `meta`
 
@@ -190,7 +190,7 @@ When rendering a state tree as text for LLM context (e.g. in a system prompt or 
 ### Format rules
 
 1. **Each node occupies one line**, indented by 2 spaces per depth level.
-2. **Header**: `[type] id` — always show the node type and stable ID. If the node has a `label` or `title` property that differs from the ID, append it: `[type] id: Display Name`.
+2. **Header**: `[type] id`. Always show the node type and stable ID. If the node has a `label` or `title` property that differs from the ID, append it: `[type] id: Display Name`.
 3. **Extra properties**: All properties except `label` and `title`, formatted as `key=value` in parentheses: `(count=3, unread=true)`. Values are JSON-encoded.
 4. **Meta summary**: When `meta.summary` is present, append `  — "summary text"` (em-dash, quoted).
 5. **Meta salience**: When `meta.salience` is present, append `  salience=0.85` (rounded to 2 decimal places).

@@ -1,16 +1,16 @@
 # claude-slop-native
 
-Claude Code plugin for SLOP — direct-tool variant. Connect Claude to local native apps and web apps alike, subscribe to their live state trees, and expose app affordances as first-class tools so Claude can see and act on your apps in real time.
+Claude Code plugin for SLOP, direct-tool variant. Connect Claude to local native apps and web apps, subscribe to their live state trees, and expose app affordances as first-class tools so Claude can see and act on your apps in real time.
 
 ## What it does
 
 SLOP (Semantic Live Observable Protocol) is a standard for apps to expose their state and actions to AI systems. This plugin bridges SLOP providers to Claude by:
 
-- **Discovers** SLOP-enabled apps — both local native apps and web apps running in the browser
-- **Connects** via WebSocket, Unix socket, or extension relay (for browser-only SPAs)
-- **Injects state** directly into Claude's context on every message — no manual fetching
-- **Registers affordances as tools** — each app action becomes a first-class tool (e.g. `kanban__add_card`, `excalidraw__elements__add_rectangle`). Claude calls them directly.
-- **Supports multiple apps** connected simultaneously for cross-app workflows
+- Discovering SLOP-enabled apps, both local native apps and web apps running in the browser
+- Connecting via WebSocket, Unix socket, or extension relay (for browser-only SPAs)
+- Injecting state directly into Claude's context on every message, with no manual fetching
+- Registering affordances as tools, so each app action becomes a first-class tool (e.g. `kanban__add_card`, `excalidraw__elements__add_rectangle`) that Claude calls directly
+- Supporting multiple apps connected simultaneously for cross-app workflows
 
 ## Setup
 
@@ -35,7 +35,7 @@ This variant dynamically registers tools for each connected app. To avoid approv
 }
 ```
 
-This allows all tools from the plugin's MCP server — both the lifecycle tools (`list_apps`, `connect_app`, `disconnect_app`) and every dynamic affordance tool from connected apps.
+This allows all tools from the plugin's MCP server, both the lifecycle tools (`list_apps`, `connect_app`, `disconnect_app`) and every dynamic affordance tool from connected apps.
 
 ## Comparison with `slop-mcp-proxy`
 
@@ -45,7 +45,7 @@ This allows all tools from the plugin's MCP server — both the lifecycle tools 
 | Affordance invocation | Per-affordance tool (e.g. `excalidraw__zoom_to_fit`) | Generic `app_action(app, path, action, params)` |
 | Schema validation | MCP validates per-tool JSON Schema | Model reads schemas from injected state |
 | Token cost | Higher (N tool definitions) | Lower (5 tool definitions) |
-| Best fit | Direct, ergonomic tool calling | Lowest-overhead integration surface |
+| Best fit | Direct tool calling | Lowest tool overhead |
 
 ### Local apps
 
@@ -58,19 +58,19 @@ The plugin auto-discovers SLOP providers from:
 To discover and interact with SLOP-enabled web apps, install the SLOP browser extension. The plugin automatically connects to the extension's local bridge at `ws://127.0.0.1:9339/slop-bridge` and receives provider announcements as you browse.
 
 Two types of web providers are supported:
-- **WebSocket providers** — server-backed web apps. The plugin connects directly to the app's WebSocket endpoint.
-- **postMessage providers** — client-only SPAs. The plugin communicates through the extension relay.
+- **WebSocket providers**: server-backed web apps. The plugin connects directly to the app's WebSocket endpoint.
+- **postMessage providers**: client-only SPAs. The plugin communicates through the extension relay.
 
-Both types appear seamlessly in discovery results and work identically once connected.
+Both types appear in discovery results and work identically once connected.
 
 ## Usage
 
 Ask Claude to interact with a SLOP-enabled app:
 
-- "What apps are available?" — lists local + web providers
-- "Connect to my kanban board" — connects, injects state, registers action tools
-- "Add three tasks to my todo list" — Claude calls the app's tools directly
-- "Disconnect from the kanban board" — removes tools and state
+- Say "What apps are available?" to list local and web providers.
+- Say "Connect to my kanban board" to connect, inject state, and register action tools.
+- Ask "Add three tasks to my todo list" and Claude calls the app's tools directly.
+- Say "Disconnect from the kanban board" to remove tools and state.
 
 ## Tools
 
@@ -88,16 +88,16 @@ When an app connects, its affordances are registered as first-class MCP tools vi
 
 Affordances that share the same `action` name and identical `params` schema are **grouped** into a single tool with a `target` parameter, rather than registering one tool per node. For example, if an Excalidraw whiteboard has 200 elements each with `delete` and `set_property` actions, this produces 2 grouped tools instead of 400 individual ones:
 
-- `excalidraw__delete(target="/elements/rect-1")` — 200 targets
-- `excalidraw__set_property(target="/elements/rect-1", key, value)` — 200 targets
-- `excalidraw__canvas__zoom_to_fit` — singleton (only on canvas node)
-- `excalidraw__canvas__toggle_theme` — singleton
+- `excalidraw__delete(target="/elements/rect-1")`: 200 targets
+- `excalidraw__set_property(target="/elements/rect-1", key, value)`: 200 targets
+- `excalidraw__canvas__zoom_to_fit`: singleton (only on canvas node)
+- `excalidraw__canvas__toggle_theme`: singleton
 
 Singleton affordances (unique action on a single node) keep the `{nodeId}__{action}` naming with a fixed path. Grouped tools use just the `{action}` name and require the caller to specify which node via `target`. The LLM picks the correct target path from the state tree (injected on every turn via the hook).
 
 If two groups of nodes share the same action name but have different param schemas (e.g. `edit` on cards takes `title` while `edit` on comments takes `body`), they remain separate tools with disambiguated names.
 
-Claude calls these directly — no proxy through meta-tools needed. Tools are removed when the app disconnects.
+Claude calls these directly, with no proxy through meta-tools. Tools are removed when the app disconnects.
 
 ## Components
 
@@ -139,9 +139,9 @@ Browser SPAs ──postMessage──Extension─────────┤
 
 All dynamic affordance tools remain registered for the lifetime of the connection. Apps with many distinct action+schema combinations can consume significant context tokens (~128 tokens per tool) even when Claude isn't actively interacting with the app.
 
-One possible follow-up is idle tool deregistration. Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive — the hook still injects the state tree each turn so Claude retains awareness of the app. When Claude needs to act again, a single `connect_app("appname")` call re-registers the tools instantly from the cached state (no reconnection needed).
+One possible follow-up is idle tool deregistration. Track the last tool call per provider. After a configurable idle timeout (e.g. 60 seconds with no tool calls), deregister that provider's tools via `tools/list_changed` to free context. The connection and state subscription stay alive, and the hook still injects the state tree each turn so Claude stays aware of the app. When Claude needs to act again, a single `connect_app("appname")` call re-registers the tools from the cached state (no reconnection needed).
 
-This gives the best of both worlds: direct tool calls with zero overhead during active use, freed context when idle.
+The result is direct tool calls with no overhead during active use and freed context when idle.
 
 ## Requirements
 
@@ -151,7 +151,7 @@ This gives the best of both worlds: direct tool calls with zero overhead during 
 
 ## Learn more
 
-- [Discovery & Bridge docs](/sdk/discovery) — discovery layer architecture
-- [Claude Code integration guide](/guides/advanced/claude-code) — detailed setup and usage
-- [`@slop-ai/consumer`](https://www.npmjs.com/package/@slop-ai/consumer) — SLOP consumer SDK
-- [`@slop-ai/discovery`](https://www.npmjs.com/package/@slop-ai/discovery) — bridge/discovery primitives with `/service` and `/tools` subpaths
+- [Discovery & Bridge docs](/sdk/discovery): discovery layer architecture
+- [Claude Code integration guide](/guides/advanced/claude-code): detailed setup and usage
+- [`@slop-ai/consumer`](https://www.npmjs.com/package/@slop-ai/consumer): SLOP consumer SDK
+- [`@slop-ai/discovery`](https://www.npmjs.com/package/@slop-ai/discovery): bridge/discovery helpers with `/service` and `/tools` subpaths

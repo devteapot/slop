@@ -1,4 +1,4 @@
-# State Stores
+# State stores
 
 Use `exposeStore()` when your app state already lives in a state library. The helper binds any store-like object with `getState()` and `subscribe()` to one SLOP node. You still provide the projection from application state to SLOP descriptors, so consumers see semantic app state instead of a raw state dump.
 
@@ -10,7 +10,7 @@ bun test
 bun run build
 ```
 
-## Basic Pattern
+## Basic pattern
 
 ```ts
 import { createSlop, exposeStore } from "@slop-ai/client";
@@ -27,7 +27,7 @@ dispose();
 
 `@slop-ai/client` is usually the right import for browser apps. `@slop-ai/core` also exports `exposeStore()` for lower-level integrations that already have a provider target.
 
-## Shared Projection
+## Shared projection
 
 Keep your library-specific code focused on state reads, subscriptions, and mutations. The SLOP projection can be shared across libraries.
 
@@ -319,7 +319,7 @@ Expose the state an AI agent needs, not every internal field in the store.
 
 Keep affordances aligned with your public state operations: dispatch Redux actions, call Zustand actions, or route through your domain services. Do not let SLOP actions mutate unrelated store internals directly.
 
-## Related Pages
+## Related pages
 
 - [Browser provider API](/api/client)
 - [Core helpers](/api/core)

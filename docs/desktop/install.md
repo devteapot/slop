@@ -1,10 +1,10 @@
-# Desktop App
+# Desktop app
 
 The SLOP desktop app is a multi-provider consumer workspace. It connects to local providers discovered from `~/.slop/providers/` and `/tmp/slop/providers/`, remote WebSocket providers, and browser providers bridged from the extension.
 
 ## Release builds
 
-Tagged releases attach desktop binaries to the project’s GitHub Releases. If you are developing locally or need the latest main-branch version, build from source.
+Tagged releases attach desktop binaries to the project's GitHub Releases. If you are developing locally or need the latest main-branch version, build from source.
 
 ## Build from source
 

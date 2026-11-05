@@ -1,4 +1,4 @@
-# State Stores Blueprint: `todo-store`
+# State stores blueprint: `todo-store`
 
 This example demonstrates how SLOP can project existing TypeScript state stores without requiring a framework-specific adapter. Every implementation exposes the same todo list tree through `exposeStore()`.
 
@@ -11,7 +11,7 @@ This example demonstrates how SLOP can project existing TypeScript state stores 
 | Affordances | Store operations are exposed as `create`, `toggle`, and `clear_done` actions |
 | Cleanup | Disposing the binding unregisters the exposed tree recursively |
 
-## App Behavior
+## App behavior
 
 The example is a todo list with three operations:
 
@@ -21,7 +21,7 @@ The example is a todo list with three operations:
 
 The example intentionally runs without a browser transport so it can be tested in Bun and reused as copyable SDK integration code.
 
-## SLOP Tree
+## SLOP tree
 
 ```
 [root] <library>-todos
@@ -40,7 +40,7 @@ The example intentionally runs without a browser transport so it can be tested i
               ]
 ```
 
-## Implementation Constraints
+## Implementation constraints
 
 - Use `@slop-ai/client`.
 - Use `createSlop({ transports: [] })` so the examples run in tests without `window`.

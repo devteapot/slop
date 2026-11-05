@@ -31,7 +31,7 @@ import { action, useSlop } from "@slop-ai/angular";
 
 The signature is `useSlop(client, pathOrGetter, descriptorFactory)` where the descriptor function is re-evaluated whenever the signals it reads change.
 
-## Full Example
+## Full example
 
 ```ts
 import { Component, signal, computed } from "@angular/core";
@@ -88,7 +88,7 @@ export class NotesComponent {
 }
 ```
 
-## Next Steps
+## Next steps
 
 - [Angular package API](/api/angular)
 - [Browser provider API](/api/client)

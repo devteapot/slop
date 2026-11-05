@@ -21,7 +21,7 @@ export const slop = createSlop({
 
 ## Using `useSlop`
 
-The `useSlop` primitive registers a node on mount, updates it reactively, and unregisters it on cleanup.
+The `useSlop` composable registers a node on mount, updates it reactively, and unregisters it on cleanup.
 
 ```ts
 import { action, useSlop } from "@slop-ai/solid";
@@ -29,7 +29,7 @@ import { action, useSlop } from "@slop-ai/solid";
 
 The signature is `useSlop(client, pathOrGetter, descriptorFactory)` where the descriptor is wrapped in a function so Solid can track signal dependencies.
 
-## Full Example
+## Full example
 
 ```tsx
 import { createSignal } from "solid-js";
@@ -85,7 +85,7 @@ export function Notes() {
 }
 ```
 
-## Next Steps
+## Next steps
 
 - [Solid package API](/api/solid)
 - [Browser provider API](/api/client)

@@ -1,5 +1,5 @@
 ---
-title: "Discovery & Bridge"
+title: "Discovery & bridge"
 description: "Provider scanning, extension bridge, relay transport, auto-connect, state formatting"
 ---
 SLOP consumers need to find and connect to providers. A consumer SDK handles the wire protocol (subscribe, query, invoke). The **discovery layer** sits above it and handles everything else: finding providers, managing connections, bridging browser tabs, and formatting state for AI consumption.
@@ -27,7 +27,7 @@ This document specifies the discovery layer's behavior in a language-agnostic wa
 └──────────────────────────────────────────────────────┘
 ```
 
-The consumer SDK is intentionally minimal — a pure SLOP protocol client with pluggable transports. The discovery layer adds the intelligence: where are providers, how do I connect to them, what if I need to bridge through an extension?
+The consumer SDK is intentionally minimal, a pure SLOP protocol client with pluggable transports. The discovery layer adds the intelligence: where are providers, how do I connect to them, what if I need to bridge through an extension?
 
 Integrations (Claude Code plugin, OpenClaw plugin, VS Code extension, custom agents) are thin wrappers that expose discovery capabilities to their specific host environment.
 
@@ -44,7 +44,7 @@ Integrations compose these entrypoints: `@slop-ai/discovery/service` for provide
 
 These are subpath entrypoints of the same published `@slop-ai/discovery` package, not separately published npm packages. They currently share one install-time dependency set even when a consumer only imports the root, `/service`, or `/tools` entrypoint.
 
-## Phase 1: Core Discovery Layer
+## Phase 1: Core discovery layer
 
 As of `v0.1`, the **core discovery layer** is shipped across TypeScript, Python, Go, and Rust. The TypeScript implementation remains the behavioral reference, but other SDKs do **not** need to copy its package topology.
 
@@ -92,7 +92,7 @@ Phase 1 explicitly excludes:
 | `Planned` | Not implemented yet |
 | `Out of scope` | Intentionally excluded from phase 1 |
 
-## Provider Discovery
+## Provider discovery
 
 ### Local providers
 
@@ -130,7 +130,7 @@ Supported transport types in descriptors:
 |---|---|---|
 | `unix` | `path` | Unix domain socket path |
 | `ws` | `url` | WebSocket endpoint URL |
-| `stdio` | — | Standard input/output (reserved for CLI tools) |
+| `stdio` | (none) | Standard input/output (reserved for CLI tools) |
 
 ### Browser providers (via extension bridge)
 
@@ -145,7 +145,7 @@ Browser providers have two transport types:
 
 The discovery layer merges local and bridge providers into a single list. Consumers see a unified `ProviderDescriptor[]` regardless of source.
 
-## Extension Bridge
+## Extension bridge
 
 ### Protocol
 
@@ -185,7 +185,7 @@ This means:
 - If the Desktop app is running, all other consumers connect as clients to its bridge
 - If the Desktop app is NOT running, the first consumer to start becomes the bridge host
 - Subsequent consumers connect as clients to whichever consumer started the bridge
-- No separate daemon or installation required
+- No separate daemon or installation is required
 
 The bridge server implementation must:
 
@@ -205,9 +205,9 @@ For `postmessage` providers, the discovery layer provides a relay transport that
 4. Provider responds with `hello` through the relay
 5. All subsequent SLOP messages flow through `slop-relay` wrappers
 
-The relay transport implements the same `ClientTransport` interface as WebSocket or Unix socket transports. The `SlopConsumer` doesn't know it's talking through a relay — the transport is pluggable.
+The relay transport implements the same `ClientTransport` interface as WebSocket or Unix socket transports. The `SlopConsumer` doesn't know it's talking through a relay. The transport is pluggable.
 
-## Connection Management
+## Connection management
 
 ### Lazy vs auto-connect
 
@@ -234,7 +234,7 @@ When a connected provider disconnects unexpectedly and its descriptor still exis
 
 Connection attempts time out after 10 seconds. This prevents the discovery layer from hanging indefinitely on unresponsive providers (e.g., a descriptor file exists but the process isn't running).
 
-## State Formatting
+## State formatting
 
 The discovery layer provides two functions for formatting provider state for AI consumption:
 
@@ -279,12 +279,12 @@ chat__messages__send          → invoke("/messages", "send", ...)
 ```
 
 Returns a `DynamicToolSet` with:
-- `tools` — array of `DynamicToolEntry` objects (name, description, inputSchema, providerId, path, action)
-- `resolve(toolName)` — maps a dynamic tool name back to `{ providerId, path, action }` for dispatch
+- `tools`: array of `DynamicToolEntry` objects (name, description, inputSchema, providerId, path, action)
+- `resolve(toolName)`: maps a dynamic tool name back to `{ providerId, path, action }` for dispatch
 
 This function is called on every state change to rebuild the tool list. Integrations that support dynamic tool registration (like MCP's `notifications/tools/list_changed`) use this to expose affordances as first-class tools. See [Dynamic tool injection](#dynamic-tool-injection) below.
 
-## State Change Notifications
+## State change notifications
 
 The discovery layer fires a state change callback on:
 
@@ -292,9 +292,9 @@ The discovery layer fires a state change callback on:
 - Provider disconnected
 - State patch received from any connected provider
 
-Consumers can use this to maintain a cache, update a UI, or trigger context injection. The callback receives no arguments — the consumer reads the current state from the discovery service.
+Consumers can use this to maintain a cache, update a UI, or trigger context injection. The callback receives no arguments. The consumer reads the current state from the discovery service.
 
-## SDK Implementations
+## SDK implementations
 
 | Language | Consumer SDK | Core discovery module | Current status |
 |---|---|---|---|
@@ -370,9 +370,9 @@ Host-specific wrappers, tool-helper layers, and prompt injection are intentional
 
 Both the Claude Code and OpenClaw plugins follow the same design principles:
 
-- **State injection** — Provider state is injected into the model's context before each turn, not fetched via tool calls
-- **Minimal tool usage** — Tools are used only for connecting to apps and performing actions, never for reading state
-- **Shared discovery** — Both build on `@slop-ai/discovery/service` for provider scanning and connection orchestration
+- **State injection**: Provider state is injected into the model's context before each turn, not fetched via tool calls
+- **Minimal tool usage**: Tools are used only for connecting to apps and performing actions, never for reading state
+- **Shared discovery**: Both build on `@slop-ai/discovery/service` for provider scanning and connection orchestration
 
 Where they differ is **action dispatch**, due to host platform limitations.
 
@@ -397,7 +397,7 @@ Dynamic tools have proper parameter schemas from the provider's affordance defin
 | Host | Dynamic tools | Mechanism | Limitation |
 |---|---|---|---|
 | Codex | No (current plugin) | Stable MCP tools + `UserPromptSubmit` hook-based state injection | No runtime tool registration; actions still go through meta-tools |
-| Claude Code (MCP) | Yes | `notifications/tools/list_changed` — server notifies client when tool list changes | None |
+| Claude Code (MCP) | Yes | `notifications/tools/list_changed`: server notifies client when tool list changes | None |
 | OpenClaw | No | `api.registerTool()` is one-time during `register()` | No runtime tool registration API; tools must be declared in the plugin manifest |
 
 Hosts without dynamic tool support fall back to the **meta-tool pattern**: stable tools (`app_action`, `app_action_batch`) that resolve actions at runtime. Depending on the host, the model learns the exact paths and action names from prompt-time state injection or from an explicit `connect_app` inspection step.
@@ -412,11 +412,11 @@ Hosts without dynamic tool support fall back to the **meta-tool pattern**: stabl
 
 Design details:
 
-- **Fixed tool surface** — The Codex plugin exposes the same stable five-tool catalog as the OpenClaw plugin.
-- **Hook-based state injection** — The bridge writes provider state to `/tmp/codex-slop-plugin/state.json` on every state change. The `UserPromptSubmit` hook reads that file and injects fresh markdown into future turns.
-- **Immediate snapshot on connect** — `connect_app` still returns the current tree and actions right away, so Codex can act in the same turn it first connects.
-- **Discovery** — Uses `@slop-ai/discovery/service` with local descriptor watching plus browser bridge support.
-- **Multi-app** — Multiple providers can remain connected concurrently; `app_action` and `app_action_batch` resolve against the requested app ID.
+- **Fixed tool surface**: The Codex plugin exposes the same stable five-tool catalog as the OpenClaw plugin.
+- **Hook-based state injection**: The bridge writes provider state to `/tmp/codex-slop-plugin/state.json` on every state change. The `UserPromptSubmit` hook reads that file and injects fresh markdown into future turns.
+- **Immediate snapshot on connect**: `connect_app` still returns the current tree and actions right away, so Codex can act in the same turn it first connects.
+- **Discovery**: Uses `@slop-ai/discovery/service` with local descriptor watching plus browser bridge support.
+- **Multi-app**: Multiple providers can remain connected concurrently; `app_action` and `app_action_batch` resolve against the requested app ID.
 
 See [Codex guide](/guides/advanced/codex) for setup and usage.
 
@@ -426,16 +426,16 @@ See [Codex guide](/guides/advanced/codex) for setup and usage.
 |---|---|
 | **`claude-slop-native`** | Wraps `createDiscoveryService` from `@slop-ai/discovery/service` and `createDynamicTools` from `@slop-ai/discovery/tools`. Registers dynamic per-app tools via `tools/list_changed`. Static tools: `list_apps`, `connect_app`, `disconnect_app`. |
 | **`claude-slop-mcp-proxy`** | Wraps `createDiscoveryService` from `@slop-ai/discovery/service`, but keeps a fixed tool catalog: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, `app_action_batch`. |
-| **Shared hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message — no MCP fetch needed. Also lists discovered-but-not-connected apps. |
+| **Shared hook** (`UserPromptSubmit`) | Reads a shared state file and injects connected providers' state trees into Claude's context on every user message, so no MCP fetch is needed. Also lists discovered-but-not-connected apps. |
 | **Shared skill** (`slop-connect`) | Teaches Claude the list → connect → inspect → act workflow. |
 
 Design details:
 
-- **Native direct tools** — When `connect_app("kanban")` connects a provider, `claude-slop-native` registers affordances as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
-- **MCP proxy fallback** — `claude-slop-mcp-proxy` does not register dynamic tools. Instead, Claude reads state from context and calls `app_action(app, path, action, params)` or `app_action_batch(...)`.
-- **Live state in context** — Both variants write provider state to `/tmp/claude-slop-plugin/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
-- **Staleness protection** — The state file includes a `lastUpdated` timestamp. The hook skips injection if the file is older than 30 seconds.
-- **Multi-app** — Multiple providers can be connected simultaneously. In the native variant, dynamic tools from different apps are distinguished by their app ID prefix.
+- **Native direct tools**: When `connect_app("kanban")` connects a provider, `claude-slop-native` registers affordances as MCP tools (e.g., `kanban__add_card`). Claude calls them directly. When the provider disconnects, the tools are removed.
+- **MCP proxy fallback**: `claude-slop-mcp-proxy` does not register dynamic tools. Instead, Claude reads state from context and calls `app_action(app, path, action, params)` or `app_action_batch(...)`.
+- **Live state in context**: Both variants write provider state to `/tmp/claude-slop-plugin/state.json` on every state change. The hook reads this file and outputs markdown that Claude sees on every turn.
+- **Staleness protection**: The state file includes a `lastUpdated` timestamp. The hook skips injection if the file is older than 30 seconds.
+- **Multi-app**: Multiple providers can be connected simultaneously. In the native variant, dynamic tools from different apps are distinguished by their app ID prefix.
 
 See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
 
@@ -443,22 +443,22 @@ See [Claude Code guide](/guides/advanced/claude-code) for setup and usage.
 
 | Component | Purpose |
 |---|---|
-| **Tools** | `list_apps` (list), `connect_app` (connect/inspect), `disconnect_app`, `app_action` (single action), `app_action_batch` (bulk ops) — registered once during `register()` |
+| **Tools** | `list_apps` (list), `connect_app` (connect/inspect), `disconnect_app`, `app_action` (single action), `app_action_batch` (bulk ops), registered once during `register()` |
 | **Hook** (`before_prompt_build`) | Injects connected providers' state trees as `prependContext` on every inference turn |
 
 Design details:
 
-- **Meta-tool pattern** — OpenClaw's plugin SDK requires tools to be declared upfront in `openclaw.plugin.json` and registered once. Dynamic tool registration is not supported. Actions go through `app_action(app, path, action, params)` instead of per-app tools.
-- **State injection** — The `before_prompt_build` hook returns `{ prependContext: stateMarkdown }`, which OpenClaw prepends to the conversation before inference. No file-based IPC needed (in-process).
-- **Discovery** — Uses `@slop-ai/discovery/service` with bridge support. Discovers local providers, session providers, and browser tabs via extension bridge.
+- **Meta-tool pattern**: OpenClaw's plugin SDK requires tools to be declared upfront in `openclaw.plugin.json` and registered once. Dynamic tool registration is not supported. Actions go through `app_action(app, path, action, params)` instead of per-app tools.
+- **State injection**: The `before_prompt_build` hook returns `{ prependContext: stateMarkdown }`, which OpenClaw prepends to the conversation before inference. No file-based IPC needed (in-process).
+- **Discovery**: Uses `@slop-ai/discovery/service` with bridge support. Discovers local providers, session providers, and browser tabs via extension bridge.
 
 See [OpenClaw guide](/guides/advanced/openclaw) for setup and usage.
 
 ## Related
 
-- [Consumer SDK API](/api/consumer) — protocol client reference
-- [Transport spec](/spec/core/transport) — wire protocol and discovery mechanisms
-- [Adapters spec](/spec/integrations/adapters) — bridging non-SLOP apps
-- [Consumer guide](/guides/consumer) — usage patterns and example workflows
-- [Codex guide](/guides/advanced/codex) — Codex plugin setup and usage
-- [Claude Code guide](/guides/advanced/claude-code) — Claude Code plugin setup and usage
+- [Consumer SDK API](/api/consumer): protocol client reference
+- [Transport spec](/spec/core/transport): wire protocol and discovery mechanisms
+- [Adapters spec](/spec/integrations/adapters): bridging non-SLOP apps
+- [Consumer guide](/guides/consumer): usage patterns and example workflows
+- [Codex guide](/guides/advanced/codex): Codex plugin setup and usage
+- [Claude Code guide](/guides/advanced/claude-code): Claude Code plugin setup and usage

@@ -1,4 +1,4 @@
-# tsk — Task Manager CLI + SLOP Provider (Python)
+# tsk: task manager CLI + SLOP provider (Python)
 
 A task manager CLI that works normally for humans, and becomes a SLOP provider when invoked with `--slop`.
 
@@ -42,4 +42,4 @@ Starts a Unix socket provider and an interactive CLI prompt. AI consumers connec
 
 Default: `~/.tsk/tasks.json`. Override with `--file` or `TSK_FILE` env var.
 
-On first run, seed data is copied from `seed.json`.
+On first run, the tool copies seed data from `seed.json`.

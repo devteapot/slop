@@ -1,6 +1,6 @@
-# Pomodoro Timer — Electron + SLOP
+# Pomodoro Timer with Electron and SLOP
 
-A desktop Pomodoro timer that doubles as a SLOP provider. An AI consumer can observe timer state, start/pause sessions, and read session history through a Unix socket.
+A desktop Pomodoro timer that is also a SLOP provider. An AI consumer can observe timer state, start/pause sessions, and read session history through a Unix socket.
 
 ## Prerequisites
 

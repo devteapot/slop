@@ -1,6 +1,6 @@
-# Pomodoro Timer — Tauri (Rust)
+# Pomodoro Timer with Tauri (Rust)
 
-A native desktop Pomodoro timer built with Tauri v2. Acts as a SLOP provider over a Unix socket so AI consumers can observe timer state, start/pause sessions, and read session history.
+A native desktop Pomodoro timer built with Tauri v2. It is a SLOP provider over a Unix socket, so AI consumers can observe timer state, start/pause sessions, and read session history.
 
 ## Prerequisites
 

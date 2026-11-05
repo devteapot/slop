@@ -1,6 +1,6 @@
-# Desktop Blueprint: `pomodoro` — A Pomodoro Timer
+# Desktop blueprint: `pomodoro`, a Pomodoro timer
 
-A desktop Pomodoro timer that helps users manage focused work sessions using the Pomodoro Technique. It runs as a native desktop app with a visual countdown, session tagging, and daily session history. The app is always a SLOP provider — an AI consumer can observe timer state, start/pause sessions, and read session history through a Unix socket, demonstrating that desktop GUI apps are first-class SLOP providers.
+A desktop Pomodoro timer that helps users manage focused work sessions using the Pomodoro Technique. It runs as a native desktop app with a visual countdown, session tagging, and daily session history. The app is always a SLOP provider. An AI consumer can observe timer state, start/pause sessions, and read session history through a Unix socket. This shows that desktop GUI apps are first-class SLOP providers.
 
 ## What this demonstrates
 
@@ -114,7 +114,7 @@ Default path: `~/.pomodoro/sessions.json`. Override with `POMODORO_FILE` env var
 
 ## SLOP tree
 
-This is the exact tree structure the provider must expose. Node IDs, types, properties, and affordances are the **contract** — all implementations must produce this same tree.
+This is the exact tree structure the provider must expose. Node IDs, types, properties, and affordances are the **contract**. All implementations must produce this same tree.
 
 ### When idle (no active timer)
 
@@ -492,7 +492,7 @@ examples/desktop/go/
 
 ## SLOP mode behavior
 
-Desktop apps are always SLOP providers (no `--slop` flag needed — the socket starts on launch).
+Desktop apps are always SLOP providers, so the socket starts on launch and no `--slop` flag is needed.
 
 1. **Start socket listener** on `/tmp/slop/pomodoro.sock` at app launch
 2. **Write discovery file** to `~/.slop/providers/pomodoro.json`:
@@ -508,8 +508,8 @@ Desktop apps are always SLOP providers (no `--slop` flag needed — the socket s
      "description": "Pomodoro timer: idle, 4 sessions today"
    }
    ```
-3. **Update description dynamically** — when timer state changes, update the discovery file description (e.g., "Working: 24:37 remaining on 'Implement SLOP SDK'")
-4. **Refresh tree every 1 second** while timer is running — send patches with updated `time_remaining_sec` and `time_elapsed_sec`
+3. **Update the description dynamically.** When timer state changes, update the discovery file description (e.g., "Working: 24:37 remaining on 'Implement SLOP SDK'")
+4. **Refresh the tree every 1 second while the timer is running.** Send patches with updated `time_remaining_sec` and `time_elapsed_sec`
 5. **On quit**: delete socket file, delete discovery file
 
 ## Cross-SDK alignment notes
@@ -518,17 +518,17 @@ Desktop apps are always SLOP providers (no `--slop` flag needed — the socket s
 
 2. **Affordances must be declared in descriptors (spec 05).** Each SDK must include the affordances in the descriptor returned by the dynamic registration function, not just register handlers separately. The descriptor is the source of truth.
 
-3. **Use inline actions in dynamic descriptors.** The timer node's descriptor function must return different action lists based on current phase and pause state. This is the most critical alignment point — the state-dependent affordance table above is the contract.
+3. **Use inline actions in dynamic descriptors.** The timer node's descriptor function must return different action lists based on current phase and pause state. This is the most critical alignment point. The state-dependent affordance table above is the contract.
 
 4. **Salience values must be numeric.** All SDKs expect `meta.salience` as a float (0.0-1.0). Session salience must be computed identically based on time elapsed since completion.
 
 5. **Timer updates must be debounced to 1-second intervals.** Even though the internal timer may tick faster for smooth UI animation, SLOP patches are sent at most once per second to avoid flooding consumers.
 
-6. **Phase transition on timer completion.** When `time_remaining_sec` reaches 0, the provider must: (a) record the completed session if in working phase, (b) transition to the next phase, (c) refresh the tree. This must happen atomically from the consumer's perspective — a single patch, not multiple.
+6. **Phase transition on timer completion.** When `time_remaining_sec` reaches 0, the provider must: (a) record the completed session if in working phase, (b) transition to the next phase, (c) refresh the tree. This must happen atomically from the consumer's perspective, as a single patch, not multiple.
 
 7. **Session IDs are sequential.** Format: `s-{N}` where N is monotonically increasing. All implementations must use this format.
 
-8. **The `tag` action exists on both timer and session items.** On the timer node, it sets the current session's tag. On a session item, it re-tags a completed session. Same action name, different scope — this is correct per spec 05 (actions are unique within a node, not globally).
+8. **The `tag` action exists on both timer and session items.** On the timer node, it sets the current session's tag. On a session item, it re-tags a completed session. Same action name, different scope. That is correct per spec 05 (actions are unique within a node, not globally).
 
 ## Seed data
 

@@ -1,6 +1,6 @@
-# Full-Stack Apps
+# Full-stack apps
 
-When a web app has both a server and a browser frontend, the server is the natural SLOP endpoint — it holds authoritative data and is always reachable. But the browser owns UI state (selected item, form values, route). The full-stack pattern merges both into a single provider.
+When a web app has both a server and a browser frontend, the server is the natural SLOP endpoint. It holds authoritative data and is always reachable. But the browser owns UI state (selected item, form values, route). The full-stack pattern merges both into a single provider.
 
 ## The pattern
 
@@ -23,8 +23,8 @@ contacts       ui          <-- mounted from browser
 
 The server's WebSocket endpoint needs to handle two kinds of connections:
 
-- **Consumer connections** (default) — subscribe to the tree, invoke actions
-- **Provider connections** (`?slop_role=provider`) — the browser sends its UI tree, the server mounts it
+- **Consumer connections** (default): subscribe to the tree, invoke actions
+- **Provider connections** (`?slop_role=provider`): the browser sends its UI tree, the server mounts it
 
 When a provider connection arrives, the server:
 
@@ -34,7 +34,7 @@ When a provider connection arrives, the server:
 4. On `patch`, applies patches to the local copy and calls `refresh()`
 5. On action invokes targeting UI nodes, forwards the `invoke` to the browser
 
-Any server SDK can implement this. The messages are standard SLOP protocol — `connect`, `subscribe`, `snapshot`, `patch`, `invoke`, `result`.
+Any server SDK can implement this. The messages are standard SLOP protocol: `connect`, `subscribe`, `snapshot`, `patch`, `invoke`, `result`.
 
 ## Browser side
 
@@ -52,7 +52,7 @@ const slop = createSlop({
 });
 ```
 
-Use `transports: ["websocket"]` (no `postmessage`) to avoid the browser extension seeing a duplicate in-page provider. The extension discovers the server's `ws://` endpoint via the `<meta name="slop">` tag and connects there — which already includes the mounted UI.
+Use `transports: ["websocket"]` (no `postmessage`) to avoid the browser extension seeing a duplicate in-page provider. The extension discovers the server's `ws://` endpoint via the `<meta name="slop">` tag and connects there. That endpoint already includes the mounted UI.
 
 ```html
 <meta name="slop" content="ws://localhost:8000/slop" />

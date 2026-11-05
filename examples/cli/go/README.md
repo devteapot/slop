@@ -1,4 +1,4 @@
-# tsk — Go CLI Example
+# tsk: Go CLI example
 
 A task manager CLI that works normally for humans and becomes a SLOP provider when invoked with `--slop`.
 
@@ -38,10 +38,10 @@ Starts a Unix socket provider and an interactive CLI prompt. AI consumers connec
 
 ### Options
 
-- `--file <path>` — use an alternate data file (default: `~/.tsk/tasks.json`)
-- `--sock <path>` — use an alternate socket path (default: `/tmp/slop/tsk.sock`)
-- `TSK_FILE` env var — same as `--file`
-- `TSK_SOCK` env var — same as `--sock`
+- `--file <path>`: use an alternate data file (default: `~/.tsk/tasks.json`)
+- `--sock <path>`: use an alternate socket path (default: `/tmp/slop/tsk.sock`)
+- `TSK_FILE` env var: same as `--file`
+- `TSK_SOCK` env var: same as `--sock`
 
 ## Seed data
 

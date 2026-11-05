@@ -1,6 +1,6 @@
-# Guide: Exploring the Contact Manager
+# Guide: exploring the contact manager
 
-A full-stack contact manager with a Python backend and a React frontend. Two separate SLOP providers — one per language — that any AI consumer can subscribe to simultaneously.
+A full-stack contact manager with a Python backend and a React frontend. Two separate SLOP providers, one per language, that any AI consumer can subscribe to simultaneously.
 
 ## Setup
 
@@ -39,7 +39,7 @@ Try it out: search for "Acme", filter by "vip", click Alice to see her notes and
 
 Two SLOP providers are running:
 
-### Server provider (Python — data)
+### Server provider (Python, data)
 
 Connect a SLOP consumer to `ws://localhost:8000/slop`. Subscribe to see the full data tree:
 
@@ -65,7 +65,7 @@ Connect a SLOP consumer to `ws://localhost:8000/slop`. Subscribe to see the full
 Notice:
 - **Salience ordering.** Grace Kim (starred + activity today) is at the top. Eva and Henry (no recent activity) are at the bottom.
 - **Pinned nodes.** All three starred contacts have `meta.pinned: true`.
-- **Content references.** Alice has a `content_ref` with a preview of her notes — the AI can read the summary without loading the full text.
+- **Content references.** Alice has a `content_ref` with a preview of her notes. The AI can read the summary without loading the full text.
 - **Activity sub-collections.** Each contact has an `activity` child collection showing recent interactions.
 
 The AI can invoke actions directly:
@@ -83,7 +83,7 @@ The AI can invoke actions directly:
   "params": { "query": "Acme" } }
 ```
 
-### Browser provider (React — UI state)
+### Browser provider (React, UI state)
 
 The SLOP browser extension discovers the in-page provider via `<meta name="slop" content="postmessage">`. It exposes:
 
@@ -127,12 +127,12 @@ Workspace: "Contacts"
 
 When a user asks "Find Alice's email and add a note about our meeting":
 
-1. AI reads `contacts-api` → finds `contact-1` → `alice@example.com`
+1. AI reads `contacts-api` and finds `contact-1`, whose email is `alice@example.com`
 2. AI invokes `add_note` on `contacts-api:/contacts/contact-1` with the meeting note
 3. AI invokes `select` on `contacts-ui:/selection` to navigate the UI to Alice
 4. The browser shows Alice's detail view, now with the new note
 
-The Python server handled the data mutation. The React app handled the UI navigation. The AI coordinated both through standard SLOP — no shared runtime, no language coupling.
+The Python server handled the data mutation. The React app handled the UI navigation. The AI coordinated both through standard SLOP, with no shared runtime and no language coupling.
 
 ## The takeaway
 
@@ -141,4 +141,4 @@ This is a normal full-stack app. Python API, React SPA, REST in between. Adding 
 - **Backend:** ~80 lines in `slop_tree.py` to register the data tree. One `SlopMiddleware` line in `main.py`.
 - **Frontend:** ~5 lines per component (`useSlop` calls). One `createSlop` initialization.
 
-Two providers, two languages, two transports — but the AI sees one coherent picture of the app. That's SLOP.
+Two providers, two languages, two transports, but the AI sees one coherent picture of the app. That's SLOP.

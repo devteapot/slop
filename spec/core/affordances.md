@@ -4,9 +4,9 @@ Affordances are the action layer of SLOP. They describe what can be done, where 
 
 ## What makes affordances different from tools
 
-In tool-based systems (MCP, OpenAI function calling), the AI receives a flat list of available functions — disconnected from state. The AI must figure out *when* each tool is applicable and *what* to pass to it by reading documentation.
+In tool-based systems (MCP, OpenAI function calling), the AI receives a flat list of available functions, disconnected from state. The AI must figure out *when* each tool is applicable and *what* to pass to it by reading documentation.
 
-In SLOP, affordances are **attached to state nodes**. They appear in context — the AI sees a message node and, alongside its properties, sees that it can be replied to, archived, or forwarded. Affordances come and go as state changes: a "merge" affordance appears on a PR only when it's mergeable.
+In SLOP, affordances are **attached to state nodes**. They appear in context: the AI sees a message node and, alongside its properties, sees that it can be replied to, archived, or forwarded. Affordances come and go as state changes: a "merge" affordance appears on a PR only when it's mergeable.
 
 Key differences:
 
@@ -58,7 +58,7 @@ Key differences:
 
 ### `params` schema dialect
 
-`params` uses a deliberately small subset of JSON Schema — the part reference SDKs actually enforce on every `invoke`. Providers SHOULD stick to this subset; consumers and reference validators MUST at minimum enforce the keywords below and MAY treat other keywords as informational hints.
+`params` uses a deliberately small subset of JSON Schema, the part reference SDKs actually enforce on every `invoke`. Providers SHOULD stick to this subset; consumers and reference validators MUST at minimum enforce the keywords below and MAY treat other keywords as informational hints.
 
 **Enforced keywords:**
 
@@ -70,15 +70,15 @@ Key differences:
 | `items` | `array` | Each element is validated against the schema (array-of-schemas / tuple form is not part of the subset). |
 | `enum` | any | Value must deep-equal one of the listed members. |
 
-**Informational keywords.** `description`, `default`, `title`, `examples` — these are carried through to consumers (AI models and humans reading the affordance) but do not affect validation.
+**Informational keywords.** `description`, `default`, `title`, and `examples` are carried through to consumers (AI models and humans reading the affordance) but do not affect validation.
 
-**Keywords outside the subset.** `additionalProperties`, `minimum`/`maximum`, `minLength`/`maxLength`, `pattern`, `format`, `oneOf`/`anyOf`/`allOf`, `$ref`, `const`, etc. are **not** part of the SLOP subset. Reference validators silently accept values regardless of these keywords — do not rely on them for enforcement. A provider that needs tighter validation MUST re-check inside the handler before acting on the params.
+**Keywords outside the subset.** `additionalProperties`, `minimum`/`maximum`, `minLength`/`maxLength`, `pattern`, `format`, `oneOf`/`anyOf`/`allOf`, `$ref`, `const`, etc. are **not** part of the SLOP subset. Reference validators silently accept values regardless of these keywords. Do not rely on them for enforcement. A provider that needs tighter validation MUST re-check inside the handler before acting on the params.
 
 This subset is what the reference validators in `packages/typescript/sdk/core`, `packages/python/slop-ai`, `packages/go/slop-ai`, and `packages/rust/slop-ai` implement. Keeping the protocol-level contract this narrow keeps cross-language SDKs interoperable and keeps affordance schemas cheap to encode into model context.
 
 ### Parameterless affordances
 
-Many affordances take no input — they're contextual actions with all information already implicit:
+Many affordances take no input. They are contextual actions with all information already implicit:
 
 ```jsonc
 {
@@ -94,7 +94,7 @@ Many affordances take no input — they're contextual actions with all informati
 }
 ```
 
-The AI doesn't need to pass a message ID to "archive" — the affordance is on the node, so the target is implicit.
+The AI doesn't need to pass a message ID to "archive". The affordance is on the node, so the target is implicit.
 
 ## Dynamic affordances
 
@@ -125,7 +125,7 @@ Affordances are part of state. They change as state changes:
 }
 ```
 
-The consumer doesn't need conditional logic to know when merging is possible — the affordance's presence *is* the signal.
+The consumer doesn't need conditional logic to know when merging is possible. The affordance's presence *is* the signal.
 
 ## Invoking affordances
 
@@ -166,7 +166,7 @@ Contextual affordances are still valuable: they reduce invalid action attempts, 
 
 ## Confirmation pattern
 
-When `dangerous: true`, the protocol itself doesn't enforce confirmation — it's a hint to the consumer. The consumer (AI system) should:
+When `dangerous: true`, the protocol itself doesn't enforce confirmation. It is a hint to the consumer. The consumer (AI system) should:
 
 1. Recognize the `dangerous` flag
 2. Present the action to the user for confirmation before invoking
@@ -215,7 +215,7 @@ When an AI consumer converts affordances to LLM function tools (e.g., for OpenAI
 
 ### Short names: `{nodeId}__{action}`
 
-Tool names use the **node ID and action only**, not the full tree path. The LLM already has the full tree as context (via `formatTree` or equivalent) — encoding the path in the name is redundant and wastes tokens.
+Tool names use the **node ID and action only**, not the full tree path. The LLM already has the full tree as context (via `formatTree` or equivalent). Encoding the path in the name is redundant and wastes tokens.
 
 ```
 card_123__edit          ← 14 chars (short, readable)
@@ -233,7 +233,7 @@ Continue prepending ancestors until unique.
 
 ### Resolve map, not path encoding
 
-The `affordancesToTools` utility SHOULD return a resolve function (or map) alongside the tools. The consumer uses this to map a tool name back to the full `{ path, action }` needed for the `invoke` message. This keeps the encoding lossless without baking the path into the name.
+The `affordancesToTools` utility SHOULD return a resolve function (or map) alongside the tools. The consumer uses this to map a tool name back to the full `{ path, action }` needed for the `invoke` message. This keeps the encoding lossless without putting the path in the name.
 
 ```
 Tool name:  card_123__edit
@@ -260,7 +260,7 @@ Some LLM providers impose function name length limits (e.g., Gemini: 64 characte
 | Multi-provider + UUID | `my_app__550e8400_e29b_41d4_a716_446655440000__edit` | 50 |
 | Disambiguated UUID + UUID parent | `550e8400_...440001__550e8400_...440000__edit` | **79** |
 
-The last case — UUID collision requiring a UUID parent prefix — exceeds 64 chars. This is rare (requires two sibling-level nodes with identical IDs at different branches, both with long IDs), but possible in deep trees with UUID-based identifiers.
+The last case, UUID collision requiring a UUID parent prefix, exceeds 64 chars. This is rare (requires two sibling-level nodes with identical IDs at different branches, both with long IDs), but possible in deep trees with UUID-based identifiers.
 
 **Mitigation:** Consumer implementations SHOULD apply a hash-based truncation when sanitized names exceed the provider's limit. Truncate to `limit - 8` characters and append `_` plus a 7-character hash of the full name. This preserves uniqueness while respecting the limit:
 

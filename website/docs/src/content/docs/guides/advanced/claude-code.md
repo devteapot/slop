@@ -1,19 +1,19 @@
 ---
-title: "Claude Code Integration"
+title: "Claude Code integration"
 description: "Connect Claude Code to SLOP-enabled applications with dynamic or generic action tools"
 ---
 SLOP ships two Claude Code integrations:
 
-- `claude-slop-native` — direct-tool variant. Connected app affordances become first-class MCP tools, so Claude calls app-specific tools directly.
-- `claude-slop-mcp-proxy` — generic-action variant. Claude reads the injected state tree and uses five stable tools: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
+- `claude-slop-native` is the direct-tool variant. Connected app affordances become first-class MCP tools, so Claude calls app-specific tools directly.
+- `claude-slop-mcp-proxy` is the generic-action variant. Claude reads the injected state tree and uses five stable tools: `list_apps`, `connect_app`, `disconnect_app`, `app_action`, and `app_action_batch`.
 
 Use `claude-slop-native` by default for the best Claude Code UX. Use `claude-slop-mcp-proxy` when you want a fixed, low-overhead tool catalog.
 
 ## What it does
 
-- **Discovers** SLOP apps — local native apps, WebSocket servers, and browser tabs via the extension bridge
-- **Injects state** directly into Claude's context on every message — no tool calls for reads
-- **Supports both tool models** — dynamic per-affordance tools in `claude-slop-native`, or generic action tools in `claude-slop-mcp-proxy`
+- **Discovers** SLOP apps: local native apps, WebSocket servers, and browser tabs via the extension bridge
+- **Injects state** directly into Claude's context on every message, so reads need no tool calls
+- **Supports both tool models**: dynamic per-affordance tools in `claude-slop-native`, or generic action tools in `claude-slop-mcp-proxy`
 - **Supports multiple apps** connected simultaneously for cross-app workflows
 
 ## Choose a variant
@@ -65,7 +65,7 @@ Both plugins use a `UserPromptSubmit` hook. It reads a shared state file written
 - **Chat App** (id: `chat-app`, ws, local)
 ```
 
-Claude sees this on every turn without calling any tool. The state updates live — the MCP server writes the file on every state change (connection, disconnection, patch).
+Claude sees this on every turn without calling any tool. The state updates live because the MCP server writes the file on every state change (connection, disconnection, patch).
 
 ### `claude-slop-native`: dynamic tool injection
 
@@ -91,7 +91,7 @@ Three lifecycle tools remain static and always available:
 
 ### `claude-slop-mcp-proxy`: fixed generic tools
 
-This variant keeps a stable five-tool surface:
+This variant keeps five stable tools:
 
 | Tool | When to use |
 |---|---|
@@ -153,17 +153,17 @@ The state file includes a `lastUpdated` timestamp. The hook skips injection if t
 
 ## Comparison with OpenClaw
 
-`claude-slop-native` uses **dynamic tool injection** because MCP supports `notifications/tools/list_changed` — the server can add and remove tools at runtime. This means Claude calls app-specific tools directly (e.g., `kanban__add_card`) rather than going through a generic `app_action` proxy.
+`claude-slop-native` uses **dynamic tool injection** because MCP supports `notifications/tools/list_changed`, which lets the server add and remove tools at runtime. This means Claude calls app-specific tools directly (e.g., `kanban__add_card`) rather than going through a generic `app_action` proxy.
 
 `claude-slop-mcp-proxy` uses the same meta-tool pattern as OpenClaw, but inside Claude Code.
 
-OpenClaw's plugin SDK does not support runtime tool registration — tools must be declared in the plugin manifest and registered once during plugin initialization. The OpenClaw plugin uses meta-tools (`app_action`, `app_action_batch`) instead, with state injection via `before_prompt_build` to give the model full context. See [OpenClaw integration](/guides/advanced/openclaw) for details.
+OpenClaw's plugin SDK does not support runtime tool registration. Tools must be declared in the plugin manifest and registered once during plugin initialization. The OpenClaw plugin uses meta-tools (`app_action`, `app_action_batch`) instead, with state injection via `before_prompt_build` to give the model full context. See [OpenClaw integration](/guides/advanced/openclaw) for details.
 
 All three integrations share the same underlying discovery stack. They use `@slop-ai/discovery/service` for connection orchestration, and `claude-slop-native` additionally uses `@slop-ai/discovery/tools` to expose first-class tools.
 
 ## Related
 
-- [Discovery & Bridge](/sdk/discovery) — the discovery layer this plugin builds on
-- [Consumer guide](/guides/consumer) — other SLOP consumers (CLI, Desktop, Extension)
-- [Codex integration](/guides/advanced/codex) — fixed-tool Codex plugin for SLOP app discovery and control
-- [OpenClaw integration](/guides/advanced/openclaw) — similar integration for OpenClaw
+- [Discovery & Bridge](/sdk/discovery), the discovery layer this plugin builds on
+- [Consumer guide](/guides/consumer), other SLOP consumers (CLI, Desktop, Extension)
+- [Codex integration](/guides/advanced/codex), fixed-tool Codex plugin for SLOP app discovery and control
+- [OpenClaw integration](/guides/advanced/openclaw), similar integration for OpenClaw

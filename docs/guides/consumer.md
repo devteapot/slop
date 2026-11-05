@@ -1,4 +1,4 @@
-# Consumer Guide
+# Consumer guide
 
 A SLOP consumer connects to a provider, reads its state tree, and can invoke affordances. This repo ships three ready-made consumers plus reusable SDKs for building your own scripts, agents, and test harnesses.
 
@@ -11,11 +11,11 @@ A SLOP consumer connects to a provider, reads its state tree, and can invoke aff
 | Chrome extension | Detects browser providers, opens an on-page chat UI, and can bridge browser state into the desktop app | browser and SPA testing, in-page AI workflows | `apps/extension` |
 | Consumer SDKs | Lets you build scripts, agents, and automated tests on top of subscribe/query/invoke | custom automation, CI checks, tool calling | `packages/typescript/sdk/consumer`, `packages/python/slop-ai`, `packages/go/slop-ai`, `packages/rust/slop-ai` |
 
-## CLI Inspector
+## CLI inspector
 
 The inspector is the fastest way to answer: "what is this provider exposing right now?"
 
-It is effectively a Postman-style debugger for SLOP providers:
+It works like a Postman-style debugger for SLOP providers:
 
 - connect to a local Unix socket or remote WebSocket provider
 - see the current tree shape exactly as a consumer sees it
@@ -60,7 +60,7 @@ Bridge providers appear in the discovery view with a `◆` marker. The status li
 | --- | --- |
 | `Bridge: waiting for extension` | Server mode, no extension connected yet |
 | `Bridge: N extension(s)` | Server mode, extension connected |
-| `Bridge: connected to Desktop` | Client mode, piggybacking on the desktop bridge |
+| `Bridge: connected to Desktop` | Client mode, connected through the desktop's bridge |
 | `Bridge: disconnected` | Client mode, lost connection to the desktop bridge |
 
 You can disable the bridge entirely with `--bridge=false`, or change the port with `--bridge-port`.
@@ -120,7 +120,7 @@ If you can connect, browse the tree, and invoke a safe affordance, the transport
 
 ### Writing tests with it
 
-Yes, with one important nuance: today the CLI is most useful for authoring and validating tests, and its wire-level pieces are a solid base for headless runners.
+The CLI supports tests, with one caveat. Today the CLI is most useful for authoring and validating tests, and its wire-level pieces are a solid base for headless runners.
 
 Use it in two stages:
 
@@ -129,7 +129,7 @@ Use it in two stages:
 
 That is already the pattern used in this repo. `examples/cli/test-harness.ts` spins up the sample `tsk` providers, connects over the socket, sends `subscribe`, `query`, and `invoke` messages, and checks that the returned tree and results match expectations.
 
-So the CLI is useful for tests in three practical ways:
+The CLI is useful for tests in three ways:
 
 - as a fast manual test authoring tool, like using Postman before writing an API test
 - as a debugging aid when a CI failure says "tree shape changed" and you need to inspect the live provider
@@ -244,11 +244,11 @@ Run the desktop app or CLI inspector, enable the extension's desktop bridge, and
 
 The bridge endpoint is `ws://127.0.0.1:9339/slop-bridge`. Both the desktop app and CLI inspector can act as the bridge server, and the CLI can also connect as a client to the desktop's bridge.
 
-> **Known limitation — startup order:** The extension connects to whichever app holds port 9339. If the CLI starts first and takes the port, the desktop app cannot start its own bridge. The CLI prefers client mode (connecting to an existing bridge) to minimize this, but if it starts before the desktop app it will run as server. Restarting the CLI after the desktop app is running resolves this. A future improvement could add client-fallback to the desktop app or implement port handoff between the two.
+> **Startup order is a known limitation.** The extension connects to whichever app holds port 9339. If the CLI starts first and takes the port, the desktop app cannot start its own bridge. The CLI prefers client mode (connecting to an existing bridge) to minimize this, but if it starts before the desktop app it will run as server. Restarting the CLI after the desktop app is running resolves this. A future improvement could add client-fallback to the desktop app or implement port handoff between the two.
 
 ## Building a custom consumer
 
-Use the SDKs when you want the same primitives the shipped consumers use, but in your own tool.
+Use the SDKs when you want the same building blocks the shipped consumers use, but in your own tool.
 
 Common cases:
 
@@ -303,13 +303,13 @@ subID, snapshot, _ := consumer.Subscribe(context.Background(), "/", -1)
 fmt.Println(hello["provider"], subID, snapshot.ID)
 ```
 
-The same pattern works well for a headless regression check: connect, subscribe or query, invoke one known action, and fail fast if the tree shape or result changes unexpectedly.
+The same pattern works as a headless regression check. Connect, subscribe or query, invoke one known action, and fail fast if the tree shape or result changes unexpectedly.
 
-## Next Steps
+## Next steps
 
 - [Consumer package API](/api/consumer)
-- [Discovery & Bridge](/sdk/discovery) — auto-discovery, extension bridge, relay transport, and state formatting for AI integrations
-- [Codex integration](/guides/advanced/codex) — Codex plugin for SLOP app discovery and control
-- [Claude Code integration](/guides/advanced/claude-code) — Claude Code plugin for SLOP app discovery and control
+- [Discovery & Bridge](/sdk/discovery): auto-discovery, extension bridge, relay transport, and state formatting for AI integrations
+- [Codex integration](/guides/advanced/codex): Codex plugin for SLOP app discovery and control
+- [Claude Code integration](/guides/advanced/claude-code): Claude Code plugin for SLOP app discovery and control
 - [Desktop app docs](/desktop/install)
 - [Chrome extension docs](../extension/install.md)

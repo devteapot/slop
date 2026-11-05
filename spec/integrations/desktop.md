@@ -1,6 +1,6 @@
 # Desktop Integration
 
-A desktop application can serve as a unified SLOP client — connecting to web apps, local apps, and CLI tools from a single interface. This document covers how a desktop client discovers and connects to SLOP providers, including web apps running in the browser.
+A desktop application is a unified SLOP client that connects to web apps, local apps, and CLI tools from a single interface. This document covers how a desktop client discovers and connects to SLOP providers, including web apps running in the browser.
 
 ## Direct connections (no browser extension needed)
 
@@ -8,7 +8,7 @@ Most SLOP transports are directly accessible from a desktop process. No browser 
 
 ### Unix socket
 
-Local applications expose SLOP providers on Unix sockets (e.g., `/tmp/slop/my-app.sock`). The desktop app connects the same way the CLI demo-agent does — open the socket, speak the SLOP protocol.
+Local applications expose SLOP providers on Unix sockets (e.g., `/tmp/slop/my-app.sock`). The desktop app connects the same way the CLI demo-agent does. It opens the socket and speaks the SLOP protocol.
 
 ```
 Desktop app ←—Unix socket—→ Local SLOP provider
@@ -18,16 +18,16 @@ Discovery: read descriptor files from `~/.slop/providers/` and `/tmp/slop/provid
 
 ### WebSocket
 
-Server-backed web apps expose a SLOP WebSocket endpoint (e.g., `ws://localhost:3737/slop`). The desktop app connects directly — a WebSocket is a network socket, not a browser API. Any process can open one.
+Server-backed web apps expose a SLOP WebSocket endpoint (e.g., `ws://localhost:3737/slop`). The desktop app connects directly. A WebSocket is a network socket, not a browser API. Any process can open one.
 
 ```
 Desktop app ←—WebSocket—→ Web app server (/slop endpoint)
 ```
 
 Discovery options:
-- **Local discovery files** — if the web app registers in `~/.slop/providers/`, the desktop app finds it automatically
-- **HTTP probe** — `GET http://localhost:3737/.well-known/slop` returns the provider descriptor with the WebSocket URL
-- **User-configured** — the user pastes a URL into the desktop app
+- **Local discovery files**: if the web app registers in `~/.slop/providers/`, the desktop app finds it automatically
+- **HTTP probe**: `GET http://localhost:3737/.well-known/slop` returns the provider descriptor with the WebSocket URL
+- **User-configured**: the user pastes a URL into the desktop app
 
 This covers the majority of web apps. If the app has a server and exposes `/slop`, the desktop app connects without any browser involvement.
 
@@ -41,13 +41,13 @@ Desktop app ←—stdio—→ CLI tool (spawned)
 
 ## The browser gap: in-page providers (SPAs)
 
-Client-only SPAs run their SLOP provider inside the browser page using `postMessage`. There is no network endpoint — the provider exists only in JavaScript memory within the page context. A desktop app cannot `postMessage` into a browser tab.
+Client-only SPAs run their SLOP provider inside the browser page using `postMessage`. There is no network endpoint. The provider exists only in JavaScript memory within the page context. A desktop app cannot `postMessage` into a browser tab.
 
 This is the **one case** where a bridge is needed. Three approaches:
 
 ### Approach 1: Extension as WebSocket relay
 
-The browser extension connects to the in-page provider via postMessage and re-exposes it as a local WebSocket server. The desktop app connects to that WebSocket. The extension becomes a transparent relay — no chat UI, no LLM calls.
+The browser extension connects to the in-page provider via postMessage and re-exposes it as a local WebSocket server. The desktop app connects to that WebSocket. The extension becomes a transparent relay, with no chat UI and no LLM calls.
 
 ```
 Browser page ←—postMessage—→ Extension ←—local WebSocket—→ Desktop app
@@ -61,7 +61,7 @@ Browser page ←—postMessage—→ Extension ←—local WebSocket—→ Deskt
 4. The extension relays messages bidirectionally: WebSocket ↔ postMessage
 
 **Pros:**
-- Clean separation — extension is a dumb pipe, desktop app is the smart client
+- Clean separation. The extension is a dumb pipe and the desktop app is the smart client
 - The extension is lightweight and doesn't need LLM integration
 - Works with any desktop app that speaks SLOP over WebSocket
 
@@ -72,7 +72,7 @@ Browser page ←—postMessage—→ Extension ←—local WebSocket—→ Deskt
 
 ### Approach 2: Chrome DevTools Protocol (CDP)
 
-The desktop app connects to Chrome's remote debugging interface and injects postMessage calls directly into the page. No extension needed.
+The desktop app connects to Chrome's remote debugging interface and injects postMessage calls directly into the page. No extension is needed.
 
 ```
 Browser page ←—postMessage—→ CDP injected script ←—CDP WebSocket—→ Desktop app
@@ -91,11 +91,11 @@ Browser page ←—postMessage—→ CDP injected script ←—CDP WebSocket—�
 **Pros:**
 - No extension required
 - Full control over the page
-- Can potentially also access the DOM/accessibility tree for Tier 2/3 adapters
+- Could also access the DOM/accessibility tree for Tier 2/3 adapters
 
 **Cons:**
-- Requires Chrome to be launched with a debug flag (not the default)
-- Security implications — CDP access grants full page control
+- Requires launching Chrome with a debug flag (not the default)
+- Security implications. CDP access grants full page control
 - More complex implementation
 - Some enterprise environments block debug ports
 
@@ -117,7 +117,7 @@ Browser page ←—postMessage—→ Extension ←—native messaging (stdio)—
 **Pros:**
 - Official Chrome API, well-supported
 - Reliable connection (not affected by service worker lifecycle)
-- Secure — only the registered native app can receive messages
+- Secure. Only the registered native app can receive messages
 - Used by established apps (1Password, KeePassXC, etc.)
 
 **Cons:**
@@ -127,14 +127,14 @@ Browser page ←—postMessage—→ Extension ←—native messaging (stdio)—
 
 ## Workspaces
 
-The desktop app organizes connections into **workspaces** — displayed as tabs across the top of the window. Each workspace has its own set of connected providers and a unified chat thread.
+The desktop app organizes connections into **workspaces**, displayed as tabs across the top of the window. Each workspace has its own set of connected providers and a unified chat thread.
 
 A workspace is defined by:
 - A name (user-editable)
-- A list of `providerIds` — the providers currently connected in that workspace
-- A chat history — one conversation thread per workspace
+- A list of `providerIds` for the providers currently connected in that workspace
+- A chat history with one conversation thread per workspace
 
-The AI in each workspace sees a **merged state tree** from all connected providers. It can read state and invoke actions across providers in a single turn. Switching workspaces disconnects the old workspace's providers and connects the new ones. This keeps conversations scoped — a "Work" workspace with Jira + Slack won't bleed state into a "Personal" workspace with a todo app.
+The AI in each workspace sees a **merged state tree** from all connected providers. It can read state and invoke actions across providers in a single turn. Switching workspaces disconnects the old workspace's providers and connects the new ones. This keeps conversations scoped. A "Work" workspace with Jira + Slack won't bleed state into a "Personal" workspace with a todo app.
 
 ### Workspace-scoped connections
 
@@ -148,7 +148,7 @@ Explicitly disconnecting a provider removes it from the active workspace's `prov
 
 ## Unified multi-provider chat
 
-Each workspace has a single conversation thread. The AI sees a merged tree from all connected providers — it can read a Kanban board's columns and a Slack channel's messages in the same context.
+Each workspace has a single conversation thread. The AI sees a merged tree from all connected providers. It can read a Kanban board's columns and a Slack channel's messages in the same context.
 
 ### Tool name disambiguation
 
@@ -182,15 +182,15 @@ The desktop sidebar organizes providers into three groups:
 
 ### Pinned
 
-Per-workspace, persisted to disk. These are providers the user has explicitly pinned to a workspace. Pinned providers auto-reconnect when the workspace is activated — the desktop re-establishes subscriptions without user interaction.
+Per-workspace, persisted to disk. These are providers the user has explicitly pinned to a workspace. Pinned providers auto-reconnect when the workspace is activated. The desktop re-establishes subscriptions without user interaction.
 
-### Local Apps
+### Local apps
 
 Discovered via `~/.slop/providers/` and `/tmp/slop/providers/`. These appear automatically as local apps register or deregister. See [Transport & Discovery](../core/transport.md#local-discovery).
 
-### Browser Tabs
+### Browser tabs
 
-Populated from the extension bridge. Each browser tab with SLOP providers appears here, grouped under a collapsible "Browser Tabs" header. Tabs come and go as the user navigates — the extension announces arrivals and departures over the bridge.
+Populated from the extension bridge. Each browser tab with SLOP providers appears here, grouped under a collapsible "Browser Tabs" header. Tabs come and go as the user navigates. The extension announces arrivals and departures over the bridge.
 
 A single browser tab can expose **multiple providers**, but the common cases are now split:
 
@@ -214,12 +214,12 @@ Workspace: "Project Alpha"
 ```
 
 **Connection behavior on tab close:**
-- **WebSocket providers** stay connected — the desktop connected directly, no bridge dependency. For fullstack apps, the server may remove its mounted `ui` subtree when the tab disconnects, but the server provider itself remains available.
+- **WebSocket providers** stay connected. The desktop connected directly, with no bridge dependency. For fullstack apps, the server may remove its mounted `ui` subtree when the tab disconnects, but the server provider itself remains available.
 - **postMessage providers** lose their bridge relay when the tab closes. The connection drops and the entry is removed (unless pinned, in which case it persists for later reconnect).
 
 ## Recommended architecture: local WebSocket bridge
 
-The three approaches above (WebSocket relay, CDP, native messaging) are all viable for the SPA bridge case. For simplicity and zero-setup operation, the recommended approach is a **local WebSocket bridge** — the desktop runs a WebSocket server at a well-known port, the extension auto-connects.
+The three approaches above (WebSocket relay, CDP, native messaging) are all viable for the SPA bridge case. For simplicity and zero-setup operation, the recommended approach is a **local WebSocket bridge**. The desktop runs a WebSocket server at a well-known port and the extension auto-connects.
 
 ```
 Local apps ──Unix socket──┐
@@ -238,14 +238,14 @@ The desktop app starts a WebSocket server at `ws://localhost:9339/slop-bridge`. 
 
 The bridge serves **two purposes**:
 
-1. **Discovery** — the extension announces ALL web providers it finds to the desktop
-2. **Relay** — only for browser-local providers (SPAs, accessibility adapters), where the desktop can't reach the in-page provider directly
+1. **Discovery**: the extension announces all web providers it finds to the desktop
+2. **Relay**: only for browser-local providers (SPAs, accessibility adapters), where the desktop can't reach the in-page provider directly
 
-The extension's injected chat continues to use its own consumer session. Discovery alone does not create a postMessage consumer for the desktop path — the desktop remains the consumer, and the extension only forwards raw SLOP messages when a relay session is opened.
+The extension's injected chat continues to use its own consumer session. Discovery alone does not create a postMessage consumer for the desktop path. The desktop remains the consumer, and the extension only forwards raw SLOP messages when a relay session is opened.
 
 ### Bridge protocol
 
-Extension → Desktop:
+Messages from the extension to the desktop:
 
 ```jsonc
 // Provider discovered on a page (one message per provider)
@@ -279,7 +279,7 @@ Extension → Desktop:
 { "type": "slop-relay", "providerKey": "tab-42-postmessage-0", "message": { "type": "snapshot", ... } }
 ```
 
-Desktop → Extension:
+Messages from the desktop to the extension:
 
 ```jsonc
 // SLOP message to relay to an SPA page
@@ -294,18 +294,18 @@ When the desktop receives a `provider-available` announcement, it decides how to
 
 | Provider transport | Desktop connection | Extension role |
 |---|---|---|
-| `"ws"` | Desktop connects **directly** to the WebSocket URL | Discovery only — not in the data path |
-| `"postmessage"` | Desktop sends SLOP messages **through the bridge relay** | Discovery + relay — extension pipes messages to/from the page |
+| `"ws"` | Desktop connects **directly** to the WebSocket URL | Discovery only. Not in the data path |
+| `"postmessage"` | Desktop sends SLOP messages **through the bridge relay** | Discovery + relay. The extension pipes messages to and from the page |
 
-For server-backed web apps, the extension's only job is telling the desktop "this WebSocket URL exists." The desktop opens its own WebSocket connection — faster, more reliable, no middleman. If the framework mounts browser UI under the conventional `ui` subtree on that server provider, the desktop gets both data and UI state over that one direct connection.
+For server-backed web apps, the extension's only job is telling the desktop "this WebSocket URL exists." The desktop opens its own WebSocket connection, which is faster and more reliable, with no middleman. If the framework mounts browser UI under the conventional `ui` subtree on that server provider, the desktop gets both data and UI state over that one direct connection.
 
-For SPAs, the extension is the relay — it receives SLOP messages from the desktop over the bridge, forwards them to the page via postMessage, and relays responses back.
+For SPAs, the extension is the relay. It receives SLOP messages from the desktop over the bridge, forwards them to the page via postMessage, and relays responses back.
 
 ### Zero-setup operation
 
 - If the desktop is not running, the extension works standalone (its own chat UI)
 - If the extension is not installed, the desktop works standalone (local + manual WebSocket providers)
-- When both are running, the extension tries `ws://localhost:9339/slop-bridge` on startup — if it connects, discovery and relay are active. No configuration, no manifest files, no installation steps.
+- When both are running, the extension tries `ws://localhost:9339/slop-bridge` on startup. If it connects, discovery and relay are active. No configuration, no manifest files, no installation steps.
 - The extension retries the bridge connection every **5 seconds** when the desktop is unavailable, so it auto-reconnects quickly when the desktop launches.
 
 ### Provider discovery resilience
@@ -329,15 +329,15 @@ The bridge is lightweight:
 
 The desktop app aggregates providers from all discovery sources into a single list:
 
-1. **Local filesystem** — scan `~/.slop/providers/` for descriptor files (Unix socket, stdio providers)
-2. **HTTP probe** — check `/.well-known/slop` on known/configured hosts (WebSocket providers)
-3. **Extension bridge** — the extension announces discovered web providers via the local WebSocket bridge
-4. **Manual** — user-configured WebSocket URLs
+1. **Local filesystem**: scan `~/.slop/providers/` for descriptor files (Unix socket, stdio providers)
+2. **HTTP probe**: check `/.well-known/slop` on known/configured hosts (WebSocket providers)
+3. **Extension bridge**: the extension announces discovered web providers via the local WebSocket bridge
+4. **Manual**: user-configured WebSocket URLs
 
-Each discovered provider appears in the desktop's sidebar under the appropriate group (Pinned, Local Apps, or Browser Tabs — see Sidebar groups above). The desktop connects using the appropriate transport — Unix socket, direct WebSocket, or bridge relay — transparently.
+Each discovered provider appears in the desktop's sidebar under the appropriate group (Pinned, Local apps, or Browser tabs). See the Sidebar groups section above. The desktop connects transparently using the appropriate transport: Unix socket, direct WebSocket, or bridge relay.
 
 ## Future work: desktop app as a SLOP provider
 
-The desktop app already ships as a multi-provider SLOP consumer workspace. A future step is for the desktop app itself to become a SLOP provider. Its own state — the workspace list, connected providers, chat history, settings — would be observable via the same protocol it consumes. Another SLOP client (a CLI agent, a second desktop instance, a web dashboard) could then connect to the desktop app and read or manipulate its state.
+The desktop app already ships as a multi-provider SLOP consumer workspace. A future step is for the desktop app itself to become a SLOP provider. Its own state, including the workspace list, connected providers, chat history, and settings, would be observable via the same protocol it consumes. Another SLOP client (a CLI agent, a second desktop instance, a web dashboard) could then connect to the desktop app and read or manipulate its state.
 
-This turns the desktop from a leaf consumer into a node in the SLOP graph — consuming providers below it and exposing its own state to consumers above it.
+This turns the desktop from a leaf consumer into a node in the SLOP graph. It consumes providers below it and exposes its own state to consumers above it.

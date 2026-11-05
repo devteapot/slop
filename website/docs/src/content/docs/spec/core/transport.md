@@ -7,9 +7,9 @@ SLOP is transport-agnostic. The protocol defines message semantics (see [Message
 
 Any transport used for SLOP must support:
 
-1. **Bidirectional messaging** — both sides send messages
-2. **Ordered delivery** — messages arrive in the order they were sent
-3. **Framing** — message boundaries are preserved (not a raw byte stream)
+1. **Bidirectional messaging**: both sides send messages
+2. **Ordered delivery**: messages arrive in the order they were sent
+3. **Framing**: message boundaries are preserved (not a raw byte stream)
 
 Recommended transports:
 
@@ -17,7 +17,7 @@ Recommended transports:
 |---|---|---|
 | **Unix domain socket** | Local apps, daemons | Low latency, no network exposure |
 | **WebSocket** | Web apps, remote | Standard, widely supported |
-| **stdio** (stdin/stdout) | CLI tools, spawned processes | Simplest possible — newline-delimited JSON |
+| **stdio** (stdin/stdout) | CLI tools, spawned processes | Simplest possible, newline-delimited JSON |
 | **postMessage** | In-browser SPAs, extensions | Browser-native IPC between page and extension contexts |
 | **Named pipe** | Windows apps | Windows equivalent of Unix sockets |
 
@@ -25,13 +25,13 @@ Recommended transports:
 
 For CLI tools and subprocess-based providers, SLOP uses **newline-delimited JSON** (NDJSON) on dedicated file descriptors:
 
-- **fd 3** (provider → consumer): state snapshots, patches, events
-- **fd 4** (consumer → provider): subscriptions, queries, invocations
+- **fd 3** (provider to consumer): state snapshots, patches, events
+- **fd 4** (consumer to provider): subscriptions, queries, invocations
 - **stdout/stderr**: reserved for the app's normal output (not SLOP traffic)
 
 If fd 3/4 are not available (e.g., simple pipes), fall back to:
-- **stdout**: provider → consumer (one JSON object per line)
-- **stdin**: consumer → provider (one JSON object per line)
+- **stdout**: provider to consumer (one JSON object per line)
+- **stdin**: consumer to provider (one JSON object per line)
 
 ### WebSocket convention
 
@@ -41,7 +41,7 @@ The WebSocket endpoint should be at a well-known path: `ws://host:port/slop`
 
 ### postMessage convention
 
-For in-browser communication between a page (SPA running a SLOP provider) and an extension (SLOP consumer), `window.postMessage` serves as the transport.
+For in-browser communication between a page (SPA running a SLOP provider) and an extension (SLOP consumer), `window.postMessage` is the transport.
 
 All SLOP messages are wrapped in a postMessage envelope:
 
@@ -55,7 +55,7 @@ window.postMessage({
 
 The `slop: true` field distinguishes SLOP traffic from other postMessage usage on the page. Both sides filter on this field.
 
-**Origin and source verification (REQUIRED).** `slop: true` is an in-band hint, not a security boundary — any script on the page can forge it. Implementations MUST:
+**Origin and source verification (REQUIRED).** `slop: true` is an in-band hint, not a security boundary. Any script on the page can forge it. Implementations MUST:
 
 - **Sender:** pass an explicit `targetOrigin` to `postMessage`. Never use `"*"` in production. Use the origin of the counterpart window (e.g. the expected extension bridge origin, or the page's own `window.location.origin` when the provider is same-origin).
 - **Receiver:** on every `message` event, verify `event.origin` against an allowlist before inspecting `event.data`. If the handshake expects a specific window (e.g. a known iframe), also check `event.source` identity. Reject anything that fails either check without reading the payload.
@@ -67,14 +67,14 @@ Using `"*"` as a targetOrigin leaks SLOP messages (which may contain invoke resu
 
 1. Extension posts `{ slop: true, message: { type: "connect" } }` to the page
 2. Page responds with the standard `hello` message
-3. From here, the standard SLOP message flow applies — subscribe, snapshot, patch, invoke
+3. From here, the standard SLOP message flow applies: subscribe, snapshot, patch, invoke
 
 This transport satisfies all three requirements: it is bidirectional, ordered (postMessage preserves order within a single origin), and framed (each postMessage is one discrete message).
 
 **When to use postMessage vs WebSocket:**
 
-- **postMessage** — the provider runs inside the browser (client-only SPAs, local-first apps). No server involved.
-- **WebSocket** — the provider runs on a server. The browser connects to it. This is the common case for server-backed web apps.
+- **postMessage**: the provider runs inside the browser (client-only SPAs, local-first apps). No server involved.
+- **WebSocket**: the provider runs on a server. The browser connects to it. This is the common case for server-backed web apps.
 
 Both speak the same SLOP protocol. The app's architecture determines which transport to use, not the protocol.
 
@@ -162,7 +162,7 @@ Each provider writes a JSON file named `{app-id}.json`:
 
 Web apps declare SLOP support through two complementary mechanisms:
 
-**HTML meta tag** — instant discovery for extensions scanning the page:
+**HTML meta tag.** Extensions scanning the page get instant discovery:
 
 ```html
 <meta name="slop" content="ws://localhost:3737/slop">
@@ -174,7 +174,7 @@ For in-browser providers using postMessage:
 <meta name="slop" content="postmessage">
 ```
 
-**Well-known URL** — machine-discoverable, follows [RFC 8615](https://datatracker.ietf.org/doc/html/rfc8615):
+**Well-known URL.** Machine-discoverable, and it follows [RFC 8615](https://datatracker.ietf.org/doc/html/rfc8615):
 
 ```
 GET /.well-known/slop
@@ -195,7 +195,7 @@ Response:
 }
 ```
 
-This is the same descriptor format used in local discovery. The only difference is the delivery mechanism — HTTP instead of a filesystem read.
+This is the same descriptor format used in local discovery. The only difference is the delivery mechanism, HTTP instead of a filesystem read.
 
 Apps should implement both: the meta tag costs one line of HTML, the well-known URL is a single endpoint. Extensions check the meta tag first (no extra request), then fall back to probing `/.well-known/slop`.
 
@@ -243,15 +243,15 @@ After connection, the provider sends a `hello` message:
 }
 ```
 
-The consumer may then send subscriptions, queries, or invocations. No handshake is required from the consumer — it simply starts sending requests.
+The consumer may then send subscriptions, queries, or invocations. No handshake is required from the consumer. It simply starts sending requests.
 
 ## Capabilities
 
-Capabilities are declared by the provider in its `hello` message. They are load-bearing: both sides use them to decide what requests are meaningful, and the provider's reaction to a request that depends on an undeclared capability MUST be deterministic.
+Capabilities are declared by the provider in its `hello` message. Both sides use them to decide what requests are meaningful, and the provider's reaction to a request that depends on an undeclared capability MUST be deterministic.
 
 | Capability | Meaning | If absent, provider MUST |
 |---|---|---|
-| `state` | Provider exposes a state tree. **Required** — every provider declares this. | n/a — absence means "not a SLOP provider" and the consumer should disconnect. |
+| `state` | Provider exposes a state tree. **Required.** Every provider declares this. | n/a. Absence means "not a SLOP provider" and the consumer should disconnect. |
 | `patches` | After a `snapshot`, the provider sends `patch` messages as state changes. | Still answer `subscribe` with a `snapshot` (state is observable at subscribe time), but never emit `patch`. Consumers MAY resubscribe/re-query to get a fresh state. Consumers SHOULD prefer `query` for one-shot reads when they know the provider does not support patches. |
 | `affordances` | Nodes may carry `affordances`. `invoke` is meaningful. | Reject `invoke` with `{ status: "error", error: { code: "not_supported" } }`. The state tree MUST NOT contain any `affordances` arrays. |
 | `attention` | Nodes may carry `meta.salience`, `meta.urgency`, `meta.pinned`, etc. | Ignore `filter.min_salience` on `subscribe`/`query`; do not emit salience/urgency fields in `meta`. |
@@ -270,19 +270,19 @@ Capabilities are declared by the provider in its `hello` message. They are load-
 **Provider obligations.**
 
 - Providers MUST advertise every capability they actually use. Emitting an `affordances` array without declaring `affordances` is a protocol violation.
-- Providers MUST honor the "if absent" column above. If a provider does not support `patches`, it MUST NOT emit patches even if the consumer subscribed — consumers that can't fall back to polling will silently miss updates otherwise.
+- Providers MUST honor the "if absent" column above. If a provider does not support `patches`, it MUST NOT emit patches even if the consumer subscribed. Consumers that can't fall back to polling will silently miss updates otherwise.
 - The `hello` capability list is authoritative for the lifetime of the connection. Capabilities do not change mid-connection; to change them, the provider must disconnect and the consumer must reconnect.
 
 ## Security considerations
 
 - **Local transports** (Unix sockets, stdio) inherit filesystem permissions. Providers MUST set socket file mode to `0600` and MUST NOT place sockets in world-writable directories. Provider descriptor files and their enclosing directory are subject to the hardening rules in [Local discovery](#local-discovery) (owner check, `0700`/`0600`, atomic rename, filename allowlist).
-- **WebSocket transports** MUST authenticate every connection that is not bound to `127.0.0.1` / `::1`. The authentication check happens *during* the HTTP upgrade — before the WebSocket is accepted and before any SLOP message is delivered. Reference SDKs expose an `authenticate(request)` hook on every WebSocket handler (TypeScript Node/Bun/Nitro, Go `WebSocketHandlerWithOptions`, Python `serve(..., authenticate=...)` and `SlopMiddleware(..., authenticate=...)`, Rust `websocket::serve_with_options` and `slop_router_with_options`); implementers MUST wire this hook and reject the upgrade (`401`/`403`) when it returns false or throws. SDKs MUST default-deny when no `authenticate` hook is configured — accepting upgrades silently is a protocol violation.
+- **WebSocket transports** MUST authenticate every connection that is not bound to `127.0.0.1` / `::1`. The authentication check happens *during* the HTTP upgrade, before the WebSocket is accepted and before any SLOP message is delivered. Reference SDKs expose an `authenticate(request)` hook on every WebSocket handler (TypeScript Node/Bun/Nitro, Go `WebSocketHandlerWithOptions`, Python `serve(..., authenticate=...)` and `SlopMiddleware(..., authenticate=...)`, Rust `websocket::serve_with_options` and `slop_router_with_options`); implementers MUST wire this hook and reject the upgrade (`401`/`403`) when it returns false or throws. SDKs MUST default-deny when no `authenticate` hook is configured. Accepting upgrades silently is a protocol violation.
   - The recommended transport of the credential is an `Authorization: Bearer <token>` HTTP header on the upgrade request. Tokens MUST be opaque and high-entropy; never accept tokens as URL path segments (they leak into proxies and access logs).
   - When a header is impractical (browser `WebSocket` constructor cannot set `Authorization`), implementers MAY instead pass the token in the WebSocket `Sec-WebSocket-Protocol` subprotocol (for example, `["slop.bearer", "<token>"]`), verify it during upgrade, and echo back only the non-secret subprotocol label on accept.
   - Tokens MUST be compared in constant time and MUST NOT be logged. Servers MUST also validate the request `Origin` against an allowlist when the connection originates from a browser; `Origin: null` or a wildcard MUST NOT be accepted in production. Development-only origin bypass flags are acceptable only when they default to off and the server logs a clear warning when active.
-  - Bridges and proxies MUST NOT weaken this rule. A non-loopback WebSocket that the provider believes is loopback (because a bridge terminated TLS for it) is still a multi-tenant surface — the provider MUST authenticate every connection unless it has a transport-level guarantee that the peer is the same user.
+  - Bridges and proxies MUST NOT weaken this rule. A non-loopback WebSocket that the provider believes is loopback (because a bridge terminated TLS for it) is still exposed to multiple tenants. The provider MUST authenticate every connection unless it has a transport-level guarantee that the peer is the same user.
 - **postMessage transports** MUST NOT use `"*"` as a `targetOrigin` and MUST verify `event.origin` on every received message. See [postMessage convention](#postmessage-convention).
-- **Providers should not expose secrets** in the state tree. The state tree is a projection, not an internal dump — treat it like a public API surface.
+- **Providers should not expose secrets** in the state tree. The state tree is a projection, not an internal dump. Treat it like a public API.
 - **Affordance invocations are untrusted input.** Providers must validate all parameters, just as they would for any API endpoint.
 - **Prompt injection is in scope.** A consumer may send fabricated, stale, or policy-violating `invoke` messages regardless of what the tree previously showed. Providers must re-authorize every invoke against live state, caller identity, and resource policy.
 - **Bridges and relays are not the security boundary.** Browser extensions, desktop daemons, MCP proxies, and service workers may discover providers or relay SLOP messages, but the provider (or authoritative backend behind it) must make the final allow/deny decision for every action.

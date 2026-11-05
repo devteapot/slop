@@ -2,7 +2,7 @@
 title: "@slop-ai/core"
 description: "Shared SLOP descriptor types, helpers, and tree utilities"
 ---
-`@slop-ai/core` is the shared package underneath the browser, server, and adapter SDKs. It does not create a transport or start a provider by itself. Instead, it exports the descriptor types, helper utilities, and tree-processing primitives used everywhere else.
+`@slop-ai/core` is the shared package underneath the browser, server, and adapter SDKs. It does not create a transport or start a provider by itself. Instead, it exports the descriptor types, helper utilities, and tree-processing helpers used everywhere else.
 
 ```bash
 bun add @slop-ai/core
@@ -28,7 +28,7 @@ const noteDescriptor = {
 };
 ```
 
-## Store Bindings
+## Store bindings
 
 `exposeStore()` binds any store with `getState()` and `subscribe()` to a SLOP node. It is intended for Zustand, Redux Toolkit, Jotai, MobX, Valtio, and similar state stores.
 
@@ -55,7 +55,7 @@ The tested TypeScript examples in `examples/state-stores/typescript` show how to
 
 `createSlopServer()` is exported by [`@slop-ai/server`](/api/server), not by `@slop-ai/core`.
 
-## Node Descriptor
+## Node descriptor
 
 This is the shape every adapter eventually feeds into the protocol layer.
 

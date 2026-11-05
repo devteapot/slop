@@ -16,9 +16,9 @@ Examples are organized by integration pattern:
 
 If your example doesn't fit an existing category, create a new directory at `examples/<category>/`.
 
-### 2. Choose which SLOP features to showcase
+### 2. Choose which SLOP features to demonstrate
 
-Each example should demonstrate a specific *set* of features. Don't try to showcase everything — pick the features that make sense for the app concept.
+Each example should demonstrate a specific *set* of features. Don't try to include everything. Pick the features that make sense for the app concept.
 
 Reference the spec docs at `spec/` by number:
 
@@ -134,9 +134,9 @@ Every blueprint with multi-language implementations **must** include a "Cross-SD
 
 Key rules to include (these are now spec-level requirements, not workarounds):
 
-- **Affordance placement (spec 05).** Actions belong on the node they operate on — search on the collection, navigate on the view. The root node carries identity, not actions.
+- **Affordance placement (spec 05).** Actions belong on the node they operate on. Put search on the collection and navigate on the view. The root node carries identity, not actions.
 - **Affordances must be in descriptors (spec 05).** Separately-registered handlers don't automatically appear in the tree. The descriptor is the source of truth for what the consumer sees.
-- **Use inline actions in dynamic descriptors.** This is the most portable pattern — the descriptor function returns actions alongside props/items/meta.
+- **Use inline actions in dynamic descriptors.** This is the most portable pattern. The descriptor function returns actions alongside props/items/meta.
 - **State-dependent affordances.** Specify exactly which affordances appear for each state (e.g., pending vs completed tasks). Implementations will diverge if this isn't explicit.
 - **Content ref is top-level (spec 13).** `content_ref` is a sibling of `properties` on the wire, not nested inside `properties`. All SDKs enforce this.
 
@@ -147,7 +147,7 @@ Every multi-language example should include a `test-harness.ts` that spawns each
 The harness should test:
 - Handshake (hello message format)
 - Tree structure (node IDs, types, properties, affordances)
-- Mutations (invoke → result → verify tree changed)
+- Mutations (invoke an action, read the result, verify the tree changed)
 - Each "special" feature (content refs, salience ordering, windowing)
 
 Run with: `bun run test-harness.ts all`
@@ -158,11 +158,11 @@ Run with: `bun run test-harness.ts all`
 
 **Be concrete, not abstract.** Use real data ("Buy groceries", not "Task 1"). Real data makes the example compelling and exposes edge cases.
 
-**Design for the demo.** The seed data should produce an interesting tree on first run. Include overdue items, completed items, items with content — whatever makes the example worth exploring.
+**Design for the demo.** The seed data should produce an interesting tree on first run. Include overdue items, completed items, items with content, and anything else that makes the example worth exploring.
 
 **Affordances are the API.** Every mutation the user or AI can perform must be an affordance with a full param schema. If it's not in the affordance list, it doesn't exist.
 
-**Salience tells a story.** Don't make all items equal. The whole point of salience is that some things matter more. Design the data so the salience ordering is interesting.
+**Salience values should differ.** Don't make all items equal. The point of salience is that some things matter more. Design the data so the salience ordering is interesting.
 
 ### 4. Write the GUIDE.md
 
@@ -198,11 +198,11 @@ End with the takeaway: same app, same state, different interface.
 
 **Show, don't explain.** Use shell transcripts and JSON output liberally. The reader should be able to follow along in their terminal.
 
-**Compare visually.** The most powerful moment is seeing the same task as `[ ] Call dentist  overdue!` (human) and as a structured JSON node with salience 1.0 and urgency "high" (AI). Make this comparison explicit.
+**Compare visually.** Show the same task both ways: `[ ] Call dentist  overdue!` (human) and a structured JSON node with salience 1.0 and urgency "high" (AI). Make this comparison explicit.
 
 **Build incrementally.** Start with the simplest interaction (read the list), then add mutations, then show advanced features. Don't dump everything at once.
 
-**End with the punchline.** Every guide should end with the core insight — there's one app, one state, two interfaces. SLOP doesn't create a separate "AI version" of your app.
+**End with the takeaway.** Every guide should end with the core insight: there's one app, one state, two interfaces. SLOP doesn't create a separate "AI version" of your app.
 
 ### 5. Implement
 

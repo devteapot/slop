@@ -1,5 +1,5 @@
 ---
-title: "Chrome Extension"
+title: "Chrome extension"
 description: "Build and use the SLOP browser extension"
 ---
 The Chrome extension discovers browser-based SLOP providers, opens an AI chat overlay, and can bridge those providers into the desktop app.

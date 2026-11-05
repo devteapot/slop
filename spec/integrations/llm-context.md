@@ -8,10 +8,10 @@ This is an integration concern, not part of the core protocol. Providers do not 
 
 A SLOP consumer driving a model has two pressures that pull in opposite directions:
 
-- **Freshness** — the model must reason about state *now*, not whatever the tree looked like ten turns ago.
-- **Efficiency** — the conversation prefix must be stable enough to hit the provider's prompt cache, otherwise every turn re-bills the entire history.
+- **Freshness**: the model must reason about state *now*, not whatever the tree looked like ten turns ago.
+- **Efficiency**: the conversation prefix must be stable enough to hit the provider's prompt cache, otherwise every turn re-bills the entire history.
 
-Embedding the full tree into each user message satisfies freshness but defeats caching: the prefix changes every turn. Snapshotting once and never refreshing satisfies caching but leaves the model reasoning over stale state. Neither is acceptable for an interactive agent.
+Embedding the full tree into each user message satisfies freshness but defeats caching, because the prefix changes every turn. Snapshotting once and never refreshing satisfies caching but leaves the model reasoning over stale state. Neither is acceptable for an interactive agent.
 
 ## The pattern: ephemeral state tail
 
@@ -34,7 +34,7 @@ The recommended pattern is to treat current state as an **ephemeral tail** appen
 
 Rules:
 
-1. The conversation history MUST contain only messages — user input, assistant output, tool calls, tool results. It MUST NOT contain state-tail blocks from prior turns.
+1. The conversation history MUST contain only messages: user input, assistant output, tool calls, and tool results. It MUST NOT contain state-tail blocks from prior turns.
 2. The current state projection is rendered fresh on every request and appended after the last stored message.
 3. When the next turn arrives, the previous state tail is discarded by construction (it was never stored). The new tail reflects the current tree.
 
@@ -88,7 +88,7 @@ The state tail is an observation channel, not an instruction channel. Delimiters
 
 Hosts MUST treat all state-tail content as untrusted application data. A node property, document body, chat message, or page title may contain hostile instructions or text that resembles opening tags, closing tags, tool calls, or higher-priority messages. Hosts MUST serialize state with a structured encoder, use a format-independent encoding layer, or escape raw text so user-controlled content cannot terminate the `<slop-state>` block, fake a new SLOP context block, or masquerade as host-authored instructions.
 
-For text tag blocks, hosts MUST neutralize any app-controlled text that resembles a SLOP context tag — both opening and closing — before final block assembly. Both directions matter: a fake closing tag can terminate the wrapping block, and a fake opening tag can let hostile content masquerade as a fresh, host-authored SLOP block in models that are lenient about nesting. At minimum, apply case-insensitive substitutions that tolerate whitespace and attribute-like text:
+For text tag blocks, hosts MUST neutralize any app-controlled text that resembles a SLOP context tag, both opening and closing, before final block assembly. Both directions matter. A fake closing tag can terminate the wrapping block, and a fake opening tag can let hostile content masquerade as a fresh, host-authored SLOP block in models that are lenient about nesting. At minimum, apply case-insensitive substitutions that tolerate whitespace and attribute-like text:
 
 | Match (case-insensitive) | Replacement |
 |---|---|
@@ -105,16 +105,16 @@ The system or developer prompt SHOULD explicitly tell the model that `<slop-stat
 
 Two provider-compatible placements are acceptable. Hosts SHOULD choose based on the target API's message model and cache controls:
 
-1. **Trailing user message tail** — append the `<slop-state>` block after the latest user message text, preferably as a separate content block when the model API supports block-structured messages. This is the recommended default for chat-completions APIs without explicit cache controls or APIs that cannot represent a separate host-authored context message.
-2. **Synthetic context message** — insert a host-authored message containing only the `<slop-state>` block after the latest stored message and before model generation. This is the recommended default for APIs with explicit cache controls or checkpoints, because the cache marker can sit on the last stable block before the state and the volatile state can live in its own post-boundary message. This placement is only valid when the provider accepts that role and the SDK/provider does not reorder or merge it ahead of the cacheable history.
+1. **Trailing user message tail**: append the `<slop-state>` block after the latest user message text, preferably as a separate content block when the model API supports block-structured messages. This is the recommended default for chat-completions APIs without explicit cache controls or APIs that cannot represent a separate host-authored context message.
+2. **Synthetic context message**: insert a host-authored message containing only the `<slop-state>` block after the latest stored message and before model generation. This is the recommended default for APIs with explicit cache controls or checkpoints, because the cache marker can sit on the last stable block before the state and the volatile state can live in its own post-boundary message. This placement is only valid when the provider accepts that role and the SDK/provider does not reorder or merge it ahead of the cacheable history.
 
 A `<slop-state>` block MUST NOT be placed inside an assistant message or a tool result.
 
-Some host APIs only expose a "prepend context" hook that runs before the stored prefix rather than after it. Such hosts MAY still emit the state tail through the prepend hook, but they MUST treat this as a known prompt-cache regression: the volatile state will appear ahead of stable history and invalidate prefix caches on every turn. Hosts in this category SHOULD document the limitation in their integration README and SHOULD push for an append-style hook upstream so the placement can move to a cache-friendly position.
+Some host APIs only expose a "prepend context" hook that runs before the stored prefix rather than after it. Such hosts MAY still emit the state tail through the prepend hook, but they MUST treat this as a known prompt-cache regression. The volatile state will appear ahead of stable history and invalidate prefix caches on every turn. Hosts in this category SHOULD document the limitation in their integration README and SHOULD push for an append-style hook upstream so the placement can move to a cache-friendly position.
 
 ## Prompt caching
 
-This pattern is designed to be cache-friendly for prefix-based prompt caches, but cache APIs differ by provider. Some providers apply caching automatically to exact matching prompt prefixes. Others expose explicit cache controls or checkpoints on structured content blocks. The portable rule is the same in both cases: keep stable instructions, tools, and stored messages before the volatile state tail.
+This pattern is designed to be cache-friendly for prefix-based prompt caches, but cache APIs differ by provider. Some providers apply caching automatically to exact matching prompt prefixes. Others expose explicit cache controls or checkpoints on structured content blocks. The portable rule is the same in both cases. Keep stable instructions, tools, and stored messages before the volatile state tail.
 
 The host SHOULD:
 
@@ -138,7 +138,7 @@ The host SHOULD NOT place explicit cache controls after ordinary live state tail
 
 ### Provider compatibility
 
-The pattern itself — clean history plus an ephemeral tail — requires no provider-specific features. Only the cache-integration step varies, and it degrades gracefully when caching is unavailable. Hosts SHOULD classify each target model and endpoint by its actual cache API and act accordingly. Vendor behavior changes over time and can vary by model, deployment type, region, and transport facade.
+The pattern itself, clean history plus an ephemeral tail, requires no provider-specific features. Only the cache-integration step varies, and it degrades gracefully when caching is unavailable. Hosts SHOULD classify each target model and endpoint by its actual cache API and act accordingly. Vendor behavior changes over time and can vary by model, deployment type, region, and transport facade.
 
 - **Automatic prefix caching** (for example, OpenAI automatic prompt caching, DeepSeek context caching, Fireworks prompt caching, Gemini implicit caching, DashScope/Qwen implicit caching, and caching on supported Groq or Together endpoints). Caching is implicit on exact matching prompt prefixes. The host SHOULD keep the prefix stable: stable system-prompt serialization, stable tool ordering, no timestamps or randomized IDs in stored messages, and consistent cache-routing hints where the provider offers them (for example session affinity, cache keys, isolation keys, or retention settings). The state tail naturally remains outside the reusable prefix.
 - **Explicit block markers** (for example, Anthropic `cache_control`, Amazon Bedrock `cachePoint`, and DashScope/Qwen explicit `cache_control`). The host places the marker on the last stable content block before the state tail, as described above. For Anthropic-style block-level `cache_control`, a separate final state message or content block is usually cleaner than appending state to the same block as the latest user text, because the cache marker must remain on stable content before the volatile state. Providers in this category often impose minimum-token thresholds, maximum marker counts, block-lookback limits, or TTLs; below the threshold the host SHOULD fall back to whatever implicit caching the provider offers, not invent a synthetic marker.
@@ -146,16 +146,16 @@ The pattern itself — clean history plus an ephemeral tail — requires no prov
 - **No prefix caching** (e.g. some smaller hosted endpoints, certain fine-tuning runtimes). The freshness and history-hygiene properties of the pattern still hold; the host simply pays full input tokens every turn. No host action is required beyond keeping the state tail last so a future caching upgrade is automatically beneficial.
 - **Local or self-hosted runtimes** (for example, vLLM automatic prefix caching, SGLang radix caching, llama.cpp prompt caches, Ollama, TGI, or custom serving stacks). Cache behavior depends on runtime flags, server mode, batching, session reuse, and eviction policy. The host controls serialization end-to-end, so exact-prefix stability is achievable, but it SHOULD verify cache reuse in the chosen runtime rather than assuming every deployment reuses prefixes automatically.
 
-The `<slop-state>` framing is plain text and works on any model, but tag-following quality varies. Frontier models respect explicit delimiters reliably; smaller open-weight models occasionally leak the tag into output or treat tail content as instructions. Hosts targeting weaker models SHOULD strengthen the system prompt's description of the tag contract and SHOULD NOT relax the security guidance in [Security model](#security-model) — provider capability does not change the trust level of state-tail content.
+The `<slop-state>` framing is plain text and works on any model, but tag-following quality varies. Frontier models respect explicit delimiters reliably; smaller open-weight models occasionally leak the tag into output or treat tail content as instructions. Hosts targeting weaker models SHOULD strengthen the system prompt's description of the tag contract and SHOULD NOT relax the security guidance in [Security model](#security-model). Provider capability does not change the trust level of state-tail content.
 
 ## Trade-offs
 
-The ephemeral-tail pattern is optimized for **present-tense** reasoning: the model acts on what is true *now*. It is intentionally weaker for **temporal** reasoning — the model cannot answer "what was selected when I asked you that earlier?" because past states are not retained.
+The ephemeral-tail pattern is optimized for **present-tense** reasoning, where the model acts on what is true *now*. It is intentionally weaker for **temporal** reasoning. The model cannot answer "what was selected when I asked you that earlier?" because past states are not retained.
 
 Hosts that need temporal reasoning have two options:
 
-- **Inline diffs** — when state changes meaningfully between turns, persist a compact host-authored delta note in an assistant or tool-result message, such as `State change: Mail unread 12 -> 13; focused thread thread-42 -> thread-91`. The tail still carries the full current state; history carries a compact change log. This costs some tokens but preserves cacheability of the message prefix.
-- **Snapshot pinning** — on explicit user reference ("remember this state"), serialize a snapshot into the next assistant message. Use sparingly; each pinned snapshot is a permanent token cost.
+- **Inline diffs**: when state changes meaningfully between turns, persist a compact host-authored delta note in an assistant or tool-result message, such as `State change: Mail unread 12 -> 13; focused thread thread-42 -> thread-91`. The tail still carries the full current state; history carries a compact change log. This costs some tokens but preserves cacheability of the message prefix.
+- **Snapshot pinning**: on explicit user reference ("remember this state"), serialize a snapshot into the next assistant message. Use sparingly; each pinned snapshot is a permanent token cost.
 
 Most agent workloads do not need either. Default to the pure ephemeral tail and add temporal mechanisms only when a concrete use case demands them.
 
@@ -172,7 +172,7 @@ A consumer that claims to support this integration:
 1. MUST maintain the conversation history free of state-tail blocks across turns.
 2. MUST render the current SLOP tree projection into a state tail on every model request, using `<slop-state>` unless the host documents another stable delimiter. Hosts that inject indirectly (for example, by reading a file written by a separate bridge process) MAY operate within a bounded freshness window instead of literally re-rendering on each request, but they MUST document that window in their integration README and MUST drop the injection if the bridge appears stalled or dead so the model never sees state that may be silently outdated.
 3. MUST treat the state tail as untrusted observation data, not instructions, and MUST escape or encode user-controlled text in any text-based delimiter format so it cannot forge SLOP context tags or masquerade as host-authored messages. The case-insensitive substitution rules in [Security model](#security-model) are the minimum bar.
-4. MUST keep the state tail after the stored conversation prefix so live state does not invalidate reusable prompt-cache prefixes — except where the host's surrounding API only exposes a prepend hook, in which case the host MUST follow the prepend-only exception in [Placement](#placement) and document it as a known cache regression.
+4. MUST keep the state tail after the stored conversation prefix so live state does not invalidate reusable prompt-cache prefixes. The one exception is a host whose surrounding API only exposes a prepend hook. In that case the host MUST follow the prepend-only exception in [Placement](#placement) and document it as a known cache regression.
 5. SHOULD place explicit prompt-cache controls at the boundary between stored history and the state tail where the provider supports them.
 6. SHOULD apply salience and view-scope filtering before rendering the tail.
 7. MUST preserve clear provider/app boundaries when rendering multiple connected providers or apps.

@@ -1,8 +1,8 @@
-# Full-Stack Blueprint: `python-react` — Contact Manager
+# Full-stack blueprint: `python-react`, a contact manager
 
 A contact manager with a Python FastAPI backend and a React SPA frontend. The backend owns the data (contacts, tags, activity log) and exposes it via SLOP over WebSocket. The frontend exposes UI state (search query, active filters, selected contact, compose form) via SLOP over postMessage. AI consumers connect to both providers and see the full picture: data + what the user is looking at.
 
-This is the canonical cross-SDK integration example. It proves that a Python server and a JavaScript browser client produce trees that any SLOP consumer can subscribe to independently — no shared runtime, no language coupling.
+This is the canonical cross-SDK integration example. It proves that a Python server and a JavaScript browser client produce trees that any SLOP consumer can subscribe to independently, with no shared runtime and no language coupling.
 
 ## What this demonstrates
 
@@ -47,8 +47,8 @@ A single-page contact manager. The left panel shows a searchable, filterable con
 
 The AI consumer (extension chat or desktop app) sees **two providers** for this app:
 
-1. **Server provider** (`ws://localhost:8000/slop`) — contacts, tags, activity log, CRUD actions
-2. **Browser provider** (postMessage) — search query, active tag filter, selected contact ID, compose form state
+1. **Server provider** (`ws://localhost:8000/slop`): contacts, tags, activity log, CRUD actions
+2. **Browser provider** (postMessage): search query, active tag filter, selected contact ID, compose form state
 
 The consumer merges them. When the AI wants to "find Alice's email," it reads the server tree. When it wants to "clear the search filter," it invokes an action on the browser tree.
 
@@ -62,7 +62,7 @@ tags: list[str]           # unique tag names derived from contacts
 activity: list[Activity]  # id, contact_id, type, description, timestamp
 ```
 
-No database — seed data loaded from `seed.json` on startup. Mutations persist in memory only.
+There is no database. Seed data is loaded from `seed.json` on startup. Mutations persist in memory only.
 
 ### Frontend (React state)
 
@@ -78,7 +78,7 @@ composeForm: {            // new contact form state
 }
 ```
 
-## SLOP tree — server provider
+## SLOP tree: server provider
 
 ```
 [root] contacts-api
@@ -138,7 +138,7 @@ composeForm: {            // new contact form state
       └── ...
 ```
 
-## SLOP tree — browser provider
+## SLOP tree: browser provider
 
 ```
 [root] contacts-ui
@@ -176,46 +176,46 @@ composeForm: {            // new contact form state
 
 ## Affordance schemas
 
-### Server — collection-level (`contacts`)
+### Server: collection-level (`contacts`)
 
 | Action | Params | Metadata |
 |---|---|---|
-| `create` | `{ name: string, email?: string, phone?: string, company?: string, title?: string, tags?: string[] }` | — |
+| `create` | `{ name: string, email?: string, phone?: string, company?: string, title?: string, tags?: string[] }` | none |
 | `search` | `{ query: string }` | Returns snapshot of matching contacts |
 
-### Server — item-level (`contacts/{id}`)
+### Server: item-level (`contacts/{id}`)
 
 | Action | Params | Metadata |
 |---|---|---|
 | `edit` | `{ name?: string, email?: string, phone?: string, company?: string, title?: string }` | `idempotent: true` |
-| `delete` | — | `dangerous: true` |
-| `star` | — | `idempotent: true` |
-| `unstar` | — | `idempotent: true` |
-| `add_tag` | `{ tag: string }` | — |
-| `remove_tag` | `{ tag: string }` | — |
-| `add_note` | `{ content: string }` | — |
-| `log_activity` | `{ type: string, description: string }` | — |
+| `delete` | none | `dangerous: true` |
+| `star` | none | `idempotent: true` |
+| `unstar` | none | `idempotent: true` |
+| `add_tag` | `{ tag: string }` | none |
+| `remove_tag` | `{ tag: string }` | none |
+| `add_note` | `{ content: string }` | none |
+| `log_activity` | `{ type: string, description: string }` | none |
 
-### Server — tag-level (`tags/{tag}`)
+### Server: tag-level (`tags/{tag}`)
 
 | Action | Params | Metadata |
 |---|---|---|
-| `rename` | `{ new_name: string }` | — |
+| `rename` | `{ new_name: string }` | none |
 
-### Browser — UI actions
+### Browser: UI actions
 
 | Node | Action | Params |
 |---|---|---|
 | `search` | `set_query` | `{ query: string }` |
-| `search` | `clear` | — |
+| `search` | `clear` | none |
 | `filter` | `set_tag` | `{ tag: string }` |
-| `filter` | `clear` | — |
+| `filter` | `clear` | none |
 | `selection` | `select` | `{ contact_id: string }` |
-| `selection` | `deselect` | — |
-| `compose` | `open` | — |
-| `compose` | `close` | — |
+| `selection` | `deselect` | none |
+| `compose` | `open` | none |
+| `compose` | `close` | none |
 | `compose` | `fill` | `{ name?: string, email?: string, company?: string }` |
-| `compose` | `submit` | — |
+| `compose` | `submit` | none |
 
 ## Interactions
 
@@ -225,7 +225,7 @@ composeForm: {            // new contact form state
 2. Finds `contact-1` with `properties.email: "alice@example.com"`
 3. Responds to user: "Alice Chen's email is alice@example.com"
 
-No invocation needed — the answer is in the tree.
+No invocation is needed. The answer is in the tree.
 
 ### 2. Mutation: AI creates a new contact
 

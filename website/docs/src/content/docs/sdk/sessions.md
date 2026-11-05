@@ -1,9 +1,9 @@
 ---
-title: "Sessions & Multi-User"
+title: "Sessions & multi-user"
 ---
-SLOP's core protocol describes a single provider serving a single state tree. This works for SPAs (each browser tab is its own provider), CLI tools, and single-user desktop apps. But server-backed web apps serve many users simultaneously, and each user sees different state — different data, different permissions, different active views.
+SLOP's core protocol describes a single provider serving a single state tree. This works for SPAs (each browser tab is its own provider), CLI tools, and single-user desktop apps. But server-backed web apps serve many users simultaneously, and each user sees different state: different data, different permissions, different active views.
 
-This document is partly descriptive and partly forward-looking: it shows the provider-per-session workaround you can build with the current SDKs, and it sketches the session-aware APIs the SDKs would need to make multi-user support first-class.
+This document is partly descriptive and partly forward-looking. It shows the provider-per-session workaround you can build with the current SDKs, and it sketches the session-aware APIs the SDKs would need to make multi-user support first-class.
 
 > Status as of `0.1.0`: the shipped SDKs do **not** yet implement session-aware descriptors, session-filtered `refresh()`, or framework adapters that automate per-session tree rendering. Today, strict multi-user isolation means authenticating connections in your app/framework and routing each session to its own provider instance.
 
@@ -28,7 +28,7 @@ The state tree is singular. If User A is on the Inbox view and User B is on Sett
 
 ### 2. Global refresh
 
-`refresh()` re-evaluates all descriptor functions and broadcasts patches to every connected consumer. There is no way to say "refresh User A's session only." A mutation to Alice's data triggers a re-evaluation and broadcast cycle that also hits Bob's connection — and since the descriptor functions have no user context, they return the same tree for both.
+`refresh()` re-evaluates all descriptor functions and broadcasts patches to every connected consumer. There is no way to say "refresh User A's session only." A mutation to Alice's data triggers a re-evaluation and broadcast cycle that also hits Bob's connection. Since the descriptor functions have no user context, they return the same tree for both.
 
 ### 3. Stateless descriptors
 
@@ -62,8 +62,8 @@ For SPAs: each tab creates its own `createSlop()` instance, assembles its own tr
 
 There are two ways to solve multi-user on the server:
 
-1. **Provider-per-session** — each user gets their own `SlopServer` instance with its own tree, diff engine, and subscription state.
-2. **Session-scoped trees** — one provider, one engine, but descriptor functions receive a session parameter and the engine renders different trees per consumer.
+1. **Provider-per-session**: each user gets their own `SlopServer` instance with its own tree, diff engine, and subscription state.
+2. **Session-scoped trees**: one provider, one engine, but descriptor functions receive a session parameter and the engine renders different trees per consumer.
 
 Both approaches are valid. This section analyzes their tradeoffs.
 
@@ -91,8 +91,8 @@ Each instance:
 **Limitations:**
 
 - **Memory scales linearly.** Each instance carries its own tree, diff state, and engine overhead. At 10,000 sessions with a moderately complex tree, memory usage is significant.
-- **Shared mutations are expensive.** If an admin deletes a shared resource, the app must: find all affected sessions (needs a reverse index), call `refresh()` on each, and each independently re-evaluates descriptors → diffs → serializes → sends patches. That's O(affected_sessions) × (evaluate + diff + serialize), with no sharing of work across sessions that would produce identical patches.
-- **Tab-closed problem.** In the fullstack model where the consumer connects directly to the server, the provider must stay alive even when the browser tab closes (the AI consumer may still be connected). This means `SlopServer` instances accumulate — you can't clean them up based on browser disconnection alone. Every session that's ever been opened stays resident until the consumer disconnects or the session expires.
+- **Shared mutations are expensive.** If an admin deletes a shared resource, the app must find all affected sessions (it needs a reverse index) and call `refresh()` on each, and each session independently re-evaluates descriptors, diffs, serializes, and sends patches. That's O(affected_sessions) × (evaluate + diff + serialize), with no sharing of work across sessions that would produce identical patches.
+- **Tab-closed problem.** In the fullstack model where the consumer connects directly to the server, the provider must stay alive even when the browser tab closes (the AI consumer may still be connected). This means `SlopServer` instances accumulate. You can't clean them up based on browser disconnection alone. Every session that's ever been opened stays resident until the consumer disconnects or the session expires.
 - **Duplicated work.** 8,000 users viewing the same page with the same structure (different data) means 8,000 independent diff engines doing structurally identical work.
 
 **Scaling profile:**
@@ -120,14 +120,14 @@ The engine:
 **Advantages:**
 
 - **Memory-efficient.** The heavy machinery (engine, diff algorithm, descriptor registry, transport layer) exists once. Per-session overhead is just the cached tree and a lightweight session context object.
-- **Shared mutations are natural.** The engine already knows which sessions subscribe to what. A mutation triggers re-evaluation of the affected descriptor for each relevant session — but the engine orchestrates this in one pass, not N independent loops.
-- **Tab-closed resilience.** Session contexts are lightweight — keeping 100,000 of them in memory is trivial compared to 100,000 full `SlopServer` instances. The consumer stays connected to the server; the session context stays alive; only the `ui` subtree disappears when the tab closes.
+- **Shared mutations are natural.** The engine already knows which sessions subscribe to what. A mutation triggers re-evaluation of the affected descriptor for each relevant session, and the engine orchestrates this in one pass, not N independent loops.
+- **Tab-closed resilience.** Session contexts are lightweight. Keeping 100,000 of them in memory is trivial compared to 100,000 full `SlopServer` instances. The consumer stays connected to the server, the session context stays alive, and only the `ui` subtree disappears when the tab closes.
 - **Batch optimization.** When many sessions share the same tree structure (same page, different data), the engine can batch structural diffs and only vary the data. Provider-per-session can't do this.
 
 **Limitations:**
 
-- **More complex internals.** The engine must track per-session state, route patches to the right connections, and handle session lifecycle — all within a single process.
-- **Shared fault domain.** A bug in the engine affects all sessions. There's no physical isolation between users — isolation is logical.
+- **More complex internals.** The engine must track per-session state, route patches to the right connections, and handle session lifecycle, all within a single process.
+- **Shared fault domain.** A bug in the engine affects all sessions. There's no physical isolation between users. The isolation is logical.
 - **Descriptor API change.** Descriptors become `(session) => descriptor` instead of `() => descriptor`. The developer always has to think about session context.
 
 **Scaling profile:**
@@ -141,7 +141,7 @@ The engine:
 
 ### Why session-scoped trees are the default recommendation
 
-The fullstack model — where the server keeps the merged tree and the consumer connects directly — requires the provider to stay alive independently of the browser tab. This is the deciding factor:
+In the fullstack model, the server keeps the merged tree and the consumer connects directly. This requires the provider to stay alive independently of the browser tab, and it is the deciding factor:
 
 ```
 Consumer ──WebSocket──► Server (owns the full tree)
@@ -153,7 +153,7 @@ Tab open:   consumer sees todos + settings + ui
 Tab closed: consumer sees todos + settings, can still invoke server-side actions
 ```
 
-With provider-per-session, keeping providers alive means orphaned `SlopServer` instances sitting in memory — full engine, full tree, full diff state — for every session, indefinitely. With session-scoped trees, the same scenario costs one lightweight session context per user.
+With provider-per-session, keeping providers alive means orphaned `SlopServer` instances stay in memory, each with a full engine, full tree, and full diff state, one per session, indefinitely. With session-scoped trees, the same scenario costs one lightweight session context per user.
 
 The analogy is how web servers work: one Express/Hono app, many requests, each request gets its own `req.user`. You don't spin up a new Express instance per user. The engine is shared; the context varies.
 
@@ -172,7 +172,7 @@ The primary concern with session-scoped trees is memory: the engine holds a rend
 
 ### What's stored per session
 
-The engine maintains two copies of the rendered tree per active session — the current tree (for snapshots) and the previous tree (for diffing). Inactive sessions (no consumer connected) only store a lightweight session context.
+The engine maintains two copies of the rendered tree per active session, the current tree (for snapshots) and the previous tree (for diffing). Inactive sessions (no consumer connected) only store a lightweight session context.
 
 ```
 Active session:    rendered tree + previous tree + subscription state ≈ 2× tree size
@@ -181,13 +181,13 @@ Inactive session:  session context (userId, role, permissions)        ≈ 1KB
 
 ### How big is a rendered tree?
 
-A SLOP node averages ~500 bytes (id, type, properties, meta, affordances). But a well-implemented provider never renders the full application state — the spec's scaling features keep per-session trees small:
+A SLOP node averages ~500 bytes (id, type, properties, meta, affordances). But a well-implemented provider never renders the full application state. The spec's scaling features keep per-session trees small:
 
 | Scaling feature | Effect |
 |---|---|
 | View-scoped trees | Only the active view is expanded; inactive views are stubs (~20 bytes each) |
 | Windowed collections | 25 items inline, not 1,000 |
-| Lazy subtrees | Message bodies, attachments, threads — `null` until queried |
+| Lazy subtrees | Message bodies, attachments, threads: `null` until queried |
 | Salience filtering | Low-salience nodes excluded from subscriptions entirely |
 
 A typical provider renders 50–200 nodes per session. That's **25–100KB** per rendered tree, or **50–200KB** with the diff snapshot.
@@ -198,18 +198,18 @@ Assumes 200KB per active session (100-node tree × 2 for diffing), 1KB per inact
 
 | Total sessions | Active (%) | Memory (trees) | Memory (contexts) | Total |
 |---|---|---|---|---|
-| 1,000 | 100% | 200MB | — | ~200MB |
+| 1,000 | 100% | 200MB | (none) | ~200MB |
 | 10,000 | 30% | 600MB | 7MB | ~600MB |
 | 50,000 | 15% | 1.5GB | 42MB | ~1.5GB |
 | 100,000 | 10% | 2GB | 90MB | ~2.1GB |
 
-These numbers are for the SLOP tree layer only — the application's own data (database, caches) is separate and shared.
+These numbers are for the SLOP tree layer only. The application's own data (database, caches) is separate and shared.
 
-### The main scaling lever: eviction
+### The main optimization: eviction
 
-The single most impactful optimization is **not holding rendered trees for idle sessions**. If no consumer is connected, the session context stays (it's 1KB) but the rendered tree is evicted. When a consumer reconnects, the engine re-evaluates descriptors and sends a fresh snapshot.
+The most effective optimization is **not holding rendered trees for idle sessions**. If no consumer is connected, the session context stays (it's 1KB) but the rendered tree is evicted. When a consumer reconnects, the engine re-evaluates descriptors and sends a fresh snapshot.
 
-This means memory scales with **concurrent active consumers**, not total sessions. An app with 100,000 registered users but 3,000 concurrent AI consumers uses ~600MB for SLOP trees — well within a single server's capacity.
+This means memory scales with **concurrent active consumers**, not total sessions. An app with 100,000 registered users but 3,000 concurrent AI consumers uses ~600MB for SLOP trees, well within a single server's capacity.
 
 ### CPU: the other axis
 
@@ -219,12 +219,12 @@ Memory is rarely the bottleneck. CPU matters when a shared mutation (admin actio
 Shared mutation → evaluate descriptor for each affected session → diff each → send patches
 ```
 
-This is O(affected_sessions) regardless of approach — provider-per-session does the same work in a loop. Session-scoped trees can batch this more efficiently (shared descriptor registry, no per-instance overhead), but the per-session evaluate+diff cost is inherent.
+This is O(affected_sessions) regardless of approach. Provider-per-session does the same work in a loop. Session-scoped trees can batch this more efficiently (shared descriptor registry, no per-instance overhead), but the per-session evaluate+diff cost is inherent.
 
 Mitigations:
 - **Scope refreshes narrowly.** `refresh({ where: s => s.orgId === "acme" })` only touches affected sessions, not all of them.
 - **Debounce shared mutations.** Batch rapid changes (50–100ms) into one refresh cycle.
-- **Offload to workers.** Descriptor evaluation and tree diffing are pure functions — they can run in worker threads.
+- **Offload to workers.** Descriptor evaluation and tree diffing are pure functions. They can run in worker threads.
 
 ### Comparison with provider-per-session
 
@@ -238,7 +238,7 @@ Provider-per-session has the same per-session tree cost, plus ~50–100KB of eng
 | Shared mutation CPU | Same | Same |
 | Engine memory | O(1) | O(N) |
 
-The difference is meaningful but not dramatic. The dominant cost in both approaches is the rendered trees — and the spec's scaling features (view scoping, windowing, lazy subtrees) are what keep those small. **A provider that uses scaling features well will scale fine with either approach. A provider that dumps 10,000 nodes per session will struggle with both.**
+The difference is meaningful but not dramatic. The dominant cost in both approaches is the rendered trees, and the spec's scaling features (view scoping, windowing, lazy subtrees) are what keep those small. **A provider that uses scaling features well will scale fine with either approach. A provider that dumps 10,000 nodes per session will struggle with both.**
 
 ## Session-scoped trees: proposed SDK design
 
@@ -279,7 +279,7 @@ The session parameter is injected by the engine at evaluation time. Each consume
 
 ### Connection authentication
 
-Authentication happens at the WebSocket upgrade — before any SLOP messages flow:
+Authentication happens at the WebSocket upgrade, before any SLOP messages flow:
 
 ```ts
 attachSlop(slop, httpServer, {
@@ -335,7 +335,7 @@ slop.register("todos", (session) => ({
 }));
 ```
 
-The handler knows who the caller is without protocol changes — the engine injects the session that owns the connection the `invoke` arrived on.
+The handler knows who the caller is without protocol changes. The engine injects the session that owns the connection the `invoke` arrived on.
 
 ### Multiple connections per session
 
@@ -383,9 +383,9 @@ Because session contexts are lightweight (a plain object with user ID, role, per
 
 For apps with many sessions, the engine should support eviction:
 
-- **TTL-based** — evict session contexts when the auth session expires.
-- **Idle-based** — evict when no consumer has been connected for a threshold period.
-- **LRU** — cap the number of active session contexts and evict least-recently-used when the cap is reached. Evicted sessions re-authenticate and re-subscribe on next connection.
+- **TTL-based**: evict session contexts when the auth session expires.
+- **Idle-based**: evict when no consumer has been connected for a threshold period.
+- **LRU**: cap the number of active session contexts and evict least-recently-used when the cap is reached. Evicted sessions re-authenticate and re-subscribe on next connection.
 
 Eviction only removes the cached tree and session context. The user's data in the database is unaffected. Reconnecting triggers a fresh descriptor evaluation and snapshot.
 
@@ -484,7 +484,7 @@ app.delete("/api/shared-resource/:id", (req, res) => {
 });
 ```
 
-This is the main ergonomic cost of provider-per-session — the app must maintain a reverse index from users to sessions, and fan out refreshes manually.
+This is the main ergonomic cost of provider-per-session. The app must maintain a reverse index from users to sessions, and fan out refreshes manually.
 
 ## Framework adapters today
 
@@ -508,10 +508,10 @@ The core SLOP protocol requires **no changes** for multi-user support. Sessions 
 
 | Protocol layer | Multi-user impact |
 |---|---|
-| **Messages** | Unchanged — `subscribe`, `snapshot`, `patch`, `invoke` work per-connection |
-| **State tree** | Unchanged — the tree structure is the same whether rendered for one user or many |
-| **Transport** | Unchanged — each WebSocket connection is already independent |
-| **Discovery** | Minor — `/.well-known/slop` describes the app, not a specific session. Authentication happens at WebSocket upgrade. |
+| **Messages** | Unchanged: `subscribe`, `snapshot`, `patch`, `invoke` work per-connection |
+| **State tree** | Unchanged: the tree structure is the same whether rendered for one user or many |
+| **Transport** | Unchanged: each WebSocket connection is already independent |
+| **Discovery** | Minor: `/.well-known/slop` describes the app, not a specific session. Authentication happens at WebSocket upgrade. |
 
 The `hello` message may optionally include session metadata:
 
@@ -531,13 +531,13 @@ The `hello` message may optionally include session metadata:
 }
 ```
 
-This is not a protocol requirement — it's a convenience for consumers that want to display or log session context. The `session` field is opaque to the protocol.
+This is not a protocol requirement. It's a convenience for consumers that want to display or log session context. The `session` field is opaque to the protocol.
 
 ## AI consumer behavior
 
-From the consumer's perspective, nothing changes. It connects to a WebSocket endpoint, receives a `hello`, subscribes, and gets a tree. Whether that tree is session-scoped or global is invisible — the consumer just sees its state tree.
+From the consumer's perspective, nothing changes. It connects to a WebSocket endpoint, receives a `hello`, subscribes, and gets a tree. Whether that tree is session-scoped or global is invisible. The consumer just sees its state tree.
 
-When the browser tab closes, the consumer retains access to the server-side tree. It can still invoke server-side affordances (`add_todo`, `toggle`, `delete`). Only browser-specific state (DOM-level UI, client-side filters, compose drafts) disappears — that state was in the `ui` subtree mounted from the browser, which unmounts when the tab closes.
+When the browser tab closes, the consumer retains access to the server-side tree. It can still invoke server-side affordances (`add_todo`, `toggle`, `delete`). Only browser-specific state (DOM-level UI, client-side filters, compose drafts) disappears. That state was in the `ui` subtree mounted from the browser, which unmounts when the tab closes.
 
 The consumer should not assume it can see other users' state. If it needs to act on behalf of multiple users, it needs multiple connections (one per session), each authenticated separately.
 
@@ -547,7 +547,7 @@ The consumer should not assume it can see other users' state. If it needs to act
 |---|---|---|
 | **Memory at scale** | O(1) engine + O(N) lightweight contexts | O(N) full engine instances |
 | **Shared mutations** | Engine orchestrates in one pass | App fans out N independent refreshes |
-| **Tab-closed resilience** | Trivial — contexts are lightweight | Expensive — full instances stay alive |
+| **Tab-closed resilience** | Trivial: contexts are lightweight | Expensive: full instances stay alive |
 | **Fault isolation** | Logical (shared process) | Physical (independent instances) |
 | **Descriptor API** | `(session) => descriptor` | `() => descriptor` (session in closure) |
 | **Complexity** | Engine is more complex | Engine is simple, app routing is more complex |
@@ -555,10 +555,10 @@ The consumer should not assume it can see other users' state. If it needs to act
 
 ## Security considerations
 
-- **Session isolation is mandatory.** A consumer connected to Alice's session must never see Bob's tree or invoke Bob's affordances. With session-scoped trees, the engine enforces this by evaluating descriptors with the correct session context per connection. With provider-per-session, isolation is structural — separate instances share nothing.
+- **Session isolation is mandatory.** A consumer connected to Alice's session must never see Bob's tree or invoke Bob's affordances. With session-scoped trees, the engine enforces this by evaluating descriptors with the correct session context per connection. With provider-per-session, isolation is structural. Separate instances share nothing.
 
-- **Authentication happens at the transport level.** The WebSocket upgrade request carries credentials (cookies, tokens). SLOP messages do not include authentication — by the time messages flow, the connection is already authenticated and bound to a session.
+- **Authentication happens at the transport level.** The WebSocket upgrade request carries credentials (cookies, tokens). SLOP messages do not include authentication. By the time messages flow, the connection is already authenticated and bound to a session.
 
-- **Affordance handlers must validate authorization.** In both approaches, the handler knows the session (via parameter or closure). But affordances appearing in the tree is not sufficient authorization — the handler should still validate that the mutation is permitted, just as any API endpoint would. An affordance being visible is a UX signal, not a security boundary.
+- **Affordance handlers must validate authorization.** In both approaches, the handler knows the session (via parameter or closure). But an affordance appearing in the tree is not sufficient authorization. The handler should still validate that the mutation is permitted, just as any API endpoint would. An affordance being visible is a UX signal, not a security boundary.
 
 - **Cross-session mutations require explicit design.** When a mutation affects other users (shared resources, admin actions), the app must explicitly trigger refresh for affected sessions. Implicit cross-session state leakage is a security risk. With session-scoped trees, use `refresh({ where: ... })`. With provider-per-session, iterate affected instances.

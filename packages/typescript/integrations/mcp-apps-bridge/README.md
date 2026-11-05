@@ -4,7 +4,7 @@ Expose local SLOP providers to MCP Apps hosts.
 
 The default experience is an installed stdio MCP server. Connect it to VS Code, Claude Desktop, Goose, or another MCP client, and it discovers local SLOP apps through `@slop-ai/discovery`. The server exposes `list_apps`, `open_app`, a generic interactive `ui://` view, and MCP tools backed by each app's SLOP affordances.
 
-The package also exports lower-level helpers for app authors who want to build a custom MCP App surface instead of using the generic view.
+The package also exports lower-level helpers for app authors who want to build a custom MCP App instead of using the generic view.
 
 ## Which path should I use?
 
@@ -137,9 +137,9 @@ Then point clients at the installed bin:
 }
 ```
 
-## Advanced Library API
+## Advanced library API
 
-The package exports primitives for custom MCP App servers. Use these when you want an app-specific iframe instead of the generic discovery view. Most users should start with the installed bridge above.
+The package exports low-level helpers for custom MCP App servers. Use these when you want an app-specific iframe instead of the generic discovery view. Most users should start with the installed bridge above.
 
 ### Iframe bundle
 

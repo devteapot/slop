@@ -63,12 +63,12 @@ Runs deterministic operation sequences against both protocols without an LLM. Me
 
 Runs an LLM (Gemini) through identical task prompts using each protocol. The LLM receives tools (MCP's flat list or SLOP's affordance-derived tools) and acts autonomously. Measures:
 
-- **Correctness** — verification functions check the store state after the agent finishes
-- **Tool calls** — number of tool invocations
-- **LLM round trips** — number of model API calls
-- **Tokens** — input and output token counts from the model's usage metadata
-- **Cost** — estimated USD based on model pricing
-- **Time** — wall-clock duration
+- **Correctness.** Verification functions check the store state after the agent finishes
+- **Tool calls.** Number of tool invocations
+- **LLM round trips.** Number of model API calls
+- **Tokens.** Input and output token counts from the model's usage metadata
+- **Cost.** Estimated USD based on model pricing
+- **Time.** Wall-clock duration
 
 ### Verification
 
@@ -130,9 +130,9 @@ GEMINI_API_KEY=xxx bun run run.ts \
 ### Output
 
 Results are written to:
-- `results/latest.md` — markdown report with tables
-- `results/latest.json` — raw data
-- stdout — same markdown report
+- `results/latest.md`: markdown report with tables
+- `results/latest.json`: raw data
+- stdout: same markdown report
 
 ## Scenarios
 

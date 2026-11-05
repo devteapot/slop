@@ -14,7 +14,7 @@ Every message has a `type` field and optionally an `id` for request-response cor
 }
 ```
 
-## Consumer → Provider messages
+## Messages from consumer to provider
 
 ### `subscribe`
 
@@ -80,7 +80,7 @@ Trigger an affordance on a node.
 }
 ```
 
-## Provider → Consumer messages
+## Messages from provider to consumer
 
 ### `hello`
 
@@ -117,7 +117,7 @@ Full state tree (or subtree) in response to a `subscribe` or `query`.
 ```
 
 > `query` responses also use the `snapshot` message shape but omit `seq`
-> — there is no subscription to sequence against. See "Version and
+> because there is no subscription to sequence against. See "Version and
 > sequence semantics" below.
 
 ### `patch`
@@ -165,18 +165,18 @@ Within `properties`, paths follow standard JSON Pointer key-based addressing. Th
 - `~` encoded as `~0`
 - `/` encoded as `~1`
 
-So a property literally named `a/b~c` under `msg-42` is addressed as `/inbox/msg-42/properties/a~1b~0c`. Node-ID segments (the parts before reserved keywords like `properties`) are NOT escaped — node IDs are forbidden from containing `/` or `~` in the first place (see [State Tree §id](./state-tree.md#id)).
+So a property literally named `a/b~c` under `msg-42` is addressed as `/inbox/msg-42/properties/a~1b~0c`. Node-ID segments (the parts before reserved keywords like `properties`) are NOT escaped. Node IDs are forbidden from containing `/` or `~` in the first place (see [State Tree §id](./state-tree.md#id)).
 
-This design means patches are **stable across reordering** — moving a message from position 0 to position 5 does not invalidate paths that reference it by ID.
+This design means patches are **stable across reordering**. Moving a message from position 0 to position 5 does not invalidate paths that reference it by ID.
 
-**Reserved field keywords.** The segments `properties`, `children`, `affordances`, `meta`, and `content_ref` are **reserved**: when one appears as a segment while walking a node, the remaining path is interpreted relative to that field of the node rather than as a child-id lookup. A reserved keyword always takes precedence over child-id resolution, and node `id` values MUST NOT equal a reserved keyword (see [State Tree §id](./state-tree.md#id)). Once the path has descended into a non-node field (e.g. inside `properties` or `meta`), subsequent segments are plain JSON Pointer keys and the reservation no longer applies — a property literally named `properties` is addressed normally.
+**Reserved field keywords.** The segments `properties`, `children`, `affordances`, `meta`, and `content_ref` are **reserved**. When one appears as a segment while walking a node, the remaining path is interpreted relative to that field of the node rather than as a child-id lookup. A reserved keyword always takes precedence over child-id resolution, and node `id` values MUST NOT equal a reserved keyword (see [State Tree §id](./state-tree.md#id)). Once the path has descended into a non-node field (e.g. inside `properties` or `meta`), subsequent segments are plain JSON Pointer keys and the reservation no longer applies. A property literally named `properties` is addressed normally.
 
 **Version and sequence semantics:**
 
 SLOP messages carry two monotonically increasing integers, each with a distinct job:
 
-- `version` — a single *provider-global* counter. Every change that produces patches increments it, and that integer is stamped on every message emitted to any active subscription or query response until the next change. Two consumers subscribing at the same moment see the same `version`; two subscriptions on one consumer are directly comparable. `version` is the right field for re-base and staleness checks (e.g., "discard buffered patches whose version ≤ the latest snapshot's version").
-- `seq` — a *per-subscription* counter. The provider assigns `seq: 0` to the initial `snapshot` answering a `subscribe`, and `seq: 1, 2, 3, …` to successive `patch` messages on that subscription. `seq` is the right field for gap detection, because the provider only emits patches to subscriptions whose projected subtree actually changed — so `version` can advance between two consecutive patches on a given subscription without any values in between, making version-based gap detection unsound.
+- `version` is a single *provider-global* counter. Every change that produces patches increments it, and that integer is stamped on every message emitted to any active subscription or query response until the next change. Two consumers subscribing at the same moment see the same `version`; two subscriptions on one consumer are directly comparable. `version` is the right field for re-base and staleness checks (e.g., "discard buffered patches whose version ≤ the latest snapshot's version").
+- `seq` is a *per-subscription* counter. The provider assigns `seq: 0` to the initial `snapshot` answering a `subscribe`, and `seq: 1, 2, 3, …` to successive `patch` messages on that subscription. `seq` is the right field for gap detection, because the provider only emits patches to subscriptions whose projected subtree actually changed, so `version` can advance between two consecutive patches on a given subscription without any values in between, making version-based gap detection unsound.
 
 `snapshot` and `patch` MUST carry both fields. `query` responses carry the provider's current `version` but no `seq` (there is no subscription to sequence against).
 
@@ -186,7 +186,7 @@ Consumer rules:
 - On each `patch`, the consumer asserts `patch.seq == lastSeq + 1`. If it is greater, a patch was lost and the consumer MUST recover by sending `unsubscribe` then a fresh `subscribe` (or equivalent resubscribe). The provider answers with a new `snapshot` whose `seq: 0` re-bases the sequence, and any buffered patches whose `version ≤ snapshot.version` MUST be discarded.
 - `version` decreases are protocol violations; a consumer seeing one MAY disconnect.
 
-This is also what providers emit when applying backpressure (see [Rate limiting and backpressure](#rate-limiting-and-backpressure)): a fresh `snapshot` carrying the current version and `seq: 0` — the consumer treats it as a re-base.
+Providers emit the same thing when applying backpressure (see [Rate limiting and backpressure](#rate-limiting-and-backpressure)): a fresh `snapshot` carrying the current version and `seq: 0`. The consumer treats it as a re-base.
 
 Reference SDKs expose the global counter via `ProviderBase.getVersion()` (TypeScript), `SlopServer::version()` (Rust), `Server.Version()` (Go), and the `version` field on Python's `SlopServer`. Per-subscription `seq` is tracked inside the subscription record on each side and MUST NOT be visible to application code.
 
@@ -231,7 +231,7 @@ On error:
 
 ### Extended result statuses
 
-Extensions may define additional `status` values. The `accepted` status (defined in [Async Actions](../extensions/async-actions.md)) indicates the action has started asynchronously — analogous to HTTP 202. The `data` field will contain a `taskId` referencing a progress node in the state tree.
+Extensions may define additional `status` values. The `accepted` status (defined in [Async Actions](../extensions/async-actions.md)) indicates the action has started asynchronously, analogous to HTTP 202. The `data` field will contain a `taskId` referencing a progress node in the state tree.
 
 Consumers that do not support async actions should treat `accepted` as `ok`.
 
@@ -250,7 +250,7 @@ An out-of-band event that doesn't map to a state change. Used for transient sign
 }
 ```
 
-Events are informational. The consumer should not rely on events for state — state changes come through patches.
+Events are informational. The consumer should not rely on events for state. State changes come through patches.
 
 ### `error`
 

@@ -26,21 +26,21 @@ An adapter:
 
 Web integration is covered in detail in [Web Integration](/spec/integrations/web). It defines three tiers:
 
-1. **SLOP-native** — the app implements SLOP directly (server-side via WebSocket, or client-side via postMessage)
-2. **Framework adapter** — an extension hooks into React/Vue/Svelte state
-3. **Accessibility adapter** — an extension reads the browser's accessibility tree
+1. **SLOP-native.** The app implements SLOP directly (server-side via WebSocket, or client-side via postMessage)
+2. **Framework adapter.** An extension hooks into React/Vue/Svelte state
+3. **Accessibility adapter.** An extension reads the browser's accessibility tree
 
 The remaining sections of this document cover non-web adapters.
 
-## Terminal apps — Terminal adapter
+## Terminal apps: Terminal adapter
 
 Terminal applications render to a character grid. An adapter can parse this into structure.
 
 ### Source: Terminal state
 
-- **Screen buffer** — the current character grid (via `tmux capture-pane`, PTY interception, or terminal emulator API)
-- **Cursor position** — maps to `meta.focus`
-- **ANSI colors/styles** — can indicate semantic roles (red = error, bold = heading)
+- **Screen buffer.** The current character grid (via `tmux capture-pane`, PTY interception, or terminal emulator API)
+- **Cursor position.** Maps to `meta.focus`
+- **ANSI colors/styles.** These can indicate semantic roles (red = error, bold = heading)
 
 ### Approach: Heuristic parsing
 
@@ -69,7 +69,7 @@ func SLOPMiddleware(model tea.Model) SLOPProvider {
 }
 ```
 
-## Native apps — OS accessibility adapter
+## Native apps: OS accessibility adapter
 
 Desktop apps on macOS, Windows, and Linux expose accessibility trees through OS APIs.
 
@@ -90,11 +90,11 @@ AXFocused             →  meta.focus
 
 ### Windows (UI Automation)
 
-Same concept with `IUIAutomationElement` → SLOP nodes.
+The same concept applies with `IUIAutomationElement` elements mapping to SLOP nodes.
 
 ### Linux (AT-SPI)
 
-Same concept with `Atspi.Accessible` → SLOP nodes.
+The same concept applies with `Atspi.Accessible` elements mapping to SLOP nodes.
 
 ### Adapter process
 
@@ -104,7 +104,7 @@ A standalone adapter process that:
 3. Polls or subscribes to AX change notifications
 4. Translates to SLOP patches
 
-## CLI tools — Stdio adapter
+## CLI tools: Stdio adapter
 
 The simplest case. CLI tools that want to be SLOP-aware just print structured state to stdout.
 
@@ -131,7 +131,7 @@ $ my-tool --slop
 {"type":"snapshot","version":1,"tree":{"id":"root","type":"root","children":[...]}}
 ```
 
-This is the lightest possible integration — a few extra lines of code in the tool.
+This is the lightest possible integration, just a few extra lines of code in the tool.
 
 ## Adapter guidelines
 
@@ -139,10 +139,10 @@ This is the lightest possible integration — a few extra lines of code in the t
 
 2. **Stable IDs are critical.** Use the app's own IDs where possible (database IDs, element IDs). Fall back to content hashes or path-based IDs. Avoid index-based IDs (they break on reorder).
 
-3. **Compute salience.** The adapter is in the best position to judge what matters — focused element gets high salience, off-screen elements get low salience, errors get critical salience.
+3. **Compute salience.** The adapter is in the best position to judge what matters: the focused element gets high salience, off-screen elements get low salience, and errors get critical salience.
 
 4. **Debounce aggressively.** UI updates happen at 60fps. SLOP patches should happen at 1–10/second max. Batch changes.
 
 5. **Respect depth requests.** Don't send the full tree when the consumer asked for depth 1. This is the primary mechanism for managing token cost.
 
-6. **Map native actions to affordances.** Every clickable button, every submittable form, every keyboard shortcut — these are affordances. Expose them.
+6. **Map native actions to affordances.** Every clickable button, submittable form, and keyboard shortcut is an affordance. Expose them.

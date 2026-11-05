@@ -68,7 +68,7 @@ export const slop = createSlop({
 
 The package publishes a `.svelte.ts` entrypoint so downstream Svelte tooling keeps compiling rune syntax correctly. You still author normal Svelte 5 code, but the adapter handles registration, updates, and cleanup in the right lifecycle.
 
-## Next Steps
+## Next steps
 
 - [Svelte package API](/api/svelte)
 - [Browser provider API](/api/client)

@@ -1,4 +1,4 @@
-# Chrome Extension
+# Chrome extension
 
 The Chrome extension discovers browser-based SLOP providers, opens an AI chat overlay, and can bridge those providers into the desktop app.
 

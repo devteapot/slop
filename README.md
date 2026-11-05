@@ -1,6 +1,6 @@
-# SLOP — State Layer for Observable Programs
+# SLOP: State Layer for Observable Programs
 
-SLOP is a protocol that lets AI observe and interact with application state directly — no screenshots, no scraping, no blind tool calls.
+SLOP is a protocol that lets AI observe and interact with application state directly, with no screenshots, no scraping, and no blind tool calls.
 
 Applications expose a **semantic state tree** that AI can subscribe to, query at variable depth, and act on through **contextual affordances**. It is the missing perception layer between AI and the software it operates.
 
@@ -12,22 +12,22 @@ https://github.com/user-attachments/assets/738add8c-8c06-4e5c-a85d-1e81e7472354
 
 Today, AI interacts with applications through two extremes:
 
-- **Vision** (screenshots) — expensive, lossy, fragile. The AI parses pixels to recover information the app already had in structured form.
-- **Tool calls / MCP** — the AI can act, but it's flying blind. It calls functions without knowing what the user is currently looking at or what the app's state is. Every observation requires a dedicated tool.
+- **Vision** (screenshots): expensive, lossy, fragile. The AI parses pixels to recover information the app already had in structured form.
+- **Tool calls / MCP**: the AI can act, but it's flying blind. It calls functions without knowing what the user is currently looking at or what the app's state is. Every observation requires a dedicated tool.
 
 SLOP fills the gap: a standard way for apps to **publish what they are** so AI can **see before it acts**.
 
 ## Core ideas
 
-1. **State tree** — Apps expose a tree of semantic nodes (not UI elements, not raw data models — meaning). Each node has an identity, properties, and optional children.
+1. **State tree.** Apps expose a tree of semantic nodes that carry meaning, not UI elements or raw data models. Each node has an identity, properties, and optional children.
 
-2. **Subscriptions and patches** — AI subscribes to subtrees at a chosen depth. The app pushes incremental patches (JSON Patch) as state changes. No polling, no redundant full reads.
+2. **Subscriptions and patches.** AI subscribes to subtrees at a chosen depth. The app pushes incremental patches (JSON Patch) as state changes. No polling, no redundant full reads.
 
-3. **Contextual affordances** — Actions live on the nodes they affect, not in a global tool registry. The AI sees what it can do *in context* — "reply" appears on a message node, "merge" appears on a PR node.
+3. **Contextual affordances.** Actions live on the nodes they affect, not in a global tool registry. The AI sees what it can do *in context*: "reply" appears on a message node, "merge" appears on a PR node.
 
-4. **Attention hints** — Apps signal what matters right now: salience scores, change flags, user focus. The AI doesn't have to scan the entire tree to find what's relevant.
+4. **Attention hints.** Apps signal what matters right now: salience scores, change flags, user focus. The AI doesn't have to scan the entire tree to find what's relevant.
 
-5. **Progressive disclosure** — The tree supports variable-depth queries. Top-level gives a summary. Drilling in gives detail. Large collections are windowed with summaries.
+5. **Progressive disclosure.** The tree supports variable-depth queries. Top-level gives a summary. Drilling in gives detail. Large collections are windowed with summaries.
 
 ## How it differs from existing approaches
 
@@ -69,7 +69,7 @@ function TaskList({ tasks }) {
 }
 ```
 
-That's it. Your component is now observable by any SLOP consumer — the Chrome extension, a desktop agent, or a custom AI integration.
+That's it. Your component is now observable by any SLOP consumer, such as the Chrome extension, a desktop agent, or a custom AI integration.
 
 ## Spec
 
@@ -85,31 +85,31 @@ The full specification is in [`spec/`](./spec/):
 6. [Attention & Salience](./spec/core/attention.md)
 ### Extensions
 
-- [Scaling](./spec/extensions/scaling.md) — windowing, pagination, view-scoped trees
-- [Content References](./spec/extensions/content-references.md) — lazy-loaded media, URI schemes
-- [Async Actions](./spec/extensions/async-actions.md) — long-running operations, progress tracking
+- [Scaling](./spec/extensions/scaling.md): windowing, pagination, view-scoped trees
+- [Content References](./spec/extensions/content-references.md): lazy-loaded media, URI schemes
+- [Async Actions](./spec/extensions/async-actions.md): long-running operations, progress tracking
 
 ### Integration guides
 
-- [Adapters](./spec/integrations/adapters.md) — wrapping existing apps
-- [Web](./spec/integrations/web.md) — browser integration, postMessage, security tiers
-- [Desktop](./spec/integrations/desktop.md) — Unix sockets, native messaging
-- [MCP Interoperability](./spec/integrations/mcp.md) — MCP Apps bridge, proxy, discovery alignment
-- [LLM Context Injection](./spec/integrations/llm-context.md) — ephemeral `<slop-state>` tail, prompt-cache-friendly framing
+- [Adapters](./spec/integrations/adapters.md): wrapping existing apps
+- [Web](./spec/integrations/web.md): browser integration, postMessage, security tiers
+- [Desktop](./spec/integrations/desktop.md): Unix sockets, native messaging
+- [MCP Interoperability](./spec/integrations/mcp.md): MCP Apps bridge, proxy, discovery alignment
+- [LLM Context Injection](./spec/integrations/llm-context.md): ephemeral `<slop-state>` tail, prompt-cache-friendly framing
 
 ### Status and limits
 
-- [Known Limitations & Future Work](./spec/limitations.md) — current gaps, reserved protocol areas, and roadmap notes
+- [Known Limitations & Future Work](./spec/limitations.md): current gaps, reserved protocol areas, and roadmap notes
 ### SDK guides
 
-- [Development & Debugging](./docs/sdk/development.md) — `printTree()`, schema validation, message logging
-- [Sessions & Multi-User](./docs/sdk/sessions.md) — session-scoped trees, multi-user scaling, provider patterns
+- [Development & Debugging](./docs/sdk/development.md): `printTree()`, schema validation, message logging
+- [Sessions & Multi-User](./docs/sdk/sessions.md): session-scoped trees, multi-user scaling, provider patterns
 
 ### Guides
 
-- [Agent-Assisted Integration](./docs/guides/advanced/agent-scaffolding.md) — AI-powered SLOP scaffolding for existing codebases
-- [MCP Apps Bridge](./docs/guides/advanced/mcp-bridge.md) — render a SLOP provider inside VS Code / Claude / Goose with model-callable affordances
-- [OpenClaw Integration](./docs/guides/advanced/openclaw.md) — control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
+- [Agent-Assisted Integration](./docs/guides/advanced/agent-scaffolding.md): AI-powered SLOP scaffolding for existing codebases
+- [MCP Apps Bridge](./docs/guides/advanced/mcp-bridge.md): render a SLOP provider inside VS Code / Claude / Goose with model-callable affordances
+- [OpenClaw Integration](./docs/guides/advanced/openclaw.md): control SLOP apps from WhatsApp, Telegram, Slack via OpenClaw
 
 ## Benchmarks
 
@@ -117,7 +117,7 @@ The [`benchmarks/mcp-vs-slop`](./benchmarks/mcp-vs-slop) suite compares SLOP and
 
 Key findings:
 
-- **Correctness:** SLOP passes 12/12 scenarios. MCP passes 8/12 — fails on scale (discovery budget exhaustion), safety (can't prevent invalid actions on closed issues), and complex reasoning (can't aggregate state across repos).
+- **Correctness:** SLOP passes 12/12 scenarios. MCP passes 8/12. It fails on scale (discovery budget exhaustion), safety (it can't prevent invalid actions on closed issues), and complex reasoning (it can't aggregate state across repos).
 - **Contextual affordances prevent invalid actions by design.** MCP's flat tool list always exposes `assign_issue` regardless of issue state. SLOP only shows actions valid for the current state.
 - **SLOP uses 75-90% fewer LLM round trips** on multi-entity tasks by front-loading state. The agent batches all actions in 2 turns instead of 8-21 discovery-then-act turns.
 - **Cost tradeoff is real.** SLOP's state tree uses more input tokens. For simple tasks MCP is cheaper. For complex tasks requiring cross-entity reasoning, SLOP is cheaper *and* correct where MCP fails.
@@ -205,23 +205,23 @@ slop/
 
 ## Examples
 
-Each example follows a **blueprint** — a language-agnostic spec defining the exact SLOP tree, affordances, and test scenarios. Multiple implementations of the same blueprint prove cross-language consistency.
+Each example follows a **blueprint**, a language-agnostic spec that defines the exact SLOP tree, affordances, and test scenarios. Multiple implementations of the same blueprint prove cross-language consistency.
 
-- **[Interactive Demo](./website/demo/)** — Three-panel demo: e-commerce store + AI agent + live state tree. Run with `bun run demo`. Replay mode works without an API key; connect one for interactive mode.
-- **[CLI Task Manager](./examples/cli/)** — `tsk`, a task manager with a `--slop` flag. Implementations in Bun, Python, Go, and Rust.
-- **[SPA Kanban Board](./examples/spa/react/)** — Canonical client-only example, implemented in React, Vue, Solid, Svelte, and Angular from the same blueprint.
-- **[TanStack Start](./examples/full-stack/tanstack-start/)** — Full-stack web app with server-side SLOP via WebSocket.
-- **[Python + React](./examples/full-stack/python-react/)** — Python FastAPI backend + React SPA frontend. Cross-SDK integration with two independent providers.
-- **[Desktop Pomodoro (TypeScript)](./examples/desktop/typescript/)** — Electron app as a SLOP provider (Unix socket + `~/.slop/providers/`). Implementations also exist in [Python](./examples/desktop/python/), [Go](./examples/desktop/go/), and [Rust/Tauri](./examples/desktop/rust/).
+- **[Interactive Demo](./website/demo/)**. A three-panel demo: e-commerce store + AI agent + live state tree. Run with `bun run demo`. Replay mode works without an API key; connect one for interactive mode.
+- **[CLI Task Manager](./examples/cli/)**. `tsk` is a task manager with a `--slop` flag. Implementations in Bun, Python, Go, and Rust.
+- **[SPA Kanban Board](./examples/spa/react/)**. A canonical client-only example, implemented in React, Vue, Solid, Svelte, and Angular from the same blueprint.
+- **[TanStack Start](./examples/full-stack/tanstack-start/)**. A full-stack web app with server-side SLOP via WebSocket.
+- **[Python + React](./examples/full-stack/python-react/)**. A Python FastAPI backend + React SPA frontend. Cross-SDK integration with two independent providers.
+- **[Desktop Pomodoro (TypeScript)](./examples/desktop/typescript/)**. An Electron app acting as a SLOP provider (Unix socket + `~/.slop/providers/`). Implementations also exist in [Python](./examples/desktop/python/), [Go](./examples/desktop/go/), and [Rust/Tauri](./examples/desktop/rust/).
 
 ## Known limitations
 
 SLOP v0.2.0 is designed to be useful now while leaving room to grow. Key limitations:
 
-- **Multi-user apps** — Server-side providers currently expose one shared tree to all consumers. The protocol already supports per-user state (each connection is independent), but the SDKs don't implement session-scoped tree rendering yet. Client-only SPAs are unaffected — each tab is its own provider. See [Sessions & Multi-User](./docs/sdk/sessions.md).
-- **No reconnection** — If a WebSocket drops, the consumer must re-connect and re-subscribe from scratch. No automatic reconnect or version-based catch-up.
-- **No backpressure** — `pause`/`resume` messages are mentioned in the spec but not defined. Providers should debounce rapid changes (50-100ms).
-- **No LAN discovery** — Local discovery is shipped (`~/.slop/providers/`, `/tmp/slop/providers/`, browser meta tags, and `/.well-known/slop`), but mDNS/DNS-SD for remote providers is still reserved and unspecified.
+- **Multi-user apps.** Server-side providers currently expose one shared tree to all consumers. The protocol already supports per-user state (each connection is independent), but the SDKs don't implement session-scoped tree rendering yet. Client-only SPAs are unaffected: each tab is its own provider. See [Sessions & Multi-User](./docs/sdk/sessions.md).
+- **No reconnection.** If a WebSocket drops, the consumer must re-connect and re-subscribe from scratch. No automatic reconnect or version-based catch-up.
+- **No backpressure.** The `pause`/`resume` messages are mentioned in the spec but not defined. Providers should debounce rapid changes (50-100ms).
+- **No LAN discovery.** Local discovery is shipped (`~/.slop/providers/`, `/tmp/slop/providers/`, browser meta tags, and `/.well-known/slop`), but mDNS/DNS-SD for remote providers is still reserved and unspecified.
 
 Full list: [Known Limitations & Future Work](https://docs.slopai.dev/spec/limitations/)
 

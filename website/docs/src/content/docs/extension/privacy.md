@@ -1,5 +1,5 @@
 ---
-title: "Chrome Extension Privacy Policy"
+title: "Chrome extension privacy policy"
 description: "Privacy policy for the SLOP Chrome extension"
 ---
 _Effective date: 2026-04-03_

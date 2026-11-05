@@ -27,7 +27,7 @@ If the user is prompted to approve every tool call, suggest they add this to `.c
 }
 ```
 
-This auto-allows all tools from this plugin — lifecycle tools and dynamic app affordance tools.
+This auto-allows all tools from this plugin, both lifecycle tools and dynamic app affordance tools.
 
 ## Tools
 
@@ -37,19 +37,19 @@ This auto-allows all tools from this plugin — lifecycle tools and dynamic app 
 
 Lists all available applications.
 
-- **No arguments** — lists all available apps (local native + web), their connection status, and action counts.
+- **No arguments**: lists all available apps (local native + web), their connection status, and action counts.
 
 #### `connect_app`
 
 Connects to a specific app and returns its full state tree.
 
-- **`app: "name or id"`** — connects to the app (if not already connected) and returns its full state tree. **Connecting also registers all app affordances as dynamic tools.**
+- **`app: "name or id"`**: connects to the app (if not already connected) and returns its full state tree. **Connecting also registers all app affordances as dynamic tools.**
 
 #### `disconnect_app`
 
 Explicitly disconnect from an app. Removes its dynamic tools and stops state updates.
 
-- **`app: "name or id"`** — the app to disconnect from.
+- **`app: "name or id"`**: the app to disconnect from.
 
 ### Dynamic affordance tools (per-app, after connecting)
 
@@ -59,21 +59,21 @@ When you connect to an app, its affordances are registered as first-class tools.
 - `excalidraw__elements__add_rectangle(x, y, width, height, stroke_color, background_color)`
 - `excalidraw__elements__add_text(x, y, text, font_size)`
 
-**Call these directly** — they are real tools with proper parameter schemas. No need to use meta-tools or assemble path/action/params manually.
+**Call these directly.** They are real tools with proper parameter schemas. You do not need to use meta-tools or assemble path/action/params manually.
 
-You can call multiple affordance tools **in parallel** in a single response for maximum speed.
+You can call multiple affordance tools in parallel in a single response to act faster.
 
 ## Workflow
 
 ### 1. List available apps
 
 Call `list_apps` to see what's available. Apps are auto-discovered from:
-- `~/.slop/providers/` — local native apps
-- The SLOP browser extension bridge — web apps running in the browser
+- `~/.slop/providers/` for local native apps
+- The SLOP browser extension bridge for web apps running in the browser
 
 ### 2. Connect
 
-Call `connect_app` with an app name or ID. This connects and returns the full state tree. Dynamic tools are registered automatically — you'll see them available for use.
+Call `connect_app` with an app name or ID. This connects and returns the full state tree. Dynamic tools are registered automatically and become available for use.
 
 ### 3. Act
 
@@ -87,9 +87,9 @@ Connected apps' state is automatically injected into your context on every user 
 
 ### 5. Disconnect
 
-When you're done with an app, call `disconnect_app` to remove its tools and stop state updates. Only disconnect when explicitly asked — the connection persists across messages.
+When you're done with an app, call `disconnect_app` to remove its tools and stop state updates. Only disconnect when explicitly asked. The connection persists across messages.
 
-## Reading the State Tree
+## Reading the state tree
 
 The state tree uses a canonical text format:
 
@@ -100,11 +100,11 @@ The state tree uses a canonical text format:
 ```
 
 Key elements:
-- **Type** — semantic role: `root`, `view`, `collection`, `item`, `document`, `form`, `field`, `control`, `status`, `notification`, `context`
-- **Salience** — 0 to 1, how important this node is right now. Focus on high-salience nodes.
-- **Summary** — quoted text giving an overview of collapsed subtrees
-- **Actions** — affordances available on that node, with parameter signatures
-- **Windowing** — `(showing N of M)` means a large collection is partially loaded
+- **Type**: semantic role, one of `root`, `view`, `collection`, `item`, `document`, `form`, `field`, `control`, `status`, `notification`, `context`
+- **Salience**: 0 to 1, how important this node is right now. Focus on high-salience nodes.
+- **Summary**: quoted text giving an overview of collapsed subtrees
+- **Actions**: affordances available on that node, with parameter signatures
+- **Windowing**: `(showing N of M)` means a large collection is partially loaded
 
 ### Content references
 
@@ -116,13 +116,13 @@ summary: "TypeScript module. Exports SLOP client."
 
 Invoke the `read_content` action on that node to load the full content.
 
-## Multi-App Workflows
+## Multi-app workflows
 
 Connect to multiple apps simultaneously. Call `connect_app` with each app name to connect. Each app's affordances are registered as separate namespaced tools, so there are no collisions.
 
 Example: connect to both a kanban board and a chat app, then create a card from a chat message.
 
-## Async Actions
+## Async actions
 
 Some actions take time (deploys, report generation). When you invoke one:
 1. You get an immediate response indicating acceptance
@@ -130,12 +130,12 @@ Some actions take time (deploys, report generation). When you invoke one:
 3. The task node may have a `cancel` action
 4. Report progress to the user as it updates
 
-## Important Notes
+## Important notes
 
-- **Dangerous actions** — actions marked `[DANGEROUS]` require user confirmation. Always ask the user first.
-- **State is live** — the tree updates in real time via patches. What you see is current.
-- **Inspect before acting** — always call `connect_app` with an app name before using affordance tools so you have the current state and know which tools are available.
-- **Parallel calls** — use parallel tool calls for batch operations instead of calling sequentially.
-- **Summaries are valuable** — stub nodes with summaries often tell you enough without loading full details.
+- **Dangerous actions.** Actions marked `[DANGEROUS]` require user confirmation. Always ask the user first.
+- **State is live.** The tree updates in real time via patches. What you see is current.
+- **Inspect before acting.** Always call `connect_app` with an app name before using affordance tools so you have the current state and know which tools are available.
+- **Parallel calls.** Use parallel tool calls for batch operations instead of calling sequentially.
+- **Summaries are valuable.** Stub nodes with summaries often tell you enough without loading full details.
 
 For more details on the SLOP protocol, see `references/protocol-overview.md`.

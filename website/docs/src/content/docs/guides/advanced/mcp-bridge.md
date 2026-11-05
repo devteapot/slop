@@ -1,13 +1,13 @@
 ---
-title: "MCP Apps Bridge"
+title: "MCP Apps bridge"
 description: "Expose SLOP providers inside MCP Apps hosts through the installed bridge or custom app helpers"
 ---
 Expose SLOP providers inside MCP Apps hosts (Claude, ChatGPT, Goose, VS Code Insiders) so the host model can subscribe to live state and call app affordances directly from chat.
 
-The `@slop-ai/mcp-apps-bridge` package has two surfaces:
+The `@slop-ai/mcp-apps-bridge` package can be used in two ways:
 
-- **Installed bridge** — a stdio MCP server that discovers local SLOP providers, exposes `list_apps` and `open_app`, renders a generic MCP Apps view, and mirrors affordances as MCP tools. This is the main adoption path.
-- **Custom MCP App helpers** — lower-level primitives for app authors who want to ship a tailored iframe and MCP server: `createMcpAppsBridge`, `registerSlopView`, and `registerSlopTools`.
+- **Installed bridge**: a stdio MCP server that discovers local SLOP providers, exposes `list_apps` and `open_app`, renders a generic MCP Apps view, and mirrors affordances as MCP tools. This is the main adoption path.
+- **Custom MCP App helpers**: lower-level functions for app authors who want to ship a tailored iframe and MCP server, namely `createMcpAppsBridge`, `registerSlopView`, and `registerSlopTools`.
 
 This guide is the developer-facing complement to the normative [MCP Interoperability spec](/spec/integrations/mcp). For an end-to-end runnable custom MCP App example, see [`examples/mcp-apps-bridge`](https://github.com/devteapot/slop/tree/main/examples/mcp-apps-bridge).
 
@@ -123,7 +123,7 @@ What `registerSlopTools` does: connects to the SLOP provider as a consumer, walk
 
 ## Iframe: render + project
 
-The iframe bundle is plain HTML/JS served by `registerSlopView`. Bundle it however you like (Bun, Vite, esbuild) — the demo uses a single-file HTML wrapper.
+The iframe bundle is plain HTML/JS served by `registerSlopView`. Bundle it however you like (Bun, Vite, esbuild). The demo uses a single-file HTML wrapper.
 
 ```ts
 import { createMcpAppsBridge } from "@slop-ai/mcp-apps-bridge";
@@ -147,12 +147,12 @@ The bridge's other mode is `{ mode: "postmessage" }` for client-only setups wher
 
 | Mode | When to use | Tradeoffs |
 |---|---|---|
-| `ws` | Server-side authoritative state. The MCP server, SLOP provider, and tool-registering consumer all run in one process. | Requires `connectDomains` for sandboxed hosts. The architecture every non-toy app wants. |
+| `ws` | Server-side authoritative state. The MCP server, SLOP provider, and tool-registering consumer all run in one process. | Requires `connectDomains` for sandboxed hosts. The architecture to use for anything beyond a demo. |
 | `postmessage` | Client-only / no backend. SLOP provider lives in the iframe via `@slop-ai/client`. | Model can't act on state via `registerSlopTools` (server has no consumer to discover affordances from). State is iframe-local. |
 
 ## How the model sees state
 
-The bridge calls `app.updateModelContext` with a debounced markdown projection of the salience-filtered tree on every snapshot/patch. The projection includes the state tree (via `formatTree`) **and** the affordance list (via `affordancesToTools`). The model receives this in context on the *next* turn after the iframe opens — so the very first response after `open_*` won't see state yet, but every subsequent turn will.
+The bridge calls `app.updateModelContext` with a debounced markdown projection of the salience-filtered tree on every snapshot/patch. The projection includes the state tree (via `formatTree`) **and** the affordance list (via `affordancesToTools`). The model receives this in context on the *next* turn after the iframe opens. The very first response after `open_*` won't see state yet, but every subsequent turn will.
 
 To validate: open the view, then ask a question whose answer depends on tree contents. The model should answer without making another tool call.
 
@@ -160,7 +160,7 @@ To validate: open the view, then ask a question whose answer depends on tree con
 
 - **Sandboxed network.** Hosts like VS Code's webview default to "no network." If you don't pass `connectDomains` to `registerSlopView`, your `ws` iframe will silently fail to connect. The bridge surfaces this as `error: WebSocket connection failed` in the iframe status line if you wrap `createMcpAppsBridge` in a try/catch.
 - **First-turn latency.** `app.updateModelContext` lands asynchronously after the tool returns. The model that just called `open_*` won't see state until its next turn.
-- **Tool descriptions inline param info.** The MCP SDK only accepts Zod schemas for `inputSchema`, not raw JSON Schema. `registerSlopTools` works around this with a permissive passthrough schema and stuffs the SLOP affordance's params + valid `target` paths into the tool *description*. The model handles this fine; future versions will convert SLOP JSON Schema → Zod for proper validation.
+- **Tool descriptions inline param info.** The MCP SDK only accepts Zod schemas for `inputSchema`, not raw JSON Schema. `registerSlopTools` works around this with a permissive passthrough schema and stuffs the SLOP affordance's params + valid `target` paths into the tool *description*. The model handles this fine; future versions will convert SLOP JSON Schema to Zod for proper validation.
 - **`tools/list_changed` is chatty.** Currently fires once per patch resync; in apps with high patch frequency, consider widening the bridge's resync debounce (PRs welcome).
 - **Big trees flood context.** The default projection ships the entire salience-filtered tree as markdown on every patch. For apps with thousands of nodes use a stricter `subscribe.minSalience` and a custom `projection.format` that summarizes rather than emits every node. See the [scaling extension](/spec/extensions/scaling).
 
@@ -168,7 +168,7 @@ To validate: open the view, then ask a question whose answer depends on tree con
 
 The host's iframe sandbox and user-consent prompts are defense in depth. They are **not** the authorization boundary. Your SLOP provider must re-authorize every affordance invocation against live state and caller identity, exactly as it would for a direct WebSocket consumer.
 
-For remote providers (production), use a short-lived token in the WS URL minted per-session by your backend. Don't put bearer tokens in MCP tool `content` or anywhere model-visible — they end up in conversation transcripts.
+For remote providers (production), use a short-lived token in the WS URL minted per-session by your backend. Don't put bearer tokens in MCP tool `content` or anywhere model-visible. They end up in conversation transcripts.
 
 ## Validating the installed bridge
 
@@ -183,7 +183,7 @@ For remote providers (production), use a short-lived token in the WS URL minted 
 The custom MCP App smoke test we use:
 
 1. Build the demo: `cd examples/mcp-apps-bridge && bun run build`.
-2. Register the server in **VS Code Insiders** (Cmd+Shift+P → `MCP: Open User Configuration`):
+2. Register the server in **VS Code Insiders** (press Cmd+Shift+P and run `MCP: Open User Configuration`):
    ```jsonc
    {
      "servers": {
@@ -196,11 +196,11 @@ The custom MCP App smoke test we use:
    }
    ```
 3. Reload the window, open Copilot Chat, ask: `Use the open_kanban tool`. The iframe should render with status `connected`. This example does not expose `list_apps`; it is already one specific MCP App server.
-4. Ask: `What cards are in todo?` — model should answer without another tool call.
-5. Ask: `Add a card called "Ship it" to todo` — the model calls `add_card`, the iframe re-renders, and the next turn's context reflects the new card.
+4. Ask: `What cards are in todo?` The model should answer without another tool call.
+5. Ask: `Add a card called "Ship it" to todo`. The model calls `add_card`, the iframe re-renders, and the next turn's context reflects the new card.
 
-If the iframe shows `error: WebSocket connection failed`, the most common cause is missing `connectDomains` (or VS Code holding a cached MCP server connection — Stop + Start the server in `MCP: List Servers`).
+If the iframe shows `error: WebSocket connection failed`, the most common cause is missing `connectDomains`, or VS Code holding a cached MCP server connection. In the second case, stop and restart the server in `MCP: List Servers`.
 
 ## Future direction
 
-When MCP standardizes event-driven resource subscriptions (tracked in the [2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)), the bridge will offer a third `mode: "mcp-tunnel"` that doesn't require the iframe to open a WebSocket — all SLOP traffic flows over MCP's own subscription channel. Until then, `ws` + `connectDomains` is the recommended pattern. See the ["No formal MCP extension" entry](/spec/limitations#no-formal-mcp-extension) for the planned SEP.
+When MCP standardizes event-driven resource subscriptions (tracked in the [2026 roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/)), the bridge will offer a third `mode: "mcp-tunnel"` that doesn't require the iframe to open a WebSocket. All SLOP traffic flows over MCP's own subscription channel. Until then, `ws` + `connectDomains` is the recommended pattern. See the ["No formal MCP extension" entry](/spec/limitations#no-formal-mcp-extension) for the planned SEP.

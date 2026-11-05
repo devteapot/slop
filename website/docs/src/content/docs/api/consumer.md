@@ -11,7 +11,7 @@ Use it when you want to build:
 - a browser or desktop consumer
 - a smoke test that validates a provider contract end to end
 
-The built-in consumers in this repo are all variations on these same primitives.
+The built-in consumers in this repo are all variations on these same building blocks.
 
 ```bash
 bun add @slop-ai/consumer
@@ -135,7 +135,7 @@ if (resolved) {
 }
 ```
 
-This is the bridge between a SLOP provider and an LLM loop: expose the current affordances as tools, keep the formatted tree in context, and resolve the selected tool back into `invoke(path, action, params)`.
+This is how you wire a SLOP provider into an LLM loop: expose the current affordances as tools, keep the formatted tree in context, and resolve the selected tool back into `invoke(path, action, params)`.
 
 ## Related pages
 

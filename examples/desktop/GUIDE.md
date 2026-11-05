@@ -1,4 +1,4 @@
-# Guide: Exploring the Pomodoro Timer
+# Guide: exploring the Pomodoro timer
 
 This guide walks you through using the Pomodoro desktop app in both normal GUI mode and SLOP mode, so you can see exactly what an AI observes when a native desktop app is running.
 
@@ -51,17 +51,17 @@ The window opens with a dark background, a large timer display in the center, an
 
 ### Start a pomodoro
 
-Click **START** in the GUI. A text field lets you tag what you're working on — type "Write docs" and confirm. The circular progress arc fills in neon green as the 25-minute countdown begins. The large digits in the center tick down: `24:59`, `24:58`, ...
+Click **START** in the GUI. A text field lets you tag what you're working on. Type "Write docs" and confirm. The circular progress arc fills in neon green as the 25-minute countdown begins. The large digits in the center tick down: `24:59`, `24:58`, ...
 
 ### Pause and resume
 
-Click **PAUSE**. The countdown freezes. The digits stop moving. Click **RESUME** — the countdown picks up where it left off.
+Click **PAUSE**. The countdown freezes. The digits stop moving. Click **RESUME**, and the countdown picks up where it left off.
 
 ### Skip and stop
 
-**SKIP** advances to the next phase — if you're working, it jumps to a break (without recording a completed session). If you're on break, it returns to idle.
+**SKIP** advances to the next phase. If you're working, it jumps to a break (without recording a completed session). If you're on break, it returns to idle.
 
-**STOP** abandons the current session entirely and returns to idle.
+**STOP** abandons the current session and returns to idle.
 
 ### View completed sessions
 
@@ -82,11 +82,11 @@ The app tracks your daily completed count, total focus minutes, and streak days.
 
 ---
 
-Everything above is a normal desktop app. Nothing special — a timer, some buttons, a history list. Now let's see what an AI sees.
+Everything above is a normal desktop app. Nothing special: a timer, some buttons, a history list. Now let's see what an AI sees.
 
 ## Part 2: SLOP mode
 
-Desktop apps are always SLOP providers. There is no `--slop` flag — the Unix socket listener starts automatically when the app launches. The moment you open the Pomodoro window, an AI can connect.
+Desktop apps are always SLOP providers. There is no `--slop` flag. The Unix socket listener starts automatically when the app launches. The moment you open the Pomodoro window, an AI can connect.
 
 ### Discovery
 
@@ -129,7 +129,7 @@ In another terminal, connect to the socket:
 echo '{"type":"subscribe","id":"s1","path":"/","depth":-1}' | socat - UNIX-CONNECT:/tmp/slop/pomodoro.sock
 ```
 
-The provider sends a **hello** message on connection, then responds to subscribe with a **snapshot** — the entire state tree as structured JSON.
+The provider sends a **hello** message on connection, then responds to subscribe with a **snapshot**. The snapshot is the entire state tree as structured JSON.
 
 ### The snapshot: what the AI sees
 
@@ -219,10 +219,10 @@ A dark window with a large `0:00` display, a green START button, and four sessio
 ```
 
 The AI knows:
-- The timer is **idle** (salience 0.3 — not very interesting right now)
+- The timer is **idle** (salience 0.3, not very interesting right now)
 - It can **start** a pomodoro and optionally tag it
 - There are **4 completed sessions** today with 100 minutes of focus
-- The most recent session ("Code review") has salience 0.6 — it happened recently
+- The most recent session ("Code review") has salience 0.6, because it happened recently
 
 The AI doesn't scrape pixels from the window. It doesn't guess what buttons exist. It reads structured state and acts through declared affordances.
 
@@ -260,7 +260,7 @@ While the timer is running, every second the provider sends a patch:
 }
 ```
 
-This is unique to the desktop Pomodoro example. The CLI task manager sends patches when you add or complete tasks — discrete events. The Pomodoro timer sends a continuous stream of patches, one per second, as the countdown ticks. An AI consumer watching the socket sees the timer count down in real time.
+This is unique to the desktop Pomodoro example. The CLI task manager sends patches when you add or complete tasks. Those patches are discrete events. The Pomodoro timer sends a continuous stream of patches, one per second, as the countdown ticks. An AI consumer watching the socket sees the timer count down in real time.
 
 ### Salience model
 
@@ -268,7 +268,7 @@ The AI uses salience to decide what matters:
 
 | Context | Salience | Why |
 |---|---|---|
-| Active work timer | 1.0 | You're focused — the timer is the most important thing |
+| Active work timer | 1.0 | You're focused, and the timer is the most important thing |
 | Paused timer | 0.8 | Something interrupted you |
 | Break timer | 0.9 | You should be resting, not working |
 | Idle timer | 0.3 | Nothing happening |
@@ -276,13 +276,13 @@ The AI uses salience to decide what matters:
 | Session (1-3h ago) | 0.4 | Fading from relevance |
 | Session (3h+ ago) | 0.2 | Old news |
 
-Sessions have decreasing salience — the most recent session appears first and carries the highest salience. An AI with a tight context window could filter to `min_salience: 0.5` and only see the active timer and recent sessions.
+Sessions have decreasing salience, so the most recent session appears first and carries the highest salience. An AI with a tight context window could filter to `min_salience: 0.5` and only see the active timer and recent sessions.
 
 ## Part 3: Side by side
 
-This is the key value proposition. Run the desktop app and connect an AI consumer simultaneously.
+This is the point of the example. Run the desktop app and connect an AI consumer at the same time.
 
-**Terminal 1** — launch the desktop app:
+In Terminal 1, launch the desktop app:
 
 ```bash
 cd examples/desktop/typescript && bunx electron .
@@ -290,7 +290,7 @@ cd examples/desktop/typescript && bunx electron .
 
 The GUI window opens. The SLOP socket is already listening.
 
-**Terminal 2** — connect as an AI consumer:
+In Terminal 2, connect as an AI consumer:
 
 ```bash
 socat - UNIX-CONNECT:/tmp/slop/pomodoro.sock
@@ -319,7 +319,7 @@ Click START in the GUI window. Type "Sprint planning" as the tag. In Terminal 2,
 }
 ```
 
-Then a stream of per-second patches as the timer ticks down.
+Then a stream of per-second patches arrives as the timer ticks down.
 
 ### Pause from the socket, observe in the GUI
 
@@ -333,7 +333,7 @@ In the GUI window, the timer freezes. The PAUSE button changes to RESUME. The AI
 
 ### Resume from the GUI, stop from the socket
 
-Click RESUME in the GUI — the socket sees `paused: false`. Send a stop from Terminal 2:
+Click RESUME in the GUI, and the socket sees `paused: false`. Send a stop from Terminal 2:
 
 ```
 {"type":"invoke","id":"inv-stop","path":"/timer","action":"stop","params":{}}
@@ -343,6 +343,6 @@ The GUI returns to idle. Timer reads `0:00`. START button reappears.
 
 ---
 
-**This is the point.** There is no "AI version" of the Pomodoro app. There's one process, one timer, one set of sessions. The human uses the GUI window — buttons, countdown animation, session cards. The AI uses the Unix socket — JSON tree, affordances, patches. Both interfaces operate on the same state. SLOP is just a structured window into what's already there.
+This is the point. There is no "AI version" of the Pomodoro app. There's one process, one timer, one set of sessions. The human uses the GUI window: buttons, countdown animation, session cards. The AI uses the Unix socket: JSON tree, affordances, patches. Both interfaces operate on the same state. SLOP is just a structured window into what's already there.
 
-The transport is different from the CLI example (Unix socket is always on, no `--slop` flag needed), but the protocol is identical. Same tree structure, same affordances, same patches. A desktop app, a CLI tool, a web app — they all speak the same SLOP.
+The transport is different from the CLI example (Unix socket is always on, no `--slop` flag needed), but the protocol is identical. The tree structure, affordances, and patches are the same. A desktop app, a CLI tool, and a web app all speak the same SLOP.

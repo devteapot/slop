@@ -20,7 +20,7 @@ Create GitHub releases with tags like `v0.2.0` (stable) or `v0.2.0-rc.1` (pre-re
 - `apps/desktop/src-tauri/tauri.conf.json`
 - `apps/desktop/src-tauri/Cargo.toml`
 
-## What Happens On Release
+## What happens on release
 
 Publishing a GitHub release triggers these distribution steps:
 
@@ -31,7 +31,7 @@ Publishing a GitHub release triggers these distribution steps:
 5. The desktop app is built for macOS, Linux, and Windows and uploaded to the same GitHub release.
 6. The workflow creates and pushes a Go subdirectory tag for the monorepo module.
 
-## Pre-release / Release Candidate
+## Pre-release / release candidate
 
 To smoke-test the release pipeline without publishing a stable version, create a GitHub release marked as **pre-release** with a tag like `v0.1.0-rc.1`.
 
@@ -48,7 +48,7 @@ Version handling differs per ecosystem:
 
 The extension and desktop app `package.json` / `manifest.json` / `tauri.conf.json` files are synced to the base version (`0.1.0`) but their build and publish jobs are skipped entirely for pre-releases.
 
-## Required Secrets
+## Required secrets
 
 ### npm packages
 
@@ -95,7 +95,7 @@ When this secret is configured, the `update-homebrew.yml` workflow updates
 These are required if you want the macOS desktop artifacts uploaded by the
 release workflow to be Developer ID signed and notarized.
 
-## Local Dry Run
+## Local dry run
 
 Validate the release version sync without changing files:
 
@@ -161,8 +161,8 @@ git push origin "packages/go/slop-ai/v0.2.0"
 ## Notes
 
 - Release tags use SemVer: `vX.Y.Z` for stable releases, `vX.Y.Z-rc.N` (or any pre-release suffix) for release candidates. Pre-release npm packages are published under the `next` dist-tag.
-- TypeScript packages are published via `npm publish --provenance` using npm Trusted Publishing (OIDC). No `NPM_TOKEN` secret is required — the workflow uses `id-token: write` permissions, GitHub's OIDC provider, and Node 24 so the npm CLI supports trusted publishing. Builds still use Bun; only the publish step uses npm for provenance support.
-- The desktop workflow builds distributable binaries, but platform signing and notarization can be layered on separately if you want trusted installers.
+- TypeScript packages are published via `npm publish --provenance` using npm Trusted Publishing (OIDC). No `NPM_TOKEN` secret is required. The workflow uses `id-token: write` permissions, GitHub's OIDC provider, and Node 24 so the npm CLI supports trusted publishing. Builds still use Bun; only the publish step uses npm for provenance support.
+- The desktop workflow builds distributable binaries, but platform signing and notarization can be added separately if you want trusted installers.
 - The release workflow now expects the macOS signing + notarization secrets above on macOS runners and will fail the macOS desktop build if they are missing.
 - The Go module path now matches the monorepo subdirectory: `github.com/devteapot/slop/packages/go/slop-ai`.
 - Because the module lives in a repository subdirectory, Go release tags must be prefixed with that subdirectory. For `v0.2.0`, the Go tag is `packages/go/slop-ai/v0.2.0`.

@@ -1,4 +1,4 @@
-# Kanban Board — Solid
+# Kanban board: Solid
 
 SPA kanban board built with SolidJS and SLOP.
 
@@ -11,8 +11,8 @@ bun run dev
 
 The app runs at http://localhost:5175. SLOP is available via:
 
-- **postMessage** — for browser extensions
-- **WebSocket** — `ws://localhost:9339/slop` for CLI/desktop
+- **postMessage**: for browser extensions
+- **WebSocket**: `ws://localhost:9339/slop` for CLI/desktop
 
 ## Connect with CLI
 

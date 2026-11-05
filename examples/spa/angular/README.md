@@ -1,4 +1,4 @@
-# Kanban Board — Angular
+# Kanban board: Angular
 
 SPA kanban board built with Angular 19 and SLOP.
 
@@ -11,8 +11,8 @@ bun run dev
 
 The app runs at http://localhost:4200. SLOP is available via:
 
-- **postMessage** — for browser extensions
-- **WebSocket** — `ws://localhost:9339/slop` for CLI/desktop
+- **postMessage**: for browser extensions
+- **WebSocket**: `ws://localhost:9339/slop` for CLI/desktop
 
 ## Connect with CLI
 

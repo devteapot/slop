@@ -1,7 +1,7 @@
 ---
 title: "Content References"
 ---
-SLOP state trees are JSON. This works well for structured data — properties, collections, affordances. But some application state is **large, binary, or opaque**: document bodies, file contents, images, audio, video, database exports, logs.
+SLOP state trees are JSON. This works well for structured data such as properties, collections, and affordances. But some application state is **large, binary, or opaque**: document bodies, file contents, images, audio, video, database exports, logs.
 
 Inlining this content in the tree is wasteful, impractical, or impossible. Content references solve this by letting nodes **point to content** rather than contain it.
 
@@ -24,7 +24,7 @@ A code editor's state tree might include an open file:
 Problems:
 - A 500-line file inlined in the tree wastes thousands of tokens on content the AI may not need
 - Binary files (images, PDFs) can't be represented in JSON at all
-- The tree is diffed on every state change — including file content that didn't change
+- The tree is diffed on every state change, including file content that didn't change
 - Multiple open files multiply the problem
 
 ## Content references
@@ -51,7 +51,7 @@ Instead of inlining content, the node declares a **reference** to content that c
 }
 ```
 
-The AI sees the document exists, knows its language, size, and a natural language summary of what's in it — without loading 500 lines into the tree. If the AI needs the actual content, it requests it explicitly.
+The AI sees the document exists, knows its language, size, and a natural language summary of what's in it, without loading 500 lines into the tree. If the AI needs the actual content, it requests it explicitly.
 
 ## Content reference schema
 
@@ -85,17 +85,17 @@ The AI sees the document exists, knows its language, size, and a natural languag
 
 ### Content types
 
-**`text`** — text content that can be read as a string. Documents, source code, logs, configuration files. The AI can read this directly.
+**`text`** is text content that can be read as a string. This covers documents, source code, logs, and configuration files. The AI can read this directly.
 
-**`binary`** — binary content that requires interpretation. Images, PDFs, audio, video, compiled files. The AI needs a vision model or specialized tool to process this.
+**`binary`** is binary content that requires interpretation. This covers images, PDFs, audio, video, and compiled files. The AI needs a vision model or specialized tool to process this.
 
-**`stream`** — ongoing content that grows over time. Log streams, terminal output, real-time data feeds. The consumer reads a window of the stream.
+**`stream`** is ongoing content that grows over time. This covers log streams, terminal output, and real-time data feeds. The consumer reads a window of the stream.
 
 ## URI schemes
 
 The `uri` field tells the consumer how to fetch the content:
 
-### `slop://` — fetch via SLOP invoke
+### `slop://`: fetch via SLOP invoke
 
 The content is fetched through a SLOP affordance. The provider handles the actual retrieval.
 
@@ -115,7 +115,7 @@ The provider responds with the content in the result:
 
 This is the **recommended scheme** for most cases. It uses the existing SLOP transport (no extra connections), the provider controls access, and it works across all transports (WebSocket, Unix socket, postMessage).
 
-### `file://` — local file path
+### `file://`: local file path
 
 For local applications (desktop, CLI), the content is a file on disk:
 
@@ -125,7 +125,7 @@ file:///Users/alice/project/src/main.ts
 
 The consumer reads the file directly. Only valid for consumers that have filesystem access (desktop app, CLI agents). Not valid for browser-based consumers.
 
-### `http://` / `https://` — fetch via HTTP
+### `http://` / `https://`: fetch via HTTP
 
 The content is available at an HTTP URL:
 
@@ -135,7 +135,7 @@ https://api.example.com/files/main.ts?token=...
 
 The consumer fetches it with a standard HTTP request. Useful for server-backed apps where content is stored in a CMS, S3, or database.
 
-### `data:` — inline small content
+### `data:`: inline small content
 
 For small content that doesn't warrant a round-trip, inline it as a data URI:
 
@@ -206,11 +206,11 @@ When the AI receives a state tree with content references, it sees:
 ```
 
 The AI can decide:
-- **Skip it** — the summary tells it enough for most questions
-- **Read it** — invoke `read_content` to get the full text (costs tokens, but AI chooses when)
-- **Modify it** — invoke `write_content` with new content
+- **Skip it.** The summary tells it enough for most questions
+- **Read it.** Invoke `read_content` to get the full text (costs tokens, but the AI chooses when)
+- **Modify it.** Invoke `write_content` with new content
 
-This is the equivalent of a developer glancing at a file tab (sees the name, language, dirty state) versus opening and reading the file. The AI makes the same choice.
+This is the equivalent of a developer glancing at a file tab and seeing the name, language, and dirty state, versus opening and reading the file. The AI makes the same choice.
 
 ## Multiple content on a node
 
